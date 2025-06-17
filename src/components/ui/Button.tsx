@@ -1,17 +1,16 @@
-import { forwardRef, ButtonHTMLAttributes } from 'react'
+import { forwardRef } from 'react'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
+import { motion, HTMLMotionProps } from 'framer-motion'
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonMotionProps = HTMLMotionProps<'button'>
+
+export interface ButtonProps extends Omit<ButtonMotionProps, 'ref'> {
   variant?: 'primary' | 'secondary' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
-  asChild?: boolean
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', asChild = false, ...props }, ref) => {
-    const Comp = asChild ? motion.span : motion.button
-
+  ({ className, variant = 'primary', size = 'md', children, ...props }, ref) => {
     const variants = {
       primary: 'bg-white text-black hover:bg-gray-200',
       secondary: 'bg-transparent text-white border border-gray-700 hover:bg-gray-900',
@@ -25,7 +24,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     return (
-      <Comp
+      <motion.button
         ref={ref}
         className={cn(
           'inline-flex items-center justify-center gap-2 rounded font-semibold transition-all duration-200',
@@ -38,7 +37,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         {...props}
-      />
+      >
+        {children}
+      </motion.button>
     )
   }
 )
