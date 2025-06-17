@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 
@@ -31,53 +30,56 @@ export function PixelBackground() {
       opacity: number
       color: string
       
-      constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = canvas.height + 10
+      constructor(canvasWidth: number, canvasHeight: number) {
+        this.x = Math.random() * canvasWidth
+        this.y = canvasHeight + 10
         this.size = Math.random() * 3 + 2
         this.speedY = Math.random() * 2 + 1
         this.opacity = Math.random() * 0.5 + 0.3
         this.color = Math.random() > 0.5 ? '#FFD700' : '#DAA520'
       }
       
-      update() {
+      update(canvasWidth: number, canvasHeight: number) {
         this.y -= this.speedY
         if (this.y < -10) {
-          this.y = canvas.height + 10
-          this.x = Math.random() * canvas.width
+          this.y = canvasHeight + 10
+          this.x = Math.random() * canvasWidth
         }
       }
       
-      draw() {
-        if (!ctx) return
-        ctx.fillStyle = this.color
-        ctx.globalAlpha = this.opacity
-        ctx.fillRect(this.x, this.y, this.size * 4, this.size * 4)
+      draw(context: CanvasRenderingContext2D) {
+        context.fillStyle = this.color
+        context.globalAlpha = this.opacity
+        context.fillRect(this.x, this.y, this.size * 4, this.size * 4)
       }
     }
     
     // 创建粒子
     const particles: PixelParticle[] = []
     for (let i = 0; i < 30; i++) {
-      particles.push(new PixelParticle())
+      particles.push(new PixelParticle(canvas.width, canvas.height))
     }
     
     // 动画循环
+    let animationId: number
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       
       particles.forEach(particle => {
-        particle.update()
-        particle.draw()
+        particle.update(canvas.width, canvas.height)
+        particle.draw(ctx)
       })
       
-      requestAnimationFrame(animate)
+      animationId = requestAnimationFrame(animate)
     }
     
     animate()
     
     return () => {
       window.removeEventListener('resize', resizeCanvas)
+      if (animationId) {
+        cancelAnimationFrame(animationId)
+      }
     }
   }, [])
   
