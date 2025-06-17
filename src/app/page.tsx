@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/layout/Navbar'
 import { HeroSection } from '@/components/sections/HeroSection'
 import { GoldStandardSection } from '@/components/sections/GoldStandardSection'
+import { EconomySection } from '@/components/sections/EconomySection'
 import { NFTAssetsSection } from '@/components/sections/NFTAssetsSection'
 import { MiningSystemSection } from '@/components/sections/MiningSystemSection'
 import { MarketplaceSection } from '@/components/sections/MarketplaceSection'
@@ -15,6 +16,7 @@ export default function Home() {
       <main className="relative z-10">
         <HeroSection />
         <GoldStandardSection />
+        <EconomySection />
         <NFTAssetsSection />
         <MiningSystemSection />
         <MarketplaceSection />
