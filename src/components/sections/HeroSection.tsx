@@ -4,204 +4,170 @@ import { motion } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { Button } from '@/components/ui/Button'
 import { formatCurrency, formatPercent } from '@/lib/utils'
-import { ArrowDownIcon } from 'lucide-react'
+import { ArrowDownIcon, Shield, Satellite, Coins } from 'lucide-react'
 
 const stats = [
-  { label: 'Total Value Locked', value: 120000000, prefix: '$', change: 12.5 },
-  { label: 'Gold Reserves', value: 1250, suffix: 'kg', change: 25 },
-  { label: 'Active Users', value: 50000, suffix: '+', change: 8.3 },
+  { label: '总锁仓价值', value: 120000000, prefix: '¥', change: 12.5 },
+  { label: '黄金储备', value: 1250, suffix: 'kg', change: 25 },
+  { label: '活跃用户', value: 50000, suffix: '+', change: 8.3 },
+]
+
+const features = [
+  {
+    icon: '⛓️',
+    title: '分配规则刻在链上',
+    description: '智能合约自动执行，公平透明不可篡改'
+  },
+  {
+    icon: '🛰️',
+    title: '北斗定位映射现实',
+    description: '每一寸数字土地对应真实地理坐标'
+  },
+  {
+    icon: '🔥',
+    title: '金木水火土五维算法',
+    description: '付出多少就得钞票多少，区块链记账绝不作假'
+  },
+  {
+    icon: '🪪',
+    title: '持证"印钞"不玩虚的',
+    description: '特批虚拟币资产双牌照（发行+交易）'
+  }
 ]
 
 export function HeroSection() {
   return (
     <section className="relative min-h-screen flex items-center pt-20 pb-20">
+      {/* 像素网格背景 */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `
+            linear-gradient(rgba(247, 147, 26, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(247, 147, 26, 0.1) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px'
+        }} />
+      </div>
+
       <Container>
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Content */}
+        <div className="relative z-10">
+          {/* 顶部徽章 */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            className="flex flex-wrap gap-4 justify-center mb-8"
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <motion.div
-              className="inline-flex items-center gap-2 text-gold-500 text-sm font-semibold uppercase tracking-wider mb-6"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <span className="w-6 h-px bg-gold-500" />
-              Gold Standard Protocol
-            </motion.div>
-
-            <motion.h1
-              className="text-5xl md:text-6xl lg:text-7xl font-black leading-[0.9] mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              Digital Assets
-              <br />
-              <span className="text-gold-500">Real Value</span>
-            </motion.h1>
-
-            <motion.p
-              className="text-lg md:text-xl text-gray-400 mb-8 max-w-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              Every token backed by physical gold reserves. Build, trade, and own digital assets with the stability of precious metals.
-            </motion.p>
-
-            {/* Gold Price Badge */}
-            <motion.div
-              className="inline-flex items-center gap-4 p-4 bg-gray-900 border border-gray-800 rounded-lg mb-8"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <div className="w-10 h-10 bg-gold-500 rounded flex items-center justify-center text-black font-bold text-xl">
-                金
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 uppercase">Shanghai Gold Exchange</div>
-                <div className="text-xl font-mono font-bold">¥458.32 / gram</div>
-              </div>
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              className="flex flex-wrap gap-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-            >
-              <Button size="lg">Get Started</Button>
-              <Button size="lg" variant="secondary">Read Whitepaper</Button>
-            </motion.div>
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-gold-500/10 border border-gold-500/30 rounded-full text-sm font-semibold text-gold-500">
+              <Shield className="w-4 h-4" />
+              通证经济001号示范单位
+            </span>
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-full text-sm font-semibold text-green-500">
+              <Coins className="w-4 h-4" />
+              特批双牌照资质
+            </span>
           </motion.div>
 
-          {/* Visual */}
+          {/* 主标题 */}
           <motion.div
-            className="relative"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
+            className="text-center max-w-5xl mx-auto mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <div className="relative w-full max-w-lg mx-auto">
-              <GoldVaultSVG />
-            </div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-tight mb-6">
+              <span className="block text-white">重新定义</span>
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-gold-400 to-gold-600">
+                数字资产所有权
+              </span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
+              全球首个基于北斗定位的区块链资产平台
+              <br />
+              <span className="text-gold-500 font-semibold">金木水火土五维算法，付出多少得钞票多少</span>
+            </p>
+          </motion.div>
+
+          {/* 核心特性网格 */}
+          <motion.div
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                className="p-6 bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-lg hover:border-gold-500/50 transition-all"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="text-3xl mb-3">{feature.icon}</div>
+                <h3 className="text-lg font-bold mb-2 text-white">{feature.title}</h3>
+                <p className="text-sm text-gray-400">{feature.description}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* CTA按钮 */}
+          <motion.div
+            className="flex flex-wrap gap-4 justify-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Button size="lg" className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black">
+              🚀 立即体验
+            </Button>
+            <Button size="lg" variant="secondary">
+              📖 了解更多
+            </Button>
+          </motion.div>
+
+          {/* 实时数据 */}
+          <motion.div
+            className="grid md:grid-cols-3 gap-8"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+          >
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                className="text-center p-6 bg-gray-900/30 backdrop-blur-sm rounded-lg border border-gray-800"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
+              >
+                <div className="text-3xl md:text-4xl font-mono font-bold text-gold-500 mb-2">
+                  {stat.prefix}
+                  {stat.value.toLocaleString()}
+                  {stat.suffix}
+                </div>
+                <div className="text-sm text-gray-500 uppercase tracking-wider">{stat.label}</div>
+                <div className="text-sm text-green-500 font-mono mt-1">
+                  {formatPercent(stat.change)}
+                </div>
+              </motion.div>
+            ))}
           </motion.div>
         </div>
-
-        {/* Stats */}
-        <motion.div
-          className="grid md:grid-cols-3 gap-8 mt-20"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-        >
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              className="text-center md:text-left"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 + index * 0.1 }}
-            >
-              <div className="text-3xl md:text-4xl font-mono font-bold mb-2">
-                {stat.prefix}
-                {stat.value.toLocaleString()}
-                {stat.suffix}
-              </div>
-              <div className="text-sm text-gray-500 uppercase tracking-wider">{stat.label}</div>
-              <div className="text-sm text-green-500 font-mono mt-1">
-                {formatPercent(stat.change)}
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
       </Container>
 
-      {/* Scroll Indicator */}
+      {/* 滚动指示器 */}
       <motion.div
         className="absolute bottom-8 left-1/2 -translate-x-1/2 text-gray-500"
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
       >
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs uppercase tracking-wider">Scroll to explore</span>
+          <span className="text-xs uppercase tracking-wider">向下滚动探索更多</span>
           <ArrowDownIcon className="w-5 h-5" />
         </div>
       </motion.div>
     </section>
-  )
-}
-
-function GoldVaultSVG() {
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 500 500" className="w-full h-auto">
-      <defs>
-        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" className="text-gold-500" stopColor="currentColor" stopOpacity="0.8" />
-          <stop offset="100%" className="text-gold-500" stopColor="currentColor" stopOpacity="0.2" />
-        </linearGradient>
-        
-        <pattern id="grid" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
-          <rect width="50" height="50" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
-        </pattern>
-      </defs>
-      
-      {/* Background grid */}
-      <rect width="500" height="500" fill="url(#grid)"/>
-      
-      {/* Central vault */}
-      <rect x="150" y="150" width="200" height="200" fill="none" stroke="#F7931A" strokeWidth="2"/>
-      <rect x="170" y="170" width="160" height="160" fill="url(#goldGradient)" opacity="0.1"/>
-      
-      {/* Orbit rings */}
-      <circle cx="250" cy="250" r="220" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
-      <circle cx="250" cy="250" r="150" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1"/>
-      <circle cx="250" cy="250" r="100" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
-      
-      {/* Animated data points */}
-      <motion.circle
-        cx="250"
-        cy="30"
-        r="4"
-        fill="#F7931A"
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 3, repeat: Infinity }}
-      />
-      <motion.circle
-        cx="470"
-        cy="250"
-        r="4"
-        fill="#F7931A"
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 3, delay: 0.5, repeat: Infinity }}
-      />
-      <motion.circle
-        cx="250"
-        cy="470"
-        r="4"
-        fill="#F7931A"
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 3, delay: 1, repeat: Infinity }}
-      />
-      <motion.circle
-        cx="30"
-        cy="250"
-        r="4"
-        fill="#F7931A"
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 3, delay: 1.5, repeat: Infinity }}
-      />
-      
-      {/* Center symbol */}
-      <text x="250" y="265" textAnchor="middle" fill="#F7931A" fontSize="48" fontWeight="900" fontFamily="sans-serif">
-        金
-      </text>
-    </svg>
   )
 }
