@@ -8,11 +8,37 @@ import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { label: 'Gold Standard', href: '#gold' },
-  { label: 'Features', href: '#features' },
-  { label: 'Economy', href: '#economy' },
-  { label: 'Docs', href: '#docs' },
+  { label: '金本位体系', href: '#gold' },
+  { label: '核心功能', href: '#features' },
+  { label: '经济模型', href: '#economy' },
+  { label: '文档', href: '#docs' },
 ]
+
+// 像素风格Logo组件
+function PixelLogo() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      {/* 像素化的P字母 */}
+      <rect x="4" y="4" width="4" height="32" fill="#FFD700"/>
+      <rect x="8" y="4" width="4" height="4" fill="#FFD700"/>
+      <rect x="12" y="4" width="4" height="4" fill="#FFD700"/>
+      <rect x="16" y="4" width="4" height="4" fill="#FFD700"/>
+      <rect x="16" y="8" width="4" height="4" fill="#FFD700"/>
+      <rect x="16" y="12" width="4" height="4" fill="#FFD700"/>
+      <rect x="16" y="16" width="4" height="4" fill="#FFD700"/>
+      <rect x="12" y="16" width="4" height="4" fill="#FFD700"/>
+      <rect x="8" y="16" width="4" height="4" fill="#FFD700"/>
+      
+      {/* 像素化的W字母 */}
+      <rect x="24" y="4" width="4" height="32" fill="#DAA520"/>
+      <rect x="28" y="28" width="4" height="4" fill="#DAA520"/>
+      <rect x="32" y="24" width="4" height="4" fill="#DAA520"/>
+      <rect x="36" y="4" width="4" height="20" fill="#DAA520"/>
+      <rect x="32" y="28" width="4" height="4" fill="#DAA520"/>
+      <rect x="28" y="32" width="4" height="4" fill="#DAA520"/>
+    </svg>
+  )
+}
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -32,7 +58,7 @@ export function Navbar() {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
         isScrolled 
-          ? 'bg-black/80 backdrop-blur-xl border-b border-gray-800' 
+          ? 'bg-black/90 backdrop-blur-xl border-b border-gray-800' 
           : 'bg-transparent'
       )}
       initial={{ y: -100 }}
@@ -43,10 +69,8 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 md:w-10 md:h-10 bg-gold-500 rounded flex items-center justify-center font-bold text-black text-lg md:text-xl transition-transform group-hover:scale-110">
-              P
-            </div>
-            <span className="font-bold text-lg md:text-xl">Parallel World</span>
+            <PixelLogo />
+            <span className="font-bold text-lg md:text-xl text-gold-500">平行世界</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -60,7 +84,9 @@ export function Navbar() {
                 {item.label}
               </Link>
             ))}
-            <Button size="sm">Launch App</Button>
+            <Button size="sm" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700">
+              启动应用
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -114,7 +140,9 @@ export function Navbar() {
                     {item.label}
                   </Link>
                 ))}
-                <Button size="sm" className="w-full">Launch App</Button>
+                <Button size="sm" className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-black">
+                  启动应用
+                </Button>
               </div>
             </Container>
           </motion.div>
