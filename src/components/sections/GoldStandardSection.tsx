@@ -6,85 +6,139 @@ import { cn } from '@/lib/utils'
 
 const comparisonData = [
   {
-    title: 'Traditional Crypto',
+    title: '传统虚拟币',
     icon: '📊',
-    description: 'Extreme volatility, speculation-driven, no intrinsic value. Your wealth can disappear overnight.',
+    description: '暴涨暴跌如过山车，今天富翁明天负翁。毫无实际价值支撑，纯靠炒作和信仰。',
     features: [
-      'Daily volatility ±50%',
-      'No real value backing',
-      'Market manipulation',
-      'High regulatory risk',
+      '日波动率 ±50%',
+      '空气币遍地',
+      '庄家操纵严重',
+      '监管风险极高',
+      '归零风险常在',
     ],
   },
   {
-    title: 'Parallel World',
+    title: '平行世界',
     icon: '🏆',
-    description: '100% gold-backed, audited reserves, stable value. Digital convenience with physical security.',
+    description: '100%黄金储备，实时审计公开透明。每一枚代币背后都是真金白银，稳如泰山。',
     features: [
-      '100% gold reserves',
-      'Stable & predictable',
-      'Real-time auditing',
-      'Global recognition',
-      'Millennial trust',
+      '100% 黄金储备',
+      '1TDB = 0.01克黄金',
+      '24小时实时审计',
+      '双牌照合规运营',
+      '5000年价值传承',
     ],
     featured: true,
   },
   {
-    title: 'Fiat Stablecoins',
+    title: '法币稳定币',
     icon: '💵',
-    description: 'Subject to inflation, centralized control, regulatory risks. Losing 2-8% value annually.',
+    description: '表面稳定实则贬值，通胀侵蚀购买力。中心化控制，随时可能冻结。',
     features: [
-      'Inflation erosion',
-      'Centralized control',
-      'Policy risks',
-      'Freeze risks',
+      '年贬值 2-8%',
+      '中心化控制',
+      '政策风险',
+      '冻卡风险',
+      '通胀侵蚀',
     ],
   },
 ]
 
 const goldStats = [
-  { value: '100%', label: 'Backed by Gold' },
-  { value: '24/7', label: 'Audit Reports' },
-  { value: '0%', label: 'Inflation Risk' },
-  { value: 'AAA', label: 'Security Rating' },
+  { value: '100%', label: '黄金储备率', subtext: '每一分钱都有黄金' },
+  { value: '24/7', label: '实时审计', subtext: '链上透明可查' },
+  { value: '0%', label: '通胀风险', subtext: '黄金保值5000年' },
+  { value: '双牌照', label: '合规认证', subtext: '特批资产牌照' },
+]
+
+const goldAdvantages = [
+  {
+    icon: '🛡️',
+    title: '避险属性',
+    description: '经济动荡时的避风港，战争通胀都不怕',
+  },
+  {
+    icon: '💰',
+    title: '保值增值',
+    description: '跑赢通胀，长期看涨，代代传承',
+  },
+  {
+    icon: '🌍',
+    title: '全球认可',
+    description: '世界通用硬通货，到哪都是真金白银',
+  },
+  {
+    icon: '⚖️',
+    title: '公平定价',
+    description: '国际金价透明公开，没有暗箱操作',
+  },
 ]
 
 export function GoldStandardSection() {
   return (
-    <section id="gold" className="py-24 lg:py-32 bg-gray-900">
+    <section id="gold" className="py-24 lg:py-32 bg-[#0A1628] relative overflow-hidden">
+      {/* 背景装饰 */}
+      <div className="absolute inset-0 pixel-grid opacity-10" />
+      <div className="absolute top-0 left-0 w-96 h-96 bg-gold-500/10 rounded-full filter blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gold-500/5 rounded-full filter blur-3xl" />
+      
       <Container>
         {/* Header */}
         <motion.div
-          className="text-center max-w-3xl mx-auto mb-16"
+          className="text-center max-w-4xl mx-auto mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          <div className="inline-flex items-center gap-2 text-gold-500 text-sm font-semibold uppercase tracking-wider mb-6">
-            <span className="w-6 h-px bg-gold-500" />
-            Why Gold Standard
-            <span className="w-6 h-px bg-gold-500" />
+          <div className="inline-flex items-center gap-3 text-gold-500 text-sm font-bold uppercase tracking-wider mb-6">
+            <span className="w-8 h-1 bg-gold-500" />
+            <span className="pixel-font">GOLD STANDARD</span>
+            <span className="w-8 h-1 bg-gold-500" />
           </div>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6">
-            The most trusted store of value<br />
-            <span className="text-gold-500">for 5,000 years</span>
+            <span className="block mb-2">为什么我们敢说</span>
+            <span className="text-gold-500 pixel-text-shadow">真金不怕火炼？</span>
           </h2>
-          <p className="text-lg md:text-xl text-gray-400">
-            While crypto volatility destroys wealth, gold maintains its purchasing power across millennia. We bring this stability to the digital age.
+          <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
+            当别人还在画饼充饥时，我们已经把
+            <span className="text-gold-500 font-bold">真金白银</span>
+            装进了每一枚代币。
+            <br />
+            <span className="text-base text-gray-400 mt-2 block">
+              5000年来，黄金从未让任何一个文明失望过。
+            </span>
           </p>
         </motion.div>
 
-        {/* Comparison Cards */}
+        {/* 黄金优势展示 */}
+        <div className="grid md:grid-cols-4 gap-6 mb-20">
+          {goldAdvantages.map((item, index) => (
+            <motion.div
+              key={item.title}
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >
+              <div className="text-5xl mb-4 gold-glow inline-block">{item.icon}</div>
+              <h4 className="text-lg font-bold text-gold-500 mb-2">{item.title}</h4>
+              <p className="text-sm text-gray-400">{item.description}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* 对比卡片 */}
         <div className="grid md:grid-cols-3 gap-8 mb-20">
           {comparisonData.map((item, index) => (
             <motion.div
               key={item.title}
               className={cn(
-                'relative p-8 rounded-lg border transition-all duration-300',
+                'relative p-8 transition-all duration-300',
                 item.featured
-                  ? 'bg-gradient-to-b from-gold-500/10 to-transparent border-gold-500/50 scale-105'
-                  : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
+                  ? 'pixel-card bg-gradient-to-b from-gold-500/20 to-gold-500/5 border-gold-500 scale-105 shadow-[0_0_50px_rgba(255,215,0,0.2)]'
+                  : 'pixel-card bg-gray-900/50 border-gray-700 hover:border-gray-600'
               )}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -92,25 +146,25 @@ export function GoldStandardSection() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {item.featured && (
-                <div className="absolute -top-3 left-8 bg-black px-3 py-1 text-xs font-bold text-gold-500 uppercase tracking-wider">
-                  Gold Standard
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gold-500 text-black px-6 py-2 text-xs font-black uppercase tracking-wider pixel-font">
+                  金本位标准
                 </div>
               )}
               
               <div className="text-4xl mb-4">{item.icon}</div>
-              <h3 className="text-xl font-bold mb-3">{item.title}</h3>
-              <p className="text-gray-400 text-sm mb-6">{item.description}</p>
+              <h3 className="text-xl font-black mb-3">{item.title}</h3>
+              <p className="text-gray-400 text-sm mb-6 leading-relaxed">{item.description}</p>
               
-              <ul className="space-y-2">
+              <ul className="space-y-3">
                 {item.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm">
+                  <li key={feature} className="flex items-center gap-3 text-sm">
                     <span className={cn(
-                      'text-xs',
+                      'text-base font-bold',
                       item.featured ? 'text-gold-500' : 'text-gray-500'
                     )}>
-                      ✓
+                      {item.featured ? '✓' : '✗'}
                     </span>
-                    <span className={item.featured ? 'text-white' : 'text-gray-400'}>
+                    <span className={item.featured ? 'text-white font-semibold' : 'text-gray-400'}>
                       {feature}
                     </span>
                   </li>
@@ -120,31 +174,87 @@ export function GoldStandardSection() {
           ))}
         </div>
 
-        {/* Gold Stats */}
+        {/* 黄金数据展示 */}
         <motion.div
-          className="grid grid-cols-2 md:grid-cols-4 gap-px bg-gray-700 rounded-lg overflow-hidden"
+          className="mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          {goldStats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              className="bg-black p-8 text-center"
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.4 + index * 0.05 }}
-            >
-              <div className="text-3xl md:text-4xl font-mono font-bold text-gold-500 mb-2">
-                {stat.value}
-              </div>
-              <div className="text-xs text-gray-500 uppercase tracking-wider">
-                {stat.label}
-              </div>
-            </motion.div>
-          ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {goldStats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                className="pixel-card text-center p-6 hover:border-gold-500 transition-all duration-300"
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.4 + index * 0.05 }}
+                whileHover={{ 
+                  y: -4,
+                  boxShadow: '0 8px 0 0 rgba(255, 215, 0, 0.3), 0 16px 0 0 rgba(0, 0, 0, 0.2)'
+                }}
+              >
+                <div className="text-3xl md:text-4xl font-black text-gold-500 mb-2 pixel-font">
+                  {stat.value}
+                </div>
+                <div className="text-sm font-bold text-white mb-1">
+                  {stat.label}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {stat.subtext}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* 信任背书 */}
+        <motion.div
+          className="text-center max-w-4xl mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+        >
+          <div className="pixel-card inline-block p-8 mb-8">
+            <h3 className="text-2xl font-black mb-4 text-gold-500">
+              为什么选择黄金？
+            </h3>
+            <p className="text-gray-300 leading-relaxed mb-6">
+              从古埃及法老到现代央行，从丝绸之路到华尔街，
+              <br />
+              黄金是唯一经历过所有朝代更迭、经济危机、战争动乱后，
+              <br />
+              <span className="text-gold-500 font-bold">依然保值的资产。</span>
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 text-sm">
+              <span className="px-4 py-2 bg-gold-500/10 text-gold-500 font-bold">
+                🏛️ 央行储备首选
+              </span>
+              <span className="px-4 py-2 bg-gold-500/10 text-gold-500 font-bold">
+                💎 永不贬值
+              </span>
+              <span className="px-4 py-2 bg-gold-500/10 text-gold-500 font-bold">
+                🌏 全球通用
+              </span>
+            </div>
+          </div>
+
+          <motion.p
+            className="text-3xl font-black text-gold-500 pixel-text-shadow pixel-font"
+            animate={{ 
+              textShadow: [
+                '4px 4px 0 #DAA520, 8px 8px 0 rgba(0, 0, 0, 0.3)',
+                '6px 6px 0 #DAA520, 12px 12px 0 rgba(0, 0, 0, 0.3)',
+                '4px 4px 0 #DAA520, 8px 8px 0 rgba(0, 0, 0, 0.3)',
+              ]
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            真金不怕火炼 · 实力不惧考验
+          </motion.p>
         </motion.div>
       </Container>
     </section>
