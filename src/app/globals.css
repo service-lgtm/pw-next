@@ -13,10 +13,6 @@
     --gold-light: 33 100% 96%;
   }
 
-  * {
-    @apply border-border;
-  }
-
   html {
     @apply scroll-smooth;
   }
