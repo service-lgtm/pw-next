@@ -48,8 +48,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={inter.className}>
-      <body className="min-h-screen bg-black antialiased">
+    <html lang="en">
+      <body className={`${inter.className} min-h-screen bg-black antialiased`}>
         <div className="pixel-grid fixed inset-0 pointer-events-none opacity-30" />
         {children}
       </body>
