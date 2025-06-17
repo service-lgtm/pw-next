@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
-import { useState } from 'react'
+import { useState } from 'react' 
 import { cn } from '@/lib/utils'
 
 // NFT土地类型数据
