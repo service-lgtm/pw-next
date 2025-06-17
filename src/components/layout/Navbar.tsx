@@ -4,14 +4,13 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
-import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { label: '金本位体系', href: '#gold' },
-  { label: '核心功能', href: '#features' },
+  { label: '核心优势', href: '#features' },
   { label: '经济模型', href: '#economy' },
-  { label: '文档', href: '#docs' },
+  { label: '发展路线', href: '#roadmap' },
+  { label: '关于我们', href: '#about' },
 ]
 
 // 像素风格Logo组件
@@ -58,7 +57,7 @@ export function Navbar() {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
         isScrolled 
-          ? 'bg-black/90 backdrop-blur-xl border-b border-gray-800' 
+          ? 'bg-[#0F0F1E]/98 backdrop-blur-md border-b-4 border-gold-500 shadow-[0_4px_0_0_#DAA520]' 
           : 'bg-transparent'
       )}
       initial={{ y: -100 }}
@@ -66,51 +65,72 @@ export function Navbar() {
       transition={{ duration: 0.3 }}
     >
       <Container>
-        <div className="flex items-center justify-between h-16 md:h-20">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <PixelLogo />
-            <span className="font-bold text-lg md:text-xl text-gold-500">平行世界</span>
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <PixelLogo />
+            </motion.div>
+            <span className="text-2xl font-black text-gold-500 pixel-text-shadow-sm">
+              平行世界
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            {navItems.map((item) => (
-              <Link
+            {navItems.map((item, index) => (
+              <motion.div
                 key={item.label}
-                href={item.href}
-                className="text-gray-400 hover:text-white transition-colors duration-200 font-medium"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
               >
-                {item.label}
-              </Link>
+                <Link
+                  href={item.href}
+                  className="text-gray-300 hover:text-gold-500 transition-all duration-200 font-bold text-sm tracking-wider relative group"
+                >
+                  {item.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-1 bg-gold-500 transition-all duration-300 group-hover:w-full" />
+                </Link>
+              </motion.div>
             ))}
-            <Button size="sm" className="bg-gradient-to-r from-gold-500 to-gold-600 text-black hover:from-gold-600 hover:to-gold-700">
-              启动应用
-            </Button>
+            <motion.button
+              className="pixel-btn text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              立即体验
+            </motion.button>
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden relative w-8 h-8 flex items-center justify-center"
+            className="md:hidden relative w-10 h-10 flex items-center justify-center"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <motion.span
-                className="block w-6 h-0.5 bg-white"
+                className="block w-6 h-1 bg-gold-500"
                 animate={{ 
                   rotate: isMobileMenuOpen ? 45 : 0,
-                  y: isMobileMenuOpen ? 8 : 0
+                  y: isMobileMenuOpen ? 5 : 0
                 }}
               />
               <motion.span
-                className="block w-6 h-0.5 bg-white"
+                className="block w-6 h-1 bg-gold-500"
                 animate={{ opacity: isMobileMenuOpen ? 0 : 1 }}
               />
               <motion.span
-                className="block w-6 h-0.5 bg-white"
+                className="block w-6 h-1 bg-gold-500"
                 animate={{ 
                   rotate: isMobileMenuOpen ? -45 : 0,
-                  y: isMobileMenuOpen ? -8 : 0
+                  y: isMobileMenuOpen ? -5 : 0
                 }}
               />
             </div>
@@ -122,27 +142,27 @@ export function Navbar() {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            className="md:hidden absolute top-full left-0 right-0 bg-black/95 backdrop-blur-xl border-b border-gray-800"
+            className="md:hidden absolute top-full left-0 right-0 bg-[#0F0F1E]/98 backdrop-blur-xl border-b-4 border-gold-500"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
             <Container>
-              <div className="py-4 space-y-4">
+              <div className="py-6 space-y-4">
                 {navItems.map((item) => (
                   <Link
                     key={item.label}
                     href={item.href}
-                    className="block text-gray-400 hover:text-white transition-colors duration-200 font-medium py-2"
+                    className="block text-gray-300 hover:text-gold-500 font-bold py-2"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.label}
                   </Link>
                 ))}
-                <Button size="sm" className="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-black">
-                  启动应用
-                </Button>
+                <button className="pixel-btn w-full text-sm">
+                  立即体验
+                </button>
               </div>
             </Container>
           </motion.div>
