@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -135,12 +135,12 @@ const economyStats = [
 export function EconomySection() {
   const [selectedToken, setSelectedToken] = useState('tdb')
   const [activeStep, setActiveStep] = useState(0)
-  const [animatedStats, setAnimatedStats] = useState(economyStats.map(s => ({ ...s, displayValue: 0 })))
+  const [showStats, setShowStats] = useState(false)
 
   // 数字动画效果
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAnimatedStats(economyStats)
+      setShowStats(true)
     }, 500)
     return () => clearTimeout(timer)
   }, [])
@@ -202,7 +202,7 @@ export function EconomySection() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          {animatedStats.map((stat, index) => (
+          {economyStats.map((stat, index) => (
             <motion.div
               key={stat.label}
               className="pixel-card p-6 text-center"
@@ -215,15 +215,25 @@ export function EconomySection() {
               <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">
                 {stat.label}
               </div>
-              <div className="text-2xl md:text-3xl font-black text-gold-500 mb-1">
+              <motion.div
+                className="text-2xl md:text-3xl font-black text-gold-500 mb-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: showStats ? 1 : 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
                 {stat.value}
-              </div>
-              <div className={cn(
-                'text-sm font-bold',
-                stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'
-              )}>
+              </motion.div>
+              <motion.div
+                className={cn(
+                  'text-sm font-bold',
+                  stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'
+                )}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: showStats ? 1 : 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
+              >
                 {stat.change}
-              </div>
+              </motion.div>
             </motion.div>
           ))}
         </motion.div>
