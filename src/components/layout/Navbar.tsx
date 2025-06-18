@@ -75,7 +75,7 @@ export function Navbar() {
               <PixelLogo />
             </motion.div>
             <span className="text-2xl font-black text-gold-500 pixel-text-shadow-sm">
-              平行世界
+              平行世界的字符
             </span>
           </Link>
 
