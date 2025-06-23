@@ -93,7 +93,7 @@ const mapData = {
     hotspot: false,
     coordinates: { x: 55, y: 35 }
   },
-}
+} as const
 
 // 商品数据增强
 const featuredProducts = [
