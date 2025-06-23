@@ -82,6 +82,7 @@ const mapData = {
     lands: 76, 
     available: 45, 
     avgPrice: 12888,
+    hotspot: false,
     coordinates: { x: 50, y: 45 }
   },
   xian: { 
@@ -89,6 +90,7 @@ const mapData = {
     lands: 54, 
     available: 32, 
     avgPrice: 9888,
+    hotspot: false,
     coordinates: { x: 55, y: 35 }
   },
 }
