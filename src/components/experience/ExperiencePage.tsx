@@ -52,6 +52,7 @@ const generateLiveData = () => ({
 })
 
 // 地图数据
+// 地图数据
 const mapData = {
   beijing: { 
     name: '北京', 
