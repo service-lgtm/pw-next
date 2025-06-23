@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { PixelLogo } from '@/components/ui/PixelLogo'
+import Link from 'next/link'
 
 // 共享的输入框组件
 interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -103,10 +105,6 @@ export function RegisterForm() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
-  const [showMnemonic, setShowMnemonic] = useState(false)
-  
-  // 模拟生成助记词
-  const mnemonic = 'apple banana cherry date eagle forest grape happy island joke kite lemon'
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -157,7 +155,8 @@ export function RegisterForm() {
       setStep(2)
     } else if (step === 2 && validateStep2()) {
       setStep(3)
-      setShowMnemonic(true)
+      // 这里可以调用注册API
+      console.log('注册成功:', formData)
     }
   }
 
@@ -372,7 +371,7 @@ export function RegisterForm() {
           </motion.div>
         )}
 
-        {/* 步骤3：助记词 */}
+        {/* 步骤3：注册成功 */}
         {step === 3 && (
           <motion.div
             key="step3"
@@ -392,38 +391,8 @@ export function RegisterForm() {
                 注册成功！
               </h2>
               <p className="text-gray-400">
-                请妥善保管您的助记词
+                欢迎加入平行世界
               </p>
-            </div>
-
-            <div className="pixel-card p-6 bg-gradient-to-br from-gold-500/20 to-transparent">
-              <h3 className="text-lg font-bold mb-4 text-center">
-                ⚠️ 重要：请抄写并保存
-              </h3>
-              
-              <div className="p-4 bg-gray-900 rounded mb-4">
-                {showMnemonic ? (
-                  <p className="text-sm leading-relaxed font-mono">
-                    {mnemonic}
-                  </p>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-gray-500 mb-3">点击显示助记词</p>
-                    <button
-                      onClick={() => setShowMnemonic(true)}
-                      className="text-gold-500 hover:text-gold-400"
-                    >
-                      👁️ 显示
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 text-xs text-gray-400">
-                <p>⚠️ 助记词是找回账号的唯一凭证</p>
-                <p>⚠️ 请勿截图，建议手写保存</p>
-                <p>⚠️ 切勿告诉任何人，包括客服</p>
-              </div>
             </div>
 
             <div className="space-y-3">
@@ -431,6 +400,26 @@ export function RegisterForm() {
                 <p className="text-sm text-green-500">
                   ✅ 新手礼包已到账：100 TDB + 10 YLD
                 </p>
+              </div>
+
+              <div className="pixel-card p-6 bg-gradient-to-br from-gold-500/20 to-transparent">
+                <h3 className="text-lg font-bold mb-4 text-center">
+                  🎁 新手福利
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span>TDB积分（黄金通证）</span>
+                    <span className="font-bold text-gold-500">100枚</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>YLD积分（陨石积分）</span>
+                    <span className="font-bold text-purple-500">10枚</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>新手任务奖励</span>
+                    <span className="font-bold text-green-500">最高500 TDB</span>
+                  </div>
+                </div>
               </div>
 
               <motion.button
@@ -450,19 +439,16 @@ export function RegisterForm() {
 
 // 登录组件
 export function LoginForm() {
-  const [loginType, setLoginType] = useState<'email' | 'mnemonic'>('email')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    mnemonic: '',
     rememberMe: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target
-    const checked = (e.target as HTMLInputElement).checked
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -473,17 +459,11 @@ export function LoginForm() {
   const handleLogin = () => {
     const newErrors: Record<string, string> = {}
     
-    if (loginType === 'email') {
-      if (!formData.email) {
-        newErrors.email = '请输入邮箱'
-      }
-      if (!formData.password) {
-        newErrors.password = '请输入密码'
-      }
-    } else {
-      if (!formData.mnemonic || formData.mnemonic.split(' ').length !== 12) {
-        newErrors.mnemonic = '请输入12个助记词'
-      }
+    if (!formData.email) {
+      newErrors.email = '请输入邮箱'
+    }
+    if (!formData.password) {
+      newErrors.password = '请输入密码'
     }
     
     setErrors(newErrors)
@@ -508,100 +488,44 @@ export function LoginForm() {
           </p>
         </div>
 
-        {/* 登录方式切换 */}
-        <div className="flex gap-2 p-1 bg-gray-900 rounded">
-          <button
-            onClick={() => setLoginType('email')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded transition-all duration-200',
-              loginType === 'email'
-                ? 'bg-gold-500 text-black font-bold'
-                : 'text-gray-400 hover:text-white'
-            )}
-          >
-            邮箱登录
-          </button>
-          <button
-            onClick={() => setLoginType('mnemonic')}
-            className={cn(
-              'flex-1 py-2 px-4 rounded transition-all duration-200',
-              loginType === 'mnemonic'
-                ? 'bg-gold-500 text-black font-bold'
-                : 'text-gray-400 hover:text-white'
-            )}
-          >
-            助记词登录
-          </button>
-        </div>
-
         <div className="space-y-4">
-          {loginType === 'email' ? (
-            <>
-              <PixelInput
-                label="邮箱地址"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="请输入注册邮箱"
-                icon="📧"
-                error={errors.email}
-              />
+          <PixelInput
+            label="邮箱地址"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            placeholder="请输入注册邮箱"
+            icon="📧"
+            error={errors.email}
+          />
 
-              <div>
-                <PixelInput
-                  label="登录密码"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="请输入密码"
-                  icon="🔐"
-                  error={errors.password}
+          <div>
+            <PixelInput
+              label="登录密码"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="请输入密码"
+              icon="🔐"
+              error={errors.password}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                  className="w-4 h-4"
                 />
-                <div className="flex items-center justify-between mt-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showPassword}
-                      onChange={(e) => setShowPassword(e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    显示密码
-                  </label>
-                  <a href="#" className="text-sm text-gold-500 hover:underline">
-                    忘记密码？
-                  </a>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">助记词</label>
-              <textarea
-                name="mnemonic"
-                value={formData.mnemonic}
-                onChange={handleInputChange}
-                placeholder="请输入12个助记词，用空格分隔"
-                className={cn(
-                  'w-full px-4 py-3 bg-gray-900 border-2 border-gray-700',
-                  'focus:border-gold-500 focus:outline-none transition-all duration-200',
-                  'text-white placeholder-gray-500 font-mono text-sm',
-                  'min-h-[100px] resize-none',
-                  errors.mnemonic && 'border-red-500'
-                )}
-              />
-              {errors.mnemonic && (
-                <motion.p
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-red-500"
-                >
-                  {errors.mnemonic}
-                </motion.p>
-              )}
+                显示密码
+              </label>
+              <Link href="/reset-password" className="text-sm text-gold-500 hover:underline">
+                忘记密码？
+              </Link>
             </div>
-          )}
+          </div>
 
           <div className="flex items-center gap-2">
             <input
@@ -629,9 +553,9 @@ export function LoginForm() {
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-400">
               还没有账号？
-              <a href="#" className="text-gold-500 hover:underline ml-1">
+              <Link href="/register" className="text-gold-500 hover:underline ml-1">
                 立即注册
-              </a>
+              </Link>
             </p>
             <p className="text-xs text-gray-500">
               登录即表示同意
@@ -647,13 +571,15 @@ export function LoginForm() {
           <p className="text-center text-sm text-gray-500 mb-4">
             游客快速体验
           </p>
-          <motion.button
-            className="w-full py-3 border-2 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            👁️ 游客模式
-          </motion.button>
+          <Link href="/experience">
+            <motion.button
+              className="w-full py-3 border-2 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              👁️ 游客模式
+            </motion.button>
+          </Link>
         </div>
       </motion.div>
     </div>
@@ -663,18 +589,16 @@ export function LoginForm() {
 // 找回密码组件
 export function ResetPasswordForm() {
   const [step, setStep] = useState(1)
-  const [resetType, setResetType] = useState<'email' | 'mnemonic'>('email')
   const [formData, setFormData] = useState({
     email: '',
     verifyCode: '',
-    mnemonic: '',
     newPassword: '',
     confirmPassword: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPassword, setShowPassword] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setErrors(prev => ({ ...prev, [name]: '' }))
@@ -692,17 +616,11 @@ export function ResetPasswordForm() {
     const newErrors: Record<string, string> = {}
     
     if (step === 1) {
-      if (resetType === 'email') {
-        if (!formData.email) {
-          newErrors.email = '请输入邮箱地址'
-        }
-        if (!formData.verifyCode) {
-          newErrors.verifyCode = '请输入验证码'
-        }
-      } else {
-        if (!formData.mnemonic || formData.mnemonic.split(' ').length !== 12) {
-          newErrors.mnemonic = '请输入正确的12个助记词'
-        }
+      if (!formData.email) {
+        newErrors.email = '请输入邮箱地址'
+      }
+      if (!formData.verifyCode) {
+        newErrors.verifyCode = '请输入验证码'
       }
     } else if (step === 2) {
       if (!formData.newPassword || formData.newPassword.length < 8) {
@@ -740,93 +658,35 @@ export function ResetPasswordForm() {
                 找回密码
               </h2>
               <p className="text-gray-400">
-                选择一种方式验证您的身份
+                通过邮箱验证您的身份
               </p>
             </div>
 
-            <div className="flex gap-2 p-1 bg-gray-900 rounded">
-              <button
-                onClick={() => setResetType('email')}
-                className={cn(
-                  'flex-1 py-2 px-4 rounded transition-all duration-200',
-                  resetType === 'email'
-                    ? 'bg-gold-500 text-black font-bold'
-                    : 'text-gray-400 hover:text-white'
-                )}
-              >
-                邮箱验证
-              </button>
-              <button
-                onClick={() => setResetType('mnemonic')}
-                className={cn(
-                  'flex-1 py-2 px-4 rounded transition-all duration-200',
-                  resetType === 'mnemonic'
-                    ? 'bg-gold-500 text-black font-bold'
-                    : 'text-gray-400 hover:text-white'
-                )}
-              >
-                助记词验证
-              </button>
-            </div>
-
             <div className="space-y-4">
-              {resetType === 'email' ? (
-                <>
-                  <PixelInput
-                    label="注册邮箱"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="请输入注册时的邮箱"
-                    icon="📧"
-                    error={errors.email}
-                  />
+              <PixelInput
+                label="注册邮箱"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="请输入注册时的邮箱"
+                icon="📧"
+                error={errors.email}
+              />
 
-                  <div className="relative">
-                    <PixelInput
-                      label="验证码"
-                      name="verifyCode"
-                      value={formData.verifyCode}
-                      onChange={handleInputChange}
-                      placeholder="请输入6位验证码"
-                      icon="✉️"
-                      error={errors.verifyCode}
-                      maxLength={6}
-                    />
-                    <CountdownButton onClick={handleSendVerifyCode} />
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-300">助记词</label>
-                  <textarea
-                    name="mnemonic"
-                    value={formData.mnemonic}
-                    onChange={handleInputChange}
-                    placeholder="请输入您的12个助记词，用空格分隔"
-                    className={cn(
-                      'w-full px-4 py-3 bg-gray-900 border-2 border-gray-700',
-                      'focus:border-gold-500 focus:outline-none transition-all duration-200',
-                      'text-white placeholder-gray-500 font-mono text-sm',
-                      'min-h-[100px] resize-none',
-                      errors.mnemonic && 'border-red-500'
-                    )}
-                  />
-                  {errors.mnemonic && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-xs text-red-500"
-                    >
-                      {errors.mnemonic}
-                    </motion.p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    💡 提示：助记词是注册时系统生成的12个英文单词
-                  </p>
-                </div>
-              )}
+              <div className="relative">
+                <PixelInput
+                  label="验证码"
+                  name="verifyCode"
+                  value={formData.verifyCode}
+                  onChange={handleInputChange}
+                  placeholder="请输入6位验证码"
+                  icon="✉️"
+                  error={errors.verifyCode}
+                  maxLength={6}
+                />
+                <CountdownButton onClick={handleSendVerifyCode} />
+              </div>
 
               <motion.button
                 className="w-full pixel-btn"
@@ -839,9 +699,9 @@ export function ResetPasswordForm() {
 
               <p className="text-center text-sm text-gray-400">
                 想起密码了？
-                <a href="#" className="text-gold-500 hover:underline ml-1">
+                <Link href="/login" className="text-gold-500 hover:underline ml-1">
                   返回登录
-                </a>
+                </Link>
               </p>
             </div>
           </motion.div>
@@ -980,10 +840,15 @@ export function AuthPage({ type }: AuthPageProps) {
       
       {/* Logo */}
       <div className="fixed top-8 left-8">
-        <a href="/" className="flex items-center gap-3">
-          <span className="text-3xl">🌍</span>
+        <Link href="/" className="flex items-center gap-3">
+          <motion.div
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <PixelLogo />
+          </motion.div>
           <span className="text-xl font-black text-gold-500">平行世界</span>
-        </a>
+        </Link>
       </div>
 
       {/* 主内容 */}
