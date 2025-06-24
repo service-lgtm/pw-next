@@ -8,8 +8,54 @@ import { PixelButton } from '@/components/shared/PixelButton'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
+// 类型定义
+interface Position {
+  x: number
+  y: number
+}
+
+interface Province {
+  id: string
+  name: string
+  type: 'capital' | 'megacity' | 'province'
+  emoji: string
+  position: Position
+  color: string
+  price: number
+  lands: number
+  available: number
+  avgPrice: number
+  monthlyReturn: string
+  hot: boolean
+  description: string
+  neighbors: string[]
+  buildings?: string[]
+  cities?: string[]
+}
+
+interface SubwayLine {
+  from: string
+  to: string
+  line: string
+  color: string
+}
+
+interface Landmark {
+  name: string
+  emoji: string
+  position: Position
+}
+
+interface ChinaMapConfig {
+  gridSize: { width: number; height: number }
+  tileSize: number
+  provinces: Record<string, Province>
+  subwayLines: SubwayLine[]
+  landmarks: Landmark[]
+}
+
 // 中国地图配置 - 大富翁风格
-const CHINA_MAP_CONFIG = {
+const CHINA_MAP_CONFIG: ChinaMapConfig = {
   gridSize: { width: 30, height: 20 },
   tileSize: 32,
   provinces: {
@@ -134,11 +180,11 @@ const CHINA_MAP_CONFIG = {
     }
   },
   // 交通线路
-  routes: [
-    { from: 'beijing', to: 'shanghai', type: 'highspeed', emoji: '🚄', time: '4小时' },
-    { from: 'beijing', to: 'guangdong', type: 'flight', emoji: '✈️', time: '3小时' },
-    { from: 'shanghai', to: 'guangdong', type: 'highspeed', emoji: '🚄', time: '7小时' },
-    { from: 'shanghai', to: 'sichuan', type: 'flight', emoji: '✈️', time: '3小时' }
+  subwayLines: [
+    { from: 'beijing', to: 'shanghai', line: '京沪高铁', color: '#00A0E9' },
+    { from: 'beijing', to: 'guangdong', line: '京广高铁', color: '#D47DAA' },
+    { from: 'shanghai', to: 'guangdong', line: '沪广高铁', color: '#C23A30' },
+    { from: 'shanghai', to: 'sichuan', line: '沪蓉高铁', color: '#009BC0' }
   ],
   // 特殊地标
   landmarks: [
@@ -149,25 +195,42 @@ const CHINA_MAP_CONFIG = {
   ]
 }
 
+// 省份类型配置
+const PROVINCE_TYPES = {
+  capital: { name: '首都', icon: '🏛️', color: '#FFD700', desc: '政治中心，稀缺资源' },
+  megacity: { name: '直辖市', icon: '🌃', color: '#FF6B6B', desc: '超级城市，投资热点' },
+  province: { name: '省份', icon: '🗺️', color: '#4ECDC4', desc: '发展潜力，价格亲民' }
+} as const
+
+// 工具函数
+const getProvinceName = (provinceId: string): string => {
+  return CHINA_MAP_CONFIG.provinces[provinceId]?.name || provinceId
+}
+
+const getProvinceById = (id: string): Province | null => {
+  return CHINA_MAP_CONFIG.provinces[id] || null
+}
+
 // 省份卡片组件
+interface ProvinceCardProps {
+  province: Province
+  isSelected: boolean
+  isPlayerHere: boolean
+  onClick: () => void
+}
+
 function ProvinceCard({ 
   province, 
   isSelected,
   isPlayerHere,
   onClick 
-}: {
-  province: any
-  isSelected: boolean
-  isPlayerHere: boolean
-  onClick: () => void
-}) {
+}: ProvinceCardProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   return (
     <motion.div
       className={cn(
-        "absolute cursor-pointer",
-        "transition-all duration-200"
+        "absolute cursor-pointer transition-all duration-200"
       )}
       style={{
         left: province.position.x * CHINA_MAP_CONFIG.tileSize,
@@ -182,8 +245,7 @@ function ProvinceCard({
     >
       <div
         className={cn(
-          "relative rounded-lg border-3",
-          "w-24 h-20 p-2",
+          "relative rounded-lg border-3 w-24 h-20 p-2",
           "flex flex-col items-center justify-center",
           "shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]",
           isSelected ? 'border-gold-500 ring-4 ring-gold-500/30' : 'border-gray-700',
@@ -257,7 +319,12 @@ function ProvinceCard({
 }
 
 // 交通路线组件
-function RouteConnection({ route, provinces }: { route: any, provinces: any }) {
+interface RouteConnectionProps {
+  route: SubwayLine
+  provinces: Record<string, Province>
+}
+
+function RouteConnection({ route, provinces }: RouteConnectionProps) {
   const from = provinces[route.from]
   const to = provinces[route.to]
   
@@ -276,47 +343,42 @@ function RouteConnection({ route, provinces }: { route: any, provinces: any }) {
       {/* 路线 */}
       <motion.path
         d={`M ${x1} ${y1} Q ${midX} ${midY - 50} ${x2} ${y2}`}
-        stroke={route.type === 'highspeed' ? '#4169E1' : '#FF6347'}
+        stroke={route.color}
         strokeWidth="2"
         fill="none"
-        strokeDasharray={route.type === 'flight' ? '5,5' : '0'}
+        strokeDasharray="5,5"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
         transition={{ duration: 2, repeat: Infinity }}
       />
       
-      {/* 交通工具图标 */}
+      {/* 路线名称 */}
       <motion.text
         x={midX}
         y={midY - 25}
         textAnchor="middle"
-        fontSize="20"
-        animate={{
-          x: [x1, x2],
-          y: [y1, y2]
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          repeatType: 'reverse'
-        }}
+        fill={route.color}
+        fontSize="12"
+        fontWeight="bold"
       >
-        {route.emoji}
+        {route.line}
       </motion.text>
     </g>
   )
 }
 
 // 游戏地图组件
+interface ChinaGameMapProps {
+  selectedProvince: string | null
+  playerPosition: string
+  onProvinceClick: (provinceId: string) => void
+}
+
 function ChinaGameMap({ 
   selectedProvince,
   playerPosition,
   onProvinceClick 
-}: {
-  selectedProvince: string | null
-  playerPosition: string
-  onProvinceClick: (provinceId: string) => void
-}) {
+}: ChinaGameMapProps) {
   const mapRef = useRef<HTMLDivElement>(null)
 
   return (
@@ -344,7 +406,7 @@ function ChinaGameMap({
 
         {/* 交通路线 */}
         <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-          {CHINA_MAP_CONFIG.routes.map((route, index) => (
+          {CHINA_MAP_CONFIG.subwayLines.map((route, index) => (
             <RouteConnection key={index} route={route} provinces={CHINA_MAP_CONFIG.provinces} />
           ))}
         </svg>
@@ -388,12 +450,15 @@ function ChinaGameMap({
 }
 
 // 省份详情面板
-function ProvinceDetailPanel({ province, onClose, onEnter }: {
-  province: any
+interface ProvinceDetailPanelProps {
+  province: Province
   onClose: () => void
   onEnter: () => void
-}) {
+}
+
+function ProvinceDetailPanel({ province, onClose, onEnter }: ProvinceDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'cities' | 'invest'>('info')
+  const provinceType = PROVINCE_TYPES[province.type]
 
   return (
     <motion.div
@@ -412,12 +477,13 @@ function ProvinceDetailPanel({ province, onClose, onEnter }: {
               <h2 className="text-2xl font-black" style={{ color: province.color }}>
                 {province.name}
               </h2>
-              <p className="text-sm text-gray-500">{province.type === 'capital' ? '首都' : province.type === 'megacity' ? '直辖市' : '省份'}</p>
+              <p className="text-sm text-gray-500">{provinceType.name}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="text-2xl hover:text-gold-500 transition-colors"
+            aria-label="关闭面板"
           >
             ✕
           </button>
@@ -484,13 +550,13 @@ function ProvinceDetailPanel({ province, onClose, onEnter }: {
               </div>
 
               {/* 邻近省份 */}
-              {province.neighbors && (
+              {province.neighbors && province.neighbors.length > 0 && (
                 <div>
                   <h3 className="font-bold mb-2 text-gold-500">邻近地区</h3>
                   <div className="flex flex-wrap gap-2">
                     {province.neighbors.map((neighbor: string) => (
                       <span key={neighbor} className="px-3 py-1 bg-gray-800 text-sm rounded">
-                        {CHINA_MAP_CONFIG.provinces[neighbor]?.name || neighbor}
+                        {getProvinceName(neighbor)}
                       </span>
                     ))}
                   </div>
@@ -546,7 +612,9 @@ function ProvinceDetailPanel({ province, onClose, onEnter }: {
                   </motion.div>
                 ))
               ) : (
-                <p className="text-center text-gray-500">暂无城市数据</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500">暂无城市数据</p>
+                </div>
               )}
             </motion.div>
           )}
@@ -606,14 +674,91 @@ function ProvinceDetailPanel({ province, onClose, onEnter }: {
   )
 }
 
+// 快速操作面板
+interface QuickActionsProps {
+  currentProvince: string
+  onAction: (action: string) => void
+}
+
+function QuickActions({ 
+  currentProvince,
+  onAction 
+}: QuickActionsProps) {
+  const actions = [
+    { id: 'buy', icon: '🛒', label: '购买地块', color: 'bg-green-500' },
+    { id: 'build', icon: '🏗️', label: '建设房产', color: 'bg-blue-500' },
+    { id: 'rent', icon: '💰', label: '出租管理', color: 'bg-gold-500' },
+    { id: 'sell', icon: '💸', label: '出售资产', color: 'bg-red-500' }
+  ]
+
+  return (
+    <PixelCard className="p-4">
+      <h3 className="font-bold mb-3 text-gold-500">⚡ 快速操作</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {actions.map((action) => (
+          <motion.button
+            key={action.id}
+            className={cn(
+              "p-3 rounded text-white font-bold transition-all",
+              action.color,
+              "hover:opacity-80"
+            )}
+            onClick={() => onAction(action.id)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <div className="text-2xl mb-1">{action.icon}</div>
+            <div className="text-xs">{action.label}</div>
+          </motion.button>
+        ))}
+      </div>
+    </PixelCard>
+  )
+}
+
+// 区域排行榜
+interface DistrictRankingProps {
+  provinces: Province[]
+}
+
+function DistrictRanking({ provinces }: DistrictRankingProps) {
+  const sortedProvinces = [...provinces].sort((a, b) => b.avgPrice - a.avgPrice)
+
+  return (
+    <PixelCard className="p-4">
+      <h3 className="font-bold mb-3 text-gold-500">🏆 区域价值排行</h3>
+      <div className="space-y-2">
+        {sortedProvinces.slice(0, 5).map((province, index) => (
+          <div key={province.id} className="flex items-center justify-between p-2">
+            <div className="flex items-center gap-3">
+              <span className="text-lg font-bold text-gold-500">#{index + 1}</span>
+              <div>
+                <p className="font-bold text-sm">{province.name}</p>
+                <p className="text-xs text-gray-500">{province.available}块可用</p>
+              </div>
+            </div>
+            <span className="text-sm font-bold text-gold-500">
+              ¥{(province.avgPrice/1000).toFixed(0)}k
+            </span>
+          </div>
+        ))}
+      </div>
+    </PixelCard>
+  )
+}
+
 // 游戏状态栏
+interface GameStatusBarProps {
+  playerInfo: { tdb: number; lands: number; level: string }
+  currentProvince: string
+}
+
 function GameStatusBar({ 
   playerInfo,
   currentProvince 
-}: {
-  playerInfo: { tdb: number; lands: number; level: string }
-  currentProvince: string
-}) {
+}: GameStatusBarProps) {
+  const currentProvinceData = getProvinceById(currentProvince)
+  
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[#0A1628]/95 backdrop-blur border-t-4 border-gold-500 p-4 z-30">
       <Container>
@@ -623,7 +768,7 @@ function GameStatusBar({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">当前位置:</span>
               <span className="font-bold text-gold-500">
-                {CHINA_MAP_CONFIG.provinces[currentProvince]?.name || '未知'}
+                {currentProvinceData?.name || '未知'}
               </span>
             </div>
 
@@ -742,6 +887,7 @@ function Leaderboard() {
   )
 }
 
+// 主组件
 export default function ChinaMapPage() {
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
   const [playerPosition, setPlayerPosition] = useState('beijing')
@@ -773,6 +919,14 @@ export default function ChinaMapPage() {
     }
   }
 
+  // 快速操作
+  const handleQuickAction = (action: string) => {
+    console.log('Quick action:', action)
+    // 这里可以实现具体的操作逻辑
+  }
+
+  const selectedProvinceData = selectedProvince ? getProvinceById(selectedProvince) : null
+
   return (
     <div className="min-h-screen bg-[#0F0F1E] relative">
       {/* 顶部导航 */}
@@ -791,15 +945,15 @@ export default function ChinaMapPage() {
             <div className="flex items-center gap-6">
               <div className="text-sm">
                 <span className="text-gray-400">总地块:</span>
-                <span className="text-gold-500 font-bold ml-2">50,000+</span>
+                <span className="text-gold-500 font-bold ml-2">
+                  {Object.values(CHINA_MAP_CONFIG.provinces).reduce((sum, p) => sum + p.lands, 0).toLocaleString()}
+                </span>
               </div>
               <div className="text-sm">
                 <span className="text-gray-400">可用:</span>
-                <span className="text-green-500 font-bold ml-2">12,580</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-400">均价:</span>
-                <span className="text-gold-500 font-bold ml-2">¥15,888</span>
+                <span className="text-green-500 font-bold ml-2">
+                  {Object.values(CHINA_MAP_CONFIG.provinces).reduce((sum, p) => sum + p.available, 0)}
+                </span>
               </div>
             </div>
           </div>
@@ -807,12 +961,15 @@ export default function ChinaMapPage() {
       </div>
 
       {/* 主内容区 */}
-      <div className="pt-20 pb-20 relative">
+      <div className="pt-20 pb-8">
         <div className="flex">
           {/* 左侧面板 */}
           <div className="w-80 p-6 space-y-6">
-            <HotActivities />
-            <Leaderboard />
+            <QuickActions 
+              currentProvince={playerPosition}
+              onAction={handleQuickAction}
+            />
+            <DistrictRanking provinces={Object.values(CHINA_MAP_CONFIG.provinces)} />
           </div>
 
           {/* 中间地图 */}
@@ -831,7 +988,7 @@ export default function ChinaMapPage() {
                   exit={{ opacity: 0, scale: 0 }}
                 >
                   <div className="bg-gold-500 text-black px-8 py-4 rounded-lg font-black text-xl">
-                    🚗 移动中...
+                    🚇 地铁移动中...
                   </div>
                 </motion.div>
               )}
@@ -847,17 +1004,26 @@ export default function ChinaMapPage() {
           {/* 右侧提示 */}
           <div className="w-80 p-6">
             <PixelCard className="p-4">
-              <h3 className="font-bold mb-3 text-gold-500">💡 游戏提示</h3>
-              <div className="space-y-2 text-sm text-gray-400">
-                <p>• 点击省份查看详情</p>
-                <p>• 🔥 标记表示热门地区</p>
-                <p>• 数字显示可用地块数</p>
-                <p>• 📍 标记您的当前位置</p>
+              <h3 className="font-bold mb-3 text-gold-500">📍 当前位置</h3>
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">
+                  {getProvinceById(playerPosition)?.emoji}
+                </div>
+                <h4 className="font-bold text-lg">
+                  {getProvinceById(playerPosition)?.name}
+                </h4>
               </div>
               
+              <div className="space-y-2 text-sm text-gray-400">
+                <p>• 🚇 地铁连接各区</p>
+                <p>• 🔥 标记热门投资区</p>
+                <p>• 📍 显示您的位置</p>
+                <p>• 点击区域查看详情</p>
+              </div>
+
               <div className="mt-4 p-3 bg-gold-500/10 rounded">
                 <p className="text-xs text-gold-500">
-                  💡 小贴士：热门地区收益高但价格贵，冷门地区有升值潜力
+                  💡 不同区域有不同投资价值，选择适合您的投资策略
                 </p>
               </div>
             </PixelCard>
@@ -866,9 +1032,9 @@ export default function ChinaMapPage() {
 
         {/* 省份详情面板 */}
         <AnimatePresence>
-          {selectedProvince && (
+          {selectedProvinceData && (
             <ProvinceDetailPanel
-              province={CHINA_MAP_CONFIG.provinces[selectedProvince]}
+              province={selectedProvinceData}
               onClose={() => setSelectedProvince(null)}
               onEnter={handleEnterProvince}
             />
@@ -887,6 +1053,7 @@ export default function ChinaMapPage() {
         className="fixed top-24 right-4 z-30 w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-xl hover:bg-gray-700 transition-colors"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
+        aria-label="音效控制"
       >
         🎵
       </motion.button>
