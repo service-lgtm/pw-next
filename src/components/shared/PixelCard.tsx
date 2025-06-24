@@ -2,12 +2,16 @@
 
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
-import { ReactNode, HTMLAttributes } from 'react'
+import { ReactNode } from 'react'
 
-interface PixelCardProps extends HTMLAttributes<HTMLDivElement> {
+interface PixelCardProps {
   children?: ReactNode
+  className?: string
   variant?: 'default' | 'gold' | 'success' | 'danger'
   noPadding?: boolean
+  onClick?: () => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
 }
 
 const variants = {
@@ -22,7 +26,9 @@ export function PixelCard({
   className, 
   variant = 'default',
   noPadding = false,
-  ...props
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
 }: PixelCardProps) {
   return (
     <motion.div
@@ -36,7 +42,9 @@ export function PixelCard({
         className
       )}
       whileHover={{ y: -2 }}
-      {...props}
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {/* 像素角装饰 */}
       <div className="absolute -top-1 -left-1 w-2 h-2 bg-gold-500" />
