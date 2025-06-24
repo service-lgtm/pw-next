@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 // 共享的输入框组件
 interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -93,6 +94,7 @@ function CountdownButton({ onClick, disabled }: CountdownButtonProps) {
 
 // 注册组件
 export function RegisterForm() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     username: '',
@@ -278,9 +280,9 @@ export function RegisterForm() {
 
             <p className="text-center text-sm text-gray-400">
               已有账号？
-              <a href="#" className="text-gold-500 hover:underline ml-1">
+              <Link href="/login" className="text-gold-500 hover:underline ml-1">
                 立即登录
-              </a>
+              </Link>
             </p>
           </motion.div>
         )}
@@ -426,6 +428,7 @@ export function RegisterForm() {
                 className="w-full pixel-btn"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => router.push('/dashboard')}
               >
                 进入平行世界
               </motion.button>
@@ -439,6 +442,7 @@ export function RegisterForm() {
 
 // 登录组件
 export function LoginForm() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -547,7 +551,7 @@ export function LoginForm() {
             className="w-full pixel-btn"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => router.push('/dashboard')}
+            onClick={handleLogin}
           >
             进入平行世界
           </motion.button>
@@ -590,6 +594,7 @@ export function LoginForm() {
 
 // 找回密码组件
 export function ResetPasswordForm() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     email: '',
@@ -817,6 +822,7 @@ export function ResetPasswordForm() {
               className="w-full pixel-btn"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/login')}
             >
               立即登录
             </motion.button>
