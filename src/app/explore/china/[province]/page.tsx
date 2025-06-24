@@ -28,6 +28,10 @@ interface District {
   features: string[]
 }
 
+interface DistrictsMap {
+  [key: string]: District
+}
+
 interface Landmark {
   id: string
   name: string
@@ -46,7 +50,16 @@ interface SubwayLine {
 }
 
 // 北京地图数据配置
-const BEIJING_MAP_DATA = {
+const BEIJING_MAP_DATA: {
+  boundary: {
+    width: number
+    height: number
+    viewBox: string
+  }
+  districts: DistrictsMap
+  landmarks: Landmark[]
+  subwayLines: SubwayLine[]
+} = {
   // 地图边界（简化的北京轮廓）
   boundary: {
     width: 1000,
@@ -59,7 +72,7 @@ const BEIJING_MAP_DATA = {
     dongcheng: {
       id: 'dongcheng',
       name: '东城区',
-      type: 'cultural',
+      type: 'cultural' as const,
       polygon: [
         { x: 480, y: 350 },
         { x: 520, y: 340 },
@@ -800,9 +813,9 @@ export default function CityDetailPage() {
 
       {/* 区域信息弹窗 */}
       <AnimatePresence>
-        {showDistrictInfo && selectedDistrict && (
+        {showDistrictInfo && selectedDistrict && BEIJING_MAP_DATA.districts[selectedDistrict as keyof typeof BEIJING_MAP_DATA.districts] && (
           <DistrictInfoCard
-            district={BEIJING_MAP_DATA.districts[selectedDistrict]}
+            district={BEIJING_MAP_DATA.districts[selectedDistrict as keyof typeof BEIJING_MAP_DATA.districts]}
             onClose={() => setShowDistrictInfo(false)}
             onViewDetails={handleViewDetails}
           />
