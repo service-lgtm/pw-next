@@ -52,7 +52,6 @@ const generateLiveData = () => ({
 })
 
 // 地图数据
-// 地图数据
 const mapData = {
   beijing: { 
     name: '北京', 
@@ -178,7 +177,7 @@ export default function ExperiencePage() {
   const router = useRouter()
   const [currentFeature, setCurrentFeature] = useState(0)
   const [liveData, setLiveData] = useState(generateLiveData())
-  const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState<keyof typeof mapData | null>(null)
   const [miningActive, setMiningActive] = useState(false)
   const [miningReward, setMiningReward] = useState(0)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
@@ -441,7 +440,7 @@ export default function ExperiencePage() {
                                 fill={city.hotspot ? '#FFD700' : '#00D4AA'}
                                 className="cursor-pointer"
                                 whileHover={{ scale: 1.5 }}
-                                onClick={() => setSelectedCity(key)}
+                                onClick={() => setSelectedCity(key as keyof typeof mapData)}
                               />
                               <text
                                 x={city.coordinates.x}
@@ -492,7 +491,7 @@ export default function ExperiencePage() {
 
                     {/* 城市详情 */}
                     <div className="space-y-4">
-                      {selectedCity ? (
+                      {selectedCity && selectedCity in mapData ? (
                         <motion.div
                           className="pixel-card p-6"
                           initial={{ opacity: 0, scale: 0.9 }}
