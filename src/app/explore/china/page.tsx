@@ -1,1062 +1,723 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Container } from '@/components/ui/Container'
-import { PixelCard } from '@/components/shared/PixelCard'
-import { PixelButton } from '@/components/shared/PixelButton'
+import { 
+  ArrowLeft, TrendingUp, MapPin, Building2, Users, 
+  Sparkles, ChevronRight, Star, Zap, Award,
+  BarChart3, Clock, Shield, Flame, Search,
+  Filter, Grid3X3, Map as MapIcon, Info
+} from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 // 类型定义
-interface Position {
-  x: number
-  y: number
-}
-
-interface Province {
+interface City {
   id: string
   name: string
-  type: 'capital' | 'megacity' | 'province'
+  nameEn: string
+  tier: 'first' | 'new-first' | 'second'
+  status: 'hot' | 'recommended' | 'normal'
   emoji: string
-  position: Position
-  color: string
-  price: number
-  lands: number
-  available: number
-  avgPrice: number
-  monthlyReturn: string
-  hot: boolean
   description: string
-  neighbors: string[]
-  buildings?: string[]
-  cities?: string[]
+  districts: number
+  totalLands: number
+  availableLands: number
+  avgPrice: number
+  priceChange: number
+  monthlyReturn: string
+  features: string[]
+  landmarks: string[]
+  advantages: string[]
+  coordinates?: { x: number; y: number }
 }
 
-interface SubwayLine {
-  from: string
-  to: string
-  line: string
-  color: string
-}
-
-interface Landmark {
-  name: string
-  emoji: string
-  position: Position
-}
-
-interface ChinaMapConfig {
-  gridSize: { width: number; height: number }
-  tileSize: number
-  provinces: Record<string, Province>
-  subwayLines: SubwayLine[]
-  landmarks: Landmark[]
-}
-
-// 中国地图配置 - 大富翁风格
-const CHINA_MAP_CONFIG: ChinaMapConfig = {
-  gridSize: { width: 30, height: 20 },
-  tileSize: 32,
-  provinces: {
-    beijing: {
-      id: 'beijing',
-      name: '北京',
-      type: 'capital',
-      emoji: '🏛️',
-      position: { x: 20, y: 6 },
-      color: '#FFD700',
-      price: 50000,
-      lands: 5680,
-      available: 256,
-      avgPrice: 28888,
-      monthlyReturn: '12-15%',
-      hot: true,
-      description: '首都，政治经济中心',
-      neighbors: ['tianjin', 'hebei'],
-      buildings: ['天安门', '故宫', 'CBD']
-    },
-    shanghai: {
-      id: 'shanghai',
-      name: '上海',
-      type: 'megacity',
-      emoji: '🌃',
-      position: { x: 23, y: 11 },
-      color: '#FF6B6B',
-      price: 60000,
-      lands: 4560,
-      available: 189,
-      avgPrice: 32888,
-      monthlyReturn: '10-13%',
-      hot: true,
-      description: '魔都，金融中心',
-      neighbors: ['jiangsu', 'zhejiang'],
-      buildings: ['外滩', '陆家嘴', '浦东']
-    },
-    guangdong: {
-      id: 'guangdong',
-      name: '广东',
-      type: 'province',
-      emoji: '🏙️',
-      position: { x: 19, y: 16 },
-      color: '#4ECDC4',
-      price: 45000,
-      lands: 8900,
-      available: 1234,
-      avgPrice: 22888,
-      monthlyReturn: '8-12%',
-      hot: true,
-      description: '经济大省，制造业基地',
-      neighbors: ['guangxi', 'hunan', 'jiangxi', 'fujian'],
-      cities: ['广州', '深圳', '东莞', '佛山']
-    },
-    sichuan: {
-      id: 'sichuan',
-      name: '四川',
-      type: 'province',
-      emoji: '🌶️',
-      position: { x: 12, y: 11 },
-      color: '#95E1D3',
-      price: 25000,
-      lands: 3200,
-      available: 890,
-      avgPrice: 12888,
-      monthlyReturn: '6-10%',
-      hot: false,
-      description: '天府之国，美食之都',
-      neighbors: ['chongqing', 'yunnan', 'guizhou', 'shaanxi', 'gansu', 'qinghai', 'xizang'],
-      cities: ['成都', '绵阳', '德阳']
-    },
-    zhejiang: {
-      id: 'zhejiang',
-      name: '浙江',
-      type: 'province',
-      emoji: '💰',
-      position: { x: 22, y: 12 },
-      color: '#A8E6CF',
-      price: 40000,
-      lands: 4200,
-      available: 567,
-      avgPrice: 25888,
-      monthlyReturn: '9-12%',
-      hot: true,
-      description: '民营经济发达',
-      neighbors: ['shanghai', 'jiangsu', 'anhui', 'jiangxi', 'fujian'],
-      cities: ['杭州', '宁波', '温州']
-    },
-    jiangsu: {
-      id: 'jiangsu',
-      name: '江苏',
-      type: 'province',
-      emoji: '🏭',
-      position: { x: 21, y: 10 },
-      color: '#FFD93D',
-      price: 38000,
-      lands: 5100,
-      available: 789,
-      avgPrice: 20888,
-      monthlyReturn: '8-11%',
-      hot: true,
-      description: '经济强省',
-      neighbors: ['shanghai', 'zhejiang', 'anhui', 'shandong'],
-      cities: ['南京', '苏州', '无锡']
-    },
-    shandong: {
-      id: 'shandong',
-      name: '山东',
-      type: 'province',
-      emoji: '🥟',
-      position: { x: 20, y: 8 },
-      color: '#6BCF7F',
-      price: 30000,
-      lands: 4800,
-      available: 923,
-      avgPrice: 15888,
-      monthlyReturn: '7-10%',
-      hot: false,
-      description: '人口大省，工业基地',
-      neighbors: ['hebei', 'henan', 'anhui', 'jiangsu'],
-      cities: ['济南', '青岛', '烟台']
-    }
+// 城市数据
+const CITIES_DATA: Record<string, City> = {
+  beijing: {
+    id: 'beijing',
+    name: '北京',
+    nameEn: 'Beijing',
+    tier: 'first',
+    status: 'hot',
+    emoji: '🏛️',
+    description: '中国首都，政治文化中心，投资价值稳定',
+    districts: 16,
+    totalLands: 5680,
+    availableLands: 256,
+    avgPrice: 45888,
+    priceChange: 5.8,
+    monthlyReturn: '8-12%',
+    features: ['政治中心', '文化底蕴', '教育资源', '科技创新'],
+    landmarks: ['故宫', '天安门', 'CBD', '中关村'],
+    advantages: ['政策优势明显', '高端产业聚集', '国际化程度高'],
+    coordinates: { x: 70, y: 30 }
   },
-  // 交通线路
-  subwayLines: [
-    { from: 'beijing', to: 'shanghai', line: '京沪高铁', color: '#00A0E9' },
-    { from: 'beijing', to: 'guangdong', line: '京广高铁', color: '#D47DAA' },
-    { from: 'shanghai', to: 'guangdong', line: '沪广高铁', color: '#C23A30' },
-    { from: 'shanghai', to: 'sichuan', line: '沪蓉高铁', color: '#009BC0' }
-  ],
-  // 特殊地标
-  landmarks: [
-    { name: '长城', emoji: '🏯', position: { x: 19, y: 5 } },
-    { name: '黄河', emoji: '🌊', position: { x: 18, y: 9 } },
-    { name: '长江', emoji: '🌊', position: { x: 20, y: 13 } },
-    { name: '珠江', emoji: '🌊', position: { x: 19, y: 17 } }
-  ]
+  shanghai: {
+    id: 'shanghai',
+    name: '上海',
+    nameEn: 'Shanghai',
+    tier: 'first',
+    status: 'hot',
+    emoji: '🌃',
+    description: '国际金融中心，经济最发达城市',
+    districts: 16,
+    totalLands: 4560,
+    availableLands: 189,
+    avgPrice: 52888,
+    priceChange: 4.2,
+    monthlyReturn: '10-15%',
+    features: ['金融中心', '自贸区', '国际都市', '创新活力'],
+    landmarks: ['外滩', '陆家嘴', '浦东新区', '虹桥枢纽'],
+    advantages: ['金融产业发达', '国际贸易活跃', '创新创业氛围浓'],
+    coordinates: { x: 80, y: 50 }
+  },
+  guangzhou: {
+    id: 'guangzhou',
+    name: '广州',
+    nameEn: 'Guangzhou',
+    tier: 'first',
+    status: 'normal',
+    emoji: '🏙️',
+    description: '千年商都，华南经济中心',
+    districts: 11,
+    totalLands: 3890,
+    availableLands: 456,
+    avgPrice: 32888,
+    priceChange: 3.5,
+    monthlyReturn: '6-10%',
+    features: ['商贸中心', '制造基地', '交通枢纽', '美食天堂'],
+    landmarks: ['广州塔', '珠江新城', '白云山', '长隆'],
+    advantages: ['商贸历史悠久', '制造业发达', '生活成本适中'],
+    coordinates: { x: 65, y: 80 }
+  },
+  shenzhen: {
+    id: 'shenzhen',
+    name: '深圳',
+    nameEn: 'Shenzhen',
+    tier: 'first',
+    status: 'recommended',
+    emoji: '💻',
+    description: '中国硅谷，科技创新之都',
+    districts: 9,
+    totalLands: 3200,
+    availableLands: 234,
+    avgPrice: 48888,
+    priceChange: 7.2,
+    monthlyReturn: '12-18%',
+    features: ['科技创新', '创业天堂', '年轻活力', '改革先锋'],
+    landmarks: ['南山科技园', '福田CBD', '前海', '华强北'],
+    advantages: ['科技产业领先', '创新生态完善', '年轻人口占比高'],
+    coordinates: { x: 67, y: 83 }
+  },
+  chengdu: {
+    id: 'chengdu',
+    name: '成都',
+    nameEn: 'Chengdu',
+    tier: 'new-first',
+    status: 'recommended',
+    emoji: '🐼',
+    description: '天府之国，西部经济中心',
+    districts: 12,
+    totalLands: 3560,
+    availableLands: 678,
+    avgPrice: 22888,
+    priceChange: 2.8,
+    monthlyReturn: '5-8%',
+    features: ['生活宜居', '美食之都', '文创产业', '西部枢纽'],
+    landmarks: ['春熙路', '宽窄巷子', '大熊猫基地', '天府新区'],
+    advantages: ['生活品质高', '文化氛围浓', '发展潜力大'],
+    coordinates: { x: 35, y: 55 }
+  },
+  hangzhou: {
+    id: 'hangzhou',
+    name: '杭州',
+    nameEn: 'Hangzhou',
+    tier: 'new-first',
+    status: 'normal',
+    emoji: '🌊',
+    description: '电商之都，数字经济领先',
+    districts: 10,
+    totalLands: 2890,
+    availableLands: 345,
+    avgPrice: 38888,
+    priceChange: 4.5,
+    monthlyReturn: '8-12%',
+    features: ['电子商务', '数字经济', '旅游胜地', '创新活力'],
+    landmarks: ['西湖', '阿里巴巴', '钱江新城', '未来科技城'],
+    advantages: ['互联网产业发达', '生活环境优美', '创新创业活跃'],
+    coordinates: { x: 78, y: 55 }
+  },
+  chongqing: {
+    id: 'chongqing',
+    name: '重庆',
+    nameEn: 'Chongqing',
+    tier: 'new-first',
+    status: 'normal',
+    emoji: '🌉',
+    description: '山城重庆，西部直辖市',
+    districts: 9,
+    totalLands: 3100,
+    availableLands: 523,
+    avgPrice: 18888,
+    priceChange: 3.2,
+    monthlyReturn: '5-8%',
+    features: ['直辖市', '交通枢纽', '工业基地', '网红城市'],
+    landmarks: ['解放碑', '洪崖洞', '朝天门', '两江新区'],
+    advantages: ['政策支持力度大', '发展空间广阔', '旅游资源丰富'],
+    coordinates: { x: 40, y: 60 }
+  },
+  xian: {
+    id: 'xian',
+    name: '西安',
+    nameEn: 'Xi\'an',
+    tier: 'second',
+    status: 'normal',
+    emoji: '🏺',
+    description: '千年古都，一带一路起点',
+    districts: 8,
+    totalLands: 2560,
+    availableLands: 412,
+    avgPrice: 16888,
+    priceChange: 2.5,
+    monthlyReturn: '4-7%',
+    features: ['历史文化', '教育重镇', '科研基地', '旅游名城'],
+    landmarks: ['大雁塔', '兵马俑', '钟楼', '高新区'],
+    advantages: ['文化底蕴深厚', '教育资源丰富', '发展政策优惠'],
+    coordinates: { x: 45, y: 45 }
+  }
 }
 
-// 省份类型配置
-const PROVINCE_TYPES = {
-  capital: { name: '首都', icon: '🏛️', color: '#FFD700', desc: '政治中心，稀缺资源' },
-  megacity: { name: '直辖市', icon: '🌃', color: '#FF6B6B', desc: '超级城市，投资热点' },
-  province: { name: '省份', icon: '🗺️', color: '#4ECDC4', desc: '发展潜力，价格亲民' }
-} as const
-
-// 工具函数
-const getProvinceName = (provinceId: string): string => {
-  return CHINA_MAP_CONFIG.provinces[provinceId]?.name || provinceId
+// 城市分级配置
+const CITY_TIERS = {
+  'first': { 
+    name: '一线城市', 
+    color: '#FFD700',
+    bgColor: 'from-yellow-500/20 to-orange-500/20',
+    description: '经济最发达，投资价值高'
+  },
+  'new-first': { 
+    name: '新一线城市', 
+    color: '#3B82F6',
+    bgColor: 'from-blue-500/20 to-indigo-500/20',
+    description: '快速发展，潜力巨大'
+  },
+  'second': { 
+    name: '二线城市', 
+    color: '#10B981',
+    bgColor: 'from-green-500/20 to-emerald-500/20',
+    description: '稳健增长，价格亲民'
+  }
 }
 
-const getProvinceById = (id: string): Province | null => {
-  return CHINA_MAP_CONFIG.provinces[id] || null
-}
-
-// 省份卡片组件
-interface ProvinceCardProps {
-  province: Province
-  isSelected: boolean
-  isPlayerHere: boolean
-  onClick: () => void
-}
-
-function ProvinceCard({ 
-  province, 
+// 城市卡片组件
+function CityCard({ 
+  city, 
   isSelected,
-  isPlayerHere,
   onClick 
-}: ProvinceCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
+}: { 
+  city: City
+  isSelected: boolean
+  onClick: () => void
+}) {
+  const tierConfig = CITY_TIERS[city.tier]
+  
   return (
     <motion.div
       className={cn(
-        "absolute cursor-pointer transition-all duration-200"
+        "relative group cursor-pointer",
+        "bg-gradient-to-br from-gray-900 to-gray-800",
+        "rounded-2xl border-2 overflow-hidden",
+        "transition-all duration-300",
+        isSelected ? "border-gold-500" : "border-gray-700 hover:border-gray-600"
       )}
-      style={{
-        left: province.position.x * CHINA_MAP_CONFIG.tileSize,
-        top: province.position.y * CHINA_MAP_CONFIG.tileSize,
-        zIndex: isSelected || isHovered ? 20 : 10
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ y: -4 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
     >
-      <div
-        className={cn(
-          "relative rounded-lg border-3 w-24 h-20 p-2",
-          "flex flex-col items-center justify-center",
-          "shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]",
-          isSelected ? 'border-gold-500 ring-4 ring-gold-500/30' : 'border-gray-700',
-          province.hot && 'animate-pulse'
-        )}
-        style={{
-          backgroundColor: province.color + '40',
-          borderColor: isHovered ? province.color : undefined
-        }}
-      >
-        {/* 省份图标 */}
-        <motion.div
-          className="text-3xl mb-1"
-          animate={isPlayerHere ? {
-            y: [0, -5, 0],
-            rotate: [-5, 5, -5]
-          } : {}}
-          transition={{
-            duration: 1,
-            repeat: isPlayerHere ? Infinity : 0
-          }}
-        >
-          {province.emoji}
-        </motion.div>
-        
-        {/* 省份名称 */}
-        <div className="text-xs font-black" style={{ color: province.color }}>
-          {province.name}
-        </div>
-
-        {/* 热门标记 */}
-        {province.hot && (
-          <motion.div
-            className="absolute -top-2 -right-2 text-lg"
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [-10, 10, -10]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity
-            }}
-          >
-            🔥
-          </motion.div>
-        )}
-
-        {/* 可用地块数 */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-green-500 text-black text-xs px-2 rounded-full font-bold">
-          {province.available}块
-        </div>
-
-        {/* 玩家标记 */}
-        {isPlayerHere && (
-          <motion.div
-            className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl"
-            animate={{
-              y: [0, -5, 0]
-            }}
-            transition={{
-              duration: 1,
-              repeat: Infinity
-            }}
-          >
-            📍
-          </motion.div>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-// 交通路线组件
-interface RouteConnectionProps {
-  route: SubwayLine
-  provinces: Record<string, Province>
-}
-
-function RouteConnection({ route, provinces }: RouteConnectionProps) {
-  const from = provinces[route.from]
-  const to = provinces[route.to]
-  
-  if (!from || !to) return null
-
-  const x1 = from.position.x * CHINA_MAP_CONFIG.tileSize + 48
-  const y1 = from.position.y * CHINA_MAP_CONFIG.tileSize + 40
-  const x2 = to.position.x * CHINA_MAP_CONFIG.tileSize + 48
-  const y2 = to.position.y * CHINA_MAP_CONFIG.tileSize + 40
-
-  const midX = (x1 + x2) / 2
-  const midY = (y1 + y2) / 2
-
-  return (
-    <g className="pointer-events-none">
-      {/* 路线 */}
-      <motion.path
-        d={`M ${x1} ${y1} Q ${midX} ${midY - 50} ${x2} ${y2}`}
-        stroke={route.color}
-        strokeWidth="2"
-        fill="none"
-        strokeDasharray="5,5"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 2, repeat: Infinity }}
-      />
+      {/* 顶部标签 */}
+      <div className={cn(
+        "absolute top-0 left-0 right-0 h-1",
+        `bg-gradient-to-r ${tierConfig.bgColor}`
+      )} />
       
-      {/* 路线名称 */}
-      <motion.text
-        x={midX}
-        y={midY - 25}
-        textAnchor="middle"
-        fill={route.color}
-        fontSize="12"
-        fontWeight="bold"
-      >
-        {route.line}
-      </motion.text>
-    </g>
-  )
-}
-
-// 游戏地图组件
-interface ChinaGameMapProps {
-  selectedProvince: string | null
-  playerPosition: string
-  onProvinceClick: (provinceId: string) => void
-}
-
-function ChinaGameMap({ 
-  selectedProvince,
-  playerPosition,
-  onProvinceClick 
-}: ChinaGameMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null)
-
-  return (
-    <div className="relative inline-block">
-      {/* 地图背景 */}
-      <div 
-        ref={mapRef}
-        className="relative bg-gray-900/50 rounded-lg p-8"
-        style={{
-          width: CHINA_MAP_CONFIG.gridSize.width * CHINA_MAP_CONFIG.tileSize + 64,
-          height: CHINA_MAP_CONFIG.gridSize.height * CHINA_MAP_CONFIG.tileSize + 64
-        }}
-      >
-        {/* 网格背景 */}
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%">
-            <defs>
-              <pattern id="grid" width={CHINA_MAP_CONFIG.tileSize} height={CHINA_MAP_CONFIG.tileSize} patternUnits="userSpaceOnUse">
-                <path d={`M ${CHINA_MAP_CONFIG.tileSize} 0 L 0 0 0 ${CHINA_MAP_CONFIG.tileSize}`} fill="none" stroke="#444" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
+      {/* 状态标记 */}
+      {city.status === 'hot' && (
+        <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 z-10">
+          <Flame className="w-3 h-3" />
+          热门
         </div>
-
-        {/* 交通路线 */}
-        <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-          {CHINA_MAP_CONFIG.subwayLines.map((route, index) => (
-            <RouteConnection key={index} route={route} provinces={CHINA_MAP_CONFIG.provinces} />
-          ))}
-        </svg>
-
-        {/* 地标 */}
-        {CHINA_MAP_CONFIG.landmarks.map((landmark, index) => (
-          <motion.div
-            key={index}
-            className="absolute text-2xl opacity-50"
-            style={{
-              left: landmark.position.x * CHINA_MAP_CONFIG.tileSize,
-              top: landmark.position.y * CHINA_MAP_CONFIG.tileSize
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            transition={{ delay: index * 0.1 }}
-            title={landmark.name}
-          >
-            {landmark.emoji}
-          </motion.div>
-        ))}
-
-        {/* 省份 */}
-        {Object.values(CHINA_MAP_CONFIG.provinces).map((province) => (
-          <ProvinceCard
-            key={province.id}
-            province={province}
-            isSelected={selectedProvince === province.id}
-            isPlayerHere={playerPosition === province.id}
-            onClick={() => onProvinceClick(province.id)}
-          />
-        ))}
-
-        {/* 地图标题 */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xl font-black text-gold-500 pixel-font">
-          中国地图
+      )}
+      {city.status === 'recommended' && (
+        <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 z-10">
+          <Star className="w-3 h-3" />
+          推荐
         </div>
-      </div>
-    </div>
-  )
-}
+      )}
 
-// 省份详情面板
-interface ProvinceDetailPanelProps {
-  province: Province
-  onClose: () => void
-  onEnter: () => void
-}
-
-function ProvinceDetailPanel({ province, onClose, onEnter }: ProvinceDetailPanelProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'cities' | 'invest'>('info')
-  const provinceType = PROVINCE_TYPES[province.type]
-
-  return (
-    <motion.div
-      className="fixed right-0 top-20 bottom-0 w-96 bg-[#0A1628] border-l-4 border-gold-500 overflow-hidden z-40"
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: 'spring', damping: 20 }}
-    >
-      {/* 头部 */}
-      <div className="p-6 border-b-2 border-gray-800">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">{province.emoji}</span>
-            <div>
-              <h2 className="text-2xl font-black" style={{ color: province.color }}>
-                {province.name}
-              </h2>
-              <p className="text-sm text-gray-500">{provinceType.name}</p>
-            </div>
+      <div className="p-6">
+        {/* 城市信息 */}
+        <div className="flex items-start gap-4 mb-4">
+          <span className="text-5xl">{city.emoji}</span>
+          <div className="flex-1">
+            <h3 className="text-2xl font-bold text-white mb-1">{city.name}</h3>
+            <p className="text-sm text-gray-400">{tierConfig.name} · {city.nameEn}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="text-2xl hover:text-gold-500 transition-colors"
-            aria-label="关闭面板"
-          >
-            ✕
-          </button>
+          <div className={cn(
+            "text-sm font-bold px-2 py-1 rounded",
+            city.priceChange > 5 ? "bg-red-500/20 text-red-500" :
+            city.priceChange > 0 ? "bg-green-500/20 text-green-500" :
+            "bg-gray-700/50 text-gray-400"
+          )}>
+            {city.priceChange > 0 ? '+' : ''}{city.priceChange}%
+          </div>
         </div>
 
-        {/* 标签页 */}
-        <div className="flex gap-2">
-          {(['info', 'cities', 'invest'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "flex-1 py-2 font-bold transition-all",
-                activeTab === tab
-                  ? 'bg-gold-500 text-black'
-                  : 'bg-gray-800 text-gray-400 hover:text-white'
-              )}
+        <p className="text-gray-400 text-sm mb-4 line-clamp-2">
+          {city.description}
+        </p>
+
+        {/* 数据展示 */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <MapPin className="w-3 h-3" />
+              <span>开放区域</span>
+            </div>
+            <p className="text-lg font-bold text-gold-500">{city.districts}个</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <Building2 className="w-3 h-3" />
+              <span>可用地块</span>
+            </div>
+            <p className="text-lg font-bold text-green-500">{city.availableLands}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <TrendingUp className="w-3 h-3" />
+              <span>月收益率</span>
+            </div>
+            <p className="text-lg font-bold text-blue-500">{city.monthlyReturn}</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+              <BarChart3 className="w-3 h-3" />
+              <span>均价</span>
+            </div>
+            <p className="text-lg font-bold">¥{(city.avgPrice/1000).toFixed(0)}k</p>
+          </div>
+        </div>
+
+        {/* 特色标签 */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {city.features.slice(0, 3).map((feature, i) => (
+            <span 
+              key={i}
+              className="text-xs bg-gray-800 px-2 py-1 rounded-full text-gray-300"
             >
-              {tab === 'info' ? '📊 数据' : tab === 'cities' ? '🏙️ 城市' : '💰 投资'}
-            </button>
+              {feature}
+            </span>
           ))}
+          {city.features.length > 3 && (
+            <span className="text-xs text-gray-500">
+              +{city.features.length - 3}
+            </span>
+          )}
         </div>
-      </div>
 
-      {/* 内容区 */}
-      <div className="p-6 overflow-y-auto" style={{ height: 'calc(100% - 180px)' }}>
-        <AnimatePresence mode="wait">
-          {/* 基本信息 */}
-          {activeTab === 'info' && (
-            <motion.div
-              key="info"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
-            >
-              <p className="text-gray-400">{province.description}</p>
-
-              <div className="grid grid-cols-2 gap-4">
-                <PixelCard className="p-4 text-center">
-                  <div className="text-3xl font-black text-gold-500">
-                    {province.lands.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-500">总地块</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-3xl font-black text-green-500">
-                    {province.available}
-                  </div>
-                  <div className="text-xs text-gray-500">可购买</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-3xl font-black text-blue-500">
-                    ¥{province.avgPrice.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-gray-500">均价</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-2xl font-black text-purple-500">
-                    {province.monthlyReturn}
-                  </div>
-                  <div className="text-xs text-gray-500">月收益</div>
-                </PixelCard>
-              </div>
-
-              {/* 邻近省份 */}
-              {province.neighbors && province.neighbors.length > 0 && (
-                <div>
-                  <h3 className="font-bold mb-2 text-gold-500">邻近地区</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {province.neighbors.map((neighbor: string) => (
-                      <span key={neighbor} className="px-3 py-1 bg-gray-800 text-sm rounded">
-                        {getProvinceName(neighbor)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </motion.div>
+        {/* 进入按钮 */}
+        <motion.button
+          className={cn(
+            "w-full py-3 rounded-xl font-medium transition-all",
+            "flex items-center justify-center gap-2",
+            "bg-gradient-to-r from-gray-700 to-gray-600",
+            "group-hover:from-gold-500 group-hover:to-yellow-600",
+            "text-gray-300 group-hover:text-black"
           )}
-
-          {/* 城市列表 */}
-          {activeTab === 'cities' && (
-            <motion.div
-              key="cities"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-3"
-            >
-              {province.cities ? (
-                province.cities.map((city: string, index: number) => (
-                  <motion.div
-                    key={city}
-                    className="p-4 bg-gray-800 rounded hover:bg-gray-700 transition-colors cursor-pointer"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ x: 4 }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold">{city}</h4>
-                        <p className="text-xs text-gray-500">热门城市</p>
-                      </div>
-                      <span className="text-gold-500">→</span>
-                    </div>
-                  </motion.div>
-                ))
-              ) : province.buildings ? (
-                province.buildings.map((building: string, index: number) => (
-                  <motion.div
-                    key={building}
-                    className="p-4 bg-gray-800 rounded"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🏛️</span>
-                      <div>
-                        <h4 className="font-bold">{building}</h4>
-                        <p className="text-xs text-gray-500">地标建筑</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">暂无城市数据</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* 投资机会 */}
-          {activeTab === 'invest' && (
-            <motion.div
-              key="invest"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
-            >
-              <PixelCard className="p-4 bg-gradient-to-br from-gold-500/20 to-transparent">
-                <h3 className="font-bold mb-3 text-gold-500">💎 投资建议</h3>
-                <div className="space-y-2 text-sm">
-                  <p>• 该地区{province.hot ? '🔥 热度极高' : '发展潜力大'}</p>
-                  <p>• 月收益率 <span className="text-green-500 font-bold">{province.monthlyReturn}</span></p>
-                  <p>• 建议投资额 <span className="text-gold-500 font-bold">¥{province.price.toLocaleString()}</span></p>
-                </div>
-              </PixelCard>
-
-              <div className="space-y-2">
-                <h3 className="font-bold text-gold-500">🏆 热门地块</h3>
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-3 bg-gray-800 rounded flex items-center justify-between">
-                    <div>
-                      <p className="font-bold">地块 #{1000 + i}</p>
-                      <p className="text-xs text-gray-500">300㎡ · 商业用地</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gold-500 font-bold">¥{(province.avgPrice + i * 5000).toLocaleString()}</p>
-                      <button className="text-xs text-green-500 hover:underline">
-                        查看 →
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* 底部操作 */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 bg-[#0A1628] border-t-2 border-gray-800">
-        <PixelButton
-          className="w-full"
-          size="lg"
-          onClick={onEnter}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          <span className="mr-2">🚀</span>
-          进入{province.name}
-        </PixelButton>
+          进入城市
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </motion.button>
       </div>
+
+      {/* 悬浮效果 */}
+      <div className="absolute inset-0 bg-gradient-to-t from-gold-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
     </motion.div>
   )
 }
 
-// 快速操作面板
-interface QuickActionsProps {
-  currentProvince: string
-  onAction: (action: string) => void
-}
-
-function QuickActions({ 
-  currentProvince,
-  onAction 
-}: QuickActionsProps) {
-  const actions = [
-    { id: 'buy', icon: '🛒', label: '购买地块', color: 'bg-green-500' },
-    { id: 'build', icon: '🏗️', label: '建设房产', color: 'bg-blue-500' },
-    { id: 'rent', icon: '💰', label: '出租管理', color: 'bg-gold-500' },
-    { id: 'sell', icon: '💸', label: '出售资产', color: 'bg-red-500' }
+// 城市对比雷达图
+function CityComparisonRadar({ cities }: { cities: City[] }) {
+  const dimensions = [
+    { key: 'price', label: '价格水平', max: 60000 },
+    { key: 'growth', label: '增长潜力', max: 10 },
+    { key: 'lands', label: '可用地块', max: 1000 },
+    { key: 'return', label: '收益率', max: 20 },
+    { key: 'districts', label: '区域数量', max: 20 }
   ]
 
   return (
-    <PixelCard className="p-4">
-      <h3 className="font-bold mb-3 text-gold-500">⚡ 快速操作</h3>
-      <div className="grid grid-cols-2 gap-3">
-        {actions.map((action) => (
-          <motion.button
-            key={action.id}
-            className={cn(
-              "p-3 rounded text-white font-bold transition-all",
-              action.color,
-              "hover:opacity-80"
-            )}
-            onClick={() => onAction(action.id)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <div className="text-2xl mb-1">{action.icon}</div>
-            <div className="text-xs">{action.label}</div>
-          </motion.button>
-        ))}
-      </div>
-    </PixelCard>
-  )
-}
-
-// 区域排行榜
-interface DistrictRankingProps {
-  provinces: Province[]
-}
-
-function DistrictRanking({ provinces }: DistrictRankingProps) {
-  const sortedProvinces = [...provinces].sort((a, b) => b.avgPrice - a.avgPrice)
-
-  return (
-    <PixelCard className="p-4">
-      <h3 className="font-bold mb-3 text-gold-500">🏆 区域价值排行</h3>
-      <div className="space-y-2">
-        {sortedProvinces.slice(0, 5).map((province, index) => (
-          <div key={province.id} className="flex items-center justify-between p-2">
-            <div className="flex items-center gap-3">
-              <span className="text-lg font-bold text-gold-500">#{index + 1}</span>
-              <div>
-                <p className="font-bold text-sm">{province.name}</p>
-                <p className="text-xs text-gray-500">{province.available}块可用</p>
+    <div className="bg-gray-900/50 rounded-2xl p-6 border border-gray-800">
+      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <BarChart3 className="w-5 h-5 text-gold-500" />
+        城市数据对比
+      </h3>
+      
+      <div className="relative h-64 flex items-center justify-center">
+        {/* 这里简化展示，实际可以接入图表库 */}
+        <div className="text-center">
+          <div className="grid grid-cols-3 gap-4">
+            {cities.slice(0, 3).map((city) => (
+              <div key={city.id} className="text-center">
+                <span className="text-2xl block mb-2">{city.emoji}</span>
+                <p className="text-sm font-medium text-white">{city.name}</p>
+                <p className="text-xs text-gray-500">综合评分</p>
+                <p className="text-xl font-bold text-gold-500">
+                  {(85 + Math.random() * 10).toFixed(1)}
+                </p>
               </div>
-            </div>
-            <span className="text-sm font-bold text-gold-500">
-              ¥{(province.avgPrice/1000).toFixed(0)}k
-            </span>
-          </div>
-        ))}
-      </div>
-    </PixelCard>
-  )
-}
-
-// 游戏状态栏
-interface GameStatusBarProps {
-  playerInfo: { tdb: number; lands: number; level: string }
-  currentProvince: string
-}
-
-function GameStatusBar({ 
-  playerInfo,
-  currentProvince 
-}: GameStatusBarProps) {
-  const currentProvinceData = getProvinceById(currentProvince)
-  
-  return (
-    <div className="fixed bottom-0 left-0 right-0 bg-[#0A1628]/95 backdrop-blur border-t-4 border-gold-500 p-4 z-30">
-      <Container>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            {/* 当前位置 */}
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">当前位置:</span>
-              <span className="font-bold text-gold-500">
-                {currentProvinceData?.name || '未知'}
-              </span>
-            </div>
-
-            {/* 玩家信息 */}
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <div className="text-xs text-gray-500">TDB</div>
-                <div className="text-xl font-black text-gold-500">
-                  {playerInfo.tdb.toLocaleString()}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-500">地块</div>
-                <div className="text-xl font-black text-green-500">
-                  {playerInfo.lands}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-gray-500">等级</div>
-                <div className="text-xl font-black text-purple-500">
-                  {playerInfo.level}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 快捷操作 */}
-          <div className="flex items-center gap-4">
-            <motion.button
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="mr-2">🗺️</span>
-              全国地图
-            </motion.button>
-            <motion.button
-              className="px-4 py-2 bg-gold-500 text-black font-bold rounded hover:bg-gold-400 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="mr-2">🏠</span>
-              我的地产
-            </motion.button>
+            ))}
           </div>
         </div>
-      </Container>
+      </div>
     </div>
   )
 }
 
-// 热门活动面板
-function HotActivities() {
-  const activities = [
-    { emoji: '🎯', title: '北京CBD抢地活动', desc: '限时8折优惠', time: '剩余2天' },
-    { emoji: '🏆', title: '上海地产争霸赛', desc: '奖金池100万TDB', time: '进行中' },
-    { emoji: '🎁', title: '新手专属福利', desc: '首次购地送工具', time: '永久有效' }
+// 投资建议组件
+function InvestmentGuide() {
+  const guides = [
+    {
+      icon: Shield,
+      title: '稳健投资',
+      cities: ['北京', '上海'],
+      description: '一线城市，价值稳定，适合长期持有'
+    },
+    {
+      icon: Zap,
+      title: '高增长',
+      cities: ['深圳', '杭州'],
+      description: '科技产业发达，增值潜力大'
+    },
+    {
+      icon: Award,
+      title: '价值洼地',
+      cities: ['成都', '西安'],
+      description: '价格亲民，发展空间大'
+    }
   ]
 
   return (
-    <PixelCard className="p-4">
-      <h3 className="font-bold mb-3 text-gold-500">🔥 热门活动</h3>
-      <div className="space-y-2">
-        {activities.map((activity, index) => (
-          <motion.div
-            key={index}
-            className="p-3 bg-gray-800 rounded hover:bg-gray-700 transition-colors cursor-pointer"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            whileHover={{ x: 4 }}
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">{activity.emoji}</span>
+    <div className="bg-gray-900/50 rounded-2xl p-6 border border-gray-800">
+      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <Info className="w-5 h-5 text-gold-500" />
+        投资建议
+      </h3>
+      
+      <div className="space-y-4">
+        {guides.map((guide, index) => {
+          const Icon = guide.icon
+          return (
+            <motion.div
+              key={index}
+              className="flex gap-4 p-4 bg-gray-800/50 rounded-xl"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gold-500/20 rounded-lg flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-gold-500" />
+                </div>
+              </div>
               <div className="flex-1">
-                <h4 className="font-bold text-sm">{activity.title}</h4>
-                <p className="text-xs text-gray-500">{activity.desc}</p>
+                <h4 className="font-medium text-white mb-1">{guide.title}</h4>
+                <p className="text-xs text-gray-400 mb-2">{guide.description}</p>
+                <div className="flex gap-2">
+                  {guide.cities.map(city => (
+                    <span key={city} className="text-xs bg-gray-700 px-2 py-1 rounded">
+                      {city}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <span className="text-xs text-green-500">{activity.time}</span>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          )
+        })}
       </div>
-    </PixelCard>
-  )
-}
-
-// 排行榜组件
-function Leaderboard() {
-  const leaders = [
-    { rank: 1, name: '地产大亨', lands: 1580, value: '¥2,580万' },
-    { rank: 2, name: '投资达人', lands: 1234, value: '¥1,680万' },
-    { rank: 3, name: '土地之王', lands: 888, value: '¥1,280万' }
-  ]
-
-  return (
-    <PixelCard className="p-4">
-      <h3 className="font-bold mb-3 text-gold-500">🏆 地产排行榜</h3>
-      <div className="space-y-2">
-        {leaders.map((leader) => (
-          <div key={leader.rank} className="flex items-center justify-between p-2">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">
-                {leader.rank === 1 ? '🥇' : leader.rank === 2 ? '🥈' : '🥉'}
-              </span>
-              <div>
-                <p className="font-bold text-sm">{leader.name}</p>
-                <p className="text-xs text-gray-500">{leader.lands}块地</p>
-              </div>
-            </div>
-            <span className="text-sm font-bold text-gold-500">{leader.value}</span>
-          </div>
-        ))}
-      </div>
-    </PixelCard>
+    </div>
   )
 }
 
 // 主组件
 export default function ChinaMapPage() {
-  const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
-  const [playerPosition, setPlayerPosition] = useState('beijing')
-  const [playerInfo] = useState({
-    tdb: 10000,
-    lands: 3,
-    level: '小星星'
+  const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'tier'>('tier')
+  const [filterTier, setFilterTier] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // 获取城市列表
+  const cities = Object.values(CITIES_DATA)
+  
+  // 过滤城市
+  const filteredCities = cities.filter(city => {
+    if (searchTerm && !city.name.includes(searchTerm) && !city.nameEn.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false
+    }
+    if (filterTier !== 'all' && city.tier !== filterTier) {
+      return false
+    }
+    return true
   })
-  const [showAnimation, setShowAnimation] = useState(false)
 
-  // 处理省份点击
-  const handleProvinceClick = (provinceId: string) => {
-    setSelectedProvince(provinceId)
-    
-    // 模拟移动动画
-    if (provinceId !== playerPosition) {
-      setShowAnimation(true)
-      setTimeout(() => {
-        setPlayerPosition(provinceId)
-        setShowAnimation(false)
-      }, 1000)
-    }
+  // 按层级分组
+  const citiesByTier = {
+    first: filteredCities.filter(c => c.tier === 'first'),
+    'new-first': filteredCities.filter(c => c.tier === 'new-first'),
+    second: filteredCities.filter(c => c.tier === 'second')
   }
 
-  // 处理进入省份
-  const handleEnterProvince = () => {
-    if (selectedProvince) {
-      window.location.href = `/explore/china/${selectedProvince}`
-    }
+  // 处理城市选择
+  const handleCitySelect = (cityId: string) => {
+    setSelectedCity(cityId)
+    // 延迟跳转
+    setTimeout(() => {
+      window.location.href = `/explore/china/${cityId}`
+    }, 300)
   }
-
-  // 快速操作
-  const handleQuickAction = (action: string) => {
-    console.log('Quick action:', action)
-    // 这里可以实现具体的操作逻辑
-  }
-
-  const selectedProvinceData = selectedProvince ? getProvinceById(selectedProvince) : null
 
   return (
-    <div className="min-h-screen bg-[#0F0F1E] relative">
+    <div className="min-h-screen bg-[#0A0F1B]">
+      {/* 背景装饰 */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
+      </div>
+
       {/* 顶部导航 */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-[#0A1628]/95 backdrop-blur border-b-4 border-gold-500">
-        <Container>
+      <div className="relative border-b border-gray-800 bg-black/50 backdrop-blur-xl sticky top-0 z-40">
+        <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-4">
-              <Link href="/explore" className="text-gray-400 hover:text-gold-500">
-                ← 返回世界地图
+              <Link href="/explore" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">返回</span>
               </Link>
-              <h1 className="text-2xl font-black text-gold-500 pixel-font">
-                中国区域
-              </h1>
-            </div>
-            
-            <div className="flex items-center gap-6">
-              <div className="text-sm">
-                <span className="text-gray-400">总地块:</span>
-                <span className="text-gold-500 font-bold ml-2">
-                  {Object.values(CHINA_MAP_CONFIG.provinces).reduce((sum, p) => sum + p.lands, 0).toLocaleString()}
-                </span>
+              <div className="h-4 w-px bg-gray-700" />
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                  中国
+                  <span className="text-3xl">🇨🇳</span>
+                </h1>
+                <p className="text-sm text-gray-400">选择您要投资的城市</p>
               </div>
-              <div className="text-sm">
-                <span className="text-gray-400">可用:</span>
-                <span className="text-green-500 font-bold ml-2">
-                  {Object.values(CHINA_MAP_CONFIG.provinces).reduce((sum, p) => sum + p.available, 0)}
-                </span>
+            </div>
+
+            {/* 视图切换 */}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex bg-gray-900/50 rounded-xl p-1">
+                <button
+                  onClick={() => setViewMode('tier')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg transition-all text-sm font-medium",
+                    viewMode === 'tier' 
+                      ? "bg-gold-500 text-black" 
+                      : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  分级展示
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "px-4 py-2 rounded-lg transition-all text-sm font-medium",
+                    viewMode === 'grid' 
+                      ? "bg-gold-500 text-black" 
+                      : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  网格展示
+                </button>
               </div>
             </div>
           </div>
-        </Container>
+        </div>
       </div>
 
       {/* 主内容区 */}
-      <div className="pt-20 pb-8">
-        <div className="flex">
-          {/* 左侧面板 */}
-          <div className="w-80 p-6 space-y-6">
-            <QuickActions 
-              currentProvince={playerPosition}
-              onAction={handleQuickAction}
+      <div className="relative container mx-auto px-4 py-8">
+        {/* 搜索和筛选栏 */}
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="搜索城市..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-900/50 backdrop-blur border border-gray-700 rounded-xl focus:border-gold-500 focus:outline-none transition-all"
             />
-            <DistrictRanking provinces={Object.values(CHINA_MAP_CONFIG.provinces)} />
           </div>
-
-          {/* 中间地图 */}
-          <div className="flex-1 flex items-center justify-center p-8">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              {/* 移动动画提示 */}
-              {showAnimation && (
-                <motion.div
-                  className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0 }}
-                >
-                  <div className="bg-gold-500 text-black px-8 py-4 rounded-lg font-black text-xl">
-                    🚇 地铁移动中...
-                  </div>
-                </motion.div>
-              )}
-
-              <ChinaGameMap
-                selectedProvince={selectedProvince}
-                playerPosition={playerPosition}
-                onProvinceClick={handleProvinceClick}
-              />
-            </motion.div>
-          </div>
-
-          {/* 右侧提示 */}
-          <div className="w-80 p-6">
-            <PixelCard className="p-4">
-              <h3 className="font-bold mb-3 text-gold-500">📍 当前位置</h3>
-              <div className="text-center mb-4">
-                <div className="text-4xl mb-2">
-                  {getProvinceById(playerPosition)?.emoji}
-                </div>
-                <h4 className="font-bold text-lg">
-                  {getProvinceById(playerPosition)?.name}
-                </h4>
-              </div>
-              
-              <div className="space-y-2 text-sm text-gray-400">
-                <p>• 🚇 地铁连接各区</p>
-                <p>• 🔥 标记热门投资区</p>
-                <p>• 📍 显示您的位置</p>
-                <p>• 点击区域查看详情</p>
-              </div>
-
-              <div className="mt-4 p-3 bg-gold-500/10 rounded">
-                <p className="text-xs text-gold-500">
-                  💡 不同区域有不同投资价值，选择适合您的投资策略
-                </p>
-              </div>
-            </PixelCard>
+          
+          <div className="flex gap-2">
+            {[
+              { value: 'all', label: '全部城市' },
+              { value: 'first', label: '一线城市' },
+              { value: 'new-first', label: '新一线城市' },
+              { value: 'second', label: '二线城市' }
+            ].map(filter => (
+              <button
+                key={filter.value}
+                onClick={() => setFilterTier(filter.value)}
+                className={cn(
+                  "px-4 py-3 rounded-xl font-medium transition-all text-sm",
+                  filterTier === filter.value
+                    ? "bg-gold-500 text-black"
+                    : "bg-gray-900/50 text-gray-400 hover:text-white border border-gray-700"
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* 省份详情面板 */}
-        <AnimatePresence>
-          {selectedProvinceData && (
-            <ProvinceDetailPanel
-              province={selectedProvinceData}
-              onClose={() => setSelectedProvince(null)}
-              onEnter={handleEnterProvince}
-            />
-          )}
-        </AnimatePresence>
+        {/* 统计概览 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <motion.div
+            className="bg-gradient-to-br from-gold-500/20 to-transparent p-6 rounded-2xl border border-gold-500/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Building2 className="w-8 h-8 text-gold-500 mb-3" />
+            <p className="text-2xl font-bold text-white">{cities.length}</p>
+            <p className="text-sm text-gray-400">开放城市</p>
+          </motion.div>
+          
+          <motion.div
+            className="bg-gradient-to-br from-green-500/20 to-transparent p-6 rounded-2xl border border-green-500/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <MapPin className="w-8 h-8 text-green-500 mb-3" />
+            <p className="text-2xl font-bold text-white">
+              {cities.reduce((sum, c) => sum + c.availableLands, 0).toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-400">可用地块</p>
+          </motion.div>
+          
+          <motion.div
+            className="bg-gradient-to-br from-blue-500/20 to-transparent p-6 rounded-2xl border border-blue-500/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <TrendingUp className="w-8 h-8 text-blue-500 mb-3" />
+            <p className="text-2xl font-bold text-white">
+              +{(cities.reduce((sum, c) => sum + c.priceChange, 0) / cities.length).toFixed(1)}%
+            </p>
+            <p className="text-sm text-gray-400">平均涨幅</p>
+          </motion.div>
+          
+          <motion.div
+            className="bg-gradient-to-br from-purple-500/20 to-transparent p-6 rounded-2xl border border-purple-500/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Users className="w-8 h-8 text-purple-500 mb-3" />
+            <p className="text-2xl font-bold text-white">3,456</p>
+            <p className="text-sm text-gray-400">活跃投资者</p>
+          </motion.div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* 左侧 - 城市列表 */}
+          <div className="lg:col-span-2">
+            {viewMode === 'tier' ? (
+              /* 分级展示 */
+              <div className="space-y-8">
+                {Object.entries(citiesByTier).map(([tier, tierCities]) => {
+                  if (tierCities.length === 0) return null
+                  const tierConfig = CITY_TIERS[tier as keyof typeof CITY_TIERS]
+                  
+                  return (
+                    <motion.div
+                      key={tier}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <h2 className="text-xl font-bold text-white">{tierConfig.name}</h2>
+                        <p className="text-sm text-gray-500">{tierConfig.description}</p>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {tierCities.map(city => (
+                          <CityCard
+                            key={city.id}
+                            city={city}
+                            isSelected={selectedCity === city.id}
+                            onClick={() => handleCitySelect(city.id)}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* 网格展示 */
+              <div className="grid md:grid-cols-2 gap-4">
+                {filteredCities.map(city => (
+                  <CityCard
+                    key={city.id}
+                    city={city}
+                    isSelected={selectedCity === city.id}
+                    onClick={() => handleCitySelect(city.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 右侧 - 辅助信息 */}
+          <div className="space-y-6">
+            {/* 投资建议 */}
+            <InvestmentGuide />
+            
+            {/* 城市对比 */}
+            <CityComparisonRadar cities={cities.filter(c => c.status === 'hot' || c.status === 'recommended')} />
+            
+            {/* 新手提示 */}
+            <motion.div
+              className="bg-gradient-to-br from-gold-500/10 to-transparent rounded-2xl p-6 border border-gold-500/30"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+            >
+              <h3 className="font-bold text-white mb-3 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-gold-500" />
+                新手建议
+              </h3>
+              <p className="text-sm text-gray-300 mb-3">
+                初次投资建议选择标记为"推荐"的城市，这些城市具有较好的增长潜力和合理的价格。
+              </p>
+              <Link href="/guide">
+                <button className="text-sm text-gold-500 hover:text-gold-400 font-medium">
+                  查看投资指南 →
+                </button>
+              </Link>
+            </motion.div>
+          </div>
+        </div>
       </div>
-
-      {/* 游戏状态栏 */}
-      <GameStatusBar
-        playerInfo={playerInfo}
-        currentProvince={playerPosition}
-      />
-
-      {/* 背景音效控制 */}
-      <motion.button
-        className="fixed top-24 right-4 z-30 w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-xl hover:bg-gray-700 transition-colors"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        aria-label="音效控制"
-      >
-        🎵
-      </motion.button>
     </div>
   )
 }
