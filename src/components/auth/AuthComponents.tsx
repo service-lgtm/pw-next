@@ -469,6 +469,8 @@ export function LoginForm() {
     setErrors(newErrors)
     if (Object.keys(newErrors).length === 0) {
       console.log('登录:', formData)
+      // 登录成功后跳转到仪表盘
+      router.push('/dashboard')
     }
   }
 
@@ -545,9 +547,9 @@ export function LoginForm() {
             className="w-full pixel-btn"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={handleLogin}
+            onClick={() => router.push('/dashboard')}
           >
-            立即登录
+            进入平行世界
           </motion.button>
 
           <div className="text-center space-y-2">
