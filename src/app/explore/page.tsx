@@ -1,588 +1,572 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { PixelCard } from '@/components/shared/PixelCard'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
-// 世界区域数据
-const worldRegions = [
-  {
-    id: 'china',
-    name: '中国',
-    status: 'open',
-    description: '已开放',
-    totalLands: 50000,
-    availableLands: 12580,
-    avgPrice: 15888,
-    hotCities: ['北京', '上海', '深圳', '广州'],
-    coordinates: { x: 70, y: 40 }
-  },
-  {
-    id: 'northamerica',
-    name: '北美',
-    status: 'coming',
-    description: '即将开放',
-    expectedDate: '2025 Q2',
-    coordinates: { x: 20, y: 35 }
-  },
-  {
-    id: 'europe',
-    name: '欧洲',
-    status: 'coming',
-    description: '敬请期待',
-    expectedDate: '2025 Q3',
-    coordinates: { x: 45, y: 30 }
-  },
-  {
-    id: 'asia',
-    name: '亚洲其他',
-    status: 'planning',
-    description: '规划中',
-    coordinates: { x: 75, y: 45 }
+// 世界地图配置
+const WORLD_MAP_CONFIG = {
+  width: 1920,
+  height: 1080,
+  tileSize: 32,
+  regions: {
+    china: {
+      name: '中国',
+      status: 'open',
+      bounds: { x: 1200, y: 400, width: 400, height: 300 },
+      capital: { x: 1350, y: 480 },
+      color: '#FFD700',
+      glow: '#FFA500',
+      cities: [
+        { id: 'beijing', name: '北京', x: 1350, y: 480, tier: 'capital' },
+        { id: 'shanghai', name: '上海', x: 1380, y: 520, tier: 'mega' },
+        { id: 'guangzhou', name: '广州', x: 1340, y: 580, tier: 'mega' },
+        { id: 'shenzhen', name: '深圳', x: 1350, y: 590, tier: 'mega' },
+        { id: 'chengdu', name: '成都', x: 1280, y: 520, tier: 'major' },
+        { id: 'xian', name: '西安', x: 1320, y: 500, tier: 'major' },
+      ]
+    },
+    northamerica: {
+      name: '北美洲',
+      status: 'coming',
+      bounds: { x: 300, y: 350, width: 500, height: 400 },
+      capital: { x: 450, y: 500 },
+      color: '#87CEEB',
+      releaseDate: '2025 Q2'
+    },
+    europe: {
+      name: '欧洲',
+      status: 'coming',
+      bounds: { x: 900, y: 300, width: 300, height: 250 },
+      capital: { x: 1000, y: 400 },
+      color: '#98FB98',
+      releaseDate: '2025 Q3'
+    },
+    southamerica: {
+      name: '南美洲',
+      status: 'locked',
+      bounds: { x: 400, y: 700, width: 300, height: 400 },
+      capital: { x: 500, y: 850 },
+      color: '#DDA0DD'
+    },
+    africa: {
+      name: '非洲',
+      status: 'locked',
+      bounds: { x: 900, y: 550, width: 350, height: 450 },
+      capital: { x: 1050, y: 750 },
+      color: '#F0E68C'
+    },
+    oceania: {
+      name: '大洋洲',
+      status: 'locked',
+      bounds: { x: 1400, y: 800, width: 300, height: 200 },
+      capital: { x: 1500, y: 900 },
+      color: '#FFB6C1'
+    }
   }
-]
+}
 
-// 中国省份数据
-const chinaProvinces = [
-  {
-    id: 'beijing',
-    name: '北京',
-    type: 'municipality',
-    status: 'hot',
-    totalLands: 5680,
-    availableLands: 256,
-    avgPrice: 28888,
-    coordinates: { x: 60, y: 25 }
-  },
-  {
-    id: 'shanghai',
-    name: '上海',
-    type: 'municipality',
-    status: 'hot',
-    totalLands: 4560,
-    availableLands: 189,
-    avgPrice: 32888,
-    coordinates: { x: 70, y: 40 }
-  },
-  {
-    id: 'guangdong',
-    name: '广东',
-    type: 'province',
-    status: 'hot',
-    cities: ['深圳', '广州', '东莞', '佛山'],
-    totalLands: 8900,
-    availableLands: 1234,
-    avgPrice: 22888,
-    coordinates: { x: 65, y: 60 }
-  },
-  {
-    id: 'sichuan',
-    name: '四川',
-    type: 'province',
-    status: 'normal',
-    cities: ['成都', '绵阳'],
-    totalLands: 3200,
-    availableLands: 890,
-    avgPrice: 12888,
-    coordinates: { x: 45, y: 45 }
-  }
-]
+// 城市等级配置
+const CITY_TIERS = {
+  capital: { size: 20, color: '#FFD700', icon: '👑', glow: true },
+  mega: { size: 16, color: '#FF6B6B', icon: '🏙️', glow: true },
+  major: { size: 12, color: '#4ECDC4', icon: '🌆', glow: false },
+  normal: { size: 8, color: '#95E1D3', icon: '🏘️', glow: false }
+}
 
-// 城市区域类型
-const districtTypes = [
-  { id: 'cbd', name: 'CBD商业区', icon: '🏢', color: '#FFD700', priceMultiplier: 2 },
-  { id: 'industrial', name: '工业区', icon: '🏭', color: '#708090', priceMultiplier: 0.8 },
-  { id: 'residential', name: '住宅区', icon: '🏘️', color: '#87CEEB', priceMultiplier: 1.2 },
-  { id: 'suburban', name: '郊区', icon: '🌾', color: '#90EE90', priceMultiplier: 0.5 }
-]
+// 地形瓦片类型
+const TERRAIN_TYPES = {
+  ocean: { color: '#1a3a52', pattern: 'waves' },
+  land: { color: '#2d5016', pattern: 'grass' },
+  mountain: { color: '#8B7355', pattern: 'rocks' },
+  desert: { color: '#C19A6B', pattern: 'sand' },
+  snow: { color: '#FFFAFA', pattern: 'snow' }
+}
 
 export default function ExplorePage() {
-  const [view, setView] = useState<'world' | 'china' | 'province' | 'city'>('world')
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  const [selectedProvince, setSelectedProvince] = useState<string | null>(null)
-  const [selectedCity, setSelectedCity] = useState<string | null>(null)
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
+  const [hoveredCity, setHoveredCity] = useState<string | null>(null)
+  const [mapScale, setMapScale] = useState(0.6)
+  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [showCityLabels, setShowCityLabels] = useState(true)
+  const [animationFrame, setAnimationFrame] = useState(0)
 
-  // 处理区域点击
-  const handleRegionClick = (regionId: string) => {
-    if (regionId === 'china') {
-      setView('china')
-      setSelectedRegion('china')
+  // 绘制像素化的世界地图
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 设置画布大小
+    canvas.width = window.innerWidth
+    canvas.height = 600
+
+    // 启用像素化渲染
+    ctx.imageSmoothingEnabled = false
+
+    const drawPixelRect = (x: number, y: number, width: number, height: number, color: string) => {
+      ctx.fillStyle = color
+      const pixelSize = 4
+      for (let px = 0; px < width; px += pixelSize) {
+        for (let py = 0; py < height; py += pixelSize) {
+          ctx.fillRect(
+            Math.floor(x + px), 
+            Math.floor(y + py), 
+            pixelSize, 
+            pixelSize
+          )
+        }
+      }
+    }
+
+    const drawRegion = (regionId: string, region: any) => {
+      const { bounds, color, status } = region
+      const x = (bounds.x * mapScale) + mapOffset.x
+      const y = (bounds.y * mapScale) + mapOffset.y
+      const width = bounds.width * mapScale
+      const height = bounds.height * mapScale
+
+      // 绘制区域主体
+      if (status === 'open') {
+        // 绘制发光效果
+        ctx.shadowColor = region.glow || color
+        ctx.shadowBlur = 20
+        drawPixelRect(x, y, width, height, color)
+        ctx.shadowBlur = 0
+      } else {
+        // 未开放区域用暗色
+        drawPixelRect(x, y, width, height, status === 'coming' ? '#444' : '#222')
+      }
+
+      // 绘制边框
+      ctx.strokeStyle = hoveredRegion === regionId ? '#FFF' : '#000'
+      ctx.lineWidth = hoveredRegion === regionId ? 3 : 1
+      ctx.strokeRect(x, y, width, height)
+
+      // 绘制首都标记
+      if (region.capital) {
+        const capX = (region.capital.x * mapScale) + mapOffset.x
+        const capY = (region.capital.y * mapScale) + mapOffset.y
+        
+        ctx.fillStyle = '#FFF'
+        ctx.beginPath()
+        ctx.arc(capX, capY, 5, 0, Math.PI * 2)
+        ctx.fill()
+        
+        if (status === 'open') {
+          // 动画效果
+          ctx.strokeStyle = color
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.arc(capX, capY, 10 + (Math.sin(animationFrame * 0.1) * 3), 0, Math.PI * 2)
+          ctx.stroke()
+        }
+      }
+
+      // 绘制区域名称
+      ctx.fillStyle = status === 'open' ? '#FFF' : '#666'
+      ctx.font = 'bold 16px "Press Start 2P", monospace'
+      ctx.textAlign = 'center'
+      const textX = x + width / 2
+      const textY = y + height / 2
+      ctx.fillText(region.name, textX, textY)
+
+      // 绘制状态标签
+      if (status !== 'open') {
+        ctx.font = '10px "Press Start 2P", monospace'
+        ctx.fillStyle = status === 'coming' ? '#FFD700' : '#666'
+        const statusText = status === 'coming' ? 'COMING SOON' : 'LOCKED'
+        ctx.fillText(statusText, textX, textY + 20)
+        if (region.releaseDate) {
+          ctx.fillText(region.releaseDate, textX, textY + 35)
+        }
+      }
+    }
+
+    const drawCity = (city: any, region: any) => {
+      if (region.status !== 'open') return
+      
+      const tier = CITY_TIERS[city.tier as keyof typeof CITY_TIERS]
+      const x = (city.x * mapScale) + mapOffset.x
+      const y = (city.y * mapScale) + mapOffset.y
+
+      // 绘制城市图标
+      ctx.fillStyle = tier.color
+      ctx.fillRect(x - tier.size / 2, y - tier.size / 2, tier.size, tier.size)
+
+      // 绘制城市光晕
+      if (tier.glow) {
+        ctx.strokeStyle = tier.color
+        ctx.lineWidth = 1
+        const glowSize = tier.size + 10 + (Math.sin(animationFrame * 0.05) * 5)
+        ctx.strokeRect(x - glowSize / 2, y - glowSize / 2, glowSize, glowSize)
+      }
+
+      // 绘制城市名称
+      if (showCityLabels || hoveredCity === city.id) {
+        ctx.fillStyle = '#FFF'
+        ctx.font = '10px "Press Start 2P", monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText(city.name, x, y - tier.size)
+      }
+
+      // 高亮效果
+      if (hoveredCity === city.id) {
+        ctx.strokeStyle = '#FFD700'
+        ctx.lineWidth = 3
+        ctx.strokeRect(x - tier.size / 2 - 5, y - tier.size / 2 - 5, tier.size + 10, tier.size + 10)
+      }
+    }
+
+    // 清空画布
+    ctx.fillStyle = '#0A1628'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // 绘制网格背景
+    ctx.strokeStyle = '#1a2332'
+    ctx.lineWidth = 1
+    const gridSize = 32 * mapScale
+    for (let x = mapOffset.x % gridSize; x < canvas.width; x += gridSize) {
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, canvas.height)
+      ctx.stroke()
+    }
+    for (let y = mapOffset.y % gridSize; y < canvas.height; y += gridSize) {
+      ctx.beginPath()
+      ctx.moveTo(0, y)
+      ctx.lineTo(canvas.width, y)
+      ctx.stroke()
+    }
+
+    // 绘制所有区域
+    Object.entries(WORLD_MAP_CONFIG.regions).forEach(([id, region]) => {
+      drawRegion(id, region)
+    })
+
+    // 绘制中国的城市
+    const china = WORLD_MAP_CONFIG.regions.china
+    if (china.cities) {
+      china.cities.forEach(city => {
+        drawCity(city, china)
+      })
+    }
+
+  }, [mapScale, mapOffset, hoveredRegion, hoveredCity, showCityLabels, animationFrame])
+
+  // 动画循环
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnimationFrame(prev => prev + 1)
+    }, 50)
+    return () => clearInterval(timer)
+  }, [])
+
+  // 处理鼠标事件
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    // 拖拽地图
+    if (isDragging) {
+      setMapOffset({
+        x: x - dragStart.x,
+        y: y - dragStart.y
+      })
+      return
+    }
+
+    // 检测悬停的区域
+    let foundRegion = null
+    let foundCity = null
+
+    Object.entries(WORLD_MAP_CONFIG.regions).forEach(([id, region]) => {
+      const bounds = region.bounds
+      const rx = (bounds.x * mapScale) + mapOffset.x
+      const ry = (bounds.y * mapScale) + mapOffset.y
+      const rw = bounds.width * mapScale
+      const rh = bounds.height * mapScale
+
+      if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) {
+        foundRegion = id
+      }
+
+      // 检测城市
+      if (region.status === 'open' && region.cities) {
+        region.cities.forEach(city => {
+          const cx = (city.x * mapScale) + mapOffset.x
+          const cy = (city.y * mapScale) + mapOffset.y
+          const tier = CITY_TIERS[city.tier as keyof typeof CITY_TIERS]
+          
+          if (Math.abs(x - cx) < tier.size && Math.abs(y - cy) < tier.size) {
+            foundCity = city.id
+          }
+        })
+      }
+    })
+
+    setHoveredRegion(foundRegion)
+    setHoveredCity(foundCity)
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - e.currentTarget.getBoundingClientRect().left - mapOffset.x,
+      y: e.clientY - e.currentTarget.getBoundingClientRect().top - mapOffset.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (hoveredRegion && WORLD_MAP_CONFIG.regions[hoveredRegion].status === 'open') {
+      setSelectedRegion(hoveredRegion)
     }
   }
 
-  // 处理省份点击
-  const handleProvinceClick = (provinceId: string) => {
-    setSelectedProvince(provinceId)
-    setView('province')
-  }
-
-  // 处理返回
-  const handleBack = () => {
-    if (view === 'city') {
-      setView('province')
-      setSelectedCity(null)
-    } else if (view === 'province') {
-      setView('china')
-      setSelectedProvince(null)
-    } else if (view === 'china') {
-      setView('world')
-      setSelectedRegion(null)
-    }
+  const handleZoom = (delta: number) => {
+    setMapScale(prev => Math.max(0.3, Math.min(1.5, prev + delta)))
   }
 
   return (
-    <div className="min-h-screen bg-[#0F0F1E] pt-20">
-      <Container>
-        {/* 面包屑导航 */}
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-          <button
-            onClick={() => setView('world')}
-            className="hover:text-gold-500 transition-colors"
-          >
-            世界地图
-          </button>
-          {view !== 'world' && (
-            <>
-              <span>/</span>
-              <button
-                onClick={() => setView('china')}
-                className={cn(
-                  "hover:text-gold-500 transition-colors",
-                  view === 'china' && "text-gold-500"
-                )}
-              >
-                中国
-              </button>
-            </>
-          )}
-          {selectedProvince && (
-            <>
-              <span>/</span>
-              <button
-                onClick={() => setView('province')}
-                className={cn(
-                  "hover:text-gold-500 transition-colors",
-                  view === 'province' && "text-gold-500"
-                )}
-              >
-                {chinaProvinces.find(p => p.id === selectedProvince)?.name}
-              </button>
-            </>
-          )}
+    <div className="min-h-screen bg-[#0F0F1E]">
+      {/* 顶部控制栏 */}
+      <div className="fixed top-20 left-0 right-0 z-20 bg-[#0A1628]/95 backdrop-blur border-b-4 border-gray-800">
+        <Container>
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-6">
+              <h1 className="text-2xl font-black text-gold-500 pixel-font">
+                WORLD MAP
+              </h1>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleZoom(0.1)}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold transition-colors"
+                >
+                  放大 +
+                </button>
+                <button
+                  onClick={() => handleZoom(-0.1)}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold transition-colors"
+                >
+                  缩小 -
+                </button>
+                <button
+                  onClick={() => {
+                    setMapScale(0.6)
+                    setMapOffset({ x: 0, y: 0 })
+                  }}
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold transition-colors"
+                >
+                  重置
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showCityLabels}
+                  onChange={(e) => setShowCityLabels(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-gray-400">显示城市名称</span>
+              </label>
+              
+              {hoveredRegion && (
+                <div className="text-sm text-gray-400">
+                  悬停: <span className="text-gold-500 font-bold">
+                    {WORLD_MAP_CONFIG.regions[hoveredRegion].name}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Container>
+      </div>
+
+      {/* 地图画布 */}
+      <div className="pt-32 relative">
+        <canvas
+          ref={canvasRef}
+          className="w-full cursor-move"
+          style={{ 
+            imageRendering: 'pixelated',
+            cursor: isDragging ? 'grabbing' : hoveredRegion ? 'pointer' : 'grab'
+          }}
+          onMouseMove={handleMouseMove}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => {
+            setHoveredRegion(null)
+            setHoveredCity(null)
+            setIsDragging(false)
+          }}
+          onClick={handleClick}
+        />
+
+        {/* 地图图例 */}
+        <div className="absolute bottom-4 left-4 bg-[#0A1628]/95 p-4 rounded-lg">
+          <h3 className="text-sm font-bold mb-3 text-gold-500">图例</h3>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-[#FFD700]" />
+              <span>已开放区域</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-[#444]" />
+              <span>即将开放</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-[#222]" />
+              <span>未开放</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-[#FFD700]" />
+              <span>首都/省会</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-[#FF6B6B]" />
+              <span>特大城市</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[#4ECDC4]" />
+              <span>主要城市</span>
+            </div>
+          </div>
         </div>
 
-        {/* 标题区域 */}
-        <motion.div
-          className="text-center mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="text-3xl md:text-4xl font-black mb-4">
-            <span className="text-gold-500">探索平行世界</span>
-          </h1>
-          <p className="text-gray-400">
-            {view === 'world' && '选择要探索的区域'}
-            {view === 'china' && '选择要查看的省份或城市'}
-            {view === 'province' && '查看城市详情和可用地块'}
-            {view === 'city' && '浏览不同区域的地块信息'}
-          </p>
-        </motion.div>
+        {/* 操作提示 */}
+        <div className="absolute bottom-4 right-4 bg-[#0A1628]/95 p-4 rounded-lg text-xs text-gray-400">
+          <p>🖱️ 拖拽移动地图</p>
+          <p>🔍 滚轮缩放</p>
+          <p>👆 点击进入区域</p>
+        </div>
+      </div>
 
-        {/* 返回按钮 */}
-        {view !== 'world' && (
-          <motion.button
-            className="mb-6 flex items-center gap-2 text-gray-400 hover:text-gold-500 transition-colors"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={handleBack}
+      {/* 选中区域的详细信息 */}
+      <AnimatePresence>
+        {selectedRegion && (
+          <motion.div
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedRegion(null)}
           >
-            <span>←</span>
-            <span>返回上级</span>
-          </motion.button>
-        )}
-
-        <AnimatePresence mode="wait">
-          {/* 世界地图视图 */}
-          {view === 'world' && (
             <motion.div
-              key="world"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="pixel-card p-8">
-                <div className="relative aspect-[16/9] bg-gray-900 rounded-lg overflow-hidden">
-                  {/* 简化的世界地图 */}
-                  <svg viewBox="0 0 100 60" className="w-full h-full">
-                    {worldRegions.map((region) => (
-                      <g key={region.id}>
-                        <motion.circle
-                          cx={region.coordinates.x}
-                          cy={region.coordinates.y}
-                          r="8"
-                          fill={region.status === 'open' ? '#FFD700' : '#666'}
-                          className={cn(
-                            "cursor-pointer transition-all",
-                            region.status !== 'open' && "cursor-not-allowed"
-                          )}
-                          whileHover={region.status === 'open' ? { scale: 1.2 } : {}}
-                          onClick={() => region.status === 'open' && handleRegionClick(region.id)}
-                          onMouseEnter={() => setHoveredItem(region.id)}
-                          onMouseLeave={() => setHoveredItem(null)}
-                        />
-                        <text
-                          x={region.coordinates.x}
-                          y={region.coordinates.y - 12}
-                          textAnchor="middle"
-                          fontSize="6"
-                          fill="white"
-                          className="pointer-events-none"
-                        >
-                          {region.name}
-                        </text>
-                        {region.status === 'open' && (
-                          <motion.circle
-                            cx={region.coordinates.x}
-                            cy={region.coordinates.y}
-                            r="12"
-                            fill="none"
-                            stroke="#FFD700"
-                            strokeWidth="1"
-                            opacity="0.5"
-                            animate={{
-                              scale: [1, 1.5, 1],
-                              opacity: [0.5, 0.2, 0.5],
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                            }}
-                          />
-                        )}
-                      </g>
-                    ))}
-                  </svg>
-
-                  {/* 悬浮信息 */}
-                  <AnimatePresence>
-                    {hoveredItem && (
-                      <motion.div
-                        className="absolute top-4 right-4 bg-black/90 p-4 rounded"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                      >
-                        {(() => {
-                          const region = worldRegions.find(r => r.id === hoveredItem)
-                          if (!region) return null
-                          return (
-                            <div>
-                              <h3 className="font-bold text-gold-500 mb-2">{region.name}</h3>
-                              <p className="text-sm text-gray-400">{region.description}</p>
-                              {region.status === 'open' && (
-                                <>
-                                  <div className="text-xs mt-2">
-                                    <p>总地块: {region.totalLands?.toLocaleString()}</p>
-                                    <p>可用: {region.availableLands?.toLocaleString()}</p>
-                                  </div>
-                                </>
-                              )}
-                              {region.status === 'coming' && (
-                                <p className="text-xs text-gold-500 mt-2">
-                                  预计: {region.expectedDate}
-                                </p>
-                              )}
-                            </div>
-                          )
-                        })()}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* 区域状态说明 */}
-              <div className="grid md:grid-cols-4 gap-4 mt-8">
-                {worldRegions.map((region, index) => (
-                  <motion.div
-                    key={region.id}
-                    className={cn(
-                      "pixel-card p-4 text-center",
-                      region.status === 'open' 
-                        ? "border-gold-500 cursor-pointer hover:scale-105" 
-                        : "border-gray-700 opacity-60"
-                    )}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    onClick={() => region.status === 'open' && handleRegionClick(region.id)}
-                  >
-                    <h3 className="font-bold text-lg mb-2">{region.name}</h3>
-                    <p className={cn(
-                      "text-sm",
-                      region.status === 'open' ? "text-green-500" : "text-gray-500"
-                    )}>
-                      {region.description}
-                    </p>
-                    {region.status === 'open' && region.totalLands && (
-                      <div className="mt-3 text-xs text-gray-400">
-                        <p>{region.totalLands.toLocaleString()} 块土地</p>
-                        <p className="text-gold-500">
-                          {region.availableLands?.toLocaleString()} 块可用
-                        </p>
-                      </div>
-                    )}
-                    {region.expectedDate && (
-                      <p className="mt-2 text-xs text-gray-500">
-                        {region.expectedDate}
-                      </p>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* 中国地图视图 */}
-          {view === 'china' && (
-            <motion.div
-              key="china"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="grid lg:grid-cols-3 gap-6">
-                {/* 左侧地图 */}
-                <div className="lg:col-span-2">
-                  <PixelCard className="p-6">
-                    <h3 className="text-xl font-bold mb-4">中国区域地图</h3>
-                    <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden">
-                      <svg viewBox="0 0 100 80" className="w-full h-full">
-                        {chinaProvinces.map((province) => (
-                          <g key={province.id}>
-                            <motion.circle
-                              cx={province.coordinates.x}
-                              cy={province.coordinates.y}
-                              r="5"
-                              fill={province.status === 'hot' ? '#FFD700' : '#00D4AA'}
-                              className="cursor-pointer"
-                              whileHover={{ scale: 1.5 }}
-                              onClick={() => handleProvinceClick(province.id)}
-                            />
-                            <text
-                              x={province.coordinates.x}
-                              y={province.coordinates.y - 8}
-                              textAnchor="middle"
-                              fontSize="6"
-                              fill="white"
-                              className="pointer-events-none"
-                            >
-                              {province.name}
-                            </text>
-                            {province.status === 'hot' && (
-                              <motion.text
-                                x={province.coordinates.x + 8}
-                                y={province.coordinates.y - 8}
-                                fontSize="6"
-                                fill="#FFD700"
-                                animate={{ opacity: [1, 0, 1] }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                              >
-                                🔥
-                              </motion.text>
-                            )}
-                          </g>
-                        ))}
-                      </svg>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-6 text-xs">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-gold-500 rounded-full" />
-                        <span>热门地区</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#00D4AA] rounded-full" />
-                        <span>普通地区</span>
-                      </div>
-                    </div>
-                  </PixelCard>
-                </div>
-
-                {/* 右侧列表 */}
-                <div className="space-y-4">
-                  <h3 className="text-xl font-bold">热门城市</h3>
-                  {chinaProvinces
-                    .filter(p => p.status === 'hot')
-                    .map((province) => (
-                      <PixelCard
-                        key={province.id}
-                        className="p-4 cursor-pointer hover:border-gold-500 transition-all"
-                        onClick={() => handleProvinceClick(province.id)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-bold text-gold-500">{province.name}</h4>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {province.totalLands.toLocaleString()} 块土地
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold">
-                              ¥{province.avgPrice.toLocaleString()}
-                            </p>
-                            <p className="text-xs text-green-500">
-                              {province.availableLands} 块可用
-                            </p>
-                          </div>
-                        </div>
-                      </PixelCard>
-                    ))}
-                </div>
-              </div>
-
-              {/* 统计数据 */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                <PixelCard className="p-4 text-center">
-                  <div className="text-2xl font-bold text-gold-500">50,000</div>
-                  <div className="text-sm text-gray-400">总地块数</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-500">12,580</div>
-                  <div className="text-sm text-gray-400">可用地块</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-500">¥15,888</div>
-                  <div className="text-sm text-gray-400">平均价格</div>
-                </PixelCard>
-                <PixelCard className="p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-500">28</div>
-                  <div className="text-sm text-gray-400">开放城市</div>
-                </PixelCard>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 省份/城市详情视图 */}
-          {view === 'province' && selectedProvince && (
-            <motion.div
-              key="province"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              className="max-w-4xl w-full bg-[#0A1628] border-4 border-gold-500 p-8"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                imageRendering: 'pixelated',
+                boxShadow: '0 0 0 4px #000, 0 0 0 8px #FFD700'
+              }}
             >
               {(() => {
-                const province = chinaProvinces.find(p => p.id === selectedProvince)
-                if (!province) return null
+                const region = WORLD_MAP_CONFIG.regions[selectedRegion]
+                if (selectedRegion === 'china') {
+                  return (
+                    <>
+                      <h2 className="text-3xl font-black text-gold-500 mb-6 pixel-font text-center">
+                        {region.name}
+                      </h2>
+                      
+                      <div className="grid md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                          <h3 className="text-xl font-bold mb-4 text-gold-500">区域统计</h3>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">开放城市</span>
+                              <span className="font-bold">{region.cities?.length || 0} 个</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">总地块数</span>
+                              <span className="font-bold">50,000+</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">已售地块</span>
+                              <span className="font-bold text-gold-500">37,420</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">平均地价</span>
+                              <span className="font-bold">¥15,888</span>
+                            </div>
+                          </div>
+                        </div>
 
-                return (
-                  <div>
-                    {/* 省份概览 */}
-                    <PixelCard className="p-6 mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold">{province.name}</h2>
-                        {province.status === 'hot' && (
-                          <span className="px-3 py-1 bg-gold-500/20 text-gold-500 font-bold">
-                            🔥 热门地区
-                          </span>
-                        )}
+                        <div>
+                          <h3 className="text-xl font-bold mb-4 text-gold-500">热门城市</h3>
+                          <div className="space-y-2">
+                            {region.cities?.slice(0, 4).map(city => {
+                              const tier = CITY_TIERS[city.tier as keyof typeof CITY_TIERS]
+                              return (
+                                <Link
+                                  key={city.id}
+                                  href={`/explore/china/${city.id}`}
+                                  className="flex items-center justify-between p-3 bg-gray-800 hover:bg-gray-700 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">{tier.icon}</span>
+                                    <span className="font-bold">{city.name}</span>
+                                  </div>
+                                  <span className="text-sm text-gold-500">进入 →</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="grid md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-400">总地块</p>
-                          <p className="text-xl font-bold">{province.totalLands.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">可用地块</p>
-                          <p className="text-xl font-bold text-green-500">{province.availableLands}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">平均价格</p>
-                          <p className="text-xl font-bold text-gold-500">¥{province.avgPrice.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-400">已售占比</p>
-                          <p className="text-xl font-bold">
-                            {((1 - province.availableLands / province.totalLands) * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                      </div>
-                    </PixelCard>
-
-                    {/* 城市/区域网格 */}
-                    <h3 className="text-xl font-bold mb-4">选择区域类型</h3>
-                    <div className="grid md:grid-cols-4 gap-4">
-                      {districtTypes.map((district) => (
-                        <Link
-                          key={district.id}
-                          href={`/explore/lands?province=${selectedProvince}&district=${district.id}`}
-                        >
-                          <PixelCard className="p-6 text-center hover:border-gold-500 transition-all cursor-pointer">
-                            <div className="text-4xl mb-2">{district.icon}</div>
-                            <h4 className="font-bold mb-2">{district.name}</h4>
-                            <p className="text-sm text-gray-400">
-                              均价: ¥{Math.floor(province.avgPrice * district.priceMultiplier).toLocaleString()}
-                            </p>
-                            <p className="text-xs text-green-500 mt-1">
-                              {Math.floor(Math.random() * 100 + 50)} 块可用
-                            </p>
-                          </PixelCard>
+                      <div className="text-center">
+                        <Link href="/explore/china">
+                          <motion.button
+                            className="pixel-btn text-lg px-8 py-4"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            进入中国区域
+                          </motion.button>
                         </Link>
-                      ))}
-                    </div>
-
-                    {/* 热门地块推荐 */}
-                    <div className="mt-8">
-                      <h3 className="text-xl font-bold mb-4">热门地块推荐</h3>
-                      <div className="grid md:grid-cols-3 gap-4">
-                        {[1, 2, 3].map((i) => (
-                          <PixelCard key={i} className="p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-bold">地块 #{1000 + i}</span>
-                              <span className="text-xs px-2 py-1 bg-green-500/20 text-green-500">
-                                可购买
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-2">
-                              CBD商业区 · 300㎡
-                            </p>
-                            <div className="flex items-center justify-between">
-                              <span className="text-lg font-bold text-gold-500">
-                                ¥{(25000 + i * 5000).toLocaleString()}
-                              </span>
-                              <Link href={`/explore/land/${1000 + i}`}>
-                                <button className="text-xs px-3 py-1 bg-gold-500 text-black font-bold hover:bg-gold-400">
-                                  查看详情
-                                </button>
-                              </Link>
-                            </div>
-                          </PixelCard>
-                        ))}
                       </div>
-                    </div>
+                    </>
+                  )
+                }
+                
+                return (
+                  <div className="text-center">
+                    <h2 className="text-3xl font-black text-gray-500 mb-4 pixel-font">
+                      {region.name}
+                    </h2>
+                    <p className="text-gray-400 mb-4">该区域暂未开放</p>
+                    {region.releaseDate && (
+                      <p className="text-gold-500 font-bold">预计开放时间: {region.releaseDate}</p>
+                    )}
                   </div>
                 )
               })()}
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 底部提示 */}
-        <motion.div
-          className="mt-12 text-center text-sm text-gray-500"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <p>提示：点击地图上的标记可以查看详细信息</p>
-          {view === 'world' && <p>目前仅中国区域开放，其他区域敬请期待</p>}
-        </motion.div>
-      </Container>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
