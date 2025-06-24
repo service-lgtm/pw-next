@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { PixelCard } from '@/components/shared/PixelCard'
@@ -30,7 +30,8 @@ const generateLands = (district: string, count: number) => {
   }))
 }
 
-export default function LandsPage() {
+// 将主要内容提取为独立组件
+function LandsContent() {
   const searchParams = useSearchParams()
   const province = searchParams.get('province')
   const district = searchParams.get('district') || 'cbd'
@@ -290,5 +291,21 @@ export default function LandsPage() {
         </motion.div>
       </Container>
     </div>
+  )
+}
+
+// 主页面组件，包裹在 Suspense 中
+export default function LandsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">加载中...</p>
+        </div>
+      </div>
+    }>
+      <LandsContent />
+    </Suspense>
   )
 }
