@@ -413,6 +413,47 @@ const BEIJING_CONFIG = {
   ]
 }
 
+// 商店配置数据
+const SHOP_CONFIGS = {
+  commercial: [
+    { name: '星巴克', icon: '☕', type: 'shop', category: '咖啡店', popularity: 85 },
+    { name: '肯德基', icon: '🍗', type: 'shop', category: '快餐店', popularity: 90 },
+    { name: '麦当劳', icon: '🍔', type: 'shop', category: '快餐店', popularity: 88 },
+    { name: '711便利店', icon: '🏪', type: 'shop', category: '便利店', popularity: 75 },
+    { name: '全家便利店', icon: '🏬', type: 'shop', category: '便利店', popularity: 73 },
+    { name: '永辉超市', icon: '🛒', type: 'shop', category: '超市', popularity: 70 },
+    { name: '海底捞', icon: '🍲', type: 'shop', category: '餐厅', popularity: 95 },
+    { name: '优衣库', icon: '👕', type: 'shop', category: '服装店', popularity: 80 },
+    { name: 'NIKE', icon: '👟', type: 'shop', category: '运动品牌', popularity: 85 },
+    { name: '苹果店', icon: '📱', type: 'shop', category: '电子产品', popularity: 92 }
+  ],
+  residential: [
+    { name: '小区便利店', icon: '🏪', type: 'shop', category: '便利店', popularity: 60 },
+    { name: '社区药店', icon: '💊', type: 'shop', category: '药店', popularity: 65 },
+    { name: '水果店', icon: '🍎', type: 'shop', category: '生鲜店', popularity: 70 },
+    { name: '理发店', icon: '💈', type: 'shop', category: '生活服务', popularity: 55 },
+    { name: '快递驿站', icon: '📦', type: 'shop', category: '物流服务', popularity: 80 }
+  ],
+  industrial: [
+    { name: '物流中心', icon: '🚚', type: 'factory', category: '物流', popularity: 60 },
+    { name: '加工厂', icon: '🏭', type: 'factory', category: '制造业', popularity: 50 },
+    { name: '仓储中心', icon: '📦', type: 'factory', category: '仓储', popularity: 55 }
+  ],
+  agricultural: [
+    { name: '农产品市场', icon: '🌾', type: 'farm', category: '农贸', popularity: 65 },
+    { name: '果园', icon: '🍑', type: 'farm', category: '种植', popularity: 60 },
+    { name: '养殖场', icon: '🐄', type: 'farm', category: '养殖', popularity: 55 }
+  ]
+}
+
+// 知名品牌店铺（特殊地块）
+const FAMOUS_BRANDS = [
+  { name: '国贸商城', icon: '🛍️', type: 'mall', floors: 6, popularity: 95 },
+  { name: '太古里', icon: '🏬', type: 'mall', floors: 4, popularity: 92 },
+  { name: '王府井百货', icon: '🏢', type: 'mall', floors: 8, popularity: 88 },
+  { name: '西单大悦城', icon: '🎪', type: 'mall', floors: 10, popularity: 90 }
+]
+
 // 生成城市地块数据
 function generateCityPlots(cityId: string): Plot[] {
   const config = cityId === 'beijing' ? BEIJING_CONFIG : BEIJING_CONFIG
@@ -458,11 +499,17 @@ function generateCityPlots(cityId: string): Plot[] {
       
       const nearRoad = y === 7 || x === 3 || x === 17 || y === 3 || y === 12
       
+      // 根据位置决定地块类型
       let type: Plot['type'] = 'residential'
       if (nearSubway || nearRoad) {
         type = Math.random() > 0.3 ? 'commercial' : 'residential'
       } else if (x < 4 || x > 16 || y < 3 || y > 12) {
         type = Math.random() > 0.5 ? 'industrial' : 'agricultural'
+      } else {
+        const rand = Math.random()
+        if (rand > 0.7) type = 'commercial'
+        else if (rand > 0.4) type = 'residential'
+        else type = 'industrial'
       }
       
       const distanceFromCenter = Math.sqrt(Math.pow(x - 10, 2) + Math.pow(y - 7, 2))
@@ -478,8 +525,39 @@ function generateCityPlots(cityId: string): Plot[] {
       const price = Math.floor(basePrice * priceMultiplier + Math.random() * 10000)
       const baseYield = PLOT_TYPES[type].baseYield
       
-      const hasBuilding = Math.random() > 0.6
+      // 决定是否有建筑和商店
+      const hasBuilding = Math.random() > 0.4 // 60%的地块有建筑
       const isOwned = hasBuilding || Math.random() > 0.7
+      
+      let building = undefined
+      if (hasBuilding) {
+        // 根据地块类型选择合适的商店
+        const shopOptions = SHOP_CONFIGS[type] || SHOP_CONFIGS.commercial
+        const selectedShop = shopOptions[Math.floor(Math.random() * shopOptions.length)]
+        
+        // 特殊位置可能有知名品牌
+        const isFamousBrand = (nearSubway || nearRoad) && Math.random() > 0.8
+        if (isFamousBrand && type === 'commercial') {
+          const brand = FAMOUS_BRANDS[Math.floor(Math.random() * FAMOUS_BRANDS.length)]
+          building = {
+            type: brand.type as any,
+            name: brand.name,
+            icon: brand.icon,
+            level: Math.floor(Math.random() * 3) + 3, // 3-5级
+            floors: brand.floors,
+            popularity: brand.popularity
+          }
+        } else {
+          building = {
+            type: selectedShop.type as any,
+            name: selectedShop.name,
+            icon: selectedShop.icon,
+            level: Math.floor(Math.random() * 3) + 1, // 1-3级
+            floors: type === 'commercial' ? Math.floor(Math.random() * 3) + 1 : undefined,
+            popularity: selectedShop.popularity + Math.floor(Math.random() * 10) - 5
+          }
+        }
+      }
       
       const plot: Plot = {
         id: `plot-${x}-${y}`,
@@ -489,17 +567,10 @@ function generateCityPlots(cityId: string): Plot[] {
         coordinates: { x, y },
         size: { width: 1, height: 1 },
         price,
-        monthlyYield: Math.floor(price * baseYield * (nearSubway ? 1.3 : 1)),
+        monthlyYield: Math.floor(price * baseYield * (nearSubway ? 1.3 : 1) * (building ? 1.2 : 1)),
         owned: isOwned,
         ownerId: isOwned ? `user${Math.floor(Math.random() * 1000)}` : undefined,
-        building: hasBuilding ? {
-          type: 'shop',
-          name: ['星巴克', '肯德基', '711便利店'][Math.floor(Math.random() * 3)],
-          icon: ['☕', '🍗', '🏪'][Math.floor(Math.random() * 3)],
-          level: Math.floor(Math.random() * 3) + 1,
-          floors: type === 'commercial' ? Math.floor(Math.random() * 5) + 1 : undefined,
-          popularity: Math.floor(Math.random() * 50) + 30
-        } : undefined,
+        building,
         status: isOwned ? 'owned' : 'available',
         features: nearSubway ? ['地铁沿线'] : nearRoad ? ['临街商铺'] : [],
         nearSubway,
@@ -668,7 +739,7 @@ function PlotGrid({
   )
 }
 
-// 优化的地块项组件
+// 优化的地块项组件 - 增强商店展示
 function PlotItem({
   plot,
   isSelected,
@@ -701,6 +772,9 @@ function PlotItem({
     width: plot.size.width * cellSize - 4,
     height: plot.size.height * cellSize - 4
   }
+  
+  // 判断是否是知名品牌
+  const isFamousBrand = plot.building && (plot.building.type === 'mall' || plot.building.popularity > 85)
   
   return (
     <motion.div
@@ -738,33 +812,92 @@ function PlotItem({
           plot.status === 'available' ? 'border-green-500' :
           plot.status === 'protected' ? 'border-gray-600' :
           plot.type === 'landmark' ? 'border-gold-500' :
+          isFamousBrand ? 'border-purple-500' :
           'border-gray-700'
         )}
       />
       
-      {/* 建筑展示 */}
+      {/* 建筑和商店展示 */}
       <div className="relative w-full h-full p-1 md:p-2 flex flex-col">
-        {/* 顶部状态 */}
+        {/* 顶部状态栏 */}
         <div className="flex justify-between items-start mb-1">
-          <div>
+          <div className="flex gap-1">
             {plot.features?.includes('地铁沿线') && !isMobile && (
-              <span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded">地铁</span>
+              <span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded">M</span>
+            )}
+            {isFamousBrand && (
+              <span className="text-xs bg-purple-500 text-white px-1 py-0.5 rounded">品牌</span>
             )}
           </div>
           <div className="flex gap-1">
+            {plot.building?.popularity && plot.building.popularity > 80 && (
+              <Flame className="w-3 h-3 md:w-4 md:h-4 text-red-500" />
+            )}
             {plot.status === 'available' && (
               <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />
             )}
           </div>
         </div>
         
-        {/* 中心内容 */}
+        {/* 中心内容 - 商店展示 */}
         <div className="flex-1 flex items-center justify-center">
           {plot.building ? (
+            <div className="text-center relative">
+              {/* 建筑楼层背景效果 */}
+              {plot.building.floors && plot.building.floors > 1 && !isMobile && (
+                <div className="absolute inset-0 -z-10">
+                  {[...Array(Math.min(plot.building.floors, 3))].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute inset-0 bg-gray-700/20 rounded"
+                      style={{
+                        transform: `translateY(${-(i + 1) * 2}px) translateX(${(i + 1) * 2}px)`,
+                        zIndex: -i
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {/* 商店图标 */}
+              <div className={cn(
+                "text-2xl md:text-3xl mb-1",
+                isFamousBrand && "animate-pulse"
+              )}>
+                {plot.building.icon}
+              </div>
+              
+              {/* 商店名称 */}
+              {!isMobile && (
+                <div className="text-xs font-medium text-white/90 px-1">
+                  {plot.building.name}
+                </div>
+              )}
+              
+              {/* 商店等级 */}
+              {plot.building.level > 1 && !isMobile && (
+                <div className="flex justify-center gap-0.5 mt-0.5">
+                  {[...Array(Math.min(plot.building.level, 5))].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className="w-2 h-2 fill-yellow-500 text-yellow-500" 
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {/* 楼层数显示 */}
+              {plot.building.floors && plot.building.floors > 3 && !isMobile && (
+                <div className="absolute -top-1 -right-1 bg-black/70 text-xs px-1 rounded">
+                  {plot.building.floors}F
+                </div>
+              )}
+            </div>
+          ) : plot.status === 'available' ? (
             <div className="text-center">
-              <div className="text-lg md:text-3xl mb-1">{plot.building.icon}</div>
-              {plot.type === 'landmark' && !isMobile && (
-                <div className="text-xs font-bold text-gold-500">{plot.name}</div>
+              <Icon className="w-5 h-5 md:w-8 md:h-8 text-white/20 mb-1" />
+              {!isMobile && (
+                <div className="text-xs text-green-400 font-medium">可开店</div>
               )}
             </div>
           ) : (
@@ -775,17 +908,66 @@ function PlotItem({
         {/* 底部信息 */}
         {plot.status !== 'protected' && !isMobile && (
           <div className="text-center">
-            <div className="text-xs font-bold text-green-400">
-              ¥{(plot.price/10000).toFixed(1)}万
-            </div>
+            {plot.status === 'available' ? (
+              <div className="text-xs font-bold text-green-400">
+                ¥{(plot.price/10000).toFixed(1)}万
+              </div>
+            ) : plot.building && (
+              <div className="text-xs text-gray-400">
+                营业中
+              </div>
+            )}
           </div>
         )}
       </div>
+      
+      {/* 人流动画 - 商业区增强 */}
+      {plot.building && plot.trafficFlow && plot.trafficFlow > 2 && (
+        <TrafficAnimation level={plot.trafficFlow} isCommercial={plot.type === 'commercial'} />
+      )}
+      
+      {/* 营业状态光效 */}
+      {plot.building && plot.status === 'owned' && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-green-500 to-transparent animate-pulse" />
+      )}
     </motion.div>
   )
 }
 
-// 地块悬浮提示（优化性能）
+// 增强的人流动画组件
+function TrafficAnimation({ level, isCommercial }: { level: number; isCommercial: boolean }) {
+  const particleCount = isCommercial ? level * 2 : level - 2
+  
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {[...Array(Math.max(particleCount, 0))].map((_, i) => (
+        <motion.div
+          key={i}
+          className={cn(
+            "absolute w-1 h-1 rounded-full",
+            isCommercial ? "bg-yellow-400" : "bg-blue-400"
+          )}
+          initial={{ 
+            x: Math.random() < 0.5 ? -10 : 110, 
+            y: Math.random() * 100 
+          }}
+          animate={{
+            x: Math.random() < 0.5 ? 110 : -10,
+            y: Math.random() * 100
+          }}
+          transition={{
+            duration: 3 + Math.random() * 2,
+            repeat: Infinity,
+            delay: i * 0.5,
+            ease: "linear"
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// 地块悬浮提示（优化性能）- 增强商店信息展示
 const PlotTooltip = React.memo(({ plot, cellSize }: { plot: Plot; cellSize: number }) => {
   const typeConfig = PLOT_TYPES[plot.type]
   
@@ -800,25 +982,72 @@ const PlotTooltip = React.memo(({ plot, cellSize }: { plot: Plot; cellSize: numb
         top: (plot.coordinates.y + plot.size.height) * cellSize + 10
       }}
     >
-      <div className="bg-black/90 backdrop-blur rounded-lg p-3 text-sm">
+      <div className="bg-black/90 backdrop-blur rounded-lg p-3 text-sm min-w-[200px]">
         <div className="font-bold text-white mb-1">{plot.name}</div>
         <div className="text-xs text-gray-400 mb-2">{typeConfig.name}</div>
+        
+        {/* 商店信息 */}
         {plot.building && (
-          <div className="text-xs text-gray-300 mb-1">
-            {plot.building.icon} {plot.building.name}
+          <div className="border-t border-gray-700 pt-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">{plot.building.icon}</span>
+              <div>
+                <div className="text-xs font-medium text-white">{plot.building.name}</div>
+                <div className="text-xs text-gray-500">
+                  Lv.{plot.building.level} {plot.building.floors && `· ${plot.building.floors}层`}
+                </div>
+              </div>
+            </div>
+            {plot.building.popularity && (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-gray-400">人气值:</span>
+                <div className="flex-1 bg-gray-700 rounded-full h-2 relative overflow-hidden">
+                  <div 
+                    className={cn(
+                      "absolute inset-y-0 left-0 rounded-full",
+                      plot.building.popularity > 80 ? "bg-red-500" : 
+                      plot.building.popularity > 60 ? "bg-yellow-500" : "bg-green-500"
+                    )}
+                    style={{ width: `${plot.building.popularity}%` }}
+                  />
+                </div>
+                <span className="text-white font-medium">{plot.building.popularity}</span>
+              </div>
+            )}
           </div>
         )}
+        
+        {/* 财务信息 */}
         <div className="flex items-center gap-3 text-xs">
-          <span className="text-green-400">¥{(plot.price/10000).toFixed(1)}万</span>
-          <span className="text-yellow-400">+{plot.monthlyYield}/月</span>
+          {plot.status === 'available' ? (
+            <>
+              <span className="text-green-400">¥{(plot.price/10000).toFixed(1)}万</span>
+              <span className="text-yellow-400">预计+{plot.monthlyYield}/月</span>
+            </>
+          ) : (
+            <>
+              <span className="text-gray-400">已售出</span>
+              <span className="text-yellow-400">+{plot.monthlyYield}/月</span>
+            </>
+          )}
         </div>
+        
+        {/* 特性标签 */}
         {plot.features && plot.features.length > 0 && (
-          <div className="mt-1 flex gap-1">
+          <div className="mt-2 flex flex-wrap gap-1">
             {plot.features.map((feature, i) => (
-              <span key={i} className="text-xs bg-gray-700 px-1 py-0.5 rounded">
+              <span key={i} className="text-xs bg-gray-700 px-1.5 py-0.5 rounded">
                 {feature}
               </span>
             ))}
+          </div>
+        )}
+        
+        {/* 营业状态 */}
+        {plot.building && plot.status === 'owned' && (
+          <div className="mt-2 flex items-center gap-1 text-xs">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-green-400">营业中</span>
           </div>
         )}
       </div>
