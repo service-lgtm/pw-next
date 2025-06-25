@@ -222,9 +222,16 @@ export function PlotGrid({
             }}
           >
             {plots.map(plot => {
-              const shouldHighlight = highlightedType && 
+              // 明确类型转换，避免隐式类型推断
+              const shouldHighlight: boolean = !!(
+                highlightedType && 
                 (highlightedType === 'all' || plot.type === highlightedType)
-              const shouldDim = highlightedType && highlightedType !== 'all' && plot.type !== highlightedType
+              )
+              const shouldDim: boolean = !!(
+                highlightedType && 
+                highlightedType !== 'all' && 
+                plot.type !== highlightedType
+              )
               
               return (
                 <PlotItem
@@ -232,11 +239,23 @@ export function PlotGrid({
                   plot={plot}
                   isSelected={selectedPlot?.id === plot.id}
                   isHovered={!isMobile && hoveredPlot?.id === plot.id}
-                  isHighlighted={!!shouldHighlight}
-                  isDimmed={!!shouldDim}
-                  onClick={() => !isDragging && plot.status !== 'protected' && onPlotClick(plot)}
-                  onMouseEnter={() => !isMobile && !isDragging && setHoveredPlot(plot)}
-                  onMouseLeave={() => !isMobile && setHoveredPlot(null)}
+                  isHighlighted={shouldHighlight}
+                  isDimmed={shouldDim}
+                  onClick={() => {
+                    if (!isDragging && plot.status !== 'protected') {
+                      onPlotClick(plot)
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    if (!isMobile && !isDragging) {
+                      setHoveredPlot(plot)
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!isMobile) {
+                      setHoveredPlot(null)
+                    }
+                  }}
                   onTouchStart={() => handleTouchStart(plot)}
                   heatmapColor={getHeatmapColor(plot)}
                   cellSize={cellSize}
