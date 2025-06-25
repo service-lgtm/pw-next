@@ -530,7 +530,7 @@ function BuildingDisplay({
       {/* 建筑图标 */}
       <div className={cn(
         "text-2xl md:text-3xl mb-1",
-        building.popularity && building.popularity > 85 && "animate-pulse"
+        building.popularity && building.popularity > 85 ? "animate-pulse" : ""
       )}>
         {building.icon}
       </div>
