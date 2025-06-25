@@ -474,6 +474,112 @@ function OverviewTab({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={ANIMATION_CONFIG.fast}
+      className="p-4 md:p-6 space-y-6"
+    >
+      {/* 投资评分卡片 */}
+      <div className="bg-gradient-to-r from-gold-500/10 to-orange-600/10 border border-gold-500/30 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-bold flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-gold-500" />
+            投资评分
+          </h4>
+          <span className="text-2xl font-bold text-gold-500">{investmentScore}分</span>
+        </div>
+        
+        <div className="relative h-3 bg-gray-700 rounded-full overflow-hidden">
+          <motion.div
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold-500 to-orange-600"
+            initial={{ width: 0 }}
+            animate={{ width: `${investmentScore}%` }}
+            transition={{ duration: 1, delay: 0.2 }}
+          />
+        </div>
+        
+        <p className="text-sm text-gray-400 mt-2">
+          {investmentScore >= 80 ? '极佳的投资机会' :
+           investmentScore >= 60 ? '良好的投资选择' :
+           investmentScore >= 40 ? '一般的投资机会' : '需谨慎考虑'}
+        </p>
+      </div>
+      
+      {/* 地块特性 */}
+      <div>
+        <h4 className="font-bold mb-3 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-gray-400" />
+          地块特性
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <FeatureCard
+            icon={<typeConfig.icon className="w-5 h-5" />}
+            label="地块类型"
+            value={typeConfig.name}
+            description={typeConfig.description}
+          />
+          <FeatureCard
+            icon={<MapPin className="w-5 h-5" />}
+            label="位置坐标"
+            value={`(${plot.coordinates.x}, ${plot.coordinates.y})`}
+            description="城市网格位置"
+          />
+          <FeatureCard
+            icon={<Building2 className="w-5 h-5" />}
+            label="建筑状态"
+            value={plot.building ? '已建设' : '空地'}
+            description={plot.building?.name || '可自由开发'}
+          />
+          <FeatureCard
+            icon={<Activity className="w-5 h-5" />}
+            label="年化收益"
+            value={`${((plot.monthlyYield * 12 / plot.price) * 100).toFixed(1)}%`}
+            description="预期年化收益率"
+          />
+          <FeatureCard
+            icon={<Percent className="w-5 h-5" />}
+            label="升值潜力"
+            value={`+${((plot.appreciationRate || 0.08) * 100).toFixed(0)}%`}
+            description="预期年升值率"
+          />
+          <FeatureCard
+            icon={<Users className="w-5 h-5" />}
+            label="人流等级"
+            value={`${plot.trafficFlow || 0}级`}
+            description={
+              plot.trafficFlow && plot.trafficFlow >= 4 ? '高人流量' :
+              plot.trafficFlow && plot.trafficFlow >= 2 ? '中等人流' : '普通人流'
+            }
+          />
+        </div>
+      </div>
+      
+      {/* 位置优势 */}
+      {(plot.features?.length || plot.nearSubway) && (
+        <div>
+          <h4 className="font-bold mb-3 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-gray-400" />
+            位置优势
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {plot.nearSubway && (
+              <LocationTag icon="🚇" label="地铁站旁" color="blue" />
+            )}
+            {plot.features?.map((feature, i) => (
+              <LocationTag key={i} label={feature} />
+            ))}
+            {nearbyStats.commercialCount > 3 && (
+              <LocationTag icon="🛍️" label="商业繁华" color="orange" />
+            )}
+            {nearbyStats.hasSubway && !plot.nearSubway && (
+              <LocationTag icon="🚶" label="步行可达地铁" color="blue" />
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* 风险提示 */}
+      <RiskAssessment plot={plot} nearbyStats={nearbyStats} />
+    </motion.div>
   )
 }
 
@@ -1111,114 +1217,6 @@ function PurchaseConfirmModal({
     </AnimatePresence>
   )
 }
-      exit={{ opacity: 0, y: -20 }}
-      transition={ANIMATION_CONFIG.fast}
-      className="p-4 md:p-6 space-y-6"
-    >
-      {/* 投资评分卡片 */}
-      <div className="bg-gradient-to-r from-gold-500/10 to-orange-600/10 border border-gold-500/30 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-bold flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-gold-500" />
-            投资评分
-          </h4>
-          <span className="text-2xl font-bold text-gold-500">{investmentScore}分</span>
-        </div>
-        
-        <div className="relative h-3 bg-gray-700 rounded-full overflow-hidden">
-          <motion.div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold-500 to-orange-600"
-            initial={{ width: 0 }}
-            animate={{ width: `${investmentScore}%` }}
-            transition={{ duration: 1, delay: 0.2 }}
-          />
-        </div>
-        
-        <p className="text-sm text-gray-400 mt-2">
-          {investmentScore >= 80 ? '极佳的投资机会' :
-           investmentScore >= 60 ? '良好的投资选择' :
-           investmentScore >= 40 ? '一般的投资机会' : '需谨慎考虑'}
-        </p>
-      </div>
-      
-      {/* 地块特性 */}
-      <div>
-        <h4 className="font-bold mb-3 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-gray-400" />
-          地块特性
-        </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <FeatureCard
-            icon={<typeConfig.icon className="w-5 h-5" />}
-            label="地块类型"
-            value={typeConfig.name}
-            description={typeConfig.description}
-          />
-          <FeatureCard
-            icon={<MapPin className="w-5 h-5" />}
-            label="位置坐标"
-            value={`(${plot.coordinates.x}, ${plot.coordinates.y})`}
-            description="城市网格位置"
-          />
-          <FeatureCard
-            icon={<Building2 className="w-5 h-5" />}
-            label="建筑状态"
-            value={plot.building ? '已建设' : '空地'}
-            description={plot.building?.name || '可自由开发'}
-          />
-          <FeatureCard
-            icon={<Activity className="w-5 h-5" />}
-            label="年化收益"
-            value={`${((plot.monthlyYield * 12 / plot.price) * 100).toFixed(1)}%`}
-            description="预期年化收益率"
-          />
-          <FeatureCard
-            icon={<Percent className="w-5 h-5" />}
-            label="升值潜力"
-            value={`+${((plot.appreciationRate || 0.08) * 100).toFixed(0)}%`}
-            description="预期年升值率"
-          />
-          <FeatureCard
-            icon={<Users className="w-5 h-5" />}
-            label="人流等级"
-            value={`${plot.trafficFlow || 0}级`}
-            description={
-              plot.trafficFlow && plot.trafficFlow >= 4 ? '高人流量' :
-              plot.trafficFlow && plot.trafficFlow >= 2 ? '中等人流' : '普通人流'
-            }
-          />
-        </div>
-      </div>
-      
-      {/* 位置优势 */}
-      {(plot.features?.length || plot.nearSubway) && (
-        <div>
-          <h4 className="font-bold mb-3 flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-gray-400" />
-            位置优势
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {plot.nearSubway && (
-              <LocationTag icon="🚇" label="地铁站旁" color="blue" />
-            )}
-            {plot.features?.map((feature, i) => (
-              <LocationTag key={i} label={feature} />
-            ))}
-            {nearbyStats.commercialCount > 3 && (
-              <LocationTag icon="🛍️" label="商业繁华" color="orange" />
-            )}
-            {nearbyStats.hasSubway && !plot.nearSubway && (
-              <LocationTag icon="🚶" label="步行可达地铁" color="blue" />
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* 风险提示 */}
-      <RiskAssessment plot={plot} nearbyStats={nearbyStats} />
-    </motion.div>
-  )
-}
 
 // 特性卡片
 function FeatureCard({
@@ -1549,8 +1547,85 @@ function AnalysisTab({
   const yieldRate = (plot.monthlyYield * 12 / plot.price) * 100
   const paybackMonths = Math.ceil(plot.price / plot.monthlyYield)
   const fiveYearReturn = plot.monthlyYield * 60 + plot.price * (1 + (plot.appreciationRate || 0.08) * 5)
+  const typeConfig = PLOT_TYPES[plot.type]
   
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={ANIMATION_CONFIG.fast}
+      className="p-4 md:p-6 space-y-6"
+    >
+      {/* 关键指标 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <AnalysisItem
+          label="年化收益率"
+          value={`${yieldRate.toFixed(2)}%`}
+          icon={<Percent className="w-4 h-4" />}
+          highlight={yieldRate > 8 ? "text-green-500" : yieldRate > 6 ? "text-yellow-500" : "text-red-500"}
+        />
+        <AnalysisItem
+          label="回本周期"
+          value={`${paybackMonths}个月`}
+          icon={<Timer className="w-4 h-4" />}
+          highlight={paybackMonths < 24 ? "text-green-500" : paybackMonths < 36 ? "text-yellow-500" : "text-red-500"}
+        />
+        <AnalysisItem
+          label="5年预期收益"
+          value={formatCurrency(fiveYearReturn - plot.price)}
+          icon={<TrendingUp className="w-4 h-4" />}
+          highlight="text-gold-500"
+        />
+        <AnalysisItem
+          label="投资评分"
+          value={`${investmentScore}分`}
+          icon={<Trophy className="w-4 h-4" />}
+          highlight={investmentScore > 80 ? "text-green-500" : investmentScore > 60 ? "text-yellow-500" : "text-red-500"}
+        />
+      </div>
+      
+      {/* 投资评分细项 */}
+      <div className="bg-gray-800/50 rounded-lg p-4">
+        <h4 className="font-bold mb-4 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-gray-400" />
+          投资评分细项
+        </h4>
+        <div className="space-y-3">
+          <ScoreItem
+            label="位置价值"
+            score={plot.nearSubway ? 90 : nearbyStats.commercialCount > 3 ? 70 : 50}
+            description={plot.nearSubway ? "地铁站旁，位置极佳" : "位置一般"}
+          />
+          <ScoreItem
+            label="收益潜力"
+            score={yieldRate > 8 ? 95 : yieldRate > 6 ? 75 : 50}
+            description={`年化收益率 ${yieldRate.toFixed(1)}%`}
+          />
+          <ScoreItem
+            label="价格合理性"
+            score={plot.price < nearbyStats.avgPrice * 0.8 ? 90 : plot.price < nearbyStats.avgPrice ? 70 : 50}
+            description={`${plot.price < nearbyStats.avgPrice ? '低于' : '高于'}区域均价`}
+          />
+          <ScoreItem
+            label="发展潜力"
+            score={plot.type === 'commercial' ? 85 : plot.type === 'residential' ? 70 : 60}
+            description={`${typeConfig.name}发展前景`}
+          />
+        </div>
+      </div>
+      
+      {/* 收益预测 */}
+      <div className="bg-gray-800/50 rounded-lg p-4">
+        <h4 className="font-bold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-gray-400" />
+          收益预测
+        </h4>
+        <YieldProjection plot={plot} />
+      </div>
+      
+      {/* 投资建议 */}
+      <InvestmentAdvice score={investmentScore} plot={plot} />
+    </motion.div>
+  )
+}
