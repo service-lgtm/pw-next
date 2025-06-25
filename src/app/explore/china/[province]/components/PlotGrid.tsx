@@ -232,8 +232,8 @@ export function PlotGrid({
                   plot={plot}
                   isSelected={selectedPlot?.id === plot.id}
                   isHovered={!isMobile && hoveredPlot?.id === plot.id}
-                  isHighlighted={shouldHighlight}
-                  isDimmed={shouldDim}
+                  isHighlighted={!!shouldHighlight}
+                  isDimmed={!!shouldDim}
                   onClick={() => !isDragging && plot.status !== 'protected' && onPlotClick(plot)}
                   onMouseEnter={() => !isMobile && !isDragging && setHoveredPlot(plot)}
                   onMouseLeave={() => !isMobile && setHoveredPlot(null)}
