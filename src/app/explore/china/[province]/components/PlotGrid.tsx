@@ -222,15 +222,21 @@ export function PlotGrid({
             }}
           >
             {plots.map(plot => {
-              // 明确类型转换，避免隐式类型推断
-              const shouldHighlight: boolean = !!(
+              const shouldHighlight = !!(
                 highlightedType && 
                 (highlightedType === 'all' || plot.type === highlightedType)
               )
-              const shouldDim: boolean = !!(
+              const shouldDim = !!(
                 highlightedType && 
                 highlightedType !== 'all' && 
                 plot.type !== highlightedType
+              )
+              
+              // 计算是否为知名品牌
+              const isFamousBrand = Boolean(
+                plot.building && 
+                (plot.building.type === 'mall' || 
+                 (plot.building.popularity && plot.building.popularity > 85))
               )
               
               return (
@@ -241,6 +247,7 @@ export function PlotGrid({
                   isHovered={!isMobile && hoveredPlot?.id === plot.id}
                   isHighlighted={shouldHighlight}
                   isDimmed={shouldDim}
+                  isFamousBrand={isFamousBrand}
                   onClick={() => {
                     if (!isDragging && plot.status !== 'protected') {
                       onPlotClick(plot)
@@ -290,26 +297,13 @@ export function PlotGrid({
 }
 
 // 地块项组件
-const PlotItem = memo(function PlotItem({
-  plot,
-  isSelected,
-  isHovered,
-  isHighlighted,
-  isDimmed,
-  onClick,
-  onMouseEnter,
-  onMouseLeave,
-  onTouchStart,
-  heatmapColor,
-  cellSize,
-  isMobile,
-  showLabels
-}: {
+interface PlotItemProps {
   plot: Plot
   isSelected: boolean
   isHovered: boolean
-  isHighlighted?: boolean
-  isDimmed?: boolean
+  isHighlighted: boolean
+  isDimmed: boolean
+  isFamousBrand: boolean
   onClick: () => void
   onMouseEnter: () => void
   onMouseLeave: () => void
@@ -318,7 +312,24 @@ const PlotItem = memo(function PlotItem({
   cellSize: number
   isMobile: boolean
   showLabels: boolean
-}) {
+}
+
+const PlotItem = memo(function PlotItem({
+  plot,
+  isSelected,
+  isHovered,
+  isHighlighted,
+  isDimmed,
+  isFamousBrand,
+  onClick,
+  onMouseEnter,
+  onMouseLeave,
+  onTouchStart,
+  heatmapColor,
+  cellSize,
+  isMobile,
+  showLabels
+}: PlotItemProps) {
   const typeConfig = PLOT_TYPES[plot.type]
   const Icon = typeConfig.icon
   
@@ -328,9 +339,6 @@ const PlotItem = memo(function PlotItem({
     width: plot.size.width * cellSize - 4,
     height: plot.size.height * cellSize - 4
   }
-  
-  const isFamousBrand = plot.building && 
-    (plot.building.type === 'mall' || (plot.building.popularity && plot.building.popularity > 85))
   
   return (
     <motion.div
@@ -402,19 +410,21 @@ const PlotItem = memo(function PlotItem({
 })
 
 // 地块内容组件
+interface PlotContentProps {
+  plot: Plot
+  Icon: any
+  isMobile: boolean
+  showLabels: boolean
+  isFamousBrand: boolean
+}
+
 function PlotContent({
   plot,
   Icon,
   isMobile,
   showLabels,
   isFamousBrand
-}: {
-  plot: Plot
-  Icon: any
-  isMobile: boolean
-  showLabels: boolean
-  isFamousBrand?: boolean
-}) {
+}: PlotContentProps) {
   return (
     <div className="relative w-full h-full p-1 md:p-2 flex flex-col">
       {/* 顶部标签栏 */}
