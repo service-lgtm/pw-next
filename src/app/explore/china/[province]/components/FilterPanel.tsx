@@ -7,7 +7,7 @@ import {
   Filter, X, Search, MapPin, Crown, Users, TrendingUp,
   Star, Layers, ChevronDown, Coins, Activity, BarChart3,
   Sparkles, Calendar, Clock, Home, ShoppingBag, Factory,
-  Trees, Diamond, Lock, RefreshCw, SlidersHorizontal
+  Trees, Diamond, Lock, RefreshCw, SlidersHorizontal, Wallet
 } from 'lucide-react'
 import { cn, formatCurrency, formatNumber } from '../utils'
 import { useDebounce } from '../hooks'
