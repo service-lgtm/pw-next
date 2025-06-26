@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  ArrowRight, Sparkles, Globe, Lock, Clock, 
-  TrendingUp, Users, MapPin, Zap, Star,
-  ChevronRight, Info, Calendar
+  ArrowLeft, Info, Loader2, AlertCircle, WifiOff, RefreshCw,
+  Sparkles, TrendingUp, Activity, Users, Layers
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
