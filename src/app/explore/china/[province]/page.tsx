@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useParams } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Layers } from 'lucide-react'
 import Link from 'next/link'
 
 // 导入自定义 hooks
