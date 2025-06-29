@@ -372,7 +372,7 @@ export function RankingSystemSection() {
               </thead>
               <tbody>
                 <tr className="border-b border-gray-800">
-                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base">推荐奖励</td>
+                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base"></td>
                   {rankingLevels.map((level) => (
                     <td key={level.id} className="text-center p-2 lg:p-4">
                       <span className={cn(
@@ -385,7 +385,7 @@ export function RankingSystemSection() {
                   ))}
                 </tr>
                 <tr className="border-b border-gray-800">
-                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base">团队奖励</td>
+                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base"></td>
                   {rankingLevels.map((level) => (
                     <td key={level.id} className="text-center p-2 lg:p-4">
                       <span className={cn(
@@ -398,7 +398,7 @@ export function RankingSystemSection() {
                   ))}
                 </tr>
                 <tr className="border-b border-gray-800">
-                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base">挖矿窗口</td>
+                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base"></td>
                   {rankingLevels.map((level) => (
                     <td key={level.id} className="text-center p-2 lg:p-4">
                       <span className="font-bold text-xs lg:text-base">
@@ -408,7 +408,7 @@ export function RankingSystemSection() {
                   ))}
                 </tr>
                 <tr>
-                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base">平台分红</td>
+                  <td className="p-2 lg:p-4 font-bold text-xs lg:text-base"></td>
                   {rankingLevels.map((level) => (
                     <td key={level.id} className="text-center p-2 lg:p-4">
                       {level.id === 6 ? (
