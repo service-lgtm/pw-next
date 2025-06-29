@@ -265,7 +265,6 @@ export function RankingSystemSection() {
               <span style={{ color: rankingLevels[selectedLevel].color }}>
                 {rankingLevels[selectedLevel].name}
               </span>
-              <span className="text-gray-400 ml-2">升级条件</span>
             </h3>
 
             <div className="space-y-4 lg:space-y-6">
@@ -302,19 +301,16 @@ export function RankingSystemSection() {
               <span style={{ color: rankingLevels[selectedLevel].color }}>
                 {rankingLevels[selectedLevel].name}
               </span>
-              <span className="text-gray-400 ml-2">专属权益</span>
             </h3>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 lg:gap-4">
                 <div className="p-3 lg:p-4 bg-gradient-to-br from-gold-500/20 to-transparent rounded">
-                  <h4 className="text-xs lg:text-sm text-gray-500 mb-1">推荐奖励</h4>
                   <p className="text-xl lg:text-2xl font-black text-gold-500">
                     {rankingLevels[selectedLevel].benefits.referralBonus}
                   </p>
                 </div>
                 <div className="p-3 lg:p-4 bg-gradient-to-br from-green-500/20 to-transparent rounded">
-                  <h4 className="text-xs lg:text-sm text-gray-500 mb-1">团队奖励</h4>
                   <p className="text-xl lg:text-2xl font-black text-green-500">
                     {rankingLevels[selectedLevel].benefits.teamBonus}
                   </p>
