@@ -121,17 +121,44 @@
     filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
   }
   
-  /* 文字阴影 */
+  /* 优化后的文字阴影 - 减少重影效果 */
   .pixel-text-shadow {
-    text-shadow: 
-      var(--pixel-size) var(--pixel-size) 0 var(--pixel-dark-gold),
-      calc(var(--pixel-size) * 2) calc(var(--pixel-size) * 2) 0 rgba(0, 0, 0, 0.3);
+    /* 使用单层阴影，降低偏移量和模糊度 */
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    /* 添加描边效果替代多层阴影 */
+    -webkit-text-stroke: 1px var(--pixel-dark-gold);
+    text-stroke: 1px var(--pixel-dark-gold);
+    /* 确保文字清晰 */
+    -webkit-font-smoothing: antialiased;
   }
   
   .pixel-text-shadow-sm {
-    text-shadow: 
-      2px 2px 0 var(--pixel-dark-gold),
-      4px 4px 0 rgba(0, 0, 0, 0.3);
+    /* 小尺寸文字使用更细微的效果 */
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+    -webkit-text-stroke: 0.5px var(--pixel-dark-gold);
+    text-stroke: 0.5px var(--pixel-dark-gold);
+  }
+  
+  /* 为需要强调的文字提供可选的光晕效果 */
+  .pixel-text-glow {
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    -webkit-text-stroke: 1px var(--pixel-dark-gold);
+    text-stroke: 1px var(--pixel-dark-gold);
+  }
+  
+  /* 无障碍模式 - 用户可以通过添加这个类来完全禁用特效 */
+  .reduce-motion .pixel-text-shadow,
+  .reduce-motion .pixel-text-shadow-sm,
+  .reduce-motion .pixel-text-glow {
+    text-shadow: none;
+    -webkit-text-stroke: none;
+    text-stroke: none;
+    /* 使用下划线或加粗来替代视觉强调 */
+    font-weight: 900;
+    text-decoration: underline;
+    text-decoration-color: var(--pixel-gold);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
   }
 }
 
@@ -191,4 +218,22 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pixel-dark-gold);
+}
+
+/* 媒体查询 - 检测用户是否偏好减少动画 */
+@media (prefers-reduced-motion: reduce) {
+  .pixel-text-shadow,
+  .pixel-text-shadow-sm,
+  .pixel-text-glow {
+    text-shadow: none;
+    -webkit-text-stroke: none;
+    text-stroke: none;
+    font-weight: 900;
+  }
+  
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
