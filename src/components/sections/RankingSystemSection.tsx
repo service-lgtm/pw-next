@@ -341,6 +341,133 @@ export function RankingSystemSection() {
 
 
 
+        {/* 荣耀榜（顶级玩家） */}
+        <motion.div
+          className="mb-16 lg:mb-20"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+        >
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
+            <span className="text-gold-500">荣耀榜</span>
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
+              顶级玩家风采
+            </span>
+          </h3>
+
+          <div className="grid lg:grid-cols-3 gap-4 lg:gap-6 px-4 lg:px-0">
+            {/* #1 传奇王者 */}
+            <motion.div
+              className="pixel-card p-6 relative border-gold-500 md:scale-105"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1.05 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -4 }}
+            >
+              <div className="absolute -top-4 -right-4 w-12 h-12 bg-gold-500 rounded-full flex items-center justify-center font-black text-black text-lg">
+                #1
+              </div>
+              
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-2">👨‍💼</div>
+                <h4 className="font-black text-lg">传奇王者</h4>
+                <p className="text-sm text-gold-500 font-bold">水星</p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">雇佣员工</span>
+                  <span className="font-bold">15,680人</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">月收入</span>
+                  <span className="font-bold text-gold-500">¥2,580,000</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <p className="text-xs text-center text-gray-400">
+                  🏆 全服第一个水星玩家
+                </p>
+              </div>
+            </motion.div>
+
+            {/* #2 财富女神 */}
+            <motion.div
+              className="pixel-card p-6 relative"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              whileHover={{ y: -4 }}
+            >
+              <div className="absolute -top-4 -right-4 w-12 h-12 bg-gray-400 rounded-full flex items-center justify-center font-black text-black text-lg">
+                #2
+              </div>
+              
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-2">👩‍💼</div>
+                <h4 className="font-black text-lg">财富女神</h4>
+                <p className="text-sm text-gold-500 font-bold">金星</p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">雇佣员工</span>
+                  <span className="font-bold">12,345人</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">月收入</span>
+                  <span className="font-bold text-gold-500">¥1,680,000</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <p className="text-xs text-center text-gray-400">
+                  🏆 最快达到金星记录
+                </p>
+              </div>
+            </motion.div>
+
+            {/* #3 挖矿大亨 */}
+            <motion.div
+              className="pixel-card p-6 relative"
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ y: -4 }}
+            >
+              <div className="absolute -top-4 -right-4 w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center font-black text-black text-lg">
+                #3
+              </div>
+              
+              <div className="text-center mb-4">
+                <div className="text-5xl mb-2">🧑‍💼</div>
+                <h4 className="font-black text-lg">挖矿大亨</h4>
+                <p className="text-sm text-gold-500 font-bold">金星</p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">雇佣员工</span>
+                  <span className="font-bold">10,888人</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">月收入</span>
+                  <span className="font-bold text-gold-500">¥1,280,000</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <p className="text-xs text-center text-gray-400">
+                  🏆 单月挖矿收益冠军
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+
         {/* CTA */}
         <motion.div
           className="text-center px-4"
