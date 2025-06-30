@@ -32,7 +32,7 @@ const evolutionPath = [
     stage: '超级消费商',
     icon: '👑',
     description: '构建消费帝国，躺赚管道收益',
-    features: ['团队裂变', '持续收益', '财富自由'],
+    features: ['自动雇佣', '持续收益', '财富自由'],
     color: 'gold',
   },
 ]
@@ -169,7 +169,7 @@ export function ProsumerSection() {
             <p className="text-sm lg:text-base text-gray-400">
               每一笔消费都是投资<br />
               购买NFT资产增值<br />
-              消费积分可提现
+              提货单分红可提现
             </p>
           </div>
           
@@ -177,8 +177,8 @@ export function ProsumerSection() {
             <div className="text-4xl lg:text-6xl mb-3 lg:mb-4">🔗</div>
             <h3 className="text-lg lg:text-xl font-black text-gold-500 mb-3 lg:mb-4">分享即收益</h3>
             <p className="text-sm lg:text-base text-gray-400">
-              推荐好友获得奖励<br />
-              团队消费持续分红<br />
+              推荐好友为你打工<br />
+              自动雇佣持续获利<br />
               管道收入睡后收益
             </p>
           </div>
@@ -188,7 +188,7 @@ export function ProsumerSection() {
             <h3 className="text-lg lg:text-xl font-black text-gold-500 mb-3 lg:mb-4">成长即财富</h3>
             <p className="text-sm lg:text-base text-gray-400">
               等级越高收益越多<br />
-              团队裂变指数增长<br />
+              雇佣员工裂变指数增长<br />
               实现真正财富自由
             </p>
           </div>
