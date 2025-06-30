@@ -11,7 +11,7 @@ const miningTools = [
     id: 'pickaxe',
     name: '精铁镐头',
     icon: '⛏️',
-    material: '70%铁矿 + 30%木头',
+    material: '70%铁矿 + 30%木头+0.008YLD',
     efficiency: 100,
     durability: 200,
     suitable: ['铁矿山', '石矿山'],
@@ -23,7 +23,7 @@ const miningTools = [
     id: 'axe',
     name: '伐木斧头',
     icon: '🪓',
-    material: '60%铁矿 + 40%木头',
+    material: '60%铁矿 + 40%木头+0.008YLD',
     efficiency: 90,
     durability: 180,
     suitable: ['森林'],
@@ -35,7 +35,7 @@ const miningTools = [
     id: 'hoe',
     name: '精工锄头',
     icon: '🔨',
-    material: '50%铁矿 + 50%木头',
+    material: '50%铁矿 + 50%木头+0.008YLD',
     efficiency: 85,
     durability: 150,
     suitable: ['陨石矿'],
@@ -157,34 +157,34 @@ export function MiningSystemSection() {
   }
 
   return (
-    <section className="py-24 lg:py-32 bg-[#0A1628] relative overflow-hidden">
+    <section className="py-16 lg:py-24 bg-[#0A1628] relative overflow-hidden">
       {/* 背景装饰 */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 text-8xl opacity-5 animate-float">⛏️</div>
-        <div className="absolute bottom-20 right-10 text-8xl opacity-5 animate-float" style={{ animationDelay: '1s' }}>💎</div>
-        <div className="absolute top-40 right-20 text-6xl opacity-5 animate-float" style={{ animationDelay: '2s' }}>🪨</div>
+        <div className="absolute top-20 left-10 text-6xl lg:text-8xl opacity-5 animate-float">⛏️</div>
+        <div className="absolute bottom-20 right-10 text-6xl lg:text-8xl opacity-5 animate-float" style={{ animationDelay: '1s' }}>💎</div>
+        <div className="absolute top-40 right-20 text-5xl lg:text-6xl opacity-5 animate-float" style={{ animationDelay: '2s' }}>🪨</div>
       </div>
 
       <Container className="relative z-10">
         {/* 标题 */}
         <motion.div
-          className="text-center max-w-4xl mx-auto mb-16"
+          className="text-center max-w-4xl mx-auto mb-12 lg:mb-16 px-4"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="inline-flex items-center gap-3 text-gold-500 text-sm font-bold uppercase tracking-wider mb-6">
-            <span className="w-8 h-1 bg-gold-500" />
+          <div className="inline-flex items-center gap-3 text-gold-500 text-xs lg:text-sm font-bold uppercase tracking-wider mb-4 lg:mb-6">
+            <span className="w-6 lg:w-8 h-1 bg-gold-500" />
             <span className="pixel-font">MINING SYSTEM</span>
-            <span className="w-8 h-1 bg-gold-500" />
+            <span className="w-6 lg:w-8 h-1 bg-gold-500" />
           </div>
           
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-6xl font-black leading-tight mb-4 lg:mb-6">
             <span className="block mb-2">挖矿致富</span>
             <span className="text-gold-500 pixel-text-shadow">付出劳动 收获财富</span>
           </h2>
           
-          <p className="text-lg md:text-xl text-gray-400">
+          <p className="text-base lg:text-xl text-gray-400">
             真实模拟挖矿过程，每一份收获都来自辛勤劳动
             <br />
             <span className="text-gold-500 font-bold">5小时一轮，日入过千不是梦</span>
@@ -193,16 +193,16 @@ export function MiningSystemSection() {
 
         {/* 挖矿流程可视化 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">挖矿流程</h3>
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">挖矿流程</h3>
           
           <div className="relative">
-            {/* 进度线 */}
-            <div className="absolute top-24 left-0 right-0 h-1 bg-gray-800 hidden md:block">
+            {/* 进度线 - 仅桌面显示 */}
+            <div className="absolute top-24 left-0 right-0 h-1 bg-gray-800 hidden lg:block">
               <motion.div
                 className="h-full bg-gold-500"
                 initial={{ width: '0%' }}
@@ -211,12 +211,12 @@ export function MiningSystemSection() {
               />
             </div>
 
-            <div className="grid md:grid-cols-4 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 px-4 lg:px-0">
               {miningSteps.map((step, index) => (
                 <motion.div
                   key={step.step}
                   className={cn(
-                    'pixel-card p-6 cursor-pointer transition-all duration-300 relative',
+                    'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300 relative',
                     activeStep >= index ? 'border-gold-500' : 'border-gray-700'
                   )}
                   initial={{ opacity: 0, y: 20 }}
@@ -227,16 +227,16 @@ export function MiningSystemSection() {
                   whileHover={{ y: -4 }}
                 >
                   <div className={cn(
-                    'w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-4 mx-auto',
+                    'w-10 lg:w-12 h-10 lg:h-12 rounded-full flex items-center justify-center text-xl lg:text-2xl mb-3 lg:mb-4 mx-auto',
                     activeStep >= index ? 'bg-gold-500 text-black' : 'bg-gray-800'
                   )}>
                     {step.icon}
                   </div>
                   
-                  <h4 className="text-lg font-black mb-2 text-center">
+                  <h4 className="text-base lg:text-lg font-black mb-2 text-center">
                     第{step.step}步：{step.title}
                   </h4>
-                  <p className="text-sm text-gray-400 mb-4 text-center">
+                  <p className="text-xs lg:text-sm text-gray-400 mb-3 lg:mb-4 text-center">
                     {step.description}
                   </p>
                   
@@ -256,24 +256,24 @@ export function MiningSystemSection() {
 
         {/* 工具展示 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">挖矿工具</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               工欲善其事，必先利其器
             </span>
           </h3>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-4 lg:gap-6 px-4 lg:px-0">
             {miningTools.map((tool, index) => (
               <motion.div
                 key={tool.id}
                 className={cn(
-                  'pixel-card p-6 cursor-pointer transition-all duration-300',
+                  'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300',
                   selectedTool === index ? 'border-gold-500 scale-105' : 'border-gray-700'
                 )}
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -284,17 +284,17 @@ export function MiningSystemSection() {
                 whileHover={{ y: -4 }}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-5xl">{tool.icon}</span>
-                  <span className="text-sm px-3 py-1 bg-gold-500/20 text-gold-500 font-bold">
+                  <span className="text-4xl lg:text-5xl">{tool.icon}</span>
+                  <span className="text-xs lg:text-sm px-2 lg:px-3 py-1 bg-gold-500/20 text-gold-500 font-bold">
                     {tool.price}
                   </span>
                 </div>
                 
-                <h4 className="text-xl font-black mb-2" style={{ color: tool.color }}>
+                <h4 className="text-lg lg:text-xl font-black mb-2" style={{ color: tool.color }}>
                   {tool.name}
                 </h4>
                 
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-xs lg:text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">配方</span>
                     <span className="text-gray-300">{tool.material}</span>
@@ -302,7 +302,7 @@ export function MiningSystemSection() {
                   <div className="flex justify-between">
                     <span className="text-gray-400">效率</span>
                     <div className="flex items-center gap-1">
-                      <div className="w-20 h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div className="w-16 lg:w-20 h-2 bg-gray-800 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-gold-500"
                           style={{ width: `${tool.efficiency}%` }}
@@ -338,24 +338,24 @@ export function MiningSystemSection() {
 
         {/* 挖矿模式对比 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">挖矿模式</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               选择适合你的赚钱方式
             </span>
           </h3>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-4 lg:gap-6 px-4 lg:px-0">
             {miningModes.map((mode) => (
               <motion.div
                 key={mode.mode}
                 className={cn(
-                  'pixel-card p-6 cursor-pointer transition-all duration-300',
+                  'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300',
                   selectedMode === mode.mode ? 'border-gold-500' : 'border-gray-700'
                 )}
                 onClick={() => setSelectedMode(mode.mode)}
@@ -363,16 +363,16 @@ export function MiningSystemSection() {
                 whileTap={{ scale: 0.98 }}
               >
                 <div className="text-center mb-6">
-                  <div className="text-5xl mb-2">{mode.icon}</div>
-                  <h4 className="text-xl font-black">{mode.title}</h4>
-                  <div className="text-2xl font-black text-gold-500 mt-2">
+                  <div className="text-4xl lg:text-5xl mb-2">{mode.icon}</div>
+                  <h4 className="text-lg lg:text-xl font-black">{mode.title}</h4>
+                  <div className="text-xl lg:text-2xl font-black text-gold-500 mt-2">
                     收益：{mode.profit}
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h5 className="text-sm font-bold text-green-500 mb-2">优势</h5>
+                    <h5 className="text-xs lg:text-sm font-bold text-green-500 mb-2">优势</h5>
                     <ul className="space-y-1">
                       {mode.pros.map(pro => (
                         <li key={pro} className="text-xs text-gray-300 flex items-start gap-1">
@@ -383,7 +383,7 @@ export function MiningSystemSection() {
                     </ul>
                   </div>
                   <div>
-                    <h5 className="text-sm font-bold text-red-500 mb-2">劣势</h5>
+                    <h5 className="text-xs lg:text-sm font-bold text-red-500 mb-2">劣势</h5>
                     <ul className="space-y-1">
                       {mode.cons.map(con => (
                         <li key={con} className="text-xs text-gray-300 flex items-start gap-1">
@@ -400,24 +400,24 @@ export function MiningSystemSection() {
         </motion.div>
 
         {/* 能量系统 & 挖矿演示 */}
-        <div className="grid lg:grid-cols-2 gap-12 mb-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 mb-16 lg:mb-20 px-4 lg:px-0">
           {/* 能量系统 */}
           <motion.div
-            className="pixel-card p-8"
+            className="pixel-card p-6 lg:p-8"
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
-            <h3 className="text-xl font-black mb-6">
+            <h3 className="text-lg lg:text-xl font-black mb-6">
               <span className="text-gold-500">能量系统</span>
             </h3>
             
             <div className="mb-6">
               <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-400">当前能量</span>
-                <span className="text-sm font-bold">{currentEnergy}/100</span>
+                <span className="text-xs lg:text-sm text-gray-400">当前能量</span>
+                <span className="text-xs lg:text-sm font-bold">{currentEnergy}/100</span>
               </div>
-              <div className="w-full h-8 bg-gray-800 rounded-full overflow-hidden relative">
+              <div className="w-full h-6 lg:h-8 bg-gray-800 rounded-full overflow-hidden relative">
                 <motion.div
                   className="h-full bg-gradient-to-r from-green-500 to-gold-500"
                   initial={{ width: 0 }}
@@ -431,9 +431,9 @@ export function MiningSystemSection() {
             </div>
             
             <div className="space-y-4 mb-6">
-              <h4 className="font-bold text-sm">能量消耗</h4>
+              <h4 className="font-bold text-xs lg:text-sm">能量消耗</h4>
               {Object.entries(energySystem.consumption).map(([action, cost]) => (
-                <div key={action} className="flex justify-between text-sm">
+                <div key={action} className="flex justify-between text-xs lg:text-sm">
                   <span className="text-gray-400 capitalize">{action}</span>
                   <span className="text-red-500">-{cost} 能量</span>
                 </div>
@@ -441,14 +441,14 @@ export function MiningSystemSection() {
             </div>
             
             <div className="space-y-4">
-              <h4 className="font-bold text-sm">能量恢复</h4>
+              <h4 className="font-bold text-xs lg:text-sm">能量恢复</h4>
               {Object.entries(energySystem.recovery).map(([key, item]) => (
                 <div key={key} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{item.icon}</span>
-                    <span className="text-sm text-gray-400">{item.name}</span>
+                    <span className="text-xl lg:text-2xl">{item.icon}</span>
+                    <span className="text-xs lg:text-sm text-gray-400">{item.name}</span>
                   </div>
-                  <span className="text-sm text-green-500">+{item.amount} 能量</span>
+                  <span className="text-xs lg:text-sm text-green-500">+{item.amount} 能量</span>
                 </div>
               ))}
             </div>
@@ -456,19 +456,19 @@ export function MiningSystemSection() {
 
           {/* 挖矿演示 */}
           <motion.div
-            className="pixel-card p-8"
+            className="pixel-card p-6 lg:p-8"
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
           >
-            <h3 className="text-xl font-black mb-6">
+            <h3 className="text-lg lg:text-xl font-black mb-6">
               <span className="text-gold-500">挖矿演示</span>
             </h3>
             
             <div className="text-center">
               {!isMining ? (
                 <motion.div
-                  className="text-8xl mb-6 inline-block cursor-pointer"
+                  className="text-6xl lg:text-8xl mb-6 inline-block cursor-pointer"
                   whileHover={{ scale: 1.1, rotate: -10 }}
                   onClick={startMining}
                 >
@@ -476,7 +476,7 @@ export function MiningSystemSection() {
                 </motion.div>
               ) : (
                 <motion.div
-                  className="text-8xl mb-6 inline-block"
+                  className="text-6xl lg:text-8xl mb-6 inline-block"
                   animate={{ rotate: [-10, 10, -10] }}
                   transition={{ duration: 0.5, repeat: Infinity }}
                 >
@@ -486,7 +486,7 @@ export function MiningSystemSection() {
               
               {isMining && (
                 <div className="mb-6">
-                  <div className="text-sm text-gray-400 mb-2">挖矿进度</div>
+                  <div className="text-xs lg:text-sm text-gray-400 mb-2">挖矿进度</div>
                   <div className="w-full h-4 bg-gray-800 rounded-full overflow-hidden">
                     <motion.div
                       className="h-full bg-gold-500"
@@ -504,15 +504,15 @@ export function MiningSystemSection() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                 >
-                  <div className="text-4xl mb-2">🎉</div>
-                  <div className="text-lg font-bold text-gold-500">挖矿完成！</div>
-                  <div className="text-sm text-gray-400">获得 120 铁矿石</div>
+                  <div className="text-3xl lg:text-4xl mb-2">🎉</div>
+                  <div className="text-base lg:text-lg font-bold text-gold-500">挖矿完成！</div>
+                  <div className="text-xs lg:text-sm text-gray-400">获得 120 铁矿石</div>
                 </motion.div>
               )}
               
               {!isMining && miningProgress === 0 && (
                 <motion.button
-                  className="pixel-btn"
+                  className="pixel-btn text-sm lg:text-base"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={startMining}
@@ -531,87 +531,89 @@ export function MiningSystemSection() {
 
         {/* 收益对比表 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20 px-4 lg:px-0"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">收益对比</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               不同矿山的收益一目了然
             </span>
           </h3>
 
           <div className="pixel-card overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gold-500/10">
-                <tr>
-                  <th className="text-left p-4 font-bold">矿山类型</th>
-                  <th className="text-center p-4 font-bold">日收益</th>
-                  <th className="text-center p-4 font-bold">月收益</th>
-                  <th className="text-center p-4 font-bold">投资回报率</th>
-                </tr>
-              </thead>
-              <tbody>
-                {profitComparison.map((item, index) => (
-                  <motion.tr
-                    key={item.type}
-                    className="border-t border-gray-800"
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <td className="p-4">{item.type}</td>
-                    <td className="p-4 text-center font-bold">¥{item.daily}</td>
-                    <td className="p-4 text-center font-bold text-gold-500">¥{item.monthly.toLocaleString()}</td>
-                    <td className="p-4 text-center">
-                      <span className="px-3 py-1 bg-green-500/20 text-green-500 font-bold rounded">
-                        {item.roi}
-                      </span>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[500px]">
+                <thead className="bg-gold-500/10">
+                  <tr>
+                    <th className="text-left p-3 lg:p-4 font-bold text-xs lg:text-base">矿山类型</th>
+                    <th className="text-center p-3 lg:p-4 font-bold text-xs lg:text-base">日收益</th>
+                    <th className="text-center p-3 lg:p-4 font-bold text-xs lg:text-base">月收益</th>
+                    <th className="text-center p-3 lg:p-4 font-bold text-xs lg:text-base">投资回报率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profitComparison.map((item, index) => (
+                    <motion.tr
+                      key={item.type}
+                      className="border-t border-gray-800"
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <td className="p-3 lg:p-4 text-xs lg:text-base">{item.type}</td>
+                      <td className="p-3 lg:p-4 text-center font-bold text-xs lg:text-base">¥{item.daily}</td>
+                      <td className="p-3 lg:p-4 text-center font-bold text-gold-500 text-xs lg:text-base">¥{item.monthly.toLocaleString()}</td>
+                      <td className="p-3 lg:p-4 text-center">
+                        <span className="px-2 lg:px-3 py-1 bg-green-500/20 text-green-500 font-bold rounded text-xs lg:text-sm">
+                          {item.roi}
+                        </span>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </motion.div>
 
         {/* CTA */}
         <motion.div
-          className="text-center"
+          className="text-center px-4"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="pixel-card inline-block p-8">
-            <h3 className="text-2xl font-black mb-4">
+          <div className="pixel-card inline-block p-6 lg:p-8 max-w-full lg:max-w-auto">
+            <h3 className="text-xl lg:text-2xl font-black mb-4">
               <span className="text-gold-500">开始你的挖矿之旅</span>
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-sm lg:text-base text-gray-400 mb-6">
               每天只需5小时，月入过万不是梦
               <br />
               真实劳动，真实收益
             </p>
             
-            <div className="flex flex-wrap gap-4 justify-center mb-6">
-              <div className="flex items-center gap-2 text-sm">
+            <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-6">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>新手免费工具</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>保底收益</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
-                <span>随时提现</span>
+                <span>T+1随时提现</span>
               </div>
             </div>
             
             <motion.button
-              className="pixel-btn text-lg px-10 py-5"
+              className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
