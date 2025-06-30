@@ -245,14 +245,6 @@ export function GoldStandardSection() {
 
           <motion.p
             className="text-2xl lg:text-3xl font-black text-gold-500 pixel-text-shadow pixel-font"
-            animate={{ 
-              textShadow: [
-                '4px 4px 0 #DAA520, 8px 8px 0 rgba(0, 0, 0, 0.3)',
-                '6px 6px 0 #DAA520, 12px 12px 0 rgba(0, 0, 0, 0.3)',
-                '4px 4px 0 #DAA520, 8px 8px 0 rgba(0, 0, 0, 0.3)',
-              ]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
           >
             真金不怕火炼 · 实力不惧考验
           </motion.p>
