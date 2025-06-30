@@ -94,7 +94,7 @@ const earningStrategies = [
     strategies: [
       { action: '土地投资', income: '8-15%/月', time: '长期' },
       { action: '开店经营', income: '视销量而定', time: '持续' },
-      { action: '团队发展', income: '10-18%提成', time: '被动' },
+      { action: 'VIP发展', income: '10-18%提成', time: '被动' },
     ],
   },
 ]
@@ -171,51 +171,51 @@ export function OnboardingSection() {
   )
 
   return (
-    <section className="py-24 lg:py-32 bg-[#0F0F1E] relative overflow-hidden">
+    <section className="py-16 lg:py-24 bg-[#0F0F1E] relative overflow-hidden">
       {/* 背景装饰 */}
       <div className="absolute inset-0">
-        <div className="absolute top-10 right-10 text-8xl opacity-5 animate-pulse">🎯</div>
-        <div className="absolute bottom-10 left-10 text-8xl opacity-5 animate-pulse" style={{ animationDelay: '1s' }}>🎁</div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[200px] opacity-5 animate-pulse" style={{ animationDelay: '2s' }}>🚀</div>
+        <div className="absolute top-10 right-10 text-6xl lg:text-8xl opacity-5 animate-pulse">🎯</div>
+        <div className="absolute bottom-10 left-10 text-6xl lg:text-8xl opacity-5 animate-pulse" style={{ animationDelay: '1s' }}>🎁</div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[150px] lg:text-[200px] opacity-5 animate-pulse" style={{ animationDelay: '2s' }}>🚀</div>
       </div>
 
       <Container className="relative z-10">
         {/* 标题 */}
         <motion.div
-          className="text-center max-w-4xl mx-auto mb-16"
+          className="text-center max-w-4xl mx-auto mb-12 lg:mb-16 px-4"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="inline-flex items-center gap-3 text-gold-500 text-sm font-bold uppercase tracking-wider mb-6">
-            <span className="w-8 h-1 bg-gold-500" />
+          <div className="inline-flex items-center gap-3 text-gold-500 text-xs lg:text-sm font-bold uppercase tracking-wider mb-4 lg:mb-6">
+            <span className="w-6 lg:w-8 h-1 bg-gold-500" />
             <span className="pixel-font">QUICK START</span>
-            <span className="w-8 h-1 bg-gold-500" />
+            <span className="w-6 lg:w-8 h-1 bg-gold-500" />
           </div>
           
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-6xl font-black leading-tight mb-4 lg:mb-6">
             <span className="block mb-2">3分钟快速上手</span>
             <span className="text-gold-500 pixel-text-shadow">小白变大神 就这么简单</span>
           </h2>
           
-          <p className="text-lg md:text-xl text-gray-400">
+          <p className="text-base lg:text-xl text-gray-400">
             零基础也能玩转平行世界，新手礼包价值超过
-            <span className="text-gold-500 font-bold text-2xl mx-2">¥{totalGiftValue}</span>
+            <span className="text-gold-500 font-bold text-xl lg:text-2xl mx-2">¥650</span>
             <br />
-            <span className="text-base mt-2 block">跟着教程走，日入过百不是梦</span>
+            <span className="text-sm lg:text-base mt-2 block">跟着教程走，日入过百不是梦</span>
           </p>
         </motion.div>
 
         {/* 注册流程 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
-            <span className="text-gold-500">极速注册</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
+            <span className="text-gold-500">极速注册流程</span>
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               比装个APP还简单
             </span>
           </h3>
@@ -231,12 +231,12 @@ export function OnboardingSection() {
               />
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-8">
+            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 px-4 lg:px-0">
               {registrationSteps.map((step, index) => (
                 <motion.div
                   key={step.step}
                   className={cn(
-                    'pixel-card p-6 cursor-pointer transition-all duration-300 relative',
+                    'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300 relative',
                     activeStep === index ? 'border-gold-500 scale-105' : 'border-gray-700'
                   )}
                   initial={{ opacity: 0, y: 20 }}
@@ -248,20 +248,20 @@ export function OnboardingSection() {
                 >
                   <div className="text-center mb-4">
                     <motion.div
-                      className="text-6xl mb-3 inline-block"
+                      className="text-5xl lg:text-6xl mb-3 inline-block"
                       animate={activeStep === index ? { scale: [1, 1.2, 1] } : {}}
                       transition={{ duration: 0.5 }}
                     >
                       {step.icon}
                     </motion.div>
-                    <h4 className="text-xl font-black mb-1">
+                    <h4 className="text-lg lg:text-xl font-black mb-1">
                       第{step.step}步
                     </h4>
                     <p className="text-gold-500 font-bold">{step.title}</p>
                     <span className="text-xs text-gray-500">{step.time}</span>
                   </div>
                   
-                  <p className="text-sm text-gray-400 mb-4 text-center">
+                  <p className="text-xs lg:text-sm text-gray-400 mb-4 text-center">
                     {step.description}
                   </p>
                   
@@ -300,27 +300,27 @@ export function OnboardingSection() {
 
         {/* 新手礼包展示 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">新手专属礼包</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               注册即送，错过不再有
             </span>
           </h3>
 
-          <div className="grid lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto px-4 lg:px-0">
             {/* 即时奖励 */}
             <motion.div
-              className="pixel-card p-8"
+              className="pixel-card p-6 lg:p-8"
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <h4 className="text-xl font-black mb-6 text-center">
+              <h4 className="text-lg lg:text-xl font-black mb-6 text-center">
                 <span className="text-gold-500">即时到账</span>
               </h4>
 
@@ -334,14 +334,14 @@ export function OnboardingSection() {
                     transition={{ delay: showGiftAnimation ? index * 0.3 : 0 }}
                   >
                     <div className="flex items-center gap-4">
-                      <span className="text-4xl">{item.icon}</span>
+                      <span className="text-3xl lg:text-4xl">{item.icon}</span>
                       <div>
                         <h5 className="font-bold">{item.name}</h5>
                         <p className="text-xs text-gray-500">{item.desc}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-2xl font-black text-gold-500">{item.amount}</div>
+                      <div className="text-xl lg:text-2xl font-black text-gold-500">{item.amount}</div>
                       <div className="text-xs text-gray-500">价值 {item.value}</div>
                     </div>
                   </motion.div>
@@ -356,7 +356,7 @@ export function OnboardingSection() {
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
                   >
-                    <div className="text-6xl mb-2">🎉</div>
+                    <div className="text-5xl lg:text-6xl mb-2">🎉</div>
                     <p className="text-gold-500 font-bold">礼包已到账！</p>
                   </motion.div>
                 )}
@@ -365,12 +365,12 @@ export function OnboardingSection() {
 
             {/* 任务奖励 */}
             <motion.div
-              className="pixel-card p-8"
+              className="pixel-card p-6 lg:p-8"
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <h4 className="text-xl font-black mb-6 text-center">
+              <h4 className="text-lg lg:text-xl font-black mb-6 text-center">
                 <span className="text-gold-500">新手任务</span>
               </h4>
 
@@ -389,7 +389,7 @@ export function OnboardingSection() {
                     transition={{ delay: index * 0.1 }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{task.icon}</span>
+                      <span className="text-xl lg:text-2xl">{task.icon}</span>
                       <div>
                         <h5 className="font-bold text-sm">{task.name}</h5>
                         <p className="text-xs text-gray-500">奖励: {task.reward}</p>
@@ -414,7 +414,7 @@ export function OnboardingSection() {
 
               <div className="mt-6 p-4 bg-gold-500/10 rounded text-center">
                 <p className="text-sm text-gold-500 font-bold">
-                  完成所有任务额外获得 <span className="text-xl">500 TDB</span>
+                  完成所有任务额外获得 <span className="text-lg lg:text-xl">500 TDB</span>
                 </p>
               </div>
             </motion.div>
@@ -423,24 +423,24 @@ export function OnboardingSection() {
 
         {/* 快速赚钱攻略 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">赚钱攻略</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               从0到月入过万的进阶之路
             </span>
           </h3>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-6 px-4 lg:px-0">
             {earningStrategies.map((strategy, index) => (
               <motion.div
                 key={strategy.level}
                 className={cn(
-                  'pixel-card p-6 cursor-pointer transition-all duration-300',
+                  'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300',
                   selectedStrategy === index ? 'border-gold-500 scale-105' : 'border-gray-700'
                 )}
                 initial={{ opacity: 0, y: 20 }}
@@ -451,17 +451,17 @@ export function OnboardingSection() {
                 whileHover={{ y: -4 }}
               >
                 <div className="text-center mb-4">
-                  <div className="text-5xl mb-2">{strategy.icon}</div>
-                  <h4 className="text-xl font-black mb-1">{strategy.level}</h4>
+                  <div className="text-4xl lg:text-5xl mb-2">{strategy.icon}</div>
+                  <h4 className="text-lg lg:text-xl font-black mb-1">{strategy.level}</h4>
                   <p className="text-gold-500 font-bold">{strategy.title}</p>
-                  <div className="text-2xl font-black text-green-500 mt-2">
+                  <div className="text-xl lg:text-2xl font-black text-green-500 mt-2">
                     ¥{strategy.daily}/天
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   {strategy.strategies.map((item) => (
-                    <div key={item.action} className="text-sm">
+                    <div key={item.action} className="text-xs lg:text-sm">
                       <div className="flex justify-between items-start mb-1">
                         <span className="font-bold">{item.action}</span>
                         <span className="text-green-500 text-xs">{item.income}</span>
@@ -485,19 +485,19 @@ export function OnboardingSection() {
 
         {/* 常见问题 */}
         <motion.div
-          className="mb-20"
+          className="mb-16 lg:mb-20"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-2xl font-black text-center mb-12">
+          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
             <span className="text-gold-500">常见问题</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
+            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               90%的问题都在这里
             </span>
           </h3>
 
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-6 px-4 lg:px-0">
             {faqData.map((category) => (
               <motion.div
                 key={category.category}
@@ -507,8 +507,8 @@ export function OnboardingSection() {
                 viewport={{ once: true }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{category.icon}</span>
-                  <h4 className="text-xl font-black">{category.category}</h4>
+                  <span className="text-2xl lg:text-3xl">{category.icon}</span>
+                  <h4 className="text-lg lg:text-xl font-black">{category.category}</h4>
                 </div>
 
                 <div className="space-y-4">
@@ -526,7 +526,7 @@ export function OnboardingSection() {
                         )}
                       >
                         <div className="flex items-center justify-between">
-                          <h5 className="font-bold pr-4">{item.q}</h5>
+                          <h5 className="font-bold pr-4 text-sm lg:text-base">{item.q}</h5>
                           <motion.span
                             animate={{ rotate: expandedFaq === `${category.category}-${index}` ? 180 : 0 }}
                             transition={{ duration: 0.3 }}
@@ -546,7 +546,7 @@ export function OnboardingSection() {
                             transition={{ duration: 0.3 }}
                             className="border-t border-gray-800"
                           >
-                            <p className="p-4 text-sm text-gray-400">
+                            <p className="p-4 text-xs lg:text-sm text-gray-400">
                               {item.a}
                             </p>
                           </motion.div>
@@ -562,38 +562,38 @@ export function OnboardingSection() {
 
         {/* CTA */}
         <motion.div
-          className="text-center"
+          className="text-center px-4"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <div className="pixel-card inline-block p-8 max-w-2xl">
-            <h3 className="text-2xl font-black mb-4">
+          <div className="pixel-card inline-block p-6 lg:p-8 max-w-full lg:max-w-2xl">
+            <h3 className="text-xl lg:text-2xl font-black mb-4">
               <span className="text-gold-500">准备好了吗？</span>
             </h3>
-            <p className="text-gray-400 mb-6">
+            <p className="text-sm lg:text-base text-gray-400 mb-6">
               加入50,000+先行者，开启你的财富之旅
               <br />
               现在注册还能获得限时双倍礼包
             </p>
             
-            <div className="flex flex-wrap gap-4 justify-center mb-6">
-              <div className="flex items-center gap-2 text-sm">
+            <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-6">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>3分钟快速注册</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
-                <span>新手礼包¥{totalGiftValue}</span>
+                <span>新手礼包¥650</span>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>专属客服指导</span>
               </div>
             </div>
             
             <motion.button
-              className="pixel-btn text-lg px-10 py-5"
+              className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5 w-full md:w-auto"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
