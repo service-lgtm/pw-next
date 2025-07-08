@@ -6,34 +6,14 @@ import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authAPI, type RegisterRequest, type LoginRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
+import { 
+  authAPI, 
+  type RegisterRequest, 
+  type LoginRequest, 
+  type PasswordResetRequest, 
+  type PasswordResetConfirmRequest 
+} from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-
-// 防抖函数
-function useDebounce<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  const timeoutRef = useRef<NodeJS.Timeout>()
-  
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [])
-  
-  return useCallback((...args: Parameters<T>) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-    }
-    
-    timeoutRef.current = setTimeout(() => {
-      callback(...args)
-    }, delay)
-  }, [callback, delay])
-}
 
 // 共享的输入框组件
 interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -64,12 +44,15 @@ function PixelInput({
   
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-gray-300" htmlFor={props.id || props.name}>
+      <label 
+        className="text-sm font-bold text-gray-300" 
+        htmlFor={props.id || props.name}
+      >
         {label}
       </label>
       <div className="relative">
         {icon && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none select-none">
             {icon}
           </span>
         )}
@@ -94,6 +77,7 @@ function PixelInput({
             onClick={handleTogglePassword}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
             aria-label={showPassword ? '隐藏密码' : '显示密码'}
+            tabIndex={-1}
           >
             {showPassword ? '👁️' : '👁️‍🗨️'}
           </button>
@@ -125,13 +109,14 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
-  const intervalRef = useRef<NodeJS.Timeout>()
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
   
   // 清理定时器
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
   }, [])
@@ -173,6 +158,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
           if (prev <= 1) {
             if (intervalRef.current) {
               clearInterval(intervalRef.current)
+              intervalRef.current = null
             }
             return 0
           }
@@ -276,19 +262,36 @@ export function RegisterForm() {
     // 标记字段已被触碰
     setTouched(prev => ({ ...prev, [name]: true }))
     
+    // 清除该字段的错误
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+    
     // 实时验证
     if (name === 'email' && touched.email) {
       const error = validateEmail(value)
-      setErrors(prev => ({ ...prev, email: error || '' }))
+      if (error) {
+        setErrors(prev => ({ ...prev, email: error }))
+      }
     } else if (name === 'password' && touched.password) {
       const error = validatePassword(value)
-      setErrors(prev => ({ ...prev, password: error || '' }))
+      if (error) {
+        setErrors(prev => ({ ...prev, password: error }))
+      }
     } else if (name === 'password_confirm' && touched.password_confirm) {
-      const error = value !== formData.password ? '两次密码不一致' : ''
-      setErrors(prev => ({ ...prev, password_confirm: error }))
+      const error = value !== formData.password ? '两次密码不一致' : null
+      if (error) {
+        setErrors(prev => ({ ...prev, password_confirm: error }))
+      }
     } else if (name === 'verification_code') {
-      const error = value && value.length !== 6 ? '请输入6位验证码' : ''
-      setErrors(prev => ({ ...prev, verification_code: error }))
+      const error = value && value.length !== 6 ? '请输入6位验证码' : null
+      if (error) {
+        setErrors(prev => ({ ...prev, verification_code: error }))
+      }
     }
   }
 
@@ -352,20 +355,15 @@ export function RegisterForm() {
             registerData.referral_code = formData.referral_code.trim()
           }
           
-          console.log('开始注册...')
+          console.log('[RegisterForm] 开始注册...')
           const response = await authAPI.register(registerData)
-          console.log('注册成功:', response)
+          console.log('[RegisterForm] 注册成功:', response)
           
           setStep(3)
         } catch (error) {
-          console.error('注册失败:', error)
+          console.error('[RegisterForm] 注册失败:', error)
           const errorMessage = error instanceof Error ? error.message : '注册失败，请重试'
           setErrors({ submit: errorMessage })
-          
-          // 如果是网络错误，显示更友好的提示
-          if (error instanceof TypeError && error.message === 'Failed to fetch') {
-            setErrors({ submit: '网络连接失败，请检查网络后重试' })
-          }
         } finally {
           setLoading(false)
         }
@@ -491,6 +489,7 @@ export function RegisterForm() {
               whileTap={{ scale: 0.98 }}
               onClick={handleNext}
               disabled={loading}
+              type="button"
             >
               下一步
             </motion.button>
@@ -562,11 +561,11 @@ export function RegisterForm() {
                 />
                 <label htmlFor="agreement" className="text-sm text-gray-400 cursor-pointer select-none">
                   我已阅读并同意
-                  <a href="/terms" target="_blank" className="text-gold-500 hover:underline mx-1">
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline mx-1">
                     《用户协议》
                   </a>
                   和
-                  <a href="/privacy" target="_blank" className="text-gold-500 hover:underline mx-1">
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline mx-1">
                     《隐私政策》
                   </a>
                 </label>
@@ -593,6 +592,7 @@ export function RegisterForm() {
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setStep(1)}
                 disabled={loading}
+                type="button"
               >
                 上一步
               </motion.button>
@@ -602,6 +602,7 @@ export function RegisterForm() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleNext}
                 disabled={loading}
+                type="button"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -648,6 +649,7 @@ export function RegisterForm() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/login')}
+              type="button"
             >
               立即登录
             </motion.button>
@@ -680,11 +682,27 @@ export function LoginForm() {
     
     // 清除错误
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }))
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+    
+    // 清除提交错误
+    if (errors.submit) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors.submit
+        return newErrors
+      })
     }
   }
 
   const handleLogin = async () => {
+    // 防止重复提交
+    if (loading) return
+    
     setTouched({ email: true, password: true })
     
     const newErrors: Record<string, string> = {}
@@ -697,21 +715,31 @@ export function LoginForm() {
     }
     
     setErrors(newErrors)
-    if (Object.keys(newErrors).length === 0) {
-      setLoading(true)
-      try {
-        await login(formData.email.trim(), formData.password)
-      } catch (error) {
-        console.error('登录失败:', error)
-        const errorMessage = error instanceof Error ? error.message : '登录失败，请检查邮箱和密码'
-        setErrors({ submit: errorMessage })
-        
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
-          setErrors({ submit: '网络连接失败，请检查网络后重试' })
-        }
-      } finally {
-        setLoading(false)
+    
+    if (Object.keys(newErrors).length > 0) {
+      return
+    }
+    
+    setLoading(true)
+    setErrors({})
+    
+    try {
+      console.log('[LoginForm] 开始登录...')
+      await login(formData.email.trim(), formData.password)
+      console.log('[LoginForm] 登录成功')
+      // login 方法会处理跳转
+    } catch (error) {
+      console.error('[LoginForm] 登录失败:', error)
+      
+      let errorMessage = '登录失败，请重试'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
       }
+      
+      setErrors({ submit: errorMessage })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -729,7 +757,6 @@ export function LoginForm() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
-        onKeyPress={handleKeyPress}
       >
         <div className="text-center">
           <h2 className="text-3xl font-black mb-2">
@@ -740,7 +767,13 @@ export function LoginForm() {
           </p>
         </div>
 
-        <div className="space-y-4">
+        <form 
+          onSubmit={(e) => { 
+            e.preventDefault(); 
+            handleLogin(); 
+          }} 
+          className="space-y-4"
+        >
           <PixelInput
             label="邮箱地址"
             name="email"
@@ -752,6 +785,7 @@ export function LoginForm() {
             error={touched.email ? errors.email : ''}
             autoComplete="email"
             autoFocus
+            disabled={loading}
           />
 
           <div>
@@ -766,6 +800,7 @@ export function LoginForm() {
               error={touched.password ? errors.password : ''}
               autoComplete="current-password"
               showPasswordToggle
+              disabled={loading}
             />
             <div className="flex items-center justify-between mt-2">
               <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
@@ -775,10 +810,18 @@ export function LoginForm() {
                   checked={formData.rememberMe}
                   onChange={handleInputChange}
                   className="w-4 h-4 cursor-pointer"
+                  disabled={loading}
                 />
                 记住我
               </label>
-              <Link href="/reset-password" className="text-sm text-gold-500 hover:underline">
+              <Link 
+                href="/reset-password" 
+                className={cn(
+                  "text-sm text-gold-500 hover:underline",
+                  loading && "pointer-events-none opacity-50"
+                )}
+                tabIndex={loading ? -1 : 0}
+              >
                 忘记密码？
               </Link>
             </div>
@@ -795,10 +838,13 @@ export function LoginForm() {
           )}
 
           <motion.button
-            className="w-full pixel-btn"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleLogin}
+            type="submit"
+            className={cn(
+              "w-full pixel-btn",
+              loading && "opacity-70 cursor-not-allowed"
+            )}
+            whileHover={!loading ? { scale: 1.02 } : {}}
+            whileTap={!loading ? { scale: 0.98 } : {}}
             disabled={loading}
           >
             {loading ? (
@@ -814,12 +860,19 @@ export function LoginForm() {
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-400">
               还没有账号？
-              <Link href="/register" className="text-gold-500 hover:underline ml-1">
+              <Link 
+                href="/register" 
+                className={cn(
+                  "text-gold-500 hover:underline ml-1",
+                  loading && "pointer-events-none opacity-50"
+                )}
+                tabIndex={loading ? -1 : 0}
+              >
                 立即注册
               </Link>
             </p>
           </div>
-        </div>
+        </form>
       </motion.div>
     </div>
   )
@@ -845,16 +898,31 @@ export function ResetPasswordForm() {
     setFormData(prev => ({ ...prev, [name]: value }))
     setTouched(prev => ({ ...prev, [name]: true }))
     
+    // 清除错误
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+    
     // 实时验证
     if (name === 'email' && touched.email) {
       const error = validateEmail(value)
-      setErrors(prev => ({ ...prev, email: error || '' }))
+      if (error) {
+        setErrors(prev => ({ ...prev, email: error }))
+      }
     } else if (name === 'new_password' && touched.new_password) {
       const error = validatePassword(value)
-      setErrors(prev => ({ ...prev, new_password: error || '' }))
+      if (error) {
+        setErrors(prev => ({ ...prev, new_password: error }))
+      }
     } else if (name === 'new_password_confirm' && touched.new_password_confirm) {
-      const error = value !== formData.new_password ? '两次密码不一致' : ''
-      setErrors(prev => ({ ...prev, new_password_confirm: error }))
+      const error = value !== formData.new_password ? '两次密码不一致' : null
+      if (error) {
+        setErrors(prev => ({ ...prev, new_password_confirm: error }))
+      }
     }
   }
 
@@ -892,7 +960,7 @@ export function ResetPasswordForm() {
         })
         setStep(2)
       } catch (error) {
-        console.error('请求重置失败:', error)
+        console.error('[ResetForm] 请求重置失败:', error)
         const errorMessage = error instanceof Error ? error.message : '请求失败，请重试'
         setErrors({ submit: errorMessage })
       } finally {
@@ -933,7 +1001,7 @@ export function ResetPasswordForm() {
         })
         setStep(3)
       } catch (error) {
-        console.error('重置密码失败:', error)
+        console.error('[ResetForm] 重置密码失败:', error)
         const errorMessage = error instanceof Error ? error.message : '重置失败，请重试'
         setErrors({ submit: errorMessage })
       } finally {
@@ -944,12 +1012,14 @@ export function ResetPasswordForm() {
 
   // 从URL参数获取token（如果有）
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
-    const email = params.get('email')
-    if (token && email) {
-      setFormData(prev => ({ ...prev, token, email }))
-      setStep(2)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const token = params.get('token')
+      const email = params.get('email')
+      if (token && email) {
+        setFormData(prev => ({ ...prev, token, email }))
+        setStep(2)
+      }
     }
   }, [])
 
@@ -1036,6 +1106,7 @@ export function ResetPasswordForm() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleRequestReset}
                 disabled={loading}
+                type="button"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1119,10 +1190,18 @@ export function ResetPasswordForm() {
 
               <div className="p-4 bg-gray-900/50 rounded space-y-1 text-xs text-gray-400">
                 <p className="font-bold">密码要求：</p>
-                <p className={formData.new_password.length >= 8 && formData.new_password.length <= 32 ? 'text-green-500' : ''}>
+                <p className={cn(
+                  formData.new_password.length >= 8 && formData.new_password.length <= 32 
+                    ? 'text-green-500' 
+                    : ''
+                )}>
                   ✓ 8-32个字符
                 </p>
-                <p className={/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? 'text-green-500' : ''}>
+                <p className={cn(
+                  /[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) 
+                    ? 'text-green-500' 
+                    : ''
+                )}>
                   ✓ 必须包含字母和数字
                 </p>
               </div>
@@ -1143,6 +1222,7 @@ export function ResetPasswordForm() {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleResetPassword}
                 disabled={loading}
+                type="button"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -1190,6 +1270,7 @@ export function ResetPasswordForm() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/login')}
+              type="button"
             >
               立即登录
             </motion.button>
