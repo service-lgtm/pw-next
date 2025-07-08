@@ -34,7 +34,7 @@ export async function apiRequest<T>(
   }
 }
 
-// Auth API 类型定义（保持不变）
+// Auth API 类型定义
 export interface EmailCodeRequest {
   email: string
   type: 'register' | 'reset'
@@ -102,40 +102,45 @@ export const authAPI = {
     return result
   },
 
-  // 注册 - 也使用直接的 fetch
+  // 注册 - 修复这里
   register: async (data: RegisterRequest) => {
-    const response = await fetch(`${API_BASE_URL}/auth/register/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-      credentials: 'include',
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      // 处理具体的错误信息
-      if (result.email) {
-        throw new Error(result.email[0] || '邮箱错误')
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include',
+      })
+      
+      const result = await response.json()
+      
+      if (!response.ok) {
+        // 处理具体的错误信息
+        if (result.email) {
+          throw new Error(result.email[0] || '邮箱错误')
+        }
+        if (result.password) {
+          throw new Error(result.password[0] || '密码错误')
+        }
+        if (result.verification_code) {
+          throw new Error(result.verification_code[0] || '验证码错误')
+        }
+        if (result.referral_code) {
+          throw new Error(result.referral_code[0] || '邀请码错误')
+        }
+        throw new Error(result.message || result.detail || '注册失败')
       }
-      if (result.password) {
-        throw new Error(result.password[0] || '密码错误')
-      }
-      if (result.verification_code) {
-        throw new Error(result.verification_code[0] || '验证码错误')
-      }
-      if (result.referral_code) {
-        throw new Error(result.referral_code[0] || '邀请码错误')
-      }
-      throw new Error(result.message || result.detail || '注册失败')
+      
+      return result
+    } catch (error) {
+      // 确保错误被正确抛出
+      throw error
     }
-    
-    return result
   },
 
-  // 登录 - 也使用直接的 fetch
+  // 登录
   login: async (data: LoginRequest) => {
     const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: 'POST',
@@ -156,78 +161,28 @@ export const authAPI = {
   },
 
   // 退出登录
-  logout: async () => {
-    const response = await fetch(`${API_BASE_URL}/auth/logout/`, {
+  logout: () =>
+    apiRequest('/auth/logout/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.message || '退出失败')
-    }
-    
-    return result
-  },
+    }),
 
   // 请求密码重置
-  passwordReset: async (data: PasswordResetRequest) => {
-    const response = await fetch(`${API_BASE_URL}/auth/password-reset/`, {
+  passwordReset: (data: PasswordResetRequest) =>
+    apiRequest('/auth/password-reset/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(data),
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.message || '请求失败')
-    }
-    
-    return result
-  },
+    }),
 
   // 确认密码重置
-  passwordResetConfirm: async (data: PasswordResetConfirmRequest) => {
-    const response = await fetch(`${API_BASE_URL}/auth/password-reset-confirm/`, {
+  passwordResetConfirm: (data: PasswordResetConfirmRequest) =>
+    apiRequest('/auth/password-reset-confirm/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(data),
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.message || '重置失败')
-    }
-    
-    return result
-  },
+    }),
 
   // 检查认证状态
-  checkStatus: async () => {
-    const response = await fetch(`${API_BASE_URL}/auth/status/`, {
+  checkStatus: () =>
+    apiRequest<AuthStatus>('/auth/status/', {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    })
-    
-    const result = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(result.message || '获取状态失败')
-    }
-    
-    return result
-  },
+    }),
 }
