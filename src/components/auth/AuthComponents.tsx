@@ -1,48 +1,110 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authAPI } from '@/lib/api'
+import { authAPI, type RegisterRequest, type LoginRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+
+// 防抖函数
+function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  const timeoutRef = useRef<NodeJS.Timeout>()
+  
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
+  
+  return useCallback((...args: Parameters<T>) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args)
+    }, delay)
+  }, [callback, delay])
+}
 
 // 共享的输入框组件
 interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string
   error?: string
   icon?: string
+  showPasswordToggle?: boolean
+  onShowPasswordChange?: (show: boolean) => void
 }
 
-function PixelInput({ label, error, icon, className, ...props }: PixelInputProps) {
+function PixelInput({ 
+  label, 
+  error, 
+  icon, 
+  className, 
+  showPasswordToggle,
+  onShowPasswordChange,
+  ...props 
+}: PixelInputProps) {
+  const [showPassword, setShowPassword] = useState(false)
+  const inputType = props.type === 'password' && showPassword ? 'text' : props.type
+  
+  const handleTogglePassword = () => {
+    const newValue = !showPassword
+    setShowPassword(newValue)
+    onShowPasswordChange?.(newValue)
+  }
+  
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-gray-300">{label}</label>
+      <label className="text-sm font-bold text-gray-300" htmlFor={props.id || props.name}>
+        {label}
+      </label>
       <div className="relative">
         {icon && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none">
             {icon}
           </span>
         )}
         <input
+          id={props.id || props.name}
           className={cn(
             'w-full px-4 py-3 bg-gray-900 border-2 border-gray-700',
             'focus:border-gold-500 focus:outline-none transition-all duration-200',
             'text-white placeholder-gray-500',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-12',
+            showPasswordToggle && 'pr-12',
             error && 'border-red-500',
             className
           )}
           {...props}
+          type={inputType}
         />
+        {showPasswordToggle && props.type === 'password' && (
+          <button
+            type="button"
+            onClick={handleTogglePassword}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+            aria-label={showPassword ? '隐藏密码' : '显示密码'}
+          >
+            {showPassword ? '👁️' : '👁️‍🗨️'}
+          </button>
+        )}
       </div>
       {error && (
         <motion.p
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-xs text-red-500"
+          role="alert"
         >
           {error}
         </motion.p>
@@ -51,7 +113,7 @@ function PixelInput({ label, error, icon, className, ...props }: PixelInputProps
   )
 }
 
-// 倒计时按钮组件
+// 改进的倒计时按钮组件
 interface CountdownButtonProps {
   onClick: () => Promise<void>
   disabled?: boolean
@@ -62,19 +124,56 @@ interface CountdownButtonProps {
 function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProps) {
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(false)
-
+  const [error, setError] = useState<string>('')
+  const intervalRef = useRef<NodeJS.Timeout>()
+  
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [])
+  
+  // 验证邮箱格式
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+  
   const handleClick = async () => {
-    if (countdown > 0 || disabled || loading || !email) return
+    // 防止重复点击
+    if (countdown > 0 || disabled || loading) return
+    
+    // 验证邮箱
+    if (!email || !email.trim()) {
+      setError('请先输入邮箱地址')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+    
+    if (!validateEmail(email)) {
+      setError('请输入有效的邮箱地址')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
     
     setLoading(true)
+    setError('')
+    
     try {
       await onClick()
+      
+      // 发送成功，开始倒计时
       setCountdown(60)
       
-      const timer = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= 1) {
-            clearInterval(timer)
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current)
+            }
             return 0
           }
           return prev - 1
@@ -82,38 +181,71 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
       }, 1000)
     } catch (error) {
       console.error('发送验证码失败:', error)
-      alert(error instanceof Error ? error.message : '发送失败，请稍后重试')
+      const errorMessage = error instanceof Error ? error.message : '发送失败，请稍后重试'
+      setError(errorMessage)
+      setTimeout(() => setError(''), 5000)
     } finally {
       setLoading(false)
     }
   }
-
+  
+  const isDisabled = countdown > 0 || disabled || loading || !email || !validateEmail(email)
+  
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={countdown > 0 || disabled || loading || !email}
-      className={cn(
-        'absolute right-2 top-1/2 -translate-y-1/2',
-        'px-4 py-1 text-sm font-bold',
-        'transition-all duration-200',
-        countdown > 0 || disabled || loading || !email
-          ? 'text-gray-500 cursor-not-allowed'
-          : 'text-gold-500 hover:text-gold-400'
+    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+      {error && (
+        <span className="text-xs text-red-500 animate-pulse">{error}</span>
       )}
-    >
-      {loading ? '发送中...' : countdown > 0 ? `${countdown}s` : '发送验证码'}
-    </button>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isDisabled}
+        className={cn(
+          'px-4 py-1 text-sm font-bold',
+          'transition-all duration-200',
+          'focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-gray-900',
+          isDisabled
+            ? 'text-gray-500 cursor-not-allowed'
+            : 'text-gold-500 hover:text-gold-400 active:scale-95'
+        )}
+        aria-label="发送验证码"
+      >
+        {loading ? (
+          <span className="flex items-center gap-1">
+            <span className="animate-spin">⏳</span>
+            发送中...
+          </span>
+        ) : countdown > 0 ? (
+          `${countdown}秒后重试`
+        ) : (
+          '发送验证码'
+        )}
+      </button>
+    </div>
   )
 }
 
 // 密码验证
 function validatePassword(password: string): string | null {
+  if (!password) return '请输入密码'
   if (password.length < 8 || password.length > 32) {
     return '密码长度应为8-32位'
   }
-  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return '密码必须包含字母和数字'
+  if (!/[a-zA-Z]/.test(password)) {
+    return '密码必须包含字母'
+  }
+  if (!/[0-9]/.test(password)) {
+    return '密码必须包含数字'
+  }
+  return null
+}
+
+// 邮箱验证
+function validateEmail(email: string): string | null {
+  if (!email) return '请输入邮箱地址'
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    return '请输入有效的邮箱地址'
   }
   return null
 }
@@ -132,7 +264,7 @@ export function RegisterForm() {
     agreement: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showPassword, setShowPassword] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -140,21 +272,34 @@ export function RegisterForm() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
-    // 清除对应的错误
-    setErrors(prev => ({ ...prev, [name]: '' }))
+    
+    // 标记字段已被触碰
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
+    // 实时验证
+    if (name === 'email' && touched.email) {
+      const error = validateEmail(value)
+      setErrors(prev => ({ ...prev, email: error || '' }))
+    } else if (name === 'password' && touched.password) {
+      const error = validatePassword(value)
+      setErrors(prev => ({ ...prev, password: error || '' }))
+    } else if (name === 'password_confirm' && touched.password_confirm) {
+      const error = value !== formData.password ? '两次密码不一致' : ''
+      setErrors(prev => ({ ...prev, password_confirm: error }))
+    } else if (name === 'verification_code') {
+      const error = value && value.length !== 6 ? '请输入6位验证码' : ''
+      setErrors(prev => ({ ...prev, verification_code: error }))
+    }
   }
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {}
     
-    if (!formData.email || !formData.email.includes('@')) {
-      newErrors.email = '请输入有效的邮箱地址'
-    }
+    const emailError = validateEmail(formData.email)
+    if (emailError) newErrors.email = emailError
     
     const passwordError = validatePassword(formData.password)
-    if (passwordError) {
-      newErrors.password = passwordError
-    }
+    if (passwordError) newErrors.password = passwordError
     
     if (formData.password !== formData.password_confirm) {
       newErrors.password_confirm = '两次密码不一致'
@@ -179,54 +324,78 @@ export function RegisterForm() {
   }
 
   const handleNext = async () => {
-    if (step === 1 && validateStep1()) {
-      setStep(2)
-    } else if (step === 2 && validateStep2()) {
-      setLoading(true)
-      setErrors({})
+    if (step === 1) {
+      // 标记所有字段为已触碰
+      setTouched({ email: true, password: true, password_confirm: true })
       
-      try {
-        // 构建注册数据
-        const registerData: RegisterRequest = {
-          email: formData.email,
-          password: formData.password,
-          password_confirm: formData.password_confirm,
-          verification_code: formData.verification_code,
+      if (validateStep1()) {
+        setStep(2)
+      }
+    } else if (step === 2) {
+      setTouched(prev => ({ ...prev, verification_code: true, agreement: true }))
+      
+      if (validateStep2()) {
+        setLoading(true)
+        setErrors({})
+        
+        try {
+          // 构建注册数据，清理空格
+          const registerData: RegisterRequest = {
+            email: formData.email.trim(),
+            password: formData.password,
+            password_confirm: formData.password_confirm,
+            verification_code: formData.verification_code.trim(),
+          }
+          
+          // 只在有值时添加 referral_code
+          if (formData.referral_code && formData.referral_code.trim()) {
+            registerData.referral_code = formData.referral_code.trim()
+          }
+          
+          console.log('开始注册...')
+          const response = await authAPI.register(registerData)
+          console.log('注册成功:', response)
+          
+          setStep(3)
+        } catch (error) {
+          console.error('注册失败:', error)
+          const errorMessage = error instanceof Error ? error.message : '注册失败，请重试'
+          setErrors({ submit: errorMessage })
+          
+          // 如果是网络错误，显示更友好的提示
+          if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            setErrors({ submit: '网络连接失败，请检查网络后重试' })
+          }
+        } finally {
+          setLoading(false)
         }
-        
-        // 只在有值时添加 referral_code
-        if (formData.referral_code && formData.referral_code.trim()) {
-          registerData.referral_code = formData.referral_code.trim()
-        }
-        
-        console.log('注册数据:', registerData)
-        
-        const response = await authAPI.register(registerData)
-        console.log('注册成功:', response)
-        
-        setStep(3)
-      } catch (error: any) {
-        console.error('注册失败:', error)
-        setErrors({ submit: error.message || '注册失败，请重试' })
-      } finally {
-        setLoading(false)
       }
     }
   }
 
   const handleSendVerifyCode = async () => {
-    if (!formData.email) {
-      throw new Error('请输入邮箱地址')
+    const emailError = validateEmail(formData.email)
+    if (emailError) {
+      throw new Error(emailError)
     }
     
-    if (!formData.email.includes('@')) {
-      throw new Error('请输入有效的邮箱地址')
+    try {
+      await authAPI.sendEmailCode({
+        email: formData.email.trim(),
+        type: 'register'
+      })
+    } catch (error) {
+      console.error('发送验证码错误:', error)
+      throw error
     }
-    
-    await authAPI.sendEmailCode({
-      email: formData.email,
-      type: 'register'
-    })
+  }
+
+  // 处理回车键
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault()
+      handleNext()
+    }
   }
 
   return (
@@ -244,7 +413,7 @@ export function RegisterForm() {
                   : 'bg-gray-800 text-gray-500'
               )}
             >
-              {i}
+              {step > i ? '✓' : i}
             </div>
             {i < 3 && (
               <div
@@ -268,6 +437,7 @@ export function RegisterForm() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
+            onKeyPress={handleKeyPress}
           >
             <h2 className="text-2xl font-black text-center mb-6">
               创建账号
@@ -284,49 +454,43 @@ export function RegisterForm() {
               onChange={handleInputChange}
               placeholder="example@email.com"
               icon="📧"
-              error={errors.email}
+              error={touched.email ? errors.email : ''}
+              autoComplete="email"
+              autoFocus
             />
 
             <PixelInput
               label="登录密码"
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               value={formData.password}
               onChange={handleInputChange}
               placeholder="8-32位字母+数字"
               icon="🔐"
-              error={errors.password}
+              error={touched.password ? errors.password : ''}
+              autoComplete="new-password"
+              showPasswordToggle
             />
 
             <PixelInput
               label="确认密码"
               name="password_confirm"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               value={formData.password_confirm}
               onChange={handleInputChange}
               placeholder="再次输入密码"
               icon="🔐"
-              error={errors.password_confirm}
+              error={touched.password_confirm ? errors.password_confirm : ''}
+              autoComplete="new-password"
+              showPasswordToggle
             />
-
-            <div className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                id="showPassword"
-                checked={showPassword}
-                onChange={(e) => setShowPassword(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <label htmlFor="showPassword" className="text-gray-400 cursor-pointer">
-                显示密码
-              </label>
-            </div>
 
             <motion.button
               className="w-full pixel-btn"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleNext}
+              disabled={loading}
             >
               下一步
             </motion.button>
@@ -348,6 +512,7 @@ export function RegisterForm() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
+            onKeyPress={handleKeyPress}
           >
             <h2 className="text-2xl font-black text-center mb-6">
               验证邮箱
@@ -364,8 +529,10 @@ export function RegisterForm() {
                 onChange={handleInputChange}
                 placeholder="请输入6位验证码"
                 icon="✉️"
-                error={errors.verification_code}
+                error={touched.verification_code ? errors.verification_code : ''}
                 maxLength={6}
+                autoComplete="one-time-code"
+                autoFocus
               />
               <CountdownButton 
                 onClick={handleSendVerifyCode} 
@@ -391,26 +558,32 @@ export function RegisterForm() {
                   name="agreement"
                   checked={formData.agreement}
                   onChange={handleInputChange}
-                  className="w-4 h-4 mt-1"
+                  className="w-4 h-4 mt-1 cursor-pointer"
                 />
-                <label htmlFor="agreement" className="text-sm text-gray-400">
+                <label htmlFor="agreement" className="text-sm text-gray-400 cursor-pointer select-none">
                   我已阅读并同意
-                  <a href="#" className="text-gold-500 hover:underline mx-1">
+                  <a href="/terms" target="_blank" className="text-gold-500 hover:underline mx-1">
                     《用户协议》
                   </a>
                   和
-                  <a href="#" className="text-gold-500 hover:underline mx-1">
+                  <a href="/privacy" target="_blank" className="text-gold-500 hover:underline mx-1">
                     《隐私政策》
                   </a>
                 </label>
               </div>
-              {errors.agreement && (
+              {touched.agreement && errors.agreement && (
                 <p className="text-xs text-red-500 ml-6">{errors.agreement}</p>
               )}
             </div>
 
             {errors.submit && (
-              <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-red-500/10 border border-red-500/20 rounded"
+              >
+                <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+              </motion.div>
             )}
 
             <div className="grid grid-cols-2 gap-4">
@@ -419,6 +592,7 @@ export function RegisterForm() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setStep(1)}
+                disabled={loading}
               >
                 上一步
               </motion.button>
@@ -429,7 +603,14 @@ export function RegisterForm() {
                 onClick={handleNext}
                 disabled={loading}
               >
-                {loading ? '注册中...' : '完成注册'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    注册中...
+                  </span>
+                ) : (
+                  '完成注册'
+                )}
               </motion.button>
             </div>
           </motion.div>
@@ -446,7 +627,10 @@ export function RegisterForm() {
             <div className="text-center">
               <motion.div
                 className="text-6xl mb-4"
-                animate={{ rotate: [0, 360] }}
+                animate={{ 
+                  rotate: [0, 360],
+                  scale: [1, 1.2, 1]
+                }}
                 transition={{ duration: 1 }}
               >
                 🎉
@@ -483,8 +667,8 @@ export function LoginForm() {
     rememberMe: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -492,15 +676,22 @@ export function LoginForm() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
-    setErrors(prev => ({ ...prev, [name]: '' }))
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
+    // 清除错误
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }))
+    }
   }
 
   const handleLogin = async () => {
+    setTouched({ email: true, password: true })
+    
     const newErrors: Record<string, string> = {}
     
-    if (!formData.email) {
-      newErrors.email = '请输入邮箱'
-    }
+    const emailError = validateEmail(formData.email)
+    if (emailError) newErrors.email = emailError
+    
     if (!formData.password) {
       newErrors.password = '请输入密码'
     }
@@ -509,12 +700,26 @@ export function LoginForm() {
     if (Object.keys(newErrors).length === 0) {
       setLoading(true)
       try {
-        await login(formData.email, formData.password)
-      } catch (error: any) {
-        setErrors({ submit: error.message || '登录失败，请检查邮箱和密码' })
+        await login(formData.email.trim(), formData.password)
+      } catch (error) {
+        console.error('登录失败:', error)
+        const errorMessage = error instanceof Error ? error.message : '登录失败，请检查邮箱和密码'
+        setErrors({ submit: errorMessage })
+        
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          setErrors({ submit: '网络连接失败，请检查网络后重试' })
+        }
       } finally {
         setLoading(false)
       }
+    }
+  }
+
+  // 处理回车键
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault()
+      handleLogin()
     }
   }
 
@@ -524,6 +729,7 @@ export function LoginForm() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-6"
+        onKeyPress={handleKeyPress}
       >
         <div className="text-center">
           <h2 className="text-3xl font-black mb-2">
@@ -543,29 +749,34 @@ export function LoginForm() {
             onChange={handleInputChange}
             placeholder="请输入注册邮箱"
             icon="📧"
-            error={errors.email}
+            error={touched.email ? errors.email : ''}
+            autoComplete="email"
+            autoFocus
           />
 
           <div>
             <PixelInput
               label="登录密码"
               name="password"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               value={formData.password}
               onChange={handleInputChange}
               placeholder="请输入密码"
               icon="🔐"
-              error={errors.password}
+              error={touched.password ? errors.password : ''}
+              autoComplete="current-password"
+              showPasswordToggle
             />
             <div className="flex items-center justify-between mt-2">
               <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={showPassword}
-                  onChange={(e) => setShowPassword(e.target.checked)}
-                  className="w-4 h-4"
+                  name="rememberMe"
+                  checked={formData.rememberMe}
+                  onChange={handleInputChange}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                显示密码
+                记住我
               </label>
               <Link href="/reset-password" className="text-sm text-gold-500 hover:underline">
                 忘记密码？
@@ -574,7 +785,13 @@ export function LoginForm() {
           </div>
 
           {errors.submit && (
-            <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 bg-red-500/10 border border-red-500/20 rounded"
+            >
+              <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+            </motion.div>
           )}
 
           <motion.button
@@ -584,7 +801,14 @@ export function LoginForm() {
             onClick={handleLogin}
             disabled={loading}
           >
-            {loading ? '登录中...' : '进入平行世界'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin">⏳</span>
+                登录中...
+              </span>
+            ) : (
+              '进入平行世界'
+            )}
           </motion.button>
 
           <div className="text-center space-y-2">
@@ -614,29 +838,48 @@ export function ResetPasswordForm() {
     new_password_confirm: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [showPassword, setShowPassword] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
-    setErrors(prev => ({ ...prev, [name]: '' }))
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
+    // 实时验证
+    if (name === 'email' && touched.email) {
+      const error = validateEmail(value)
+      setErrors(prev => ({ ...prev, email: error || '' }))
+    } else if (name === 'new_password' && touched.new_password) {
+      const error = validatePassword(value)
+      setErrors(prev => ({ ...prev, new_password: error || '' }))
+    } else if (name === 'new_password_confirm' && touched.new_password_confirm) {
+      const error = value !== formData.new_password ? '两次密码不一致' : ''
+      setErrors(prev => ({ ...prev, new_password_confirm: error }))
+    }
   }
 
   const handleSendVerifyCode = async () => {
+    const emailError = validateEmail(formData.email)
+    if (emailError) {
+      throw new Error(emailError)
+    }
+    
     await authAPI.sendEmailCode({
-      email: formData.email,
+      email: formData.email.trim(),
       type: 'reset'
     })
   }
 
   const handleRequestReset = async () => {
+    setTouched({ email: true, verification_code: true })
+    
     const newErrors: Record<string, string> = {}
     
-    if (!formData.email) {
-      newErrors.email = '请输入邮箱地址'
-    }
-    if (!formData.verification_code) {
-      newErrors.verification_code = '请输入验证码'
+    const emailError = validateEmail(formData.email)
+    if (emailError) newErrors.email = emailError
+    
+    if (!formData.verification_code || formData.verification_code.length !== 6) {
+      newErrors.verification_code = '请输入6位验证码'
     }
     
     setErrors(newErrors)
@@ -644,14 +887,14 @@ export function ResetPasswordForm() {
       setLoading(true)
       try {
         await authAPI.passwordReset({
-          email: formData.email,
-          verification_code: formData.verification_code
+          email: formData.email.trim(),
+          verification_code: formData.verification_code.trim()
         })
-        // 实际应用中，这里应该显示"请检查邮箱"的提示
-        // 这里为了演示，直接进入下一步
         setStep(2)
-      } catch (error: any) {
-        setErrors({ submit: error.message || '请求失败，请重试' })
+      } catch (error) {
+        console.error('请求重置失败:', error)
+        const errorMessage = error instanceof Error ? error.message : '请求失败，请重试'
+        setErrors({ submit: errorMessage })
       } finally {
         setLoading(false)
       }
@@ -659,12 +902,16 @@ export function ResetPasswordForm() {
   }
 
   const handleResetPassword = async () => {
+    setTouched({ 
+      token: true, 
+      new_password: true, 
+      new_password_confirm: true 
+    })
+    
     const newErrors: Record<string, string> = {}
     
     const passwordError = validatePassword(formData.new_password)
-    if (passwordError) {
-      newErrors.new_password = passwordError
-    }
+    if (passwordError) newErrors.new_password = passwordError
     
     if (formData.new_password !== formData.new_password_confirm) {
       newErrors.new_password_confirm = '两次密码不一致'
@@ -679,14 +926,16 @@ export function ResetPasswordForm() {
       setLoading(true)
       try {
         await authAPI.passwordResetConfirm({
-          email: formData.email,
-          token: formData.token,
+          email: formData.email.trim(),
+          token: formData.token.trim(),
           new_password: formData.new_password,
           new_password_confirm: formData.new_password_confirm
         })
         setStep(3)
-      } catch (error: any) {
-        setErrors({ submit: error.message || '重置失败，请重试' })
+      } catch (error) {
+        console.error('重置密码失败:', error)
+        const errorMessage = error instanceof Error ? error.message : '重置失败，请重试'
+        setErrors({ submit: errorMessage })
       } finally {
         setLoading(false)
       }
@@ -704,6 +953,18 @@ export function ResetPasswordForm() {
     }
   }, [])
 
+  // 处理回车键
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) {
+      e.preventDefault()
+      if (step === 1) {
+        handleRequestReset()
+      } else if (step === 2) {
+        handleResetPassword()
+      }
+    }
+  }
+
   return (
     <div className="w-full max-w-md mx-auto">
       <AnimatePresence mode="wait">
@@ -715,6 +976,7 @@ export function ResetPasswordForm() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-6"
+            onKeyPress={handleKeyPress}
           >
             <div className="text-center">
               <h2 className="text-3xl font-black mb-2">
@@ -734,7 +996,9 @@ export function ResetPasswordForm() {
                 onChange={handleInputChange}
                 placeholder="请输入注册时的邮箱"
                 icon="📧"
-                error={errors.email}
+                error={touched.email ? errors.email : ''}
+                autoComplete="email"
+                autoFocus
               />
 
               <div className="relative">
@@ -745,8 +1009,9 @@ export function ResetPasswordForm() {
                   onChange={handleInputChange}
                   placeholder="请输入6位验证码"
                   icon="✉️"
-                  error={errors.verification_code}
+                  error={touched.verification_code ? errors.verification_code : ''}
                   maxLength={6}
+                  autoComplete="one-time-code"
                 />
                 <CountdownButton 
                   onClick={handleSendVerifyCode} 
@@ -756,7 +1021,13 @@ export function ResetPasswordForm() {
               </div>
 
               {errors.submit && (
-                <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 bg-red-500/10 border border-red-500/20 rounded"
+                >
+                  <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+                </motion.div>
               )}
 
               <motion.button
@@ -766,7 +1037,14 @@ export function ResetPasswordForm() {
                 onClick={handleRequestReset}
                 disabled={loading}
               >
-                {loading ? '验证中...' : '下一步'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    验证中...
+                  </span>
+                ) : (
+                  '下一步'
+                )}
               </motion.button>
 
               <p className="text-center text-sm text-gray-400">
@@ -787,6 +1065,7 @@ export function ResetPasswordForm() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="space-y-6"
+            onKeyPress={handleKeyPress}
           >
             <div className="text-center">
               <h2 className="text-3xl font-black mb-2">
@@ -806,54 +1085,56 @@ export function ResetPasswordForm() {
                   onChange={handleInputChange}
                   placeholder="请输入邮件中的重置链接token"
                   icon="🔑"
-                  error={errors.token}
+                  error={touched.token ? errors.token : ''}
+                  autoFocus
                 />
               )}
 
               <PixelInput
                 label="新密码"
                 name="new_password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.new_password}
                 onChange={handleInputChange}
                 placeholder="8-32位字母+数字"
                 icon="🔐"
-                error={errors.new_password}
+                error={touched.new_password ? errors.new_password : ''}
+                autoComplete="new-password"
+                showPasswordToggle
+                autoFocus={!!formData.token}
               />
 
               <PixelInput
                 label="确认新密码"
                 name="new_password_confirm"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.new_password_confirm}
                 onChange={handleInputChange}
                 placeholder="再次输入新密码"
                 icon="🔐"
-                error={errors.new_password_confirm}
+                error={touched.new_password_confirm ? errors.new_password_confirm : ''}
+                autoComplete="new-password"
+                showPasswordToggle
               />
 
-              <div className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  id="showNewPassword"
-                  checked={showPassword}
-                  onChange={(e) => setShowPassword(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="showNewPassword" className="text-gray-400 cursor-pointer">
-                  显示密码
-                </label>
-              </div>
-
-              <div className="p-4 bg-gray-900 rounded space-y-2 text-xs text-gray-400">
-                <p>密码要求：</p>
-                <p>✓ 8-32个字符</p>
-                <p>✓ 必须包含字母和数字</p>
-                <p>✓ 不能是纯数字或纯字母</p>
+              <div className="p-4 bg-gray-900/50 rounded space-y-1 text-xs text-gray-400">
+                <p className="font-bold">密码要求：</p>
+                <p className={formData.new_password.length >= 8 && formData.new_password.length <= 32 ? 'text-green-500' : ''}>
+                  ✓ 8-32个字符
+                </p>
+                <p className={/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? 'text-green-500' : ''}>
+                  ✓ 必须包含字母和数字
+                </p>
               </div>
 
               {errors.submit && (
-                <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 bg-red-500/10 border border-red-500/20 rounded"
+                >
+                  <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+                </motion.div>
               )}
 
               <motion.button
@@ -863,7 +1144,14 @@ export function ResetPasswordForm() {
                 onClick={handleResetPassword}
                 disabled={loading}
               >
-                {loading ? '重置中...' : '重置密码'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin">⏳</span>
+                    重置中...
+                  </span>
+                ) : (
+                  '重置密码'
+                )}
               </motion.button>
             </div>
           </motion.div>
@@ -879,7 +1167,10 @@ export function ResetPasswordForm() {
           >
             <motion.div
               className="text-6xl"
-              animate={{ scale: [1, 1.2, 1] }}
+              animate={{ 
+                scale: [1, 1.2, 1],
+                rotate: [0, 10, -10, 0]
+              }}
               transition={{ duration: 0.5 }}
             >
               ✅
@@ -915,6 +1206,30 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ type }: AuthPageProps) {
+  // 检测浏览器兼容性
+  useEffect(() => {
+    // 检查必需的功能
+    const checkCompatibility = () => {
+      const issues = []
+      
+      if (!window.fetch) {
+        issues.push('Fetch API')
+      }
+      if (!window.Promise) {
+        issues.push('Promise')
+      }
+      if (typeof Object.assign !== 'function') {
+        issues.push('Object.assign')
+      }
+      
+      if (issues.length > 0) {
+        console.warn('浏览器兼容性警告：缺少以下功能：', issues.join(', '))
+      }
+    }
+    
+    checkCompatibility()
+  }, [])
+  
   return (
     <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center p-4">
       {/* 背景装饰 */}
@@ -924,14 +1239,17 @@ export function AuthPage({ type }: AuthPageProps) {
       
       {/* Logo */}
       <div className="fixed top-8 left-8">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3 group">
           <motion.div
             whileHover={{ scale: 1.1, rotate: 5 }}
             whileTap={{ scale: 0.95 }}
+            className="transition-transform"
           >
             <PixelLogo />
           </motion.div>
-          <span className="text-xl font-black text-gold-500">平行世界</span>
+          <span className="text-xl font-black text-gold-500 group-hover:text-gold-400 transition-colors">
+            平行世界
+          </span>
         </Link>
       </div>
 
