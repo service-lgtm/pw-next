@@ -183,10 +183,30 @@ export function RegisterForm() {
       setStep(2)
     } else if (step === 2 && validateStep2()) {
       setLoading(true)
+      setErrors({}) // 清空之前的错误
+      
       try {
-        const response = await authAPI.register(formData)
+        // 准备注册数据，只发送有值的字段
+        const registerData: RegisterRequest = {
+          email: formData.email,
+          password: formData.password,
+          password_confirm: formData.password_confirm,
+          verification_code: formData.verification_code,
+        }
+        
+        // 只有在邀请码有值时才添加
+        if (formData.referral_code && formData.referral_code.trim()) {
+          registerData.referral_code = formData.referral_code.trim()
+        }
+        
+        console.log('注册数据:', registerData) // 调试日志
+        
+        const response = await authAPI.register(registerData)
+        console.log('注册成功:', response) // 调试日志
+        
         setStep(3)
       } catch (error: any) {
+        console.error('注册失败:', error) // 调试日志
         setErrors({ submit: error.message || '注册失败，请重试' })
       } finally {
         setLoading(false)
