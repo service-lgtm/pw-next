@@ -1,39 +1,6 @@
 // API 配置和请求工具
 const API_BASE_URL = 'https://mg.pxsj.net.cn/api/v1'
 
-// 通用请求方法
-export async function apiRequest<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
-  
-  try {
-    const response = await fetch(url, {
-      method: options.method || 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: options.body,
-      credentials: 'include',
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || data.detail || `请求失败: ${response.status}`)
-    }
-
-    return data
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error
-    }
-    throw new Error('网络请求失败')
-  }
-}
-
 // Auth API 类型定义
 export interface EmailCodeRequest {
   email: string
@@ -102,42 +69,35 @@ export const authAPI = {
     return result
   },
 
-  // 注册 - 修复这里
+  // 注册
   register: async (data: RegisterRequest) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/register/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      })
-      
-      const result = await response.json()
-      
-      if (!response.ok) {
-        // 处理具体的错误信息
-        if (result.email) {
-          throw new Error(result.email[0] || '邮箱错误')
-        }
-        if (result.password) {
-          throw new Error(result.password[0] || '密码错误')
-        }
-        if (result.verification_code) {
-          throw new Error(result.verification_code[0] || '验证码错误')
-        }
-        if (result.referral_code) {
-          throw new Error(result.referral_code[0] || '邀请码错误')
-        }
-        throw new Error(result.message || result.detail || '注册失败')
+    const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok) {
+      if (result.email) {
+        throw new Error(Array.isArray(result.email) ? result.email[0] : result.email)
       }
-      
-      return result
-    } catch (error) {
-      // 确保错误被正确抛出
-      throw error
+      if (result.password) {
+        throw new Error(Array.isArray(result.password) ? result.password[0] : result.password)
+      }
+      if (result.verification_code) {
+        throw new Error(Array.isArray(result.verification_code) ? result.verification_code[0] : result.verification_code)
+      }
+      if (result.referral_code) {
+        throw new Error(Array.isArray(result.referral_code) ? result.referral_code[0] : result.referral_code)
+      }
+      throw new Error(result.message || result.detail || '注册失败')
     }
+    
+    return result
   },
 
   // 登录
@@ -147,8 +107,8 @@ export const authAPI = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
       credentials: 'include',
+      body: JSON.stringify(data),
     })
     
     const result = await response.json()
@@ -161,28 +121,78 @@ export const authAPI = {
   },
 
   // 退出登录
-  logout: () =>
-    apiRequest('/auth/logout/', {
+  logout: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/logout/`, {
       method: 'POST',
-    }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(result.message || '退出失败')
+    }
+    
+    return result
+  },
 
   // 请求密码重置
-  passwordReset: (data: PasswordResetRequest) =>
-    apiRequest('/auth/password-reset/', {
+  passwordReset: async (data: PasswordResetRequest) => {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset/`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
-    }),
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(result.message || '请求失败')
+    }
+    
+    return result
+  },
 
   // 确认密码重置
-  passwordResetConfirm: (data: PasswordResetConfirmRequest) =>
-    apiRequest('/auth/password-reset-confirm/', {
+  passwordResetConfirm: async (data: PasswordResetConfirmRequest) => {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset-confirm/`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
-    }),
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(result.message || '重置失败')
+    }
+    
+    return result
+  },
 
   // 检查认证状态
-  checkStatus: () =>
-    apiRequest<AuthStatus>('/auth/status/', {
+  checkStatus: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/status/`, {
       method: 'GET',
-    }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(result.message || '获取状态失败')
+    }
+    
+    return result
+  },
 }
