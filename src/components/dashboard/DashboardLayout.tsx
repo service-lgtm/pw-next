@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 // 侧边栏导航配置
 const sidebarItems = [
@@ -37,24 +38,12 @@ const sidebarItems = [
   }
 ]
 
-// 顶部导航数据
-interface WalletData {
-  tdb: number
-  yld: number
-  energy: number
-  notifications: number
-}
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, logout } = useAuth()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
-  const [walletData, setWalletData] = useState<WalletData>({
-    tdb: 10000,
-    yld: 5000,
-    energy: 80,
-    notifications: 3
-  })
 
   // 检测移动端
   useEffect(() => {
@@ -69,17 +58,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // 模拟实时数据更新
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setWalletData(prev => ({
-        ...prev,
-        tdb: prev.tdb + Math.floor(Math.random() * 10),
-        energy: Math.max(0, Math.min(100, prev.energy - 1))
-      }))
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
+  const handleLogout = async () => {
+    await logout()
+  }
 
   return (
     <div className="min-h-screen bg-[#0F0F1E] flex">
@@ -107,7 +88,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* 导航菜单 */}
-            <nav className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-88px)]">
+            <nav className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-180px)]">
               {sidebarItems.map((section) => (
                 <div key={section.title}>
                   <div className="flex items-center gap-2 mb-3 text-gray-500 text-sm font-bold">
@@ -133,6 +114,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
               ))}
             </nav>
+
+            {/* 底部用户信息 */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t-4 border-gray-800">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded transition-all"
+              >
+                <span>🚪</span>
+                <span className="text-sm font-bold">退出登录</span>
+              </button>
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
@@ -182,47 +174,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <motion.div
                     className="h-full bg-gradient-to-r from-green-500 to-gold-500"
                     initial={{ width: 0 }}
-                    animate={{ width: `${walletData.energy}%` }}
+                    animate={{ width: `${user?.energy || 100}%` }}
                     transition={{ duration: 0.5 }}
                   />
                 </div>
-                <span className="text-sm font-bold text-gold-500">{walletData.energy}%</span>
+                <span className="text-sm font-bold text-gold-500">{user?.energy || 100}%</span>
               </div>
 
-              {/* 钱包余额 */}
-              <div className="flex items-center gap-4 px-4 py-2 bg-gray-800/50 rounded">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">TDB</span>
-                  <motion.span
-                    key={walletData.tdb}
-                    className="font-bold text-gold-500"
-                    initial={{ scale: 1.2, color: '#00ff00' }}
-                    animate={{ scale: 1, color: '#FFD700' }}
-                  >
-                    {walletData.tdb.toLocaleString()}
-                  </motion.span>
-                </div>
-                <div className="w-px h-4 bg-gray-600" />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">YLD</span>
-                  <span className="font-bold text-purple-500">{walletData.yld.toLocaleString()}</span>
-                </div>
-              </div>
-
-              {/* 通知图标 */}
-              <button className="relative p-2 hover:bg-gray-800 rounded transition-colors">
-                <span className="text-xl">🔔</span>
-                {walletData.notifications > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">
-                    {walletData.notifications}
-                  </span>
-                )}
-              </button>
-
-              {/* 用户头像 */}
+              {/* 用户信息 */}
               <div className="flex items-center gap-2">
+                <div className="text-right hidden md:block">
+                  <p className="text-sm font-bold text-white">{user?.nickname || user?.username}</p>
+                  <p className="text-xs text-gray-400">等级 {user?.level || 1}</p>
+                </div>
                 <div className="w-8 h-8 bg-gold-500 rounded-full flex items-center justify-center text-sm font-bold">
-                  U
+                  {user?.nickname?.[0] || user?.username?.[0] || 'U'}
                 </div>
               </div>
             </div>
