@@ -82,6 +82,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
       }, 1000)
     } catch (error) {
       console.error('发送验证码失败:', error)
+      alert(error instanceof Error ? error.message : '发送失败，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -89,6 +90,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       disabled={countdown > 0 || disabled || loading || !email}
       className={cn(
@@ -193,6 +195,14 @@ export function RegisterForm() {
   }
 
   const handleSendVerifyCode = async () => {
+    if (!formData.email) {
+      throw new Error('请输入邮箱地址')
+    }
+    
+    if (!formData.email.includes('@')) {
+      throw new Error('请输入有效的邮箱地址')
+    }
+    
     await authAPI.sendEmailCode({
       email: formData.email,
       type: 'register'
