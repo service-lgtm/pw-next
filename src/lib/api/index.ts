@@ -218,3 +218,6 @@ export function isApiError(error: unknown, status?: number): error is ApiError {
   
   return true
 }
+
+// ========== 导出所有需要的内容 ==========
+export default api
