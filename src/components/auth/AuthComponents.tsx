@@ -1,3 +1,4 @@
+// components/auth/AuthComponents.tsx
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -6,13 +7,7 @@ import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { 
-  authAPI, 
-  type RegisterRequest, 
-  type LoginRequest, 
-  type PasswordResetRequest, 
-  type PasswordResetConfirmRequest 
-} from '@/lib/api'
+import { api, getErrorMessage, type RegisterRequest, type LoginRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 // 共享的输入框组件
@@ -97,7 +92,7 @@ function PixelInput({
   )
 }
 
-// 改进的倒计时按钮组件
+// 倒计时按钮组件
 interface CountdownButtonProps {
   onClick: () => Promise<void>
   disabled?: boolean
@@ -111,7 +106,6 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const [error, setError] = useState<string>('')
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   
-  // 清理定时器
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
@@ -121,17 +115,14 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
     }
   }, [])
   
-  // 验证邮箱格式
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
   }
   
   const handleClick = async () => {
-    // 防止重复点击
     if (countdown > 0 || disabled || loading) return
     
-    // 验证邮箱
     if (!email || !email.trim()) {
       setError('请先输入邮箱地址')
       setTimeout(() => setError(''), 3000)
@@ -150,7 +141,6 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
     try {
       await onClick()
       
-      // 发送成功，开始倒计时
       setCountdown(60)
       
       intervalRef.current = setInterval(() => {
@@ -167,7 +157,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
       }, 1000)
     } catch (error) {
       console.error('发送验证码失败:', error)
-      const errorMessage = error instanceof Error ? error.message : '发送失败，请稍后重试'
+      const errorMessage = getErrorMessage(error)
       setError(errorMessage)
       setTimeout(() => setError(''), 5000)
     } finally {
@@ -211,7 +201,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   )
 }
 
-// 密码验证
+// 验证函数
 function validatePassword(password: string): string | null {
   if (!password) return '请输入密码'
   if (password.length < 8 || password.length > 32) {
@@ -226,7 +216,6 @@ function validatePassword(password: string): string | null {
   return null
 }
 
-// 邮箱验证
 function validateEmail(email: string): string | null {
   if (!email) return '请输入邮箱地址'
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -259,10 +248,8 @@ export function RegisterForm() {
       [name]: type === 'checkbox' ? checked : value
     }))
     
-    // 标记字段已被触碰
     setTouched(prev => ({ ...prev, [name]: true }))
     
-    // 清除该字段的错误
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev }
@@ -328,7 +315,6 @@ export function RegisterForm() {
 
   const handleNext = async () => {
     if (step === 1) {
-      // 标记所有字段为已触碰
       setTouched({ email: true, password: true, password_confirm: true })
       
       if (validateStep1()) {
@@ -342,7 +328,6 @@ export function RegisterForm() {
         setErrors({})
         
         try {
-          // 构建注册数据，清理空格
           const registerData: RegisterRequest = {
             email: formData.email.trim(),
             password: formData.password,
@@ -350,19 +335,18 @@ export function RegisterForm() {
             verification_code: formData.verification_code.trim(),
           }
           
-          // 只在有值时添加 referral_code
-          if (formData.referral_code && formData.referral_code.trim()) {
+          if (formData.referral_code?.trim()) {
             registerData.referral_code = formData.referral_code.trim()
           }
           
           console.log('[RegisterForm] 开始注册...')
-          const response = await authAPI.register(registerData)
+          const response = await api.auth.register(registerData)
           console.log('[RegisterForm] 注册成功:', response)
           
           setStep(3)
         } catch (error) {
           console.error('[RegisterForm] 注册失败:', error)
-          const errorMessage = error instanceof Error ? error.message : '注册失败，请重试'
+          const errorMessage = getErrorMessage(error)
           setErrors({ submit: errorMessage })
         } finally {
           setLoading(false)
@@ -372,23 +356,12 @@ export function RegisterForm() {
   }
 
   const handleSendVerifyCode = async () => {
-    const emailError = validateEmail(formData.email)
-    if (emailError) {
-      throw new Error(emailError)
-    }
-    
-    try {
-      await authAPI.sendEmailCode({
-        email: formData.email.trim(),
-        type: 'register'
-      })
-    } catch (error) {
-      console.error('发送验证码错误:', error)
-      throw error
-    }
+    await api.auth.sendEmailCode({
+      email: formData.email.trim(),
+      type: 'register'
+    })
   }
 
-  // 处理回车键
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       e.preventDefault()
@@ -680,19 +653,10 @@ export function LoginForm() {
     }))
     setTouched(prev => ({ ...prev, [name]: true }))
     
-    // 清除错误
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev }
         delete newErrors[name]
-        return newErrors
-      })
-    }
-    
-    // 清除提交错误
-    if (errors.submit) {
-      setErrors(prev => {
-        const newErrors = { ...prev }
         delete newErrors.submit
         return newErrors
       })
@@ -700,7 +664,6 @@ export function LoginForm() {
   }
 
   const handleLogin = async () => {
-    // 防止重复提交
     if (loading) return
     
     setTouched({ email: true, password: true })
@@ -727,23 +690,15 @@ export function LoginForm() {
       console.log('[LoginForm] 开始登录...')
       await login(formData.email.trim(), formData.password)
       console.log('[LoginForm] 登录成功')
-      // login 方法会处理跳转
     } catch (error) {
       console.error('[LoginForm] 登录失败:', error)
-      
-      let errorMessage = '登录失败，请重试'
-      
-      if (error instanceof Error) {
-        errorMessage = error.message
-      }
-      
+      const errorMessage = getErrorMessage(error)
       setErrors({ submit: errorMessage })
     } finally {
       setLoading(false)
     }
   }
 
-  // 处理回车键
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       e.preventDefault()
@@ -898,7 +853,6 @@ export function ResetPasswordForm() {
     setFormData(prev => ({ ...prev, [name]: value }))
     setTouched(prev => ({ ...prev, [name]: true }))
     
-    // 清除错误
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev }
@@ -927,12 +881,7 @@ export function ResetPasswordForm() {
   }
 
   const handleSendVerifyCode = async () => {
-    const emailError = validateEmail(formData.email)
-    if (emailError) {
-      throw new Error(emailError)
-    }
-    
-    await authAPI.sendEmailCode({
+    await api.auth.sendEmailCode({
       email: formData.email.trim(),
       type: 'reset'
     })
@@ -954,14 +903,14 @@ export function ResetPasswordForm() {
     if (Object.keys(newErrors).length === 0) {
       setLoading(true)
       try {
-        await authAPI.passwordReset({
+        await api.auth.passwordReset({
           email: formData.email.trim(),
           verification_code: formData.verification_code.trim()
         })
         setStep(2)
       } catch (error) {
         console.error('[ResetForm] 请求重置失败:', error)
-        const errorMessage = error instanceof Error ? error.message : '请求失败，请重试'
+        const errorMessage = getErrorMessage(error)
         setErrors({ submit: errorMessage })
       } finally {
         setLoading(false)
@@ -993,7 +942,7 @@ export function ResetPasswordForm() {
     if (Object.keys(newErrors).length === 0) {
       setLoading(true)
       try {
-        await authAPI.passwordResetConfirm({
+        await api.auth.passwordResetConfirm({
           email: formData.email.trim(),
           token: formData.token.trim(),
           new_password: formData.new_password,
@@ -1002,7 +951,7 @@ export function ResetPasswordForm() {
         setStep(3)
       } catch (error) {
         console.error('[ResetForm] 重置密码失败:', error)
-        const errorMessage = error instanceof Error ? error.message : '重置失败，请重试'
+        const errorMessage = getErrorMessage(error)
         setErrors({ submit: errorMessage })
       } finally {
         setLoading(false)
@@ -1010,7 +959,6 @@ export function ResetPasswordForm() {
     }
   }
 
-  // 从URL参数获取token（如果有）
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -1023,7 +971,6 @@ export function ResetPasswordForm() {
     }
   }, [])
 
-  // 处理回车键
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       e.preventDefault()
@@ -1287,30 +1234,6 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ type }: AuthPageProps) {
-  // 检测浏览器兼容性
-  useEffect(() => {
-    // 检查必需的功能
-    const checkCompatibility = () => {
-      const issues = []
-      
-      if (!window.fetch) {
-        issues.push('Fetch API')
-      }
-      if (!window.Promise) {
-        issues.push('Promise')
-      }
-      if (typeof Object.assign !== 'function') {
-        issues.push('Object.assign')
-      }
-      
-      if (issues.length > 0) {
-        console.warn('浏览器兼容性警告：缺少以下功能：', issues.join(', '))
-      }
-    }
-    
-    checkCompatibility()
-  }, [])
-  
   return (
     <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center p-4">
       {/* 背景装饰 */}
