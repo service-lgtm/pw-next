@@ -161,20 +161,17 @@ const api = {
     login: (data: LoginRequest) =>
       request<{ message: string; user: User }>('/auth/login/', {
         method: 'POST',
-        credentials: 'include',
         body: data as any,
       }),
     
     logout: () =>
       request('/auth/logout/', {
         method: 'POST',
-        credentials: 'include',
       }),
     
     checkStatus: () =>
       request<AuthStatus>('/auth/status/', {
         method: 'GET',
-        credentials: 'include',
       }),
     
     passwordReset: (data: PasswordResetRequest) =>
