@@ -1,11 +1,10 @@
 // lib/api/index.ts
-// 统一的 API 层
+// 统一的 API 层 - 安全导出版本
 
 // ========== 配置 ==========
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mg.pxsj.net.cn/api/v1'
 
 // ========== 类型定义 ==========
-// 请求类型
 export interface EmailCodeRequest {
   email: string
   type: 'register' | 'reset'
@@ -36,7 +35,6 @@ export interface PasswordResetConfirmRequest {
   new_password_confirm: string
 }
 
-// 响应类型
 export interface User {
   id: number
   username: string
@@ -113,7 +111,6 @@ async function request<T = any>(
         } else if (data.detail) {
           errorMessage = data.detail
         } else {
-          // 处理字段级错误
           const fieldErrors = []
           for (const field of ['email', 'password', 'verification_code', 'non_field_errors']) {
             if (data[field]) {
@@ -146,8 +143,8 @@ async function request<T = any>(
   }
 }
 
-// ========== API 方法 ==========
-export const api = {
+// ========== API 对象 ==========
+const api = {
   auth: {
     sendEmailCode: (data: EmailCodeRequest) => 
       request('/auth/email-code/', {
@@ -195,7 +192,7 @@ export const api = {
 }
 
 // ========== 工具函数 ==========
-export function getErrorMessage(error: unknown): string {
+const getErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.message
   }
@@ -207,7 +204,7 @@ export function getErrorMessage(error: unknown): string {
   return '未知错误'
 }
 
-export function isApiError(error: unknown, status?: number): error is ApiError {
+const isApiError = (error: unknown, status?: number): error is ApiError => {
   if (!(error instanceof ApiError)) {
     return false
   }
@@ -219,5 +216,9 @@ export function isApiError(error: unknown, status?: number): error is ApiError {
   return true
 }
 
-// ========== 导出所有需要的内容 ==========
+// ========== 导出 ==========
+// 使用命名导出
+export { api, getErrorMessage, isApiError }
+
+// 默认导出 api
 export default api
