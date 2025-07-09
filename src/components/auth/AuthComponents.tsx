@@ -17,6 +17,7 @@ interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: string
   showPasswordToggle?: boolean
   onShowPasswordChange?: (show: boolean) => void
+  hasButton?: boolean // 新增：是否有按钮
 }
 
 function PixelInput({ 
@@ -26,6 +27,7 @@ function PixelInput({
   className, 
   showPasswordToggle,
   onShowPasswordChange,
+  hasButton = false,
   ...props 
 }: PixelInputProps) {
   const [showPassword, setShowPassword] = useState(false)
@@ -60,6 +62,7 @@ function PixelInput({
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-12',
             showPasswordToggle && 'pr-12',
+            hasButton && 'pr-32', // 为按钮预留空间
             error && 'border-red-500',
             className
           )}
@@ -92,7 +95,7 @@ function PixelInput({
   )
 }
 
-// 倒计时按钮组件
+// 倒计时按钮组件 - 修复定位问题
 interface CountdownButtonProps {
   onClick: () => Promise<void>
   disabled?: boolean
@@ -168,16 +171,16 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const isDisabled = countdown > 0 || disabled || loading || !email || !validateEmail(email)
   
   return (
-    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+    <>
       {error && (
-        <span className="text-xs text-red-500 animate-pulse">{error}</span>
+        <span className="text-xs text-red-500 animate-pulse mr-2">{error}</span>
       )}
       <button
         type="button"
         onClick={handleClick}
         disabled={isDisabled}
         className={cn(
-          'px-4 py-1 text-sm font-bold',
+          'px-3 py-2 text-sm font-bold whitespace-nowrap',
           'transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-gray-900',
           isDisabled
@@ -197,6 +200,87 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
           '发送验证码'
         )}
       </button>
+    </>
+  )
+}
+
+// 带验证码按钮的输入框包装组件
+interface VerificationInputProps {
+  label: string
+  name: string
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  placeholder: string
+  icon: string
+  error?: string
+  maxLength?: number
+  autoComplete?: string
+  autoFocus?: boolean
+  onSendCode: () => Promise<void>
+  email: string
+  type: 'register' | 'reset'
+}
+
+function VerificationInput({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  icon,
+  error,
+  maxLength,
+  autoComplete,
+  autoFocus,
+  onSendCode,
+  email,
+  type
+}: VerificationInputProps) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-bold text-gray-300" htmlFor={name}>
+        {label}
+      </label>
+      <div className="relative flex items-center gap-2 bg-gray-900 border-2 border-gray-700 focus-within:border-gold-500 transition-all duration-200 rounded">
+        <span className="absolute left-4 text-xl pointer-events-none select-none">
+          {icon}
+        </span>
+        <input
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          className={cn(
+            'flex-1 px-4 py-3 bg-transparent',
+            'focus:outline-none',
+            'text-white placeholder-gray-500',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'pl-12',
+            error && 'text-red-500'
+          )}
+        />
+        <div className="pr-2">
+          <CountdownButton 
+            onClick={onSendCode} 
+            email={email}
+            type={type}
+          />
+        </div>
+      </div>
+      {error && (
+        <motion.p
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-xs text-red-500"
+          role="alert"
+        >
+          {error}
+        </motion.p>
+      )}
     </div>
   )
 }
@@ -493,25 +577,21 @@ export function RegisterForm() {
               </span>
             </h2>
 
-            <div className="relative">
-              <PixelInput
-                label="邮箱验证码"
-                name="verification_code"
-                value={formData.verification_code}
-                onChange={handleInputChange}
-                placeholder="请输入6位验证码"
-                icon="✉️"
-                error={touched.verification_code ? errors.verification_code : ''}
-                maxLength={6}
-                autoComplete="one-time-code"
-                autoFocus
-              />
-              <CountdownButton 
-                onClick={handleSendVerifyCode} 
-                email={formData.email}
-                type="register"
-              />
-            </div>
+            <VerificationInput
+              label="邮箱验证码"
+              name="verification_code"
+              value={formData.verification_code}
+              onChange={handleInputChange}
+              placeholder="请输入6位验证码"
+              icon="✉️"
+              error={touched.verification_code ? errors.verification_code : ''}
+              maxLength={6}
+              autoComplete="one-time-code"
+              autoFocus
+              onSendCode={handleSendVerifyCode}
+              email={formData.email}
+              type="register"
+            />
 
             <PixelInput
               label="邀请码（选填）"
@@ -1018,24 +1098,20 @@ export function ResetPasswordForm() {
                 autoFocus
               />
 
-              <div className="relative">
-                <PixelInput
-                  label="验证码"
-                  name="verification_code"
-                  value={formData.verification_code}
-                  onChange={handleInputChange}
-                  placeholder="请输入6位验证码"
-                  icon="✉️"
-                  error={touched.verification_code ? errors.verification_code : ''}
-                  maxLength={6}
-                  autoComplete="one-time-code"
-                />
-                <CountdownButton 
-                  onClick={handleSendVerifyCode} 
-                  email={formData.email}
-                  type="reset"
-                />
-              </div>
+              <VerificationInput
+                label="验证码"
+                name="verification_code"
+                value={formData.verification_code}
+                onChange={handleInputChange}
+                placeholder="请输入6位验证码"
+                icon="✉️"
+                error={touched.verification_code ? errors.verification_code : ''}
+                maxLength={6}
+                autoComplete="one-time-code"
+                onSendCode={handleSendVerifyCode}
+                email={formData.email}
+                type="reset"
+              />
 
               {errors.submit && (
                 <motion.div
