@@ -1,0 +1,118 @@
+// src/hooks/useLands.ts
+// 土地数据Hook
+
+import { useState, useEffect, useCallback } from 'react'
+import { assetsApi } from '@/lib/api/assets'
+import type { Land, LandDetail, PaginatedResponse, FilterState } from '@/types/assets'
+
+export function useLands(filters: Partial<FilterState> = {}) {
+  const [lands, setLands] = useState<Land[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [stats, setStats] = useState<any>(null)
+  
+  const fetchLands = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const params: any = {
+        page: filters.page || 1,
+        page_size: filters.page_size || 20,
+        ordering: filters.ordering || '-created_at',
+      }
+      
+      if (filters.land_type && filters.land_type !== 'all') {
+        params.blueprint__land_type = filters.land_type
+      }
+      
+      if (filters.priceRange?.min) {
+        params.min_price = filters.priceRange.min
+      }
+      
+      if (filters.priceRange?.max) {
+        params.max_price = filters.priceRange.max
+      }
+      
+      if (filters.search) {
+        params.search = filters.search
+      }
+      
+      const response = await assetsApi.lands.available(params)
+      
+      setLands(response.results)
+      setHasMore(!!response.next)
+      setTotalCount(response.count)
+      setStats(response.stats)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [filters])
+  
+  useEffect(() => {
+    fetchLands()
+  }, [fetchLands])
+  
+  return { lands, loading, error, hasMore, totalCount, stats, refetch: fetchLands }
+}
+
+export function useLandDetail(id: number) {
+  const [land, setLand] = useState<LandDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  useEffect(() => {
+    const fetchLand = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const data = await assetsApi.lands.get(id)
+        setLand(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '加载失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (id) {
+      fetchLand()
+    }
+  }, [id])
+  
+  return { land, loading, error }
+}
+
+export function useMyLands() {
+  const [lands, setLands] = useState<Land[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<any>(null)
+  
+  const fetchMyLands = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await assetsApi.lands.myLands()
+      
+      setLands(response.results)
+      setStats(response.stats)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+  
+  useEffect(() => {
+    fetchMyLands()
+  }, [fetchMyLands])
+  
+  return { lands, loading, error, stats, refetch: fetchMyLands }
+}
