@@ -1,14 +1,15 @@
 // src/app/explore/page.tsx
-// 世界地图入口页面
+// 处理 API 403 错误的世界地图页面
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRegions } from '@/hooks/useRegions'
-import { Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react'
+import { Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle, LogIn } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function ExplorePage() {
   const { regions, loading, error } = useRegions({
@@ -16,6 +17,10 @@ export default function ExplorePage() {
     isActive: true,
     isOpenForSale: true,
   })
+  const { isAuthenticated } = useAuth()
+  
+  // 如果遇到认证错误，显示提示而不是错误
+  const isAuthError = error && error.includes('身份认证')
   
   if (loading) {
     return (
@@ -23,17 +28,6 @@ export default function ExplorePage() {
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-gold-500 animate-spin mx-auto mb-4" />
           <p className="text-gray-400">加载中...</p>
-        </div>
-      </div>
-    )
-  }
-  
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#0A0F1B] flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-400">{error}</p>
         </div>
       </div>
     )
@@ -57,6 +51,23 @@ export default function ExplorePage() {
               </h1>
               <p className="text-sm text-gray-400 mt-1">选择您的数字地产投资区域</p>
             </div>
+            {!isAuthenticated && (
+              <div className="flex items-center gap-4">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  登录
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                >
+                  注册
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -77,25 +88,123 @@ export default function ExplorePage() {
           </p>
         </motion.div>
         
-        {/* 区域网格 */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {regions.map((region, index) => (
-            <RegionCard key={region.id} region={region} index={index} />
-          ))}
-        </div>
-        
-        {/* 空状态 */}
-        {regions.length === 0 && (
+        {/* 如果是认证错误，显示提示 */}
+        {isAuthError ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-20"
+          >
+            <div className="max-w-md mx-auto">
+              <Globe className="w-24 h-24 text-gold-500 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold mb-4">欢迎来到平行世界</h3>
+              <p className="text-gray-400 mb-8">
+                登录后可查看更多区域信息和土地详情
+              </p>
+              <div className="flex items-center justify-center gap-4">
+                <Link
+                  href="/login"
+                  className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  登录账号
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-6 py-3 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                >
+                  立即注册
+                </Link>
+              </div>
+              
+              {/* 预览卡片 */}
+              <div className="mt-12 grid md:grid-cols-2 gap-6">
+                <PreviewCard
+                  title="中国"
+                  subtitle="CHINA"
+                  description="12个主要城市已开放"
+                  stats={{ total: 58900, available: 12000 }}
+                />
+                <PreviewCard
+                  title="新加坡"
+                  subtitle="SINGAPORE"
+                  description="即将开放"
+                  stats={{ total: 5000, available: 0 }}
+                  comingSoon
+                />
+              </div>
+            </div>
+          </motion.div>
+        ) : error ? (
+          // 其他错误
           <div className="text-center py-20">
-            <Globe className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-            <p className="text-xl text-gray-400">暂无开放区域</p>
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-gray-400">{error}</p>
           </div>
+        ) : (
+          // 正常显示区域
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {regions.map((region, index) => (
+                <RegionCard key={region.id} region={region} index={index} />
+              ))}
+            </div>
+            
+            {regions.length === 0 && (
+              <div className="text-center py-20">
+                <Globe className="w-24 h-24 text-gray-600 mx-auto mb-4" />
+                <p className="text-xl text-gray-400">暂无开放区域</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
   )
 }
 
+// 预览卡片组件
+function PreviewCard({ 
+  title, 
+  subtitle, 
+  description, 
+  stats,
+  comingSoon = false 
+}: { 
+  title: string
+  subtitle: string
+  description: string
+  stats: { total: number; available: number }
+  comingSoon?: boolean
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border p-6",
+        comingSoon ? "border-gray-700 opacity-75" : "border-gold-500/50"
+      )}
+    >
+      <div className="mb-4">
+        <h3 className="text-xl font-bold text-white">{title}</h3>
+        <p className="text-sm text-gray-400">{subtitle}</p>
+      </div>
+      <p className="text-sm text-gray-300 mb-4">{description}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-gray-800/50 rounded-lg p-2 text-center">
+          <p className="text-xs text-gray-400">总地块</p>
+          <p className="font-bold">{stats.total.toLocaleString()}</p>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-2 text-center">
+          <p className="text-xs text-gray-400">可购买</p>
+          <p className="font-bold text-green-500">{stats.available.toLocaleString()}</p>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// 区域卡片组件
 function RegionCard({ region, index }: { region: any; index: number }) {
   const isOpen = region.is_open_for_sale
   
