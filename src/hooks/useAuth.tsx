@@ -1,4 +1,6 @@
-// hooks/useAuth.tsx
+// src/hooks/useAuth.tsx
+// 修改 AuthProvider 以更好地处理公开页面和认证
+
 'use client'
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react'
@@ -18,6 +20,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// 定义公开页面列表
+const PUBLIC_PATHS = [
+  '/',
+  '/login',
+  '/register',
+  '/reset-password',
+  '/explore',           // 添加explore为公开页面
+  '/explore/regions',   // 允许浏览区域
+  '/explore/lands',     // 允许浏览土地
+]
+
+// 检查路径是否为公开页面
+function isPublicPath(pathname: string): boolean {
+  // 完全匹配
+  if (PUBLIC_PATHS.includes(pathname)) {
+    return true
+  }
+  
+  // 前缀匹配（如 /explore/regions/123）
+  return PUBLIC_PATHS.some(publicPath => 
+    pathname.startsWith(publicPath + '/') || pathname === publicPath
+  )
+}
+
+// 需要认证的操作
+const AUTH_REQUIRED_ACTIONS = [
+  'buy',
+  'transfer',
+  'build',
+  'rent',
+]
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -30,13 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const checkAuth = useCallback(async () => {
-    // 公开页面不需要检查认证
-    const publicPaths = ['/login', '/register', '/reset-password']
-    if (publicPaths.includes(pathname)) {
-      setIsLoading(false)
-      return
-    }
-
     try {
       const status = await api.auth.checkStatus()
       
@@ -46,12 +73,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
       }
     } catch (error) {
-      console.error('[Auth] 检查认证状态失败:', error)
-      setUser(null)
+      // 如果是403错误，说明未登录，这在公开页面是正常的
+      if (isApiError(error, 403)) {
+        console.log('[Auth] 用户未登录')
+        setUser(null)
+      } else {
+        console.error('[Auth] 检查认证状态失败:', error)
+        setUser(null)
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [pathname])
+  }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
@@ -125,12 +158,19 @@ export function useAuth() {
   return context
 }
 
+// 修改 ProtectedRoute 组件
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   
   useEffect(() => {
+    // 如果是公开页面，直接渲染
+    if (isPublicPath(pathname)) {
+      return
+    }
+    
+    // 非公开页面需要登录
     if (!isLoading && !user) {
       const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`
       router.push(loginUrl)
@@ -148,9 +188,33 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     )
   }
   
+  // 公开页面不需要登录即可访问
+  if (isPublicPath(pathname)) {
+    return <>{children}</>
+  }
+  
+  // 需要登录的页面
   if (!user) {
     return null
   }
   
   return <>{children}</>
+}
+
+// 导出工具函数
+export function useRequireAuth(action?: string) {
+  const { user, isAuthenticated } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
+  
+  const requireAuth = useCallback(() => {
+    if (!isAuthenticated) {
+      const loginUrl = `/login?redirect=${encodeURIComponent(pathname)}`
+      router.push(loginUrl)
+      return false
+    }
+    return true
+  }, [isAuthenticated, router, pathname])
+  
+  return { requireAuth, isAuthenticated, user }
 }
