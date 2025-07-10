@@ -19,6 +19,7 @@
 // ========== 配置 ==========
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mg.pxsj.net.cn/api/v1'
 
+
 // ========== 类型定义 ==========
 export interface EmailCodeRequest {
   email: string
@@ -82,19 +83,32 @@ export class ApiError extends Error {
 // ========== 基础请求函数 ==========
 async function request<T = any>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { params?: Record<string, any> } = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
+  const { params, ...init } = options
+  
+  let url = `${API_BASE_URL}${endpoint}`
+  
+  if (params) {
+    const searchParams = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.append(key, String(value))
+      }
+    })
+    const queryString = searchParams.toString()
+    if (queryString) {
+      url += `?${queryString}`
+    }
+  }
   
   const config: RequestInit = {
-    ...options,
+    ...init,
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      ...options.headers,
+      ...init.headers,
     },
-    // 注意：不使用 credentials: 'include'
-    // 原因：某些环境下的 fetch 拦截器在处理此选项时有 bug
   }
   
   if (config.body && typeof config.body === 'object') {
@@ -178,20 +192,17 @@ const api = {
     login: (data: LoginRequest) =>
       request<{ message: string; user: User }>('/auth/login/', {
         method: 'POST',
-        // 已移除 credentials: 'include' - 见文件顶部说明
         body: data as any,
       }),
     
     logout: () =>
       request('/auth/logout/', {
         method: 'POST',
-        // 已移除 credentials: 'include' - 见文件顶部说明
       }),
     
     checkStatus: () =>
       request<AuthStatus>('/auth/status/', {
         method: 'GET',
-        // 已移除 credentials: 'include' - 见文件顶部说明
       }),
     
     passwordReset: (data: PasswordResetRequest) =>
@@ -234,8 +245,5 @@ const isApiError = (error: unknown, status?: number): error is ApiError => {
 }
 
 // ========== 导出 ==========
-// 使用命名导出
-export { api, getErrorMessage, isApiError }
-
-// 默认导出 api
+export { api, getErrorMessage, isApiError, request, API_BASE_URL }
 export default api
