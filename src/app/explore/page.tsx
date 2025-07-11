@@ -20,7 +20,7 @@ export default function ExplorePage() {
   const { isAuthenticated } = useAuth()
   
   // 如果遇到认证错误，显示提示而不是错误
-  const isAuthError = error && error.includes('身份认证')
+  const isAuthError = error && (error.includes('需要登录') || error.includes('身份认证'))
   
   if (loading) {
     return (
@@ -88,8 +88,8 @@ export default function ExplorePage() {
           </p>
         </motion.div>
         
-        {/* 如果是认证错误，显示提示 */}
-        {isAuthError ? (
+        {/* 如果是认证错误或没有数据，显示提示 */}
+        {isAuthError || regions.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -99,22 +99,27 @@ export default function ExplorePage() {
               <Globe className="w-24 h-24 text-gold-500 mx-auto mb-6" />
               <h3 className="text-2xl font-bold mb-4">欢迎来到平行世界</h3>
               <p className="text-gray-400 mb-8">
-                登录后可查看更多区域信息和土地详情
+                {isAuthenticated 
+                  ? '暂无开放区域，请稍后再来'
+                  : '登录后可查看更多区域信息和土地详情'
+                }
               </p>
-              <div className="flex items-center justify-center gap-4">
-                <Link
-                  href="/login"
-                  className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  登录账号
-                </Link>
-                <Link
-                  href="/register"
-                  className="px-6 py-3 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
-                >
-                  立即注册
-                </Link>
-              </div>
+              {!isAuthenticated && (
+                <div className="flex items-center justify-center gap-4">
+                  <Link
+                    href="/login"
+                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                  >
+                    登录账号
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="px-6 py-3 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                  >
+                    立即注册
+                  </Link>
+                </div>
+              )}
               
               {/* 预览卡片 */}
               <div className="mt-12 grid md:grid-cols-2 gap-6">
@@ -142,20 +147,11 @@ export default function ExplorePage() {
           </div>
         ) : (
           // 正常显示区域
-          <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {regions.map((region, index) => (
-                <RegionCard key={region.id} region={region} index={index} />
-              ))}
-            </div>
-            
-            {regions.length === 0 && (
-              <div className="text-center py-20">
-                <Globe className="w-24 h-24 text-gray-600 mx-auto mb-4" />
-                <p className="text-xl text-gray-400">暂无开放区域</p>
-              </div>
-            )}
-          </>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {regions.map((region, index) => (
+              <RegionCard key={region.id} region={region} index={index} />
+            ))}
+          </div>
         )}
       </div>
     </div>
