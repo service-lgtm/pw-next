@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { assetsApi } from '@/lib/api/assets'
 import type { Land, LandDetail, PaginatedResponse, FilterState } from '@/types/assets'
 
-export function useLands(filters: Partial<FilterState> = {}) {
+export function useLands(filters: Partial<FilterState> | null = {}) {
   const [lands, setLands] = useState<Land[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -14,6 +14,13 @@ export function useLands(filters: Partial<FilterState> = {}) {
   const [stats, setStats] = useState<any>(null)
   
   const fetchLands = useCallback(async () => {
+    // 如果 filters 为 null，说明不应该加载土地
+    if (filters === null) {
+      setLands([])
+      setLoading(false)
+      return
+    }
+    
     try {
       setLoading(true)
       setError(null)
@@ -38,6 +45,10 @@ export function useLands(filters: Partial<FilterState> = {}) {
       
       if (filters.search) {
         params.search = filters.search
+      }
+      
+      if (filters.region_id) {
+        params.region_id = filters.region_id
       }
       
       const response = await assetsApi.lands.available(params)
