@@ -1,11 +1,11 @@
 // src/hooks/useAuth.tsx
-// 修改 AuthProvider 以更好地处理公开页面和认证
+// AuthProvider - JWT 认证实现
 
 'use client'
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { api, getErrorMessage, isApiError, type User } from '@/lib/api'
+import { api, getErrorMessage, isApiError, TokenManager, type User } from '@/lib/api'
 
 interface AuthContextType {
   user: User | null
@@ -26,31 +26,21 @@ const PUBLIC_PATHS = [
   '/login',
   '/register',
   '/reset-password',
-  '/explore',           // 添加explore为公开页面
-  '/explore/regions',   // 允许浏览区域
-  '/explore/lands',     // 允许浏览土地
+  '/explore',
+  '/explore/regions',
+  '/explore/lands',
 ]
 
 // 检查路径是否为公开页面
 function isPublicPath(pathname: string): boolean {
-  // 完全匹配
   if (PUBLIC_PATHS.includes(pathname)) {
     return true
   }
   
-  // 前缀匹配（如 /explore/regions/123）
   return PUBLIC_PATHS.some(publicPath => 
     pathname.startsWith(publicPath + '/') || pathname === publicPath
   )
 }
-
-// 需要认证的操作
-const AUTH_REQUIRED_ACTIONS = [
-  'buy',
-  'transfer',
-  'build',
-  'rent',
-]
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -65,22 +55,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      const status = await api.auth.checkStatus()
+      setIsLoading(true)
       
-      if (status.authenticated && status.user) {
-        setUser(status.user)
+      // 首先检查本地存储的用户信息
+      const localUser = TokenManager.getUser()
+      const accessToken = TokenManager.getAccessToken()
+      
+      if (localUser && accessToken) {
+        // 如果有本地数据，先设置用户状态以提供即时反馈
+        setUser(localUser)
+        
+        // 然后验证 token 是否有效
+        try {
+          const status = await api.auth.checkStatus()
+          
+          if (status.authenticated && status.user) {
+            // Token 有效，更新用户信息（如果服务器返回了）
+            setUser(status.user)
+            TokenManager.setUser(status.user)
+          } else if (!status.authenticated) {
+            // Token 无效，清除本地数据
+            setUser(null)
+            TokenManager.clearTokens()
+          }
+        } catch (error) {
+          // 如果验证失败但有本地数据，暂时保持登录状态
+          // 这样可以让后续请求尝试刷新 token
+          console.log('[Auth] Token 验证失败，保持本地登录状态')
+        }
       } else {
+        // 没有本地数据，用户未登录
         setUser(null)
       }
     } catch (error) {
-      // 如果是403错误，说明未登录，这在公开页面是正常的
-      if (isApiError(error, 403)) {
-        console.log('[Auth] 用户未登录')
-        setUser(null)
-      } else {
-        console.error('[Auth] 检查认证状态失败:', error)
-        setUser(null)
-      }
+      console.error('[Auth] 检查认证状态失败:', error)
+      setUser(null)
     } finally {
       setIsLoading(false)
     }
@@ -90,22 +99,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null)
     
     try {
-      const response = await api.auth.login({ email, password })
+      // 使用 JWT 登录
+      const response = await api.auth.login({ 
+        username: email,  // API 接受 username 字段（可以是邮箱）
+        password 
+      })
       
-      if (response.user) {
-        setUser(response.user)
+      if (response.success && response.data) {
+        setUser(response.data.user)
         
         // 获取重定向 URL
         const params = new URLSearchParams(window.location.search)
         const redirect = params.get('redirect') || '/dashboard'
         
         router.push(redirect)
+      } else {
+        throw new Error(response.message || '登录失败')
       }
     } catch (error) {
       let errorMessage = getErrorMessage(error)
       
       if (isApiError(error, 401)) {
         errorMessage = '邮箱或密码错误'
+      } else if (isApiError(error, 400)) {
+        // 处理具体的字段错误
+        if (error.details?.non_field_errors) {
+          errorMessage = '用户名或密码错误'
+        }
       }
       
       setError(errorMessage)
@@ -124,13 +144,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [router])
 
+  // 初始化时检查认证状态
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
 
+  // 路径变化时清除错误
   useEffect(() => {
     clearError()
   }, [pathname, clearError])
+
+  // 监听存储变化（用于多标签页同步）
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'access_token' || e.key === 'refresh_token' || e.key === 'user_info') {
+        console.log('[Auth] 检测到存储变化，重新检查认证状态')
+        checkAuth()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [checkAuth])
+
+  // 监听 401 错误事件（当 token 刷新失败时）
+  useEffect(() => {
+    const handleAuthError = () => {
+      console.log('[Auth] 收到认证错误事件，清除登录状态')
+      setUser(null)
+      router.push('/login')
+    }
+
+    // 添加全局认证错误处理
+    window.addEventListener('auth-error', handleAuthError)
+    return () => window.removeEventListener('auth-error', handleAuthError)
+  }, [router])
 
   const value: AuthContextType = {
     user,
@@ -158,7 +206,7 @@ export function useAuth() {
   return context
 }
 
-// 修改 ProtectedRoute 组件
+// 保护路由组件
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
