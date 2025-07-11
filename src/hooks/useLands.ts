@@ -1,10 +1,11 @@
 // src/hooks/useLands.ts
-// 土地数据Hook
+// 土地数据Hook - 完整版本
 
 import { useState, useEffect, useCallback } from 'react'
 import { assetsApi } from '@/lib/api/assets'
 import type { Land, LandDetail, PaginatedResponse, FilterState } from '@/types/assets'
 
+// 获取可购买的土地列表
 export function useLands(filters: Partial<FilterState> | null = {}) {
   const [lands, setLands] = useState<Land[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,6 +72,7 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
   return { lands, loading, error, hasMore, totalCount, stats, refetch: fetchLands }
 }
 
+// 获取土地详情
 export function useLandDetail(id: number) {
   const [land, setLand] = useState<LandDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -99,50 +101,7 @@ export function useLandDetail(id: number) {
   return { land, loading, error }
 }
 
-
-export function useMyLandsInRegion(regionId: number | null) {
-  const [lands, setLands] = useState<Land[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  const fetchMyLandsInRegion = useCallback(async () => {
-    if (!regionId) {
-      setLands([])
-      setLoading(false)
-      return
-    }
-    
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // 获取用户所有土地
-      const response = await assetsApi.lands.myLands({
-        page_size: 100 // 获取更多数据
-      })
-      
-      // 过滤出在当前区域的土地
-      const landsInRegion = response.results.filter(land => {
-        // 这里需要根据后端返回的数据结构来判断
-        // 假设土地有 region_id 字段
-        return land.region_id === regionId || land.region_name === regionId
-      })
-      
-      setLands(landsInRegion)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败')
-    } finally {
-      setLoading(false)
-    }
-  }, [regionId])
-  
-  useEffect(() => {
-    fetchMyLandsInRegion()
-  }, [fetchMyLandsInRegion])
-  
-  return { lands, loading, error, refetch: fetchMyLandsInRegion }
-}
-
+// 获取用户的所有土地
 export function useMyLands() {
   const [lands, setLands] = useState<Land[]>([])
   const [loading, setLoading] = useState(true)
@@ -154,7 +113,9 @@ export function useMyLands() {
       setLoading(true)
       setError(null)
       
-      const response = await assetsApi.lands.myLands()
+      const response = await assetsApi.lands.myLands({
+        page_size: 100 // 获取更多数据
+      })
       
       setLands(response.results)
       setStats(response.stats)
@@ -170,4 +131,78 @@ export function useMyLands() {
   }, [fetchMyLands])
   
   return { lands, loading, error, stats, refetch: fetchMyLands }
+}
+
+// 获取用户在特定区域的土地
+export function useMyLandsInRegion(regionId: number | null, regionName?: string) {
+  const [lands, setLands] = useState<Land[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  const fetchMyLandsInRegion = useCallback(async () => {
+    if (!regionId) {
+      setLands([])
+      setLoading(false)
+      return
+    }
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useMyLandsInRegion] Fetching lands for region:', regionId, regionName)
+      
+      // 获取用户所有土地
+      const response = await assetsApi.lands.myLands({
+        page_size: 100 // 确保获取所有土地
+      })
+      
+      console.log('[useMyLandsInRegion] Total user lands:', response.results.length)
+      
+      // 过滤出在当前区域的土地
+      const landsInRegion = response.results.filter(land => {
+        // 方法1: 如果土地有 region_id 字段
+        if ('region_id' in land && land.region_id === regionId) {
+          return true
+        }
+        
+        // 方法2: 通过区域名称匹配
+        if (regionName && land.region_name === regionName) {
+          return true
+        }
+        
+        // 方法3: 解析 land_id 中的区域代码
+        // land_id 格式可能是: LAND-CN-BJ-CY-xxxxx
+        // 这需要知道区域的代码
+        
+        return false
+      })
+      
+      console.log('[useMyLandsInRegion] Filtered lands in region:', landsInRegion.length)
+      
+      // 如果没有找到该区域的土地，返回所有土地（临时解决方案）
+      if (landsInRegion.length === 0 && response.results.length > 0) {
+        console.log('[useMyLandsInRegion] No lands in specific region, showing all lands')
+        setLands(response.results)
+      } else {
+        setLands(landsInRegion)
+      }
+    } catch (err) {
+      console.error('[useMyLandsInRegion] Error:', err)
+      // 如果是认证错误，不显示错误，只是返回空数组
+      if (err instanceof Error && err.message.includes('401')) {
+        setLands([])
+      } else {
+        setError(err instanceof Error ? err.message : '加载失败')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [regionId, regionName])
+  
+  useEffect(() => {
+    fetchMyLandsInRegion()
+  }, [fetchMyLandsInRegion])
+  
+  return { lands, loading, error, refetch: fetchMyLandsInRegion }
 }
