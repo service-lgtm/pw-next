@@ -4,7 +4,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Crown, MapPin, TrendingUp, ChevronRight, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { Crown, MapPin, TrendingUp, ChevronRight, Sparkles, Star } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +22,8 @@ export function MyLandsSection({
   onLandClick,
   regionName
 }: MyLandsSectionProps) {
+  console.log('[MyLandsSection] Rendering with lands:', lands.length)
+  
   if (loading) {
     return (
       <div className="mb-8">
@@ -38,7 +41,10 @@ export function MyLandsSection({
     )
   }
   
-  if (lands.length === 0) return null
+  if (lands.length === 0) {
+    console.log('[MyLandsSection] No lands to display')
+    return null
+  }
   
   return (
     <motion.div
@@ -54,8 +60,10 @@ export function MyLandsSection({
               <Crown className="w-5 h-5 text-black" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">我在{regionName}的土地</h2>
-              <p className="text-sm text-gray-400">共 {lands.length} 块土地</p>
+              <h2 className="text-xl font-bold text-white">我的土地</h2>
+              <p className="text-sm text-gray-400">
+                在{regionName}拥有 {lands.length} 块土地
+              </p>
             </div>
           </div>
           <Sparkles className="w-6 h-6 text-gold-500" />
@@ -108,13 +116,10 @@ export function MyLandsSection({
                       ¥{Number(land.current_price).toLocaleString()}
                     </span>
                   </div>
-                  {land.transaction_count > 1 && (
+                  {land.transaction_count > 0 && (
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-gray-400">增值</span>
-                      <span className="text-green-500 text-xs font-medium flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        +{((Number(land.current_price) / Number(land.initial_price || land.current_price) - 1) * 100).toFixed(1)}%
-                      </span>
+                      <span className="text-xs text-gray-400">交易次数</span>
+                      <span className="text-xs text-gray-300">{land.transaction_count}次</span>
                     </div>
                   )}
                 </div>
@@ -131,6 +136,20 @@ export function MyLandsSection({
               className="inline-flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 transition-colors"
             >
               查看全部 {lands.length} 块土地
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+        
+        {/* 如果没有在当前区域的土地，显示所有土地 */}
+        {lands.length === 0 && (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-400">您在{regionName}暂无土地</p>
+            <Link
+              href="/assets"
+              className="inline-flex items-center gap-2 mt-2 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              查看所有土地
               <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
