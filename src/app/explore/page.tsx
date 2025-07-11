@@ -72,7 +72,7 @@ export default function ExplorePage() {
           >
             <Sparkles className="w-12 h-12 text-gold-500 mx-auto mb-4" />
           </motion.div>
-          <p className="text-gray-400 font-medium">Loading the metaverse...</p>
+                      <p className="text-gray-400 font-medium">加载元宇宙中...</p>
         </div>
       </div>
     )
@@ -111,7 +111,7 @@ export default function ExplorePage() {
                   <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     <div className="text-right">
-                      <p className="text-xs text-gray-400">Connected as</p>
+                      <p className="text-xs text-gray-400">已连接</p>
                       <p className="text-sm font-bold text-white">{user.nickname || user.username}</p>
                     </div>
                     <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold">
@@ -123,7 +123,7 @@ export default function ExplorePage() {
                     className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center gap-2"
                   >
                     <Zap className="w-4 h-4" />
-                    Dashboard
+                    控制台
                   </Link>
                 </>
               ) : (
@@ -133,13 +133,13 @@ export default function ExplorePage() {
                     className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all flex items-center gap-2 font-medium"
                   >
                     <LogIn className="w-4 h-4" />
-                    Sign In
+                    登录
                   </Link>
                   <Link
                     href="/register"
                     className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
                   >
-                    Get Started
+                    立即开始
                   </Link>
                 </>
               )}
@@ -204,9 +204,9 @@ export default function ExplorePage() {
                 {isAuthenticated && user ? (
                   <>
                     <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                      <p className="text-xs text-gray-400 mb-1">Connected Wallet</p>
+                      <p className="text-xs text-gray-400 mb-1">已连接钱包</p>
                       <p className="font-bold">{user.nickname || user.username}</p>
-                      <p className="text-sm text-gray-400">Level {user.level || 1}</p>
+                      <p className="text-sm text-gray-400">等级 {user.level || 1}</p>
                     </div>
                     <Link
                       href="/dashboard"
@@ -214,7 +214,7 @@ export default function ExplorePage() {
                       className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2"
                     >
                       <Zap className="w-5 h-5" />
-                      Dashboard
+                      控制台
                     </Link>
                   </>
                 ) : (
@@ -225,14 +225,14 @@ export default function ExplorePage() {
                       className="w-full px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center gap-2 font-medium"
                     >
                       <LogIn className="w-5 h-5" />
-                      Sign In
+                      登录
                     </Link>
                     <Link
                       href="/register"
                       onClick={() => setShowMobileMenu(false)}
                       className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold"
                     >
-                      Get Started
+                      立即开始
                     </Link>
                   </>
                 )}
@@ -258,32 +258,32 @@ export default function ExplorePage() {
           >
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Web3 Digital Real Estate
+              Web3 数字地产
             </span>
           </motion.div>
           
           <h1 className="text-4xl md:text-6xl font-black mb-6">
             <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
-              Own Your Piece of the
+              拥有您的专属
             </span>
             <br />
             <span className="bg-gradient-to-r from-gold-500 via-yellow-500 to-gold-500 bg-clip-text text-transparent animate-gradient">
-              Digital Universe
+              数字宇宙地产
             </span>
           </h1>
           
           <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Explore, invest, and build in the world's first decentralized virtual real estate ecosystem. 
-            Backed by real value, powered by blockchain.
+            探索、投资并建设全球首个去中心化虚拟地产生态系统。
+            由真实价值支撑，区块链技术驱动。
           </p>
           
           {/* 统计数据 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mt-10 max-w-4xl mx-auto">
             {[
-              { label: 'Total Regions', value: regions.length || '0', icon: Globe },
-              { label: 'Active Users', value: '50K+', icon: Users },
-              { label: 'Total Value Locked', value: '$12.5M', icon: Shield },
-              { label: 'Daily Volume', value: '$850K', icon: Activity },
+              { label: '总区域数', value: regions.length || '0', icon: Globe },
+              { label: '活跃用户', value: '5万+', icon: Users },
+              { label: '锁定价值', value: '¥8,500万', icon: Shield },
+              { label: '日交易量', value: '¥580万', icon: Activity },
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -304,7 +304,7 @@ export default function ExplorePage() {
         {loading ? (
           <div className="text-center py-20">
             <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Loading regions...</p>
+            <p className="text-gray-400">加载区域中...</p>
           </div>
         ) : error && !isAuthError ? (
           <div className="text-center py-20">
@@ -314,10 +314,10 @@ export default function ExplorePage() {
         ) : regions.length > 0 ? (
           <div className="space-y-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl md:text-3xl font-black">Available Regions</h2>
+              <h2 className="text-2xl md:text-3xl font-black">可用区域</h2>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Activity className="w-4 h-4" />
-                <span>Live Market Data</span>
+                <span>实时市场数据</span>
               </div>
             </div>
             
@@ -346,13 +346,13 @@ export default function ExplorePage() {
               </div>
               
               <h3 className="text-2xl md:text-3xl font-black mb-4">
-                {isAuthenticated ? 'No Regions Available' : 'Connect to Explore'}
+                {isAuthenticated ? '暂无可用区域' : '连接以探索'}
               </h3>
               
               <p className="text-gray-400 mb-8 text-lg">
                 {isAuthenticated 
-                  ? 'New regions coming soon. Stay tuned!'
-                  : 'Sign in to access exclusive digital real estate opportunities'
+                  ? '新区域即将开放，敬请期待！'
+                  : '登录以访问独家数字地产投资机会'
                 }
               </p>
               
@@ -363,13 +363,13 @@ export default function ExplorePage() {
                     className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all flex items-center justify-center gap-2 font-medium"
                   >
                     <LogIn className="w-5 h-5" />
-                    Sign In
+                    登录
                   </Link>
                   <Link
                     href="/register"
                     className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
                   >
-                    Get Started
+                    立即开始
                     <ArrowRight className="w-5 h-5" />
                   </Link>
                 </div>
@@ -380,18 +380,18 @@ export default function ExplorePage() {
                 {[
                   {
                     icon: Shield,
-                    title: 'Secure & Decentralized',
-                    description: 'Built on blockchain technology for maximum security and transparency'
+                    title: '安全去中心化',
+                    description: '基于区块链技术构建，确保最大的安全性和透明度'
                   },
                   {
                     icon: Zap,
-                    title: 'Instant Transactions',
-                    description: 'Buy, sell, and trade digital assets with lightning-fast settlement'
+                    title: '即时交易',
+                    description: '闪电般快速的数字资产买卖和交易结算'
                   },
                   {
                     icon: TrendingUp,
-                    title: 'Real Value Growth',
-                    description: 'Each land NFT is backed by real economic activity and utility'
+                    title: '真实价值增长',
+                    description: '每个土地 NFT 都由真实的经济活动和效用支撑'
                   }
                 ].map((feature, index) => (
                   <motion.div
@@ -418,16 +418,16 @@ export default function ExplorePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent" />
           <div className="container mx-auto px-4 text-center relative">
             <h2 className="text-3xl md:text-5xl font-black mb-6">
-              Ready to Start Your Journey?
+              准备开始您的旅程了吗？
             </h2>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of digital pioneers building the future of virtual real estate
+              加入数千名数字先锋，共同构建虚拟地产的未来
             </p>
             <Link
               href="/register"
               className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold text-lg hover:shadow-lg hover:shadow-purple-500/25 transition-all"
             >
-              Start Building
+              开始建设
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
@@ -493,11 +493,11 @@ function RegionCard({
               {isOpen ? (
                 <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-xs font-bold text-green-400">LIVE</span>
+                  <span className="text-xs font-bold text-green-400">开放</span>
                 </div>
               ) : (
                 <div className="px-3 py-1 bg-gray-700/50 rounded-full">
-                  <span className="text-xs font-medium text-gray-500">SOON</span>
+                  <span className="text-xs font-medium text-gray-500">即将开放</span>
                 </div>
               )}
             </div>
@@ -507,7 +507,7 @@ function RegionCard({
               <div className="bg-black/20 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-4 h-4 text-purple-400" />
-                  <p className="text-xs text-gray-400">Total Lands</p>
+                  <p className="text-xs text-gray-400">总土地</p>
                 </div>
                 <p className="text-xl md:text-2xl font-black text-white">
                   {region.total_lands || 0}
@@ -516,7 +516,7 @@ function RegionCard({
               <div className="bg-black/20 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingUp className="w-4 h-4 text-green-400" />
-                  <p className="text-xs text-gray-400">Available</p>
+                  <p className="text-xs text-gray-400">可购买</p>
                 </div>
                 <p className="text-xl md:text-2xl font-black text-green-400">
                   {region.available_lands || 0}
@@ -527,7 +527,7 @@ function RegionCard({
             {/* 进度条 */}
             <div className="mb-6">
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="text-gray-400">Sold Progress</span>
+                <span className="text-gray-400">售出进度</span>
                 <span className="text-white font-medium">
                   {region.total_lands > 0 
                     ? Math.round(((region.total_lands - region.available_lands) / region.total_lands) * 100)
@@ -557,11 +557,11 @@ function RegionCard({
             )}>
               {isOpen ? (
                 <>
-                  Explore Region
+                  探索区域
                   <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </>
               ) : (
-                'Coming Soon'
+                '即将开放'
               )}
             </div>
           </div>
