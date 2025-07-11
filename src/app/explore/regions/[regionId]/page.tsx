@@ -33,10 +33,17 @@ export default function RegionDetailPage() {
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [showLandDetail, setShowLandDetail] = useState(false)
   
+  // 获取区域信息
   const { region, loading: regionLoading, error: regionError } = useRegion(regionId)
   const { stats, loading: statsLoading } = useRegionStats(regionId)
-  const { regions: childRegions } = useRegions({ parentId: regionId, isActive: true })
   
+  // 获取子区域 - 修复参数名
+  const { regions: childRegions } = useRegions({ 
+    parent_id: regionId,  // 使用 parent_id 而不是 parentId
+    is_active: true 
+  })
+  
+  // 获取土地列表
   const { 
     lands, 
     loading: landsLoading, 
@@ -51,6 +58,13 @@ export default function RegionDetailPage() {
   
   const loading = regionLoading || landsLoading
   const error = regionError || landsError
+  
+  // 防止无限刷新
+  useEffect(() => {
+    if (!regionId || isNaN(regionId)) {
+      router.push('/explore')
+    }
+  }, [regionId, router])
   
   if (loading) {
     return (
@@ -73,7 +87,7 @@ export default function RegionDetailPage() {
             onClick={() => router.push('/explore')}
             className="mt-4 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
           >
-            返回
+            返回探索页
           </button>
         </div>
       </div>
