@@ -1,8 +1,9 @@
 // src/hooks/useRegions.ts
-// 区域数据Hook
+// 区域数据Hook - 改进错误处理
 
 import { useState, useEffect } from 'react'
 import { assetsApi } from '@/lib/api/assets'
+import { ApiError } from '@/lib/api'
 import type { Region, PaginatedResponse } from '@/types/assets'
 
 interface UseRegionsOptions {
@@ -32,7 +33,15 @@ export function useRegions(options: UseRegionsOptions = {}) {
         
         setRegions(response.results)
       } catch (err) {
-        setError(err instanceof Error ? err.message : '加载失败')
+        // 特殊处理认证错误
+        if (err instanceof ApiError && err.status === 403) {
+          // 不设置错误，让页面显示登录提示
+          console.log('[useRegions] 用户未登录，显示登录提示')
+          setError('需要登录后查看')
+        } else {
+          // 其他错误正常处理
+          setError(err instanceof Error ? err.message : '加载失败')
+        }
       } finally {
         setLoading(false)
       }
@@ -58,7 +67,11 @@ export function useRegion(id: number) {
         const data = await assetsApi.regions.get(id)
         setRegion(data)
       } catch (err) {
-        setError(err instanceof Error ? err.message : '加载失败')
+        if (err instanceof ApiError && err.status === 403) {
+          setError('需要登录后查看')
+        } else {
+          setError(err instanceof Error ? err.message : '加载失败')
+        }
       } finally {
         setLoading(false)
       }
@@ -88,7 +101,12 @@ export function useRegionStats(id: number) {
           setStats(response.data)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : '加载失败')
+        if (err instanceof ApiError && err.status === 403) {
+          // 统计信息需要登录，但不显示错误，只是没有数据
+          console.log('[useRegionStats] 需要登录后查看统计信息')
+        } else {
+          setError(err instanceof Error ? err.message : '加载失败')
+        }
       } finally {
         setLoading(false)
       }
