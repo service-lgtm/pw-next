@@ -1,5 +1,5 @@
 // src/lib/api/assets.ts
-// 资产 API - 改进认证错误处理
+// 资产 API - 使用 JWT 认证
 
 import { API_BASE_URL, request, ApiError } from './index'
 import type { 
@@ -29,11 +29,19 @@ async function assetsRequest<T>(
   options: RequestInit & { params?: Record<string, any> } = {}
 ): Promise<T> {
   try {
+    // 直接使用基础 request 函数，它会自动处理 JWT 认证
     return await request<T>(endpoint, options)
   } catch (error) {
     // 处理认证错误
+    if (error instanceof ApiError && error.status === 401) {
+      // 401 错误会被基础 request 函数处理（尝试刷新 token）
+      // 如果到这里说明刷新失败，让错误继续抛出
+      throw error
+    }
+    
     if (error instanceof ApiError && error.status === 403) {
-      // 如果是公开端点，返回空数据而不是报错
+      // 如果是公开端点的 403 错误，可能是因为未登录
+      // 返回空数据而不是报错，让用户看到登录提示
       if (isPublicEndpoint(endpoint)) {
         console.log(`[Assets API] 未认证访问公开端点 ${endpoint}，返回空数据`)
         
@@ -79,7 +87,7 @@ async function assetsRequest<T>(
       }
     }
     
-    // 其他错误或非公开端点的 403 错误，继续抛出
+    // 其他错误或非公开端点的错误，继续抛出
     throw error
   }
 }
