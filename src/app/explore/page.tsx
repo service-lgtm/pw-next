@@ -1,300 +1,568 @@
 // src/app/explore/page.tsx
-// 处理 API 403 错误的世界地图页面
+// Web3 风格的探索页面 - 符合顶级 VC 审美
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRegions } from '@/hooks/useRegions'
-import { Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle, LogIn } from 'lucide-react'
+import { Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle, LogIn, Sparkles, Zap, Shield, ArrowRight, Activity, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
+// Logo 组件
+function PixelLogo() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      <rect x="4" y="4" width="4" height="32" fill="#FFD700"></rect>
+      <rect x="8" y="4" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="12" y="4" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="16" y="4" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="16" y="8" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="16" y="12" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="16" y="16" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="12" y="16" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="8" y="16" width="4" height="4" fill="#FFD700"></rect>
+      <rect x="24" y="4" width="4" height="32" fill="#DAA520"></rect>
+      <rect x="28" y="28" width="4" height="4" fill="#DAA520"></rect>
+      <rect x="32" y="24" width="4" height="4" fill="#DAA520"></rect>
+      <rect x="36" y="4" width="4" height="20" fill="#DAA520"></rect>
+      <rect x="32" y="28" width="4" height="4" fill="#DAA520"></rect>
+      <rect x="28" y="32" width="4" height="4" fill="#DAA520"></rect>
+    </svg>
+  )
+}
+
 export default function ExplorePage() {
+  const [selectedRegion, setSelectedRegion] = useState<number | null>(null)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  
+  // 使用正确的查询参数
   const { regions, loading, error } = useRegions({
-    regionType: 'country',  // 改为获取国家级别的数据
+    regionType: 'country',
     isActive: true,
     isOpenForSale: true,
   })
-  const { isAuthenticated, user } = useAuth()  // 获取用户信息
   
-  // 如果遇到认证错误，显示提示而不是错误
+  const { isAuthenticated, user } = useAuth()
+  
+  // 检测是否是认证错误
   const isAuthError = error && (error.includes('需要登录') || error.includes('身份认证'))
+  
+  // 移动端菜单处理
+  useEffect(() => {
+    if (showMobileMenu) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showMobileMenu])
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0F1B] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-gold-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">加载中...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <Sparkles className="w-12 h-12 text-gold-500 mx-auto mb-4" />
+          </motion.div>
+          <p className="text-gray-400 font-medium">Loading the metaverse...</p>
         </div>
       </div>
     )
   }
   
   return (
-    <div className="min-h-screen bg-[#0A0F1B]">
-      {/* 背景装饰 */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
+      {/* 动态背景效果 */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gold-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-gold-500/10 to-yellow-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
       </div>
       
-      {/* 顶部导航 */}
-      <div className="relative border-b border-gray-800 bg-black/50 backdrop-blur-xl">
+      {/* 顶部导航 - Web3 风格 */}
+      <nav className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gold-500 to-yellow-500 bg-clip-text text-transparent">
-                平行世界
-              </h1>
-              <p className="text-sm text-gray-400 mt-1">选择您的数字地产投资区域</p>
-            </div>
-            <div className="flex items-center gap-4">
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-3 group z-10">
+              <motion.div
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <PixelLogo />
+              </motion.div>
+              <span className="text-xl md:text-2xl font-black bg-gradient-to-r from-gold-500 to-yellow-500 bg-clip-text text-transparent">
+                平行世界的字符
+              </span>
+            </Link>
+            
+            {/* 桌面端导航 */}
+            <div className="hidden md:flex items-center gap-6">
               {isAuthenticated && user ? (
                 <>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                     <div className="text-right">
+                      <p className="text-xs text-gray-400">Connected as</p>
                       <p className="text-sm font-bold text-white">{user.nickname || user.username}</p>
-                      <p className="text-xs text-gray-400">等级 {user.level || 1}</p>
                     </div>
-                    <Link
-                      href="/dashboard"
-                      className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
-                    >
-                      控制台
-                    </Link>
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs font-bold">
+                      {user.level || 1}
+                    </div>
                   </div>
+                  <Link
+                    href="/dashboard"
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center gap-2"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Dashboard
+                  </Link>
                 </>
               ) : (
                 <>
                   <Link
                     href="/login"
-                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                    className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all flex items-center gap-2 font-medium"
                   >
                     <LogIn className="w-4 h-4" />
-                    登录
+                    Sign In
                   </Link>
                   <Link
                     href="/register"
-                    className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
                   >
-                    注册
+                    Get Started
                   </Link>
                 </>
               )}
             </div>
+            
+            {/* 移动端菜单按钮 */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <div className="w-6 h-6 flex flex-col justify-center gap-1.5">
+                <motion.span
+                  className="block w-full h-0.5 bg-white origin-center"
+                  animate={{ 
+                    rotate: showMobileMenu ? 45 : 0,
+                    y: showMobileMenu ? 6 : 0
+                  }}
+                />
+                <motion.span
+                  className="block w-full h-0.5 bg-white"
+                  animate={{ opacity: showMobileMenu ? 0 : 1 }}
+                />
+                <motion.span
+                  className="block w-full h-0.5 bg-white origin-center"
+                  animate={{ 
+                    rotate: showMobileMenu ? -45 : 0,
+                    y: showMobileMenu ? -6 : 0
+                  }}
+                />
+              </div>
+            </button>
           </div>
         </div>
-      </div>
+      </nav>
+      
+      {/* 移动端菜单 */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <motion.div
+            initial={{ opacity: 0, x: '100%' }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: '100%' }}
+            className="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-xl md:hidden"
+          >
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <Link href="/" className="flex items-center gap-3">
+                  <PixelLogo />
+                  <span className="text-xl font-black bg-gradient-to-r from-gold-500 to-yellow-500 bg-clip-text text-transparent">
+                    平行世界的字符
+                  </span>
+                </Link>
+                <button
+                  onClick={() => setShowMobileMenu(false)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex-1 p-6 space-y-4">
+                {isAuthenticated && user ? (
+                  <>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
+                      <p className="text-xs text-gray-400 mb-1">Connected Wallet</p>
+                      <p className="font-bold">{user.nickname || user.username}</p>
+                      <p className="text-sm text-gray-400">Level {user.level || 1}</p>
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2"
+                    >
+                      <Zap className="w-5 h-5" />
+                      Dashboard
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="w-full px-6 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center gap-2 font-medium"
+                    >
+                      <LogIn className="w-5 h-5" />
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold"
+                    >
+                      Get Started
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* 主内容区 */}
-      <div className="relative container mx-auto px-4 py-12">
-        {/* 标题区 */}
+      <div className="relative container mx-auto px-4 py-8 md:py-16">
+        {/* 标题区 - Web3 风格 */}
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-12 md:mb-16"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h2 className="text-4xl font-bold text-white mb-4">
-            开启您的全球数字地产之旅
-          </h2>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            探索世界各地的数字土地，把握投资机会
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", duration: 0.8 }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full border border-purple-500/30 mb-6"
+          >
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Web3 Digital Real Estate
+            </span>
+          </motion.div>
+          
+          <h1 className="text-4xl md:text-6xl font-black mb-6">
+            <span className="bg-gradient-to-r from-white via-purple-200 to-white bg-clip-text text-transparent">
+              Own Your Piece of the
+            </span>
+            <br />
+            <span className="bg-gradient-to-r from-gold-500 via-yellow-500 to-gold-500 bg-clip-text text-transparent animate-gradient">
+              Digital Universe
+            </span>
+          </h1>
+          
+          <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+            Explore, invest, and build in the world's first decentralized virtual real estate ecosystem. 
+            Backed by real value, powered by blockchain.
           </p>
+          
+          {/* 统计数据 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mt-10 max-w-4xl mx-auto">
+            {[
+              { label: 'Total Regions', value: regions.length || '0', icon: Globe },
+              { label: 'Active Users', value: '50K+', icon: Users },
+              { label: 'Total Value Locked', value: '$12.5M', icon: Shield },
+              { label: 'Daily Volume', value: '$850K', icon: Activity },
+            ].map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 border border-white/10 hover:border-purple-500/30 transition-all"
+              >
+                <stat.icon className="w-6 h-6 md:w-8 md:h-8 text-purple-400 mb-2 md:mb-3" />
+                <p className="text-2xl md:text-3xl font-black text-white mb-1">{stat.value}</p>
+                <p className="text-xs md:text-sm text-gray-400">{stat.label}</p>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
         
-        {/* 如果是认证错误或没有数据，显示提示 */}
+        {/* 区域展示 */}
         {loading ? (
           <div className="text-center py-20">
-            <Loader2 className="w-12 h-12 text-gold-500 animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">加载中...</p>
+            <Loader2 className="w-12 h-12 text-purple-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">Loading regions...</p>
           </div>
         ) : error && !isAuthError ? (
-          // 其他错误
           <div className="text-center py-20">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <p className="text-gray-400">{error}</p>
           </div>
         ) : regions.length > 0 ? (
-          // 正常显示区域
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {regions.map((region, index) => (
-              <RegionCard key={region.id} region={region} index={index} />
-            ))}
+          <div className="space-y-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-black">Available Regions</h2>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Activity className="w-4 h-4" />
+                <span>Live Market Data</span>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {regions.map((region, index) => (
+                <RegionCard 
+                  key={region.id} 
+                  region={region} 
+                  index={index}
+                  isSelected={selectedRegion === region.id}
+                  onSelect={() => setSelectedRegion(region.id)}
+                />
+              ))}
+            </div>
           </div>
         ) : (
-          // 没有数据或认证错误时显示提示
+          // 未登录或无数据时的展示
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-20"
+            className="text-center py-12 md:py-20"
           >
-            <div className="max-w-md mx-auto">
-              <Globe className="w-24 h-24 text-gold-500 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold mb-4">
-                {isAuthenticated ? '暂无开放区域' : '欢迎来到平行世界'}
+            <div className="max-w-2xl mx-auto">
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-8 flex items-center justify-center">
+                <Globe className="w-12 h-12 md:w-16 md:h-16 text-white" />
+              </div>
+              
+              <h3 className="text-2xl md:text-3xl font-black mb-4">
+                {isAuthenticated ? 'No Regions Available' : 'Connect to Explore'}
               </h3>
-              <p className="text-gray-400 mb-8">
+              
+              <p className="text-gray-400 mb-8 text-lg">
                 {isAuthenticated 
-                  ? '请稍后再来查看'
-                  : '登录后可查看更多区域信息和土地详情'
+                  ? 'New regions coming soon. Stay tuned!'
+                  : 'Sign in to access exclusive digital real estate opportunities'
                 }
               </p>
+              
               {!isAuthenticated && (
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link
                     href="/login"
-                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                    className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all flex items-center justify-center gap-2 font-medium"
                   >
-                    登录账号
+                    <LogIn className="w-5 h-5" />
+                    Sign In
                   </Link>
                   <Link
                     href="/register"
-                    className="px-6 py-3 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                    className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
                   >
-                    立即注册
+                    Get Started
+                    <ArrowRight className="w-5 h-5" />
                   </Link>
                 </div>
               )}
               
-              {/* 预览卡片 - 仅在未登录时显示 */}
-              {!isAuthenticated && (
-                <div className="mt-12 grid md:grid-cols-2 gap-6">
-                  <PreviewCard
-                    title="中国"
-                    subtitle="CHINA"
-                    description="12个主要城市已开放"
-                    stats={{ total: 58900, available: 12000 }}
-                  />
-                  <PreviewCard
-                    title="新加坡"
-                    subtitle="SINGAPORE"
-                    description="即将开放"
-                    stats={{ total: 5000, available: 0 }}
-                    comingSoon
-                  />
-                </div>
-              )}
+              {/* 特性展示 */}
+              <div className="grid md:grid-cols-3 gap-6 mt-16">
+                {[
+                  {
+                    icon: Shield,
+                    title: 'Secure & Decentralized',
+                    description: 'Built on blockchain technology for maximum security and transparency'
+                  },
+                  {
+                    icon: Zap,
+                    title: 'Instant Transactions',
+                    description: 'Buy, sell, and trade digital assets with lightning-fast settlement'
+                  },
+                  {
+                    icon: TrendingUp,
+                    title: 'Real Value Growth',
+                    description: 'Each land NFT is backed by real economic activity and utility'
+                  }
+                ].map((feature, index) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-purple-500/30 transition-all"
+                  >
+                    <feature.icon className="w-10 h-10 text-purple-400 mb-4" />
+                    <h4 className="text-lg font-bold mb-2">{feature.title}</h4>
+                    <p className="text-sm text-gray-400">{feature.description}</p>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </motion.div>
         )}
       </div>
+      
+      {/* 底部 CTA */}
+      {regions.length > 0 && (
+        <div className="relative py-16 md:py-24 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent" />
+          <div className="container mx-auto px-4 text-center relative">
+            <h2 className="text-3xl md:text-5xl font-black mb-6">
+              Ready to Start Your Journey?
+            </h2>
+            <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              Join thousands of digital pioneers building the future of virtual real estate
+            </p>
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold text-lg hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+            >
+              Start Building
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// 预览卡片组件
-function PreviewCard({ 
-  title, 
-  subtitle, 
-  description, 
-  stats,
-  comingSoon = false 
+// 区域卡片组件 - Web3 风格
+function RegionCard({ 
+  region, 
+  index,
+  isSelected,
+  onSelect
 }: { 
-  title: string
-  subtitle: string
-  description: string
-  stats: { total: number; available: number }
-  comingSoon?: boolean
+  region: any
+  index: number
+  isSelected: boolean
+  onSelect: () => void
 }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border p-6",
-        comingSoon ? "border-gray-700 opacity-75" : "border-gold-500/50"
-      )}
-    >
-      <div className="mb-4">
-        <h3 className="text-xl font-bold text-white">{title}</h3>
-        <p className="text-sm text-gray-400">{subtitle}</p>
-      </div>
-      <p className="text-sm text-gray-300 mb-4">{description}</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-          <p className="text-xs text-gray-400">总地块</p>
-          <p className="font-bold">{stats.total.toLocaleString()}</p>
-        </div>
-        <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-          <p className="text-xs text-gray-400">可购买</p>
-          <p className="font-bold text-green-500">{stats.available.toLocaleString()}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-// 区域卡片组件
-function RegionCard({ region, index }: { region: any; index: number }) {
   const isOpen = region.is_open_for_sale
   
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ y: -5 }}
+      onClick={onSelect}
     >
       <Link 
         href={isOpen ? `/explore/regions/${region.id}` : '#'}
-        className={!isOpen ? 'cursor-not-allowed' : ''}
+        className={cn(
+          "block h-full",
+          !isOpen && "pointer-events-none"
+        )}
       >
         <div className={cn(
-          "relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border overflow-hidden group transition-all",
+          "relative h-full bg-gradient-to-br rounded-3xl overflow-hidden transition-all duration-300",
           isOpen 
-            ? "border-gold-500/50 hover:border-gold-500 cursor-pointer hover:scale-[1.02]" 
-            : "border-gray-700 opacity-75"
+            ? "from-white/10 to-white/5 border border-white/20 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer" 
+            : "from-gray-800/50 to-gray-900/50 border border-gray-700/50 opacity-60",
+          isSelected && "border-purple-500 shadow-xl shadow-purple-500/20"
         )}>
-          {/* 顶部标签 */}
+          {/* 顶部状态条 */}
           <div className={cn(
             "absolute top-0 left-0 right-0 h-1",
-            isOpen ? "bg-gradient-to-r from-gold-500 to-yellow-500" : "bg-gray-700"
+            isOpen 
+              ? "bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500" 
+              : "bg-gray-700"
           )} />
           
-          <div className="p-6">
+          <div className="p-6 md:p-8">
             {/* 区域信息 */}
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-1">{region.name}</h3>
-                <p className="text-sm text-gray-400">{region.code}</p>
+                <h3 className="text-2xl md:text-3xl font-black text-white mb-1">
+                  {region.name}
+                </h3>
+                <p className="text-sm text-gray-400 font-mono">{region.code}</p>
               </div>
               {isOpen ? (
-                <div className="bg-green-500/20 text-green-500 px-3 py-1 rounded-full text-xs font-bold">
-                  已开放
+                <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-bold text-green-400">LIVE</span>
                 </div>
               ) : (
-                <div className="bg-gray-700/50 text-gray-400 px-3 py-1 rounded-full text-xs font-bold">
-                  未开放
+                <div className="px-3 py-1 bg-gray-700/50 rounded-full">
+                  <span className="text-xs font-medium text-gray-500">SOON</span>
                 </div>
               )}
             </div>
             
             {/* 统计数据 */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-gray-800/50 rounded-lg p-3">
-                <MapPin className="w-4 h-4 text-gray-400 mb-1" />
-                <p className="text-lg font-bold">{region.total_lands || 0}</p>
-                <p className="text-xs text-gray-400">总地块</p>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-black/20 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="w-4 h-4 text-purple-400" />
+                  <p className="text-xs text-gray-400">Total Lands</p>
+                </div>
+                <p className="text-xl md:text-2xl font-black text-white">
+                  {region.total_lands || 0}
+                </p>
               </div>
-              <div className="bg-gray-800/50 rounded-lg p-3">
-                <TrendingUp className="w-4 h-4 text-gray-400 mb-1" />
-                <p className="text-lg font-bold text-green-500">
+              <div className="bg-black/20 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-green-400" />
+                  <p className="text-xs text-gray-400">Available</p>
+                </div>
+                <p className="text-xl md:text-2xl font-black text-green-400">
                   {region.available_lands || 0}
                 </p>
-                <p className="text-xs text-gray-400">可购买</p>
               </div>
             </div>
             
-            {/* 进入按钮 */}
+            {/* 进度条 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="text-gray-400">Sold Progress</span>
+                <span className="text-white font-medium">
+                  {region.total_lands > 0 
+                    ? Math.round(((region.total_lands - region.available_lands) / region.total_lands) * 100)
+                    : 0}%
+                </span>
+              </div>
+              <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ 
+                    width: region.total_lands > 0 
+                      ? `${((region.total_lands - region.available_lands) / region.total_lands) * 100}%`
+                      : '0%'
+                  }}
+                  transition={{ delay: index * 0.1 + 0.5, duration: 1 }}
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                />
+              </div>
+            </div>
+            
+            {/* 行动按钮 */}
             <div className={cn(
-              "text-center py-2 rounded-lg font-medium transition-all",
+              "flex items-center justify-center py-3 rounded-2xl font-bold transition-all",
               isOpen 
-                ? "bg-gradient-to-r from-gold-500 to-yellow-600 text-black group-hover:shadow-lg group-hover:shadow-gold-500/25"
-                : "bg-gray-700 text-gray-400"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white group-hover:shadow-lg group-hover:shadow-purple-500/25"
+                : "bg-gray-800 text-gray-500"
             )}>
-              {isOpen ? '进入区域' : '即将开放'}
+              {isOpen ? (
+                <>
+                  Explore Region
+                  <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </>
+              ) : (
+                'Coming Soon'
+              )}
             </div>
           </div>
         </div>
