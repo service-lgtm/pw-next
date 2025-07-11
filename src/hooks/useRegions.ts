@@ -7,7 +7,7 @@ import { ApiError } from '@/lib/api'
 import type { Region, PaginatedResponse } from '@/types/assets'
 
 interface UseRegionsOptions {
-  parentId?: number
+  parent_id?: number  // 修改为 parent_id
   regionType?: string
   isActive?: boolean
   isOpenForSale?: boolean
@@ -25,7 +25,7 @@ export function useRegions(options: UseRegionsOptions = {}) {
         setError(null)
         
         const response = await assetsApi.regions.list({
-          parent_id: options.parentId,
+          parent_id: options.parent_id,  // 使用 parent_id
           region_type: options.regionType,
           is_active: options.isActive,
           is_open_for_sale: options.isOpenForSale,
@@ -48,7 +48,10 @@ export function useRegions(options: UseRegionsOptions = {}) {
     }
     
     fetchRegions()
-  }, [options.parentId, options.regionType, options.isActive, options.isOpenForSale])
+  }, [options.parent_id, options.regionType, options.isActive, options.isOpenForSale])
+  
+  return { regions, loading, error }
+}
   
   return { regions, loading, error }
 }
