@@ -3,7 +3,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'  // 添加 Fragment 导入
 import Link from 'next/link'
 import { ChevronRight, Globe } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
@@ -53,7 +53,7 @@ export function RegionBreadcrumb({ regionId }: RegionBreadcrumbProps) {
       </Link>
       
       {path.map((region, index) => (
-        <React.Fragment key={region.id}>
+        <Fragment key={region.id}>  {/* 改为 Fragment */}
           <ChevronRight className="w-4 h-4 text-gray-600" />
           {index === path.length - 1 ? (
             <span className="text-white font-medium">{region.name}</span>
@@ -65,7 +65,7 @@ export function RegionBreadcrumb({ regionId }: RegionBreadcrumbProps) {
               {region.name}
             </Link>
           )}
-        </React.Fragment>
+        </Fragment>
       ))}
     </nav>
   )
