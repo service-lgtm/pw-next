@@ -1,11 +1,14 @@
 // src/components/explore/FilterPanel.tsx
-// 筛选面板组件
+// 筛选面板组件 - 优化交互体验
 
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Filter, ChevronDown, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Filter, ChevronDown, X, Sparkles, TrendingUp, 
+  Package, DollarSign, RotateCcw, Check
+} from 'lucide-react'
 import type { FilterState } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -17,13 +20,13 @@ interface FilterPanelProps {
 }
 
 const landTypes = [
-  { value: 'all', label: '全部类型' },
-  { value: 'urban', label: '城市用地' },
-  { value: 'farm', label: '农业用地' },
-  { value: 'iron_mine', label: '铁矿' },
-  { value: 'stone_mine', label: '石矿' },
-  { value: 'forest', label: '森林' },
-  { value: 'yld_mine', label: 'YLD矿' },
+  { value: 'all', label: '全部类型', icon: '🌍', color: 'from-gray-500 to-gray-600' },
+  { value: 'urban', label: '城市用地', icon: '🏢', color: 'from-blue-500 to-cyan-500' },
+  { value: 'farm', label: '农业用地', icon: '🌾', color: 'from-green-500 to-emerald-500' },
+  { value: 'iron_mine', label: '铁矿', icon: '⛏️', color: 'from-gray-500 to-slate-500' },
+  { value: 'stone_mine', label: '石矿', icon: '🪨', color: 'from-stone-500 to-amber-500' },
+  { value: 'forest', label: '森林', icon: '🌲', color: 'from-green-600 to-teal-600' },
+  { value: 'yld_mine', label: 'YLD矿', icon: '💎', color: 'from-purple-500 to-pink-500' },
 ]
 
 const priceRanges = [
@@ -35,10 +38,10 @@ const priceRanges = [
 ]
 
 const sortOptions = [
-  { value: '-created_at', label: '最新发布' },
-  { value: 'current_price', label: '价格从低到高' },
-  { value: '-current_price', label: '价格从高到低' },
-  { value: '-transaction_count', label: '交易量最多' },
+  { value: '-created_at', label: '最新发布', icon: Sparkles },
+  { value: 'current_price', label: '价格从低到高', icon: TrendingUp },
+  { value: '-current_price', label: '价格从高到低', icon: TrendingUp },
+  { value: '-transaction_count', label: '交易量最多', icon: Package },
 ]
 
 export function FilterPanel({
@@ -91,123 +94,218 @@ export function FilterPanel({
     filters.priceRange.max !== undefined ||
     filters.search !== ''
   
+  const activeFilterCount = [
+    filters.land_type !== 'all',
+    filters.priceRange.min !== undefined || filters.priceRange.max !== undefined,
+    filters.search !== ''
+  ].filter(Boolean).length
+  
   return (
     <div className="space-y-4">
-      {/* 统计信息 */}
+      {/* 统计信息卡片 - 美化设计 */}
       {stats && (
-        <div className="bg-gray-800/50 rounded-lg p-4">
-          <h3 className="font-bold mb-3">区域统计</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-400">总土地数</span>
-              <span className="font-bold">{stats.total_lands}</span>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-xl p-5 border border-purple-500/30"
+        >
+          <h3 className="font-bold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-purple-400" />
+            区域统计
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-400">总土地数</span>
+              <span className="text-lg font-bold">{stats.total_lands}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">可购买</span>
-              <span className="font-bold text-green-500">{stats.available_lands}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-400">可购买</span>
+              <span className="text-lg font-bold text-green-400">{stats.available_lands}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">平均价格</span>
-              <span className="font-bold text-gold-500">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-400">平均价格</span>
+              <span className="text-lg font-bold text-gold-500">
                 ¥{Math.round(stats.average_price).toLocaleString()}
               </span>
             </div>
+            
+            {/* 进度条 */}
+            <div className="pt-2">
+              <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ 
+                    width: `${((stats.total_lands - stats.available_lands) / stats.total_lands) * 100}%`
+                  }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                已售出 {Math.round(((stats.total_lands - stats.available_lands) / stats.total_lands) * 100)}%
+              </p>
+            </div>
           </div>
-        </div>
+        </motion.div>
       )}
       
-      {/* 土地类型 */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
+      {/* 土地类型选择 - 卡片式设计 */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('type')}
-          className="w-full flex items-center justify-between mb-3"
+          className="w-full flex items-center justify-between mb-3 group"
         >
-          <h3 className="font-bold">土地类型</h3>
+          <h3 className="font-bold flex items-center gap-2">
+            <Package className="w-5 h-5 text-purple-400" />
+            土地类型
+            {filters.land_type !== 'all' && (
+              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded-full">
+                已选择
+              </span>
+            )}
+          </h3>
           <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
+            "w-4 h-4 transition-transform text-gray-400 group-hover:text-white",
             expanded.includes('type') && "rotate-180"
           )} />
         </button>
         
-        {expanded.includes('type') && (
-          <div className="space-y-2">
-            {landTypes.map(type => (
-              <button
-                key={type.value}
-                onClick={() => handleTypeChange(type.value)}
-                className={cn(
-                  "w-full px-3 py-2 rounded-lg text-sm text-left transition-colors",
-                  filters.land_type === type.value
-                    ? "bg-gold-500 text-black font-bold"
-                    : "bg-gray-700 hover:bg-gray-600"
-                )}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {expanded.includes('type') && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="space-y-2 overflow-hidden"
+            >
+              {landTypes.map((type, index) => (
+                <motion.button
+                  key={type.value}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => handleTypeChange(type.value)}
+                  className={cn(
+                    "w-full px-4 py-3 rounded-xl text-left transition-all",
+                    "flex items-center justify-between group",
+                    filters.land_type === type.value
+                      ? "bg-gradient-to-r " + type.color + " text-white shadow-lg"
+                      : "bg-white/5 hover:bg-white/10"
+                  )}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="text-xl">{type.icon}</span>
+                    <span className="font-medium">{type.label}</span>
+                  </span>
+                  {filters.land_type === type.value && (
+                    <Check className="w-4 h-4" />
+                  )}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       
-      {/* 价格区间 */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
+      {/* 价格区间 - 改进的交互 */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('price')}
-          className="w-full flex items-center justify-between mb-3"
+          className="w-full flex items-center justify-between mb-3 group"
         >
-          <h3 className="font-bold">价格区间</h3>
+          <h3 className="font-bold flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-gold-400" />
+            价格区间
+            {(filters.priceRange.min !== undefined || filters.priceRange.max !== undefined) && (
+              <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full">
+                已设置
+              </span>
+            )}
+          </h3>
           <ChevronDown className={cn(
-            "w-4 h-4 transition-transform",
+            "w-4 h-4 transition-transform text-gray-400 group-hover:text-white",
             expanded.includes('price') && "rotate-180"
           )} />
         </button>
         
-        {expanded.includes('price') && (
-          <div className="space-y-2">
-            {priceRanges.map(range => (
+        <AnimatePresence>
+          {expanded.includes('price') && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="space-y-2 overflow-hidden"
+            >
+              {priceRanges.map((range, index) => {
+                const isActive = filters.priceRange.min === range.min && filters.priceRange.max === range.max
+                return (
+                  <motion.button
+                    key={range.value}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => handlePriceRangeChange(range)}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-xl text-left transition-all",
+                      "flex items-center justify-between",
+                      isActive
+                        ? "bg-gradient-to-r from-gold-500 to-yellow-600 text-black font-bold shadow-lg"
+                        : "bg-white/5 hover:bg-white/10"
+                    )}
+                  >
+                    <span>{range.label}</span>
+                    {isActive && <Check className="w-4 h-4" />}
+                  </motion.button>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      
+      {/* 排序方式 - 下拉改为按钮组 */}
+      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+        <h3 className="font-bold mb-3 flex items-center gap-2">
+          <Filter className="w-5 h-5 text-purple-400" />
+          排序方式
+        </h3>
+        <div className="grid grid-cols-2 gap-2">
+          {sortOptions.map((option) => {
+            const Icon = option.icon
+            return (
               <button
-                key={range.value}
-                onClick={() => handlePriceRangeChange(range)}
+                key={option.value}
+                onClick={() => handleSortChange(option.value)}
                 className={cn(
-                  "w-full px-3 py-2 rounded-lg text-sm text-left transition-colors",
-                  filters.priceRange.min === range.min && filters.priceRange.max === range.max
-                    ? "bg-gold-500 text-black font-bold"
-                    : "bg-gray-700 hover:bg-gray-600"
+                  "p-3 rounded-lg text-sm transition-all flex items-center justify-center gap-2",
+                  filters.ordering === option.value
+                    ? "bg-purple-600 text-white shadow-lg"
+                    : "bg-white/5 hover:bg-white/10"
                 )}
               >
-                {range.label}
+                <Icon className="w-4 h-4" />
+                <span className="hidden lg:inline">{option.label}</span>
               </button>
-            ))}
-          </div>
+            )
+          })}
+        </div>
+      </div>
+      
+      {/* 清除筛选 - 更明显的提示 */}
+      <AnimatePresence>
+        {hasActiveFilters && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            onClick={clearFilters}
+            className="w-full px-4 py-3 bg-gradient-to-r from-red-600/20 to-pink-600/20 hover:from-red-600/30 hover:to-pink-600/30 border border-red-500/30 rounded-xl text-sm flex items-center justify-center gap-2 transition-all font-medium"
+          >
+            <RotateCcw className="w-4 h-4" />
+            清除所有筛选条件 ({activeFilterCount})
+          </motion.button>
         )}
-      </div>
-      
-      {/* 排序 */}
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <h3 className="font-bold mb-3">排序方式</h3>
-        <select
-          value={filters.ordering}
-          onChange={(e) => handleSortChange(e.target.value)}
-          className="w-full px-3 py-2 bg-gray-700 rounded-lg text-sm"
-        >
-          {sortOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      
-      {/* 清除筛选 */}
-      {hasActiveFilters && (
-        <button
-          onClick={clearFilters}
-          className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm flex items-center justify-center gap-2 transition-colors"
-        >
-          <X className="w-4 h-4" />
-          清除筛选
-        </button>
-      )}
+      </AnimatePresence>
     </div>
   )
 }
