@@ -16,6 +16,7 @@
 // 如果未来需要使用 cookie 认证，请先测试确认 fetch 未被篡改。
 // ========== 重要说明结束 ==========
 
+
 // ========== 配置 ==========
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mg.pxsj.net.cn/api/v1'
 
@@ -278,7 +279,7 @@ async function request<T = any>(
       try {
         const refreshToken = TokenManager.getRefreshToken()
         if (refreshToken) {
-          const refreshResponse = await fetch(`${API_BASE_URL}/accounts/token/refresh/`, {
+          const refreshResponse = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -377,7 +378,7 @@ const api = {
   auth: {
     // JWT 登录
     login: async (data: TokenLoginRequest): Promise<TokenLoginResponse> => {
-      const response = await request<TokenLoginResponse>('/accounts/token/', {
+      const response = await request<TokenLoginResponse>('/auth/token/', {
         method: 'POST',
         body: data as any,
         skipAuth: true,
@@ -398,7 +399,7 @@ const api = {
       if (!refreshToken) return false
       
       try {
-        const response = await request<TokenRefreshResponse>('/accounts/token/refresh/', {
+        const response = await request<TokenRefreshResponse>('/auth/token/refresh/', {
           method: 'POST',
           body: { refresh: refreshToken } as any,
           skipAuth: true,
@@ -424,7 +425,7 @@ const api = {
       if (!tokenToVerify) return null
       
       try {
-        const response = await request<TokenVerifyResponse>('/accounts/token/verify/', {
+        const response = await request<TokenVerifyResponse>('/auth/token/verify/', {
           method: 'POST',
           body: { token: tokenToVerify } as any,
           skipAuth: true,
@@ -441,7 +442,7 @@ const api = {
     logout: async () => {
       try {
         // 尝试调用服务器登出接口
-        await request('/accounts/token/logout/', {
+        await request('/auth/token/logout/', {
           method: 'POST',
         })
       } catch (error) {
@@ -508,9 +509,9 @@ const api = {
   
   // 用户相关
   accounts: {
-    profile: () => request('/accounts/profile/'),
+    profile: () => request('/auth/profile/'),
     updateProfile: (data: Partial<User>) => 
-      request('/accounts/profile/', {
+      request('/auth/profile/', {
         method: 'PATCH',
         body: data as any,
       }),
