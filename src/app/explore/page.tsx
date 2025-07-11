@@ -13,11 +13,11 @@ import { useAuth } from '@/hooks/useAuth'
 
 export default function ExplorePage() {
   const { regions, loading, error } = useRegions({
-    regionType: 'continent',
+    regionType: 'country',  // 改为获取国家级别的数据
     isActive: true,
     isOpenForSale: true,
   })
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()  // 获取用户信息
   
   // 如果遇到认证错误，显示提示而不是错误
   const isAuthError = error && (error.includes('需要登录') || error.includes('身份认证'))
@@ -51,23 +51,40 @@ export default function ExplorePage() {
               </h1>
               <p className="text-sm text-gray-400 mt-1">选择您的数字地产投资区域</p>
             </div>
-            {!isAuthenticated && (
-              <div className="flex items-center gap-4">
-                <Link
-                  href="/login"
-                  className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <LogIn className="w-4 h-4" />
-                  登录
-                </Link>
-                <Link
-                  href="/register"
-                  className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
-                >
-                  注册
-                </Link>
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {isAuthenticated && user ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-white">{user.nickname || user.username}</p>
+                      <p className="text-xs text-gray-400">等级 {user.level || 1}</p>
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                    >
+                      控制台
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    登录
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all"
+                  >
+                    注册
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -89,7 +106,26 @@ export default function ExplorePage() {
         </motion.div>
         
         {/* 如果是认证错误或没有数据，显示提示 */}
-        {isAuthError || regions.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-20">
+            <Loader2 className="w-12 h-12 text-gold-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-400">加载中...</p>
+          </div>
+        ) : error && !isAuthError ? (
+          // 其他错误
+          <div className="text-center py-20">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <p className="text-gray-400">{error}</p>
+          </div>
+        ) : regions.length > 0 ? (
+          // 正常显示区域
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {regions.map((region, index) => (
+              <RegionCard key={region.id} region={region} index={index} />
+            ))}
+          </div>
+        ) : (
+          // 没有数据或认证错误时显示提示
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -97,10 +133,12 @@ export default function ExplorePage() {
           >
             <div className="max-w-md mx-auto">
               <Globe className="w-24 h-24 text-gold-500 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold mb-4">欢迎来到平行世界</h3>
+              <h3 className="text-2xl font-bold mb-4">
+                {isAuthenticated ? '暂无开放区域' : '欢迎来到平行世界'}
+              </h3>
               <p className="text-gray-400 mb-8">
                 {isAuthenticated 
-                  ? '暂无开放区域，请稍后再来'
+                  ? '请稍后再来查看'
                   : '登录后可查看更多区域信息和土地详情'
                 }
               </p>
@@ -121,37 +159,26 @@ export default function ExplorePage() {
                 </div>
               )}
               
-              {/* 预览卡片 */}
-              <div className="mt-12 grid md:grid-cols-2 gap-6">
-                <PreviewCard
-                  title="中国"
-                  subtitle="CHINA"
-                  description="12个主要城市已开放"
-                  stats={{ total: 58900, available: 12000 }}
-                />
-                <PreviewCard
-                  title="新加坡"
-                  subtitle="SINGAPORE"
-                  description="即将开放"
-                  stats={{ total: 5000, available: 0 }}
-                  comingSoon
-                />
-              </div>
+              {/* 预览卡片 - 仅在未登录时显示 */}
+              {!isAuthenticated && (
+                <div className="mt-12 grid md:grid-cols-2 gap-6">
+                  <PreviewCard
+                    title="中国"
+                    subtitle="CHINA"
+                    description="12个主要城市已开放"
+                    stats={{ total: 58900, available: 12000 }}
+                  />
+                  <PreviewCard
+                    title="新加坡"
+                    subtitle="SINGAPORE"
+                    description="即将开放"
+                    stats={{ total: 5000, available: 0 }}
+                    comingSoon
+                  />
+                </div>
+              )}
             </div>
           </motion.div>
-        ) : error ? (
-          // 其他错误
-          <div className="text-center py-20">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-400">{error}</p>
-          </div>
-        ) : (
-          // 正常显示区域
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {regions.map((region, index) => (
-              <RegionCard key={region.id} region={region} index={index} />
-            ))}
-          </div>
         )}
       </div>
     </div>
@@ -210,10 +237,15 @@ function RegionCard({ region, index }: { region: any; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
     >
-      <Link href={isOpen ? `/explore/regions/${region.id}` : '#'}>
+      <Link 
+        href={isOpen ? `/explore/regions/${region.id}` : '#'}
+        className={!isOpen ? 'cursor-not-allowed' : ''}
+      >
         <div className={cn(
-          "relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border overflow-hidden group cursor-pointer transition-all",
-          isOpen ? "border-gold-500/50 hover:border-gold-500" : "border-gray-700 opacity-75"
+          "relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border overflow-hidden group transition-all",
+          isOpen 
+            ? "border-gold-500/50 hover:border-gold-500 cursor-pointer hover:scale-[1.02]" 
+            : "border-gray-700 opacity-75"
         )}>
           {/* 顶部标签 */}
           <div className={cn(
