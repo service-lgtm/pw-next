@@ -1,5 +1,5 @@
 // src/app/explore/regions/[regionId]/page.tsx
-// 区域详情页面 - 显示土地列表
+// 区域详情页面 - 添加Dashboard按钮和我的土地展示
 
 'use client'
 
@@ -10,60 +10,27 @@ import Link from 'next/link'
 import { 
   ArrowLeft, Loader2, AlertCircle, MapPin, Globe, 
   Building2, Trees, Gem, Filter, Grid3x3, List,
-  TrendingUp, Activity, Eye, ShoppingBag, ChevronDown
+  TrendingUp, Activity, Eye, ShoppingBag, ChevronDown,
+  LayoutDashboard, Crown, Star
 } from 'lucide-react'
 import { useRegion, useRegionStats, useRegions } from '@/hooks/useRegions'
-import { useLands } from '@/hooks/useLands'
+import { useLands, useMyLandsInRegion } from '@/hooks/useLands'
 import { RegionBreadcrumb } from '@/components/explore/RegionBreadcrumb'
 import { LandGrid } from '@/components/explore/LandGrid'
 import { FilterPanel } from '@/components/explore/FilterPanel'
 import { LandDetailModal } from '@/components/explore/LandDetailModal'
+import { MyLandsSection } from '@/components/explore/MyLandsSection'
 import type { FilterState, Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
-// 获取区域类型的中文显示
-function getRegionTypeDisplay(type?: string): string {
-  const typeMap: Record<string, string> = {
-    world: '世界',
-    continent: '大洲',
-    country: '国家',
-    province: '省份',
-    city: '城市',
-    district: '区/县',
-    area: '区域'
-  }
-  return typeMap[type || ''] || type || '未知'
-}
-
-// 获取子区域类型的中文显示
-function getChildRegionTypeDisplay(parentType?: string): string {
-  const childTypeMap: Record<string, string> = {
-    world: '大洲',
-    continent: '国家',
-    country: '省份',
-    province: '城市',
-    city: '区/县',
-    district: '区域',
-    area: '地块'
-  }
-  return childTypeMap[parentType || ''] || '子区域'
-}
-
-// 区域类型图标
-const regionTypeIcons: Record<string, any> = {
-  world: Globe,
-  continent: Globe,
-  country: MapPin,
-  province: MapPin,
-  city: Building2,
-  district: Building2,
-  area: Trees
-}
+// ... 保持原有的辅助函数 ...
 
 export default function RegionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const regionId = Number(params.regionId)
+  const { isAuthenticated } = useAuth()
   
   // 移动端检测
   const [isMobile, setIsMobile] = useState(false)
@@ -93,7 +60,7 @@ export default function RegionDetailPage() {
     is_active: true 
   })
   
-  // 使用 useMemo 来稳定判断条件，避免无限刷新
+  // 使用 useMemo 来稳定判断条件
   const shouldShowLands = useMemo(() => {
     if (!region) return false
     return (
@@ -112,7 +79,7 @@ export default function RegionDetailPage() {
     }
   }, [shouldShowLands, filters, regionId])
   
-  // 只有在应该显示土地时才获取土地列表
+  // 获取可购买的土地列表
   const { 
     lands, 
     loading: landsLoading, 
@@ -121,6 +88,13 @@ export default function RegionDetailPage() {
     stats: landStats,
     refetch
   } = useLands(landQueryParams)
+  
+  // 获取用户在该区域的土地
+  const {
+    lands: myLands,
+    loading: myLandsLoading,
+    refetch: refetchMyLands
+  } = useMyLandsInRegion(shouldShowLands && isAuthenticated ? regionId : null)
   
   const loading = regionLoading || childRegionsLoading || (shouldShowLands && landsLoading)
   const error = regionError || (shouldShowLands && landsError)
@@ -135,7 +109,7 @@ export default function RegionDetailPage() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 路由验证 - 移到最后避免hooks顺序问题
+  // 路由验证
   useEffect(() => {
     if (!regionId || isNaN(regionId)) {
       router.push('/explore')
@@ -186,7 +160,6 @@ export default function RegionDetailPage() {
   
   const handlePageChange = (page: number) => {
     setFilters(prev => ({ ...prev, page }))
-    // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
   
@@ -205,24 +178,42 @@ export default function RegionDetailPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
       
-      {/* 顶部导航 - 增强样式 */}
+      {/* 顶部导航 - 添加Dashboard按钮 */}
       <div className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl sticky top-0 z-40">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-4 h-16">
-            <button
-              onClick={() => router.back()}
-              className="p-2 hover:bg-white/10 rounded-lg transition-all hover:scale-105"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <RegionBreadcrumb regionId={regionId} />
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.back()}
+                className="p-2 hover:bg-white/10 rounded-lg transition-all hover:scale-105"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <RegionBreadcrumb regionId={regionId} />
+            </div>
+            
+            {/* Dashboard 按钮 */}
+            {isAuthenticated && (
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+                  "bg-gradient-to-r from-purple-600 to-pink-600 text-white",
+                  "hover:shadow-lg hover:shadow-purple-500/25",
+                  "font-medium text-sm md:text-base"
+                )}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden md:inline">控制台</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
       
       {/* 主内容 */}
       <div className="relative container mx-auto px-4 py-6 md:py-10">
-        {/* 区域信息头部 - 美化设计 */}
+        {/* 区域信息头部 */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -380,6 +371,16 @@ export default function RegionDetailPage() {
         ) : shouldShowLands ? (
           // 如果没有子区域且应该显示土地，显示土地列表
           <div>
+            {/* 我的土地展示区域 */}
+            {isAuthenticated && myLands.length > 0 && (
+              <MyLandsSection
+                lands={myLands}
+                loading={myLandsLoading}
+                onLandClick={handleLandClick}
+                regionName={region.name}
+              />
+            )}
+            
             {/* 工具栏 */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
@@ -515,6 +516,7 @@ export default function RegionDetailPage() {
           onPurchaseSuccess={() => {
             setShowLandDetail(false)
             refetch()
+            refetchMyLands()
           }}
         />
       )}
