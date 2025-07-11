@@ -1,5 +1,5 @@
 // src/app/explore/regions/[regionId]/page.tsx
-// 区域详情页面 - 添加Dashboard按钮和我的土地展示
+// 区域详情页面 - 完整版本
 
 'use client'
 
@@ -24,7 +24,44 @@ import type { FilterState, Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
-// ... 保持原有的辅助函数 ...
+// 获取区域类型的中文显示
+function getRegionTypeDisplay(type?: string): string {
+  const typeMap: Record<string, string> = {
+    world: '世界',
+    continent: '大洲',
+    country: '国家',
+    province: '省份',
+    city: '城市',
+    district: '区/县',
+    area: '区域'
+  }
+  return typeMap[type || ''] || type || '未知'
+}
+
+// 获取子区域类型的中文显示
+function getChildRegionTypeDisplay(parentType?: string): string {
+  const childTypeMap: Record<string, string> = {
+    world: '大洲',
+    continent: '国家',
+    country: '省份',
+    province: '城市',
+    city: '区/县',
+    district: '区域',
+    area: '地块'
+  }
+  return childTypeMap[parentType || ''] || '子区域'
+}
+
+// 区域类型图标
+const regionTypeIcons: Record<string, any> = {
+  world: Globe,
+  continent: Globe,
+  country: MapPin,
+  province: MapPin,
+  city: Building2,
+  district: Building2,
+  area: Trees
+}
 
 export default function RegionDetailPage() {
   const params = useParams()
@@ -211,7 +248,7 @@ export default function RegionDetailPage() {
         </div>
       </div>
       
-      {/* 主内容 */}
+      {/* 主内容 - 保持原有结构 */}
       <div className="relative container mx-auto px-4 py-6 md:py-10">
         {/* 区域信息头部 */}
         <motion.div 
