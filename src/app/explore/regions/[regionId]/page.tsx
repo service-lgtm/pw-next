@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useRegion, useRegionStats, useRegions } from '@/hooks/useRegions'
 import { useLands } from '@/hooks/useLands'
@@ -14,6 +15,34 @@ import { LandGrid } from '@/components/explore/LandGrid'
 import { FilterPanel } from '@/components/explore/FilterPanel'
 import { LandDetailModal } from '@/components/explore/LandDetailModal'
 import type { FilterState, Land } from '@/types/assets'
+
+// 获取区域类型的中文显示
+function getRegionTypeDisplay(type?: string): string {
+  const typeMap: Record<string, string> = {
+    world: '世界',
+    continent: '大洲',
+    country: '国家',
+    province: '省份',
+    city: '城市',
+    district: '区/县',
+    area: '区域'
+  }
+  return typeMap[type || ''] || type || '未知'
+}
+
+// 获取子区域类型的中文显示
+function getChildRegionTypeDisplay(parentType?: string): string {
+  const childTypeMap: Record<string, string> = {
+    world: '大洲',
+    continent: '国家',
+    country: '省份',
+    province: '城市',
+    city: '区/县',
+    district: '区域',
+    area: '地块'
+  }
+  return childTypeMap[parentType || ''] || '子区域'
+}
 
 export default function RegionDetailPage() {
   const params = useParams()
@@ -37,13 +66,20 @@ export default function RegionDetailPage() {
   const { region, loading: regionLoading, error: regionError } = useRegion(regionId)
   const { stats, loading: statsLoading } = useRegionStats(regionId)
   
-  // 获取子区域 - 修复参数名
-  const { regions: childRegions } = useRegions({ 
-    parent_id: regionId,  // 使用 parent_id 而不是 parentId
+  // 获取子区域
+  const { regions: childRegions, loading: childRegionsLoading } = useRegions({ 
+    parent_id: regionId,
     is_active: true 
   })
   
-  // 获取土地列表
+  // 判断是否应该显示土地（只有在最底层区域才显示）
+  const shouldShowLands = region && (
+    region.region_type === 'district' || 
+    region.region_type === 'area' ||
+    (region.children_count === 0 && region.is_open_for_sale)
+  )
+  
+  // 只有在应该显示土地时才获取土地列表
   const { 
     lands, 
     loading: landsLoading, 
@@ -51,13 +87,13 @@ export default function RegionDetailPage() {
     totalCount,
     stats: landStats,
     refetch
-  } = useLands({
+  } = useLands(shouldShowLands ? {
     ...filters,
     region_id: regionId,
-  })
+  } : null)
   
-  const loading = regionLoading || landsLoading
-  const error = regionError || landsError
+  const loading = regionLoading || childRegionsLoading || (shouldShowLands && landsLoading)
+  const error = regionError || (shouldShowLands && landsError)
   
   // 防止无限刷新
   useEffect(() => {
@@ -126,49 +162,101 @@ export default function RegionDetailPage() {
       
       {/* 主内容 */}
       <div className="container mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-          {/* 筛选面板 */}
-          <FilterPanel
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            stats={stats}
-            totalLands={totalCount}
-          />
-          
-          {/* 土地网格 */}
-          <div>
-            {/* 子区域选择 */}
-            {childRegions.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white mb-3">选择子区域</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {childRegions.map(child => (
-                    <button
-                      key={child.id}
-                      onClick={() => router.push(`/explore/regions/${child.id}`)}
-                      className="p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-left"
-                    >
-                      <p className="font-medium">{child.name}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {child.available_lands} 块可用
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {/* 区域信息头部 */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-white mb-2">{region?.name}</h1>
+          <div className="flex items-center gap-4 text-sm text-gray-400">
+            <span>类型: {getRegionTypeDisplay(region?.region_type)}</span>
+            {region?.is_open_for_sale && (
+              <span className="text-green-500">• 已开放销售</span>
             )}
-            
-            {/* 土地列表 */}
-            <LandGrid
-              lands={lands}
-              loading={landsLoading}
-              onLandClick={handleLandClick}
-              currentPage={filters.page}
-              totalPages={Math.ceil(totalCount / filters.page_size)}
-              onPageChange={handlePageChange}
-            />
+            {stats && (
+              <>
+                <span>• 总土地: {stats.total_lands}</span>
+                <span>• 可购买: {stats.available_lands}</span>
+              </>
+            )}
           </div>
         </div>
+        
+        {/* 如果有子区域，显示子区域网格 */}
+        {childRegions.length > 0 ? (
+          <div>
+            <h2 className="text-xl font-bold text-white mb-4">
+              选择{getChildRegionTypeDisplay(region?.region_type)}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {childRegions.map(child => (
+                <motion.div
+                  key={child.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <Link
+                    href={`/explore/regions/${child.id}`}
+                    className="block p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-all border-2 border-transparent hover:border-gold-500"
+                  >
+                    <h3 className="font-bold text-lg mb-2">{child.name}</h3>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-gray-400">代码: {child.code}</p>
+                      {child.total_lands > 0 && (
+                        <>
+                          <p className="text-gray-400">
+                            总土地: <span className="text-white font-medium">{child.total_lands}</span>
+                          </p>
+                          <p className="text-gray-400">
+                            可购买: <span className="text-green-500 font-medium">{child.available_lands}</span>
+                          </p>
+                        </>
+                      )}
+                      {child.is_open_for_sale ? (
+                        <span className="inline-block mt-2 px-2 py-1 bg-green-500/20 text-green-500 text-xs rounded">
+                          已开放
+                        </span>
+                      ) : (
+                        <span className="inline-block mt-2 px-2 py-1 bg-gray-700 text-gray-400 text-xs rounded">
+                          未开放
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ) : shouldShowLands ? (
+          // 如果没有子区域且应该显示土地，显示土地列表
+          <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+            {/* 筛选面板 */}
+            <FilterPanel
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              stats={stats}
+              totalLands={totalCount}
+            />
+            
+            {/* 土地网格 */}
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4">可购买土地</h2>
+              <LandGrid
+                lands={lands}
+                loading={landsLoading}
+                onLandClick={handleLandClick}
+                currentPage={filters.page}
+                totalPages={Math.ceil(totalCount / filters.page_size)}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          </div>
+        ) : (
+          // 既没有子区域也不应该显示土地
+          <div className="text-center py-20">
+            <p className="text-xl text-gray-400">
+              {region?.is_open_for_sale ? '该区域暂无可用数据' : '该区域尚未开放'}
+            </p>
+          </div>
+        )}
       </div>
       
       {/* 土地详情弹窗 */}
