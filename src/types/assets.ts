@@ -49,6 +49,7 @@ export interface Land {
   land_type_display: string
   size_sqm: number
   region_name: string
+  region_id?: number
   coordinate_x: number
   coordinate_y: number
   owner: number | null
@@ -56,6 +57,7 @@ export interface Land {
   status: 'unowned' | 'owned' | 'locked' | 'frozen'
   status_display: string
   current_price: string
+  initial_price?: string
   transaction_count: number
   is_special: boolean
   created_at: string
