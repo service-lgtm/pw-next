@@ -32,6 +32,12 @@ async function assetsRequest<T>(
     // 直接使用基础 request 函数，它会自动处理 JWT 认证
     return await request<T>(endpoint, options)
   } catch (error) {
+    // 处理404错误
+    if (error instanceof ApiError && error.status === 404) {
+      // 如果是获取单个资源的404，直接抛出
+      throw error
+    }
+    
     // 处理认证错误
     if (error instanceof ApiError && error.status === 401) {
       // 401 错误会被基础 request 函数处理（尝试刷新 token）
