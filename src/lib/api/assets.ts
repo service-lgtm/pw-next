@@ -1,5 +1,5 @@
 // src/lib/api/assets.ts
-// 修复资产 API 导入
+// 资产 API - 改进认证错误处理
 
 import { API_BASE_URL, request, ApiError } from './index'
 import type { 
@@ -11,7 +11,19 @@ import type {
   PaginatedResponse 
 } from '@/types/assets'
 
-// 增强的请求函数，处理认证错误
+// 定义公开访问的端点模式
+const PUBLIC_ENDPOINTS = [
+  '/assets/regions/',
+  '/assets/blueprints/',
+  '/assets/lands/available/',
+]
+
+// 检查端点是否应该公开访问
+function isPublicEndpoint(endpoint: string): boolean {
+  return PUBLIC_ENDPOINTS.some(pattern => endpoint.includes(pattern))
+}
+
+// 增强的请求函数，优雅处理认证错误
 async function assetsRequest<T>(
   endpoint: string,
   options: RequestInit & { params?: Record<string, any> } = {}
@@ -19,17 +31,55 @@ async function assetsRequest<T>(
   try {
     return await request<T>(endpoint, options)
   } catch (error) {
-    // 如果是认证错误，对于某些端点返回空数据
+    // 处理认证错误
     if (error instanceof ApiError && error.status === 403) {
-      // 这些端点在未登录时应该返回空数据而不是报错
-      if (endpoint.includes('/regions/') || endpoint.includes('/blueprints/') || endpoint.includes('/lands/available/')) {
-        console.warn(`[API] 未认证访问 ${endpoint}，可能需要登录获取完整数据`)
-        // 根据端点返回合适的空数据结构
-        if (endpoint.includes('/lands/')) {
-          return { count: 0, results: [], next: null, previous: null } as any
+      // 如果是公开端点，返回空数据而不是报错
+      if (isPublicEndpoint(endpoint)) {
+        console.log(`[Assets API] 未认证访问公开端点 ${endpoint}，返回空数据`)
+        
+        // 根据端点类型返回合适的空数据结构
+        if (endpoint.includes('/regions/') && !endpoint.includes('/stats/')) {
+          // 区域列表或详情
+          if (endpoint.match(/\/regions\/\d+\/$/)) {
+            // 单个区域详情 - 仍然抛出错误，因为需要具体数据
+            throw error
+          }
+          // 区域列表
+          return {
+            count: 0,
+            results: [],
+            next: null,
+            previous: null
+          } as any
+        }
+        
+        if (endpoint.includes('/blueprints/')) {
+          return {
+            count: 0,
+            results: [],
+            next: null,
+            previous: null
+          } as any
+        }
+        
+        if (endpoint.includes('/lands/available/')) {
+          return {
+            count: 0,
+            results: [],
+            next: null,
+            previous: null,
+            stats: {
+              total_count: 0,
+              min_price: 0,
+              max_price: 0,
+              avg_price: 0
+            }
+          } as any
         }
       }
     }
+    
+    // 其他错误或非公开端点的 403 错误，继续抛出
     throw error
   }
 }
