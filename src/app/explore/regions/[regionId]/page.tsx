@@ -131,7 +131,10 @@ export default function RegionDetailPage() {
     lands: myLands,
     loading: myLandsLoading,
     refetch: refetchMyLands
-  } = useMyLandsInRegion(shouldShowLands && isAuthenticated ? regionId : null)
+  } = useMyLandsInRegion(
+    shouldShowLands && isAuthenticated ? regionId : null,
+    region?.name  // 传入区域名称用于匹配
+  )
   
   const loading = regionLoading || childRegionsLoading || (shouldShowLands && landsLoading)
   const error = regionError || (shouldShowLands && landsError)
