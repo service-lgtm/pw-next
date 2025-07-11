@@ -99,6 +99,50 @@ export function useLandDetail(id: number) {
   return { land, loading, error }
 }
 
+
+export function useMyLandsInRegion(regionId: number | null) {
+  const [lands, setLands] = useState<Land[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  const fetchMyLandsInRegion = useCallback(async () => {
+    if (!regionId) {
+      setLands([])
+      setLoading(false)
+      return
+    }
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // 获取用户所有土地
+      const response = await assetsApi.lands.myLands({
+        page_size: 100 // 获取更多数据
+      })
+      
+      // 过滤出在当前区域的土地
+      const landsInRegion = response.results.filter(land => {
+        // 这里需要根据后端返回的数据结构来判断
+        // 假设土地有 region_id 字段
+        return land.region_id === regionId || land.region_name === regionId
+      })
+      
+      setLands(landsInRegion)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [regionId])
+  
+  useEffect(() => {
+    fetchMyLandsInRegion()
+  }, [fetchMyLandsInRegion])
+  
+  return { lands, loading, error, refetch: fetchMyLandsInRegion }
+}
+
 export function useMyLands() {
   const [lands, setLands] = useState<Land[]>([])
   const [loading, setLoading] = useState(true)
