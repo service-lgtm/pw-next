@@ -511,12 +511,121 @@ const api = {
   
   // 用户相关
   accounts: {
-    profile: () => request('/auth/profile/'),
-    updateProfile: (data: Partial<User>) => 
-      request('/auth/profile/', {
+    // 获取个人资料
+    profile: () => request<{
+      success: boolean
+      data: {
+        id: number
+        username: string
+        nickname: string
+        masked_email: string
+        masked_phone: string
+        level: number
+        level_name: string
+        level_color: string
+        energy: number
+        referrer_nickname: string | null
+        referral_code: string
+        direct_referrals_count: number
+        total_referrals_count: number
+        community_performance: string
+        ut_assets: string
+        ap_points: string
+        is_verified: boolean
+        email_verified: boolean
+        is_activated: boolean
+        created_at: string
+        last_login: string
+      }
+    }>('/auth/profile/'),
+    
+    // 更新个人资料
+    updateProfile: (data: {
+      nickname?: string
+      description?: string
+    }) => 
+      request<{
+        success: boolean
+        message: string
+        data: any
+      }>('/auth/profile/', {
         method: 'PATCH',
         body: data as any,
       }),
+    
+    // 修改登录密码
+    changePassword: (data: {
+      old_password: string
+      new_password: string
+      confirm_new_password: string
+    }) =>
+      request<{
+        success: boolean
+        message: string
+      }>('/auth/password/change/', {
+        method: 'POST',
+        body: data as any,
+      }),
+    
+    // 设置支付密码
+    setPaymentPassword: (data: {
+      password: string
+      confirm_password: string
+    }) =>
+      request<{
+        success: boolean
+        message: string
+      }>('/auth/payment-password/set/', {
+        method: 'POST',
+        body: data as any,
+      }),
+    
+    // 修改支付密码
+    changePaymentPassword: (data: {
+      old_password: string
+      new_password: string
+      confirm_new_password: string
+    }) =>
+      request<{
+        success: boolean
+        message: string
+      }>('/auth/payment-password/change/', {
+        method: 'POST',
+        body: data as any,
+      }),
+    
+    // 发送支付密码重置验证码
+    sendPaymentPasswordResetCode: () =>
+      request<{
+        success: boolean
+        message: string
+      }>('/auth/payment-password/reset-code/', {
+        method: 'POST',
+      }),
+    
+    // 重置支付密码
+    resetPaymentPassword: (data: {
+      email_code: string
+      new_password: string
+      confirm_password: string
+    }) =>
+      request<{
+        success: boolean
+        message: string
+      }>('/auth/payment-password/reset/', {
+        method: 'POST',
+        body: data as any,
+      }),
+    
+    // 获取团队概览
+    getTeamSummary: () =>
+      request<{
+        success: boolean
+        data: {
+          total_members: number
+          total_performance: string
+        }
+      }>('/auth/team/summary/'),
   }
 }
 
@@ -543,6 +652,76 @@ const isApiError = (error: unknown, status?: number): error is ApiError => {
   }
   
   return true
+}
+
+// 账户错误消息处理
+export function getAccountErrorMessage(error: ApiError): string {
+  // 根据错误状态码或详情返回友好的错误消息
+  if (error.status === 401) {
+    // 检查是否是密码错误
+    if (error.details?.non_field_errors?.[0]?.includes('密码') || 
+        error.message?.includes('密码错误') ||
+        error.message?.includes('password')) {
+      return '当前密码错误'
+    }
+    return '认证失败，请重新登录'
+  }
+  
+  if (error.status === 400) {
+    // 处理特定的错误代码
+    if (error.details?.code === 'PASSWORD_TOO_WEAK') {
+      return '密码强度不足，请使用更复杂的密码'
+    }
+    if (error.details?.code === 'PASSWORD_SAME_AS_OLD') {
+      return '新密码不能与旧密码相同'
+    }
+    
+    // 处理字段错误
+    if (error.details?.errors) {
+      // 优先显示密码相关错误
+      const passwordFields = ['old_password', 'new_password', 'confirm_new_password', 'password', 'confirm_password']
+      for (const field of passwordFields) {
+        if (error.details.errors[field]) {
+          const fieldError = Array.isArray(error.details.errors[field]) 
+            ? error.details.errors[field][0] 
+            : error.details.errors[field]
+          return fieldError
+        }
+      }
+      
+      // 显示第一个错误
+      const firstField = Object.keys(error.details.errors)[0]
+      if (firstField) {
+        const fieldError = Array.isArray(error.details.errors[firstField]) 
+          ? error.details.errors[firstField][0] 
+          : error.details.errors[firstField]
+        return fieldError
+      }
+    }
+    
+    // 检查 non_field_errors
+    if (error.details?.non_field_errors) {
+      const nonFieldError = Array.isArray(error.details.non_field_errors)
+        ? error.details.non_field_errors[0]
+        : error.details.non_field_errors
+      return nonFieldError
+    }
+  }
+  
+  if (error.status === 429) {
+    return '操作过于频繁，请稍后再试'
+  }
+  
+  if (error.status === 500) {
+    return '服务器错误，请稍后重试'
+  }
+  
+  // 返回原始错误消息或默认消息
+  if (error.details?.message) {
+    return error.details.message
+  }
+  
+  return error.message || '操作失败，请稍后重试'
 }
 
 // ========== 导出 ==========
