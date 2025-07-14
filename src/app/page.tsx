@@ -17,14 +17,47 @@ export default function Home() {
       <Navbar />
       <main className="relative z-10">
         <HeroSection />
-        <GoldStandardSection />
-        <EconomySection />
-        <NFTAssetsSection />
-        <MiningSystemSection />
-        <MarketplaceSection />
-        <ProsumerSection />
-        <RankingSystemSection />
-        <OnboardingSection />
+        
+        {/* 黄金标准 */}
+        <section id="gold-standard">
+          <GoldStandardSection />
+        </section>
+        
+        {/* 经济体系 */}
+        <section id="economy">
+          <EconomySection />
+        </section>
+        
+        {/* NFT资产 */}
+        <section id="nft-assets">
+          <NFTAssetsSection />
+        </section>
+        
+        {/* 挖矿系统 */}
+        <section id="mining-system">
+          <MiningSystemSection />
+        </section>
+        
+        {/* 市场交易 */}
+        <section id="marketplace">
+          <MarketplaceSection />
+        </section>
+        
+        {/* 生产消费 */}
+        <section id="prosumer">
+          <ProsumerSection />
+        </section>
+        
+        {/* 排名系统 */}
+        <section id="ranking-system">
+          <RankingSystemSection />
+        </section>
+        
+        {/* 新手入门 */}
+        <section id="onboarding">
+          <OnboardingSection />
+        </section>
+        
         {/* 更多部分可以继续添加 */}
       </main>
     </>
