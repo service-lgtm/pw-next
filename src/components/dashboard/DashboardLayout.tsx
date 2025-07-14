@@ -11,16 +11,36 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
-// 侧边栏导航配置 - 只保留已开放功能
+// 侧边栏导航配置 - 显示所有模块，标记开放状态
 const sidebarItems = [
   {
     title: '我的资产',
     icon: '💰',
     items: [
-      { label: '资产总览', href: '/assets', icon: '💎' },  // 新增资产总览
-      { label: '土地资产', href: '/assets/land', icon: '🏞️' },
+      { label: '资产总览', href: '/assets', icon: '💎', isActive: true },
+      { label: 'NFT仓库', href: '/assets/nft', icon: '📦', isActive: false },
+      { label: '土地资产', href: '/assets/land', icon: '🏞️', isActive: true },
+      { label: '工具背包', href: '/assets/tools', icon: '🎒', isActive: false },
+      { label: '矿产仓库', href: '/assets/inventory', icon: '⛏️', isActive: false },
     ]
   },
+  {
+    title: '我的业务',
+    icon: '💼',
+    items: [
+      { label: '挖矿中心', href: '/mining', icon: '⛏️', isActive: false },
+      { label: '交易市场', href: '/market', icon: '🛒', isActive: false },
+      { label: '我的商店', href: '/shop', icon: '🏪', isActive: false },
+    ]
+  },
+  {
+    title: '财务中心',
+    icon: '💳',
+    items: [
+      { label: '数字钱包', href: '/wallet', icon: '👛', isActive: false },
+      { label: '收益统计', href: '/wallet/earnings', icon: '📊', isActive: false },
+    ]
+  }
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +50,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [showUnlockedToast, setShowUnlockedToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
 
   // 检测移动端
   useEffect(() => {
@@ -47,6 +69,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     await logout()
     setShowLogoutConfirm(false)
+  }
+
+  const handleMenuClick = (item: any, e: React.MouseEvent) => {
+    if (!item.isActive) {
+      e.preventDefault()
+      setToastMessage(`${item.label} 功能即将开放，敬请期待！`)
+      setShowUnlockedToast(true)
+      setTimeout(() => setShowUnlockedToast(false), 3000)
+    }
   }
 
   return (
@@ -75,7 +106,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* 导航菜单 */}
-            <nav className="p-4 space-y-6">
+            <nav className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-180px)]">
               {sidebarItems.map((section) => (
                 <div key={section.title}>
                   <div className="flex items-center gap-2 mb-3 text-gray-500 text-sm font-bold">
@@ -84,29 +115,39 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div className="space-y-1">
                     {section.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded transition-all",
-                          "hover:bg-gold-500/10 hover:text-gold-500",
-                          pathname === item.href && "bg-gold-500/20 text-gold-500 font-bold"
-                        )}
-                      >
-                        <span className="text-lg">{item.icon}</span>
-                        <span className="text-sm">{item.label}</span>
-                      </Link>
+                      item.isActive ? (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2 rounded transition-all",
+                            "hover:bg-gold-500/10 hover:text-gold-500",
+                            pathname === item.href && "bg-gold-500/20 text-gold-500 font-bold"
+                          )}
+                        >
+                          <span className="text-lg">{item.icon}</span>
+                          <span className="text-sm">{item.label}</span>
+                        </Link>
+                      ) : (
+                        <button
+                          key={item.href}
+                          onClick={(e) => handleMenuClick(item, e)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2 rounded transition-all",
+                            "text-gray-500 hover:bg-gray-800/50 cursor-not-allowed relative"
+                          )}
+                        >
+                          <span className="text-lg opacity-50">{item.icon}</span>
+                          <span className="text-sm">{item.label}</span>
+                          <span className="ml-auto text-xs bg-gray-700 px-2 py-0.5 rounded">
+                            未开放
+                          </span>
+                        </button>
+                      )
                     ))}
                   </div>
                 </div>
               ))}
-
-              {/* 即将开放提示 */}
-              <div className="mt-8 p-4 bg-gray-800/50 rounded">
-                <p className="text-xs text-gray-400 text-center">
-                  更多功能即将开放...
-                </p>
-              </div>
             </nav>
 
             {/* 底部用户信息 - 优化移动端显示 */}
@@ -170,6 +211,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
+      {/* 功能未开放提示 Toast */}
+      <AnimatePresence>
+        {showUnlockedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
+          >
+            <div className="bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
+              <span className="text-yellow-500">⚠️</span>
+              <span>{toastMessage}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col">
         {/* 顶部导航 */}
@@ -216,9 +274,24 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* 右侧用户信息 */}
             <div className="flex items-center gap-3">
+              {/* 能量条 - 未开放但显示 */}
+              <div className="hidden md:flex items-center gap-2">
+                <span className="text-sm text-gray-400">能量</span>
+                <div className="w-24 h-4 bg-gray-800 rounded-full overflow-hidden opacity-50">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-green-500 to-gold-500"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${user?.energy || 100}%` }}
+                    transition={{ duration: 0.5 }}
+                  />
+                </div>
+                <span className="text-sm font-bold text-gray-500">{user?.energy || 100}%</span>
+              </div>
+
+              {/* 用户信息 */}
               <div className="text-right hidden md:block">
                 <p className="text-sm font-bold text-white">{user?.nickname || user?.username}</p>
-                <p className="text-xs text-gray-400">数字公民</p>
+                <p className="text-xs text-gray-400">等级 {user?.level || 1}</p>
               </div>
               <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-sm font-bold">
                 {user?.nickname?.[0] || user?.username?.[0] || 'U'}
