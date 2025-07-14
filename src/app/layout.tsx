@@ -1,8 +1,12 @@
+// src/app/layout.tsx
+// 根布局文件 - 包含 Toaster
+
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ClientLayout } from '@/components/layout/ClientLayout'
 import { AuthProvider } from '@/hooks/useAuth'
+import { ToasterProvider } from '@/components/providers/ToasterProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,6 +25,7 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
         <div className="pixel-grid fixed inset-0 pointer-events-none opacity-30" />
         <AuthProvider>
+          <ToasterProvider />
           <ClientLayout>{children}</ClientLayout>
         </AuthProvider>
       </body>
