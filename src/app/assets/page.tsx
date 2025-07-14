@@ -1,3 +1,7 @@
+// 文件路径: src/app/assets/page.tsx
+// 文件名: page.tsx
+// 功能: 资产总览页面
+
 'use client'
 
 import { useState } from 'react'
@@ -195,7 +199,7 @@ export default function AssetsPage() {
               <span className="text-gold-500 font-bold">TDB积分</span>：稳定币，1 TDB ≈ 0.01克黄金
             </p>
             <p className="mb-2">
-              <span className="text-purple-500 font-bold">YLD积分</span>：治理币
+              <span className="text-purple-500 font-bold">YLD积分</span>：治理币，总量21亿枚
             </p>
             <p>
               <span className="text-green-500 font-bold">土地资产</span>：数字地产，可建设和交易
