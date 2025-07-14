@@ -1,158 +1,154 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { QuickStats } from '@/components/dashboard/QuickStats'
-import { TaskProgress } from '@/components/dashboard/TaskProgress'
-import { QuickActions } from '@/components/dashboard/QuickActions'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { useState, useEffect } from 'react'
-
-// 用户数据接口
-interface UserData {
-  username: string
-  level: string
-  todayEarnings: number
-  totalAssets: number
-  tasks: Task[]
-}
-
-interface Task {
-  id: string
-  type: 'mining' | 'farming' | 'building'
-  name: string
-  progress: number
-  timeLeft: string
-  reward: string
-}
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function DashboardPage() {
-  const [userData, setUserData] = useState<UserData>({
-    username: '数字公民',
-    level: '木星',
-    todayEarnings: 520,
-    totalAssets: 125000,
-    tasks: [
-      { id: '1', type: 'mining', name: '铁矿开采中', progress: 80, timeLeft: '1小时', reward: '100铁矿' },
-      { id: '2', type: 'farming', name: '小麦种植中', progress: 60, timeLeft: '2小时', reward: '50粮食' },
-      { id: '3', type: 'building', name: '房屋建设中', progress: 30, timeLeft: '3.5小时', reward: '1栋房产' },
-    ]
-  })
+  const router = useRouter()
+  const { user } = useAuth()
+  const [tdbBalance, setTdbBalance] = useState(user?.tdbBalance || 0)
 
-  // 实时更新任务进度
+  // 模拟TDB余额更新效果
   useEffect(() => {
-    const interval = setInterval(() => {
-      setUserData(prev => ({
-        ...prev,
-        tasks: prev.tasks.map(task => ({
-          ...task,
-          progress: Math.min(100, task.progress + 1)
-        }))
-      }))
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
+    setTdbBalance(user?.tdbBalance || 0)
+  }, [user?.tdbBalance])
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto">
       {/* 欢迎区域 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+        className="text-center md:text-left"
       >
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-white">
-            欢迎回来，<span className="text-gold-500">{userData.username}</span>！
-          </h1>
-          <p className="text-gray-400 mt-1">
-            等级：<span className="text-gold-500 font-bold">{userData.level}</span> | 
-            今日收益：<span className="text-green-500 font-bold">+{userData.todayEarnings}</span>
-          </p>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-black text-white">
+          欢迎回到<span className="text-gold-500">平行世界</span>
+        </h1>
+        <p className="text-gray-400 mt-2">
+          在这里开启您的数字资产之旅
+        </p>
+      </motion.div>
 
-        {/* 快速操作按钮 */}
-        <div className="flex gap-2">
+      {/* TDB 资产卡片 */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1 }}
+      >
+        <PixelCard className="p-6 md:p-8 bg-gradient-to-br from-gray-900 to-gray-800">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-gold-500/20 rounded-full flex items-center justify-center">
+                <span className="text-4xl">💎</span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400 mb-1">我的TDB资产</p>
+                <motion.p
+                  className="text-3xl md:text-4xl font-black text-gold-500"
+                  key={tdbBalance}
+                  initial={{ scale: 1.1 }}
+                  animate={{ scale: 1 }}
+                >
+                  {tdbBalance.toLocaleString()}
+                  <span className="text-lg ml-2">TDB</span>
+                </motion.p>
+              </div>
+            </div>
+            
+            {/* 资产趋势指示 */}
+            <div className="text-center md:text-right">
+              <p className="text-xs text-gray-400 mb-1">资产状态</p>
+              <p className="text-green-500 font-bold">稳定增长中</p>
+            </div>
+          </div>
+        </PixelCard>
+      </motion.div>
+
+      {/* 土地资产入口 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h2 className="text-xl font-black text-white mb-4">快速入口</h2>
+        
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* 土地资产卡片 */}
           <motion.button
-            className="px-4 py-2 bg-gold-500 text-black font-bold rounded hover:bg-gold-400 transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push('/assets/land')}
+            className="text-left"
           >
-            每日签到
+            <PixelCard className="p-6 hover:border-gold-500 transition-all cursor-pointer">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">🏞️</span>
+                    <h3 className="text-lg font-black">土地资产</h3>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-4">
+                    管理您的数字土地，开发建设，创造价值
+                  </p>
+                  <div className="flex items-center gap-2 text-gold-500">
+                    <span className="text-sm font-bold">立即查看</span>
+                    <span>→</span>
+                  </div>
+                </div>
+                <div className="text-4xl opacity-20">🏗️</div>
+              </div>
+            </PixelCard>
           </motion.button>
-          <motion.button
-            className="px-4 py-2 border-2 border-gold-500 text-gold-500 font-bold rounded hover:bg-gold-500 hover:text-black transition-all"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+
+          {/* 即将开放卡片 */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
           >
-            领取奖励
-          </motion.button>
+            <PixelCard className="p-6 opacity-60 cursor-not-allowed">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-3xl">🔒</span>
+                    <h3 className="text-lg font-black">更多功能</h3>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-4">
+                    挖矿、交易、任务等功能即将开放
+                  </p>
+                  <div className="text-sm text-gray-500">
+                    敬请期待...
+                  </div>
+                </div>
+                <div className="text-4xl opacity-20">⏳</div>
+              </div>
+            </PixelCard>
+          </motion.div>
         </div>
       </motion.div>
 
-      {/* 快速统计 */}
-      <QuickStats />
-
-      {/* 主要内容区 */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* 左侧 - 任务进度 */}
-        <div className="lg:col-span-2 space-y-6">
-          <TaskProgress tasks={userData.tasks} />
-          
-          {/* 快速行动区 */}
-          <QuickActions />
-        </div>
-
-        {/* 右侧 - 通知和活动 */}
-        <div className="space-y-6">
-          {/* 系统公告 */}
-          <PixelCard className="p-6">
-            <h3 className="text-lg font-black mb-4 flex items-center gap-2">
-              <span className="text-2xl">📢</span>
-              系统公告
-            </h3>
-            <div className="space-y-3">
-              <div className="p-3 bg-gray-800 rounded">
-                <p className="text-sm text-gold-500 font-bold">新活动上线</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  春节挖矿双倍收益活动开始！
-                </p>
-              </div>
-              <div className="p-3 bg-gray-800 rounded">
-                <p className="text-sm text-blue-500 font-bold">系统维护</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  今晚22:00-23:00系统维护
-                </p>
-              </div>
+      {/* 新手引导 */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+      >
+        <PixelCard className="p-6 bg-gold-500/10 border-gold-500/30">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💡</span>
+            <div className="flex-1">
+              <h3 className="font-bold text-gold-500 mb-2">新手提示</h3>
+              <p className="text-sm text-gray-300">
+                欢迎来到平行世界！您可以先查看您的土地资产，了解如何在这个数字世界中创造价值。
+                TDB是平行世界的通用数字货币，可用于购买土地、建设开发等各种用途。
+              </p>
             </div>
-          </PixelCard>
-
-          {/* 排行榜 */}
-          <PixelCard className="p-6">
-            <h3 className="text-lg font-black mb-4 flex items-center gap-2">
-              <span className="text-2xl">🏆</span>
-              财富排行
-            </h3>
-            <div className="space-y-3">
-              {[
-                { rank: 1, name: '王*明', value: '¥2,580,000', medal: '🥇' },
-                { rank: 2, name: '李*华', value: '¥1,680,000', medal: '🥈' },
-                { rank: 3, name: '张*丽', value: '¥1,280,000', medal: '🥉' },
-              ].map((item) => (
-                <div key={item.rank} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{item.medal}</span>
-                    <span className="font-bold">{item.name}</span>
-                  </div>
-                  <span className="text-gold-500 font-bold">{item.value}</span>
-                </div>
-              ))}
-            </div>
-            <button className="w-full mt-4 text-sm text-gold-500 hover:underline">
-              查看完整排行 →
-            </button>
-          </PixelCard>
-        </div>
-      </div>
+          </div>
+        </PixelCard>
+      </motion.div>
     </div>
   )
 }
