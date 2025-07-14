@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { ProfileSection } from '@/components/settings/ProfileSection'
@@ -86,6 +87,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-
-// 需要在正确的位置导入 cn 函数
-import { cn } from '@/lib/utils'
