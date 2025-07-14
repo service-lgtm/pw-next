@@ -1,5 +1,5 @@
 // src/components/settings/PasswordSection.tsx
-// 登录密码设置组件 - 最小化版本用于测试
+// 登录密码设置组件
 
 'use client'
 
