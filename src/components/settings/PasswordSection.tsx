@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelInput, PasswordStrengthIndicator } from '@/components/ui/PixelInput'
-import { api, getAccountErrorMessage, ApiError } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -81,7 +81,23 @@ export function PasswordSection() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        const errorMessage = getAccountErrorMessage(error)
+        // 处理具体的错误信息
+        let errorMessage = '密码修改失败'
+        
+        if (error.status === 401) {
+          errorMessage = '当前密码错误'
+        } else if (error.status === 400) {
+          if (error.details?.code === 'PASSWORD_TOO_WEAK') {
+            errorMessage = '密码强度不足'
+          } else if (error.details?.code === 'PASSWORD_SAME_AS_OLD') {
+            errorMessage = '新密码不能与旧密码相同'
+          } else if (error.message) {
+            errorMessage = error.message
+          }
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+        
         toast.error(errorMessage)
         
         // 处理字段级错误
@@ -94,6 +110,8 @@ export function PasswordSection() {
           })
           setErrors(fieldErrors)
         }
+      } else {
+        toast.error('密码修改失败，请稍后重试')
       }
     } finally {
       setLoading(false)
