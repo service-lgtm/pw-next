@@ -7,10 +7,14 @@ import { Container } from '@/components/ui/Container'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { label: '核心优势', href: '#features' },
-  { label: '经济模型', href: '#economy' },
-  { label: '发展路线', href: '#roadmap' },
-  { label: '关于我们', href: '#about' },
+  { label: '黄金标准', href: '#gold-standard' },
+  { label: '经济体系', href: '#economy' },
+  { label: 'NFT资产', href: '#nft-assets' },
+  { label: '挖矿系统', href: '#mining-system' },
+  { label: '市场交易', href: '#marketplace' },
+  { label: '生产消费', href: '#prosumer' },
+  { label: '排名系统', href: '#ranking-system' },
+  { label: '新手入门', href: '#onboarding' },
 ]
 
 // 像素风格Logo组件
@@ -52,6 +56,30 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // 平滑滚动到目标元素
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault()
+    
+    // 如果是锚点链接
+    if (href.startsWith('#')) {
+      const targetId = href.substring(1)
+      const targetElement = document.getElementById(targetId)
+      
+      if (targetElement) {
+        const navHeight = 80 // 导航栏高度
+        const targetPosition = targetElement.offsetTop - navHeight
+        
+        window.scrollTo({
+          top: targetPosition,
+          behavior: 'smooth'
+        })
+      }
+    }
+    
+    // 关闭移动端菜单
+    setIsMobileMenuOpen(false)
+  }
+
   return (
     <motion.nav
       className={cn(
@@ -75,7 +103,7 @@ export function Navbar() {
               <PixelLogo />
             </motion.div>
             <span className="text-2xl font-black text-gold-500 pixel-text-shadow-sm">
-              平行世界的字符
+              平行世界
             </span>
           </Link>
 
@@ -88,25 +116,28 @@ export function Navbar() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Link
+                <a
                   href={item.href}
-                  className="text-gray-300 hover:text-gold-500 transition-all duration-200 font-bold text-sm tracking-wider relative group"
+                  onClick={(e) => handleNavClick(e, item.href)}
+                  className="text-gray-300 hover:text-gold-500 transition-all duration-200 font-bold text-sm tracking-wider relative group cursor-pointer"
                 >
                   {item.label}
                   <span className="absolute -bottom-1 left-0 w-0 h-1 bg-gold-500 transition-all duration-300 group-hover:w-full" />
-                </Link>
+                </a>
               </motion.div>
             ))}
-            <motion.button
-              className="pixel-btn text-sm"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              立即体验
-            </motion.button>
+            <Link href="/login">
+              <motion.button
+                className="pixel-btn text-sm"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                立即体验
+              </motion.button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -151,18 +182,20 @@ export function Navbar() {
             <Container>
               <div className="py-6 space-y-4">
                 {navItems.map((item) => (
-                  <Link
+                  <a
                     key={item.label}
                     href={item.href}
-                    className="block text-gray-300 hover:text-gold-500 font-bold py-2"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block text-gray-300 hover:text-gold-500 font-bold py-2 cursor-pointer"
+                    onClick={(e) => handleNavClick(e, item.href)}
                   >
                     {item.label}
-                  </Link>
+                  </a>
                 ))}
-                <button className="pixel-btn w-full text-sm">
-                  立即体验
-                </button>
+                <Link href="/login">
+                  <button className="pixel-btn w-full text-sm">
+                    立即体验
+                  </button>
+                </Link>
               </div>
             </Container>
           </motion.div>
