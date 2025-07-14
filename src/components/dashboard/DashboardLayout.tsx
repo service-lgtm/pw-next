@@ -40,6 +40,13 @@ const sidebarItems = [
       { label: '数字钱包', href: '/wallet', icon: '👛', isActive: false },
       { label: '收益统计', href: '/wallet/earnings', icon: '📊', isActive: false },
     ]
+  },
+  {
+    title: '账户管理',
+    icon: '⚙️',
+    items: [
+      { label: '账户设置', href: '/dashboard/settings', icon: '🔧', isActive: true },
+    ]
   }
 ]
 
