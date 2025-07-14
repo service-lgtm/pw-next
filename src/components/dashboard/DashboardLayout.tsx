@@ -4,12 +4,13 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/lib/api'
 
 // 侧边栏导航配置 - 显示所有模块，标记开放状态
 const sidebarItems = [
@@ -53,12 +54,15 @@ const sidebarItems = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, checkAuth } = useAuth()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showUnlockedToast, setShowUnlockedToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
+  const [profileData, setProfileData] = useState<any>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   // 检测移动端
   useEffect(() => {
@@ -71,6 +75,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // 获取最新的用户资料
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await api.accounts.profile()
+        if (response.success && response.data) {
+          setProfileData(response.data)
+        }
+      } catch (error) {
+        console.error('获取用户资料失败:', error)
+      }
+    }
+    
+    if (user) {
+      fetchProfile()
+    }
+  }, [user])
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const handleLogout = async () => {
@@ -86,6 +120,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       setTimeout(() => setShowUnlockedToast(false), 3000)
     }
   }
+
+  // 使用最新的资料数据或用户数据
+  const displayUser = profileData || user
+  const tdbBalance = profileData?.ut_assets ? parseFloat(profileData.ut_assets) : (user?.tdbBalance || 0)
+  const yldBalance = profileData?.ap_points ? parseFloat(profileData.ap_points) : (user?.yldBalance || 0)
 
   return (
     <div className="min-h-screen bg-[#0F0F1E] flex">
@@ -159,11 +198,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </nav>
 
-            {/* 底部退出按钮 - 使用 flex-shrink-0 固定高度 */}
-            <div className={cn(
-              "p-4 border-t-4 border-gray-800 flex-shrink-0",
-              isMobile && "pb-safe" // 适配手机底部安全区域
-            )}>
+            {/* 底部退出按钮 - 固定在底部 */}
+            <div className="p-4 border-t-4 border-gray-800 flex-shrink-0">
               <button
                 onClick={() => setShowLogoutConfirm(true)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded transition-all"
@@ -263,7 +299,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <div>
                     <p className="text-xs text-gray-400">TDB</p>
                     <p className="text-sm font-bold text-gold-500">
-                      {user?.tdbBalance?.toLocaleString() || '0'}
+                      {tdbBalance.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -274,7 +310,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <div>
                     <p className="text-xs text-gray-400">YLD</p>
                     <p className="text-sm font-bold text-purple-500">
-                      {user?.yldBalance?.toLocaleString() || '0'}
+                      {yldBalance.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -290,20 +326,107 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <motion.div
                     className="h-full bg-gradient-to-r from-green-500 to-gold-500"
                     initial={{ width: 0 }}
-                    animate={{ width: `${user?.energy || 100}%` }}
+                    animate={{ width: `${displayUser?.energy || 100}%` }}
                     transition={{ duration: 0.5 }}
                   />
                 </div>
-                <span className="text-sm font-bold text-gray-500">{user?.energy || 100}%</span>
+                <span className="text-sm font-bold text-gray-500">{displayUser?.energy || 100}%</span>
               </div>
 
-              {/* 用户信息 */}
-              <div className="text-right hidden md:block">
-                <p className="text-sm font-bold text-white">{user?.nickname || user?.username}</p>
-                <p className="text-xs text-gray-400">等级 {user?.level || 1}</p>
-              </div>
-              <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-sm font-bold">
-                {user?.nickname?.[0] || user?.username?.[0] || 'U'}
+              {/* 用户下拉菜单 */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="flex items-center gap-2 hover:bg-gray-800 rounded-lg p-2 transition-colors"
+                >
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm font-bold text-white">{displayUser?.nickname || displayUser?.username}</p>
+                    <p className="text-xs text-gray-400">
+                      {displayUser?.level_name || `等级 ${displayUser?.level || 1}`}
+                    </p>
+                  </div>
+                  <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-sm font-bold">
+                    {displayUser?.nickname?.[0] || displayUser?.username?.[0] || 'U'}
+                  </div>
+                  <span className="text-xs text-gray-400">▼</span>
+                </button>
+
+                {/* 下拉菜单 */}
+                <AnimatePresence>
+                  {showUserDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 top-full mt-2 w-64 bg-[#0A1628] border-4 border-gray-800 rounded-lg shadow-xl z-50"
+                    >
+                      {/* 用户信息 */}
+                      <div className="p-4 border-b-2 border-gray-800">
+                        <p className="font-bold text-white">{displayUser?.nickname || displayUser?.username}</p>
+                        <p className="text-sm text-gray-400">{displayUser?.masked_email || displayUser?.email}</p>
+                        <p className="text-xs text-gold-500 mt-1">推荐码: {displayUser?.referral_code}</p>
+                      </div>
+
+                      {/* 快捷菜单 */}
+                      <div className="p-2">
+                        <Link
+                          href="/dashboard"
+                          className="block px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
+                          onClick={() => setShowUserDropdown(false)}
+                        >
+                          <span className="mr-2">🏠</span>
+                          仪表盘
+                        </Link>
+                        <Link
+                          href="/dashboard/settings"
+                          className="block px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
+                          onClick={() => setShowUserDropdown(false)}
+                        >
+                          <span className="mr-2">⚙️</span>
+                          账户设置
+                        </Link>
+                        <Link
+                          href="/assets"
+                          className="block px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
+                          onClick={() => setShowUserDropdown(false)}
+                        >
+                          <span className="mr-2">💰</span>
+                          我的资产
+                        </Link>
+                        <div className="border-t-2 border-gray-800 mt-2 pt-2">
+                          <button
+                            onClick={() => {
+                              setShowUserDropdown(false)
+                              setShowLogoutConfirm(true)
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded transition-colors"
+                          >
+                            <span className="mr-2">🚪</span>
+                            退出登录
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 统计信息 */}
+                      <div className="p-4 border-t-2 border-gray-800 bg-gray-800/30">
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                          <div>
+                            <p className="text-xs text-gray-400">社区业绩</p>
+                            <p className="text-sm font-bold text-gold-500">
+                              {parseFloat(displayUser?.community_performance || '0').toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">团队人数</p>
+                            <p className="text-sm font-bold text-purple-500">
+                              {displayUser?.total_referrals_count || 0}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
