@@ -98,6 +98,8 @@ export interface User {
   is_verified?: boolean
   energy?: number
   referral_code?: string
+  tdbBalance?: number  // TDB积分余额
+  yldBalance?: number  // YLD积分余额
 }
 
 export interface TokenLoginRequest {
