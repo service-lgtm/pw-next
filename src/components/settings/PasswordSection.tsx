@@ -1,31 +1,42 @@
 // src/components/settings/PasswordSection.tsx
-// 登录密码设置组件
+// 登录密码设置组件 - 最小化版本用于测试
 
 'use client'
 
+import React from 'react'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelInput, PasswordStrengthIndicator } from '@/components/ui/PixelInput'
-import { api, ApiError } from '@/lib/api'
+import { api, getAccountErrorMessage, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-export function PasswordSection() {
+interface FormData {
+  old_password: string
+  new_password: string
+  confirm_new_password: string
+}
+
+interface FormErrors {
+  [key: string]: string
+}
+
+export function PasswordSection(): JSX.Element {
   const { logout } = useAuth()
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState<boolean>(false)
+  const [formData, setFormData] = useState<FormData>({
     old_password: '',
     new_password: '',
     confirm_new_password: ''
   })
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<FormErrors>({})
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
 
     if (!formData.old_password) {
       newErrors.old_password = '请输入当前密码'
@@ -53,7 +64,7 @@ export function PasswordSection() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -67,42 +78,23 @@ export function PasswordSection() {
       if (response.success) {
         toast.success('密码修改成功，请重新登录')
         
-        // 清空表单
         setFormData({
           old_password: '',
           new_password: '',
           confirm_new_password: ''
         })
         
-        // 2秒后自动登出
         setTimeout(async () => {
           await logout()
         }, 2000)
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        // 处理具体的错误信息
-        let errorMessage = '密码修改失败'
-        
-        if (error.status === 401) {
-          errorMessage = '当前密码错误'
-        } else if (error.status === 400) {
-          if (error.details?.code === 'PASSWORD_TOO_WEAK') {
-            errorMessage = '密码强度不足'
-          } else if (error.details?.code === 'PASSWORD_SAME_AS_OLD') {
-            errorMessage = '新密码不能与旧密码相同'
-          } else if (error.message) {
-            errorMessage = error.message
-          }
-        } else if (error.message) {
-          errorMessage = error.message
-        }
-        
+        const errorMessage = getAccountErrorMessage(error)
         toast.error(errorMessage)
         
-        // 处理字段级错误
-        if (error.details?.errors) {
-          const fieldErrors: Record<string, string> = {}
+        if (error.details && error.details.errors) {
+          const fieldErrors: FormErrors = {}
           Object.entries(error.details.errors).forEach(([field, messages]) => {
             if (Array.isArray(messages) && messages.length > 0) {
               fieldErrors[field] = messages[0]
@@ -110,19 +102,24 @@ export function PasswordSection() {
           })
           setErrors(fieldErrors)
         }
-      } else {
-        toast.error('密码修改失败，请稍后重试')
       }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value })
-    // 清除对应字段的错误
+  const handleInputChange = (field: keyof FormData, value: string): void => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    
     if (errors[field]) {
-      setErrors({ ...errors, [field]: '' })
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
     }
   }
 
@@ -130,10 +127,9 @@ export function PasswordSection() {
     <PixelCard className="p-6">
       <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2">
         <span>🔐</span>
-        修改登录密码
+        <span>修改登录密码</span>
       </h2>
 
-      {/* 安全提示 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -141,9 +137,7 @@ export function PasswordSection() {
       >
         <p className="text-sm text-yellow-500 flex items-start gap-2">
           <span>⚠️</span>
-          <span>
-            修改密码后需要重新登录。请确保记住新密码！
-          </span>
+          <span>修改密码后需要重新登录。请确保记住新密码！</span>
         </p>
       </motion.div>
 
@@ -184,20 +178,19 @@ export function PasswordSection() {
           icon="✅"
         />
 
-        {/* 密码要求说明 */}
         <div className="p-4 bg-gray-800/50 rounded space-y-1">
           <p className="text-sm font-bold text-gray-300 mb-2">密码要求：</p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span className={formData.new_password.length >= 8 ? '✅' : '❌'}</span>
-            长度8-32个字符
+            <span>{formData.new_password.length >= 8 ? '✅' : '❌'}</span>
+            <span>长度8-32个字符</span>
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span className={/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? '✅' : '❌'}</span>
-            必须包含字母和数字
+            <span>{/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? '✅' : '❌'}</span>
+            <span>必须包含字母和数字</span>
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span className={formData.old_password && formData.new_password && formData.old_password !== formData.new_password ? '✅' : '❌'}</span>
-            不能与旧密码相同
+            <span>{formData.old_password && formData.new_password && formData.old_password !== formData.new_password ? '✅' : '❌'}</span>
+            <span>不能与旧密码相同</span>
           </p>
         </div>
 
