@@ -324,6 +324,7 @@ export function RegisterForm() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [isReferralCodeLocked, setIsReferralCodeLocked] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -331,6 +332,7 @@ export function RegisterForm() {
       const refCode = params.get('ref')
       if (refCode) {
         setFormData(prev => ({ ...prev, referral_code: refCode }))
+        setIsReferralCodeLocked(true)
       }
     }
   }, [])
