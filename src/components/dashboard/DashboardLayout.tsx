@@ -123,8 +123,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   // 使用最新的资料数据或用户数据
   const displayUser = profileData || user
-  const tdbBalance = profileData?.ut_assets ? parseFloat(profileData.ut_assets) : (user?.tdbBalance || 0)
-  const yldBalance = profileData?.ap_points ? parseFloat(profileData.ap_points) : (user?.yldBalance || 0)
+  const tdbBalance = profileData?.tdb_balance ? parseFloat(profileData.tdb_balance) : (user?.tdbBalance || 0)
+  const yldBalance = profileData?.yld_balance ? parseFloat(profileData.yld_balance) : (user?.yldBalance || 0)
 
   return (
     <div className="min-h-screen bg-[#0F0F1E] flex">
