@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import toast from 'react-hot-toast'
 
 interface TeamSummary {
   total_members: number
@@ -188,6 +189,3 @@ export function TeamSection() {
     </PixelCard>
   )
 }
-
-// 导入 toast
-import toast from 'react-hot-toast'
