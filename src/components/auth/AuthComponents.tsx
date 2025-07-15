@@ -585,7 +585,7 @@ export function RegisterForm() {
             <h2 className="text-2xl font-black text-center mb-6">
               验证邮箱
               <span className="block text-sm text-gray-400 font-normal mt-2">
-                验证码已发送至 {formData.email}
+                 点击发送验证码到 {formData.email}
               </span>
             </h2>
 
