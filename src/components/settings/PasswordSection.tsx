@@ -3,40 +3,29 @@
 
 'use client'
 
-import React from 'react'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelInput, PasswordStrengthIndicator } from '@/components/ui/PixelInput'
-import { api, getAccountErrorMessage, ApiError } from '@/lib/api'
+import { api, getErrorMessage, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
-interface FormData {
-  old_password: string
-  new_password: string
-  confirm_new_password: string
-}
-
-interface FormErrors {
-  [key: string]: string
-}
-
-export function PasswordSection(): JSX.Element {
+export function PasswordSection() {
   const { logout } = useAuth()
   const router = useRouter()
-  const [loading, setLoading] = useState<boolean>(false)
-  const [formData, setFormData] = useState<FormData>({
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
     old_password: '',
     new_password: '',
     confirm_new_password: ''
   })
-  const [errors, setErrors] = useState<FormErrors>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {}
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
 
     if (!formData.old_password) {
       newErrors.old_password = '请输入当前密码'
@@ -64,7 +53,7 @@ export function PasswordSection(): JSX.Element {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -78,23 +67,26 @@ export function PasswordSection(): JSX.Element {
       if (response.success) {
         toast.success('密码修改成功，请重新登录')
         
+        // 清空表单
         setFormData({
           old_password: '',
           new_password: '',
           confirm_new_password: ''
         })
         
+        // 2秒后自动登出
         setTimeout(async () => {
           await logout()
         }, 2000)
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        const errorMessage = getAccountErrorMessage(error)
+        const errorMessage = getErrorMessage(error)
         toast.error(errorMessage)
         
-        if (error.details && error.details.errors) {
-          const fieldErrors: FormErrors = {}
+        // 处理字段级错误
+        if (error.details?.errors) {
+          const fieldErrors: Record<string, string> = {}
           Object.entries(error.details.errors).forEach(([field, messages]) => {
             if (Array.isArray(messages) && messages.length > 0) {
               fieldErrors[field] = messages[0]
@@ -108,18 +100,11 @@ export function PasswordSection(): JSX.Element {
     }
   }
 
-  const handleInputChange = (field: keyof FormData, value: string): void => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-    
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value })
+    // 清除对应字段的错误
     if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev }
-        delete newErrors[field]
-        return newErrors
-      })
+      setErrors({ ...errors, [field]: '' })
     }
   }
 
@@ -127,9 +112,10 @@ export function PasswordSection(): JSX.Element {
     <PixelCard className="p-6">
       <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2">
         <span>🔐</span>
-        <span>修改登录密码</span>
+        修改登录密码
       </h2>
 
+      {/* 安全提示 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -137,7 +123,9 @@ export function PasswordSection(): JSX.Element {
       >
         <p className="text-sm text-yellow-500 flex items-start gap-2">
           <span>⚠️</span>
-          <span>修改密码后需要重新登录。请确保记住新密码！</span>
+          <span>
+            修改密码后需要重新登录。请确保记住新密码！
+          </span>
         </p>
       </motion.div>
 
@@ -178,19 +166,20 @@ export function PasswordSection(): JSX.Element {
           icon="✅"
         />
 
+        {/* 密码要求说明 */}
         <div className="p-4 bg-gray-800/50 rounded space-y-1">
           <p className="text-sm font-bold text-gray-300 mb-2">密码要求：</p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span>{formData.new_password.length >= 8 ? '✅' : '❌'}</span>
-            <span>长度8-32个字符</span>
+            <span className={formData.new_password.length >= 8 ? '✅' : '❌'}</span>
+            长度8-32个字符
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span>{/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? '✅' : '❌'}</span>
-            <span>必须包含字母和数字</span>
+            <span className={/[a-zA-Z]/.test(formData.new_password) && /[0-9]/.test(formData.new_password) ? '✅' : '❌'}</span>
+            必须包含字母和数字
           </p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
-            <span>{formData.old_password && formData.new_password && formData.old_password !== formData.new_password ? '✅' : '❌'}</span>
-            <span>不能与旧密码相同</span>
+            <span className={formData.old_password && formData.new_password && formData.old_password !== formData.new_password ? '✅' : '❌'}</span>
+            不能与旧密码相同
           </p>
         </div>
 
