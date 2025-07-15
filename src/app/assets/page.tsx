@@ -1,5 +1,5 @@
 // src/app/assets/page.tsx
-// 资产总览页面
+// 资产总览页面 - 带认证保护
 
 'use client'
 
@@ -9,8 +9,9 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { api } from '@/lib/api'
+import { api, ApiError, TokenManager } from '@/lib/api'
 import { useMyLands } from '@/hooks/useLands'
+import toast from 'react-hot-toast'
 
 interface AssetSummary {
   totalValue: number
@@ -22,7 +23,7 @@ interface AssetSummary {
 
 export default function AssetsPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { lands, loading: landsLoading } = useMyLands()
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState<any>(null)
@@ -34,9 +35,23 @@ export default function AssetsPage() {
     landValue: 0,
   })
 
+  // 检查认证状态
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast.error('请先登录')
+      router.push('/login?redirect=/assets')
+    }
+  }, [authLoading, isAuthenticated, router])
+
   // 获取最新的用户资料
   useEffect(() => {
     const fetchProfile = async () => {
+      // 如果没有认证，不要尝试获取资料
+      if (!isAuthenticated || !TokenManager.getAccessToken()) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         const response = await api.accounts.profile()
@@ -47,13 +62,23 @@ export default function AssetsPage() {
         }
       } catch (error) {
         console.error('[Assets] Error fetching profile:', error)
+        
+        // 如果是认证错误，跳转到登录页
+        if (error instanceof ApiError && error.status === 401) {
+          toast.error('登录已过期，请重新登录')
+          router.push('/login?redirect=/assets')
+        } else {
+          toast.error('加载用户资料失败')
+        }
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProfile()
-  }, [])
+    if (isAuthenticated) {
+      fetchProfile()
+    }
+  }, [isAuthenticated, router])
 
   // 计算资产汇总
   useEffect(() => {
@@ -74,6 +99,24 @@ export default function AssetsPage() {
     }
   }, [lands, landsLoading, profileData])
 
+  // 如果正在检查认证状态
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">验证登录状态...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 如果未认证，返回空（useEffect 会处理跳转）
+  if (!isAuthenticated) {
+    return null
+  }
+
+  // 如果正在加载数据
   if (loading || landsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
