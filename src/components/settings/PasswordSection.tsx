@@ -1,6 +1,5 @@
 // src/components/settings/PasswordSection.tsx
 // 登录密码设置组件
-
 'use client'
 
 import { useState } from 'react'
@@ -67,14 +66,12 @@ export function PasswordSection() {
       if (response.success) {
         toast.success('密码修改成功，请重新登录')
         
-        // 清空表单
         setFormData({
           old_password: '',
           new_password: '',
           confirm_new_password: ''
         })
         
-        // 2秒后自动登出
         setTimeout(async () => {
           await logout()
         }, 2000)
@@ -84,7 +81,6 @@ export function PasswordSection() {
         const errorMessage = getErrorMessage(error)
         toast.error(errorMessage)
         
-        // 处理字段级错误
         if (error.details?.errors) {
           const fieldErrors: Record<string, string> = {}
           Object.entries(error.details.errors).forEach(([field, messages]) => {
@@ -102,7 +98,6 @@ export function PasswordSection() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value })
-    // 清除对应字段的错误
     if (errors[field]) {
       setErrors({ ...errors, [field]: '' })
     }
@@ -115,7 +110,6 @@ export function PasswordSection() {
         修改登录密码
       </h2>
 
-      {/* 安全提示 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -123,9 +117,7 @@ export function PasswordSection() {
       >
         <p className="text-sm text-yellow-500 flex items-start gap-2">
           <span>⚠️</span>
-          <span>
-            修改密码后需要重新登录。请确保记住新密码！
-          </span>
+          <span>修改密码后需要重新登录。请确保记住新密码！</span>
         </p>
       </motion.div>
 
@@ -166,7 +158,6 @@ export function PasswordSection() {
           icon="✅"
         />
 
-        {/* 密码要求说明 */}
         <div className="p-4 bg-gray-800/50 rounded space-y-1">
           <p className="text-sm font-bold text-gray-300 mb-2">密码要求：</p>
           <p className="text-xs text-gray-400 flex items-center gap-2">
