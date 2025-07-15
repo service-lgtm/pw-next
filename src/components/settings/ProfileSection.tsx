@@ -11,6 +11,7 @@ import { PixelInput } from '@/components/ui/PixelInput'
 import { api, getErrorMessage, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 export function ProfileSection() {
   const { user, checkAuth } = useAuth()
@@ -185,6 +186,3 @@ export function ProfileSection() {
     </PixelCard>
   )
 }
-
-// 需要导入 cn
-import { cn } from '@/lib/utils'
