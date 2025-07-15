@@ -9,7 +9,8 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 // 用户数据接口
 interface UserProfile {
@@ -31,20 +32,30 @@ interface UserProfile {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, checkAuth } = useAuth()
+  const { user, checkAuth, isAuthenticated, isLoading: authLoading } = useAuth()
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // 检查认证状态
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast.error('请先登录')
+      router.push('/login?redirect=/dashboard')
+    }
+  }, [authLoading, isAuthenticated, router])
+
   // 获取用户最新资料
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!isAuthenticated) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         setError(null)
-        
-        // 先尝试刷新认证状态
-        await checkAuth()
         
         // 获取最新的个人资料
         const response = await api.accounts.profile()
@@ -57,14 +68,40 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error('[Dashboard] Error fetching profile:', error)
-        setError('加载用户资料失败，请刷新页面重试')
+        
+        // 如果是认证错误，跳转到登录页
+        if (error instanceof ApiError && error.status === 401) {
+          toast.error('登录已过期，请重新登录')
+          router.push('/login?redirect=/dashboard')
+        } else {
+          setError('加载用户资料失败，请刷新页面重试')
+        }
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProfile()
-  }, [checkAuth])
+    if (isAuthenticated) {
+      fetchProfile()
+    }
+  }, [isAuthenticated, router])
+
+  // 如果正在检查认证状态
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">验证登录状态...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 如果未认证，返回空（useEffect 会处理跳转）
+  if (!isAuthenticated) {
+    return null
+  }
 
   // 如果正在加载
   if (loading) {
@@ -98,8 +135,8 @@ export default function DashboardPage() {
 
   // 使用 profileData 或 user 数据
   const displayData = profileData || user
-  const tdbBalance = profileData?.ut_assets ? parseFloat(profileData.ut_assets) : (user?.tdbBalance || 0)
-  const yldBalance = profileData?.ap_points ? parseFloat(profileData.ap_points) : (user?.yldBalance || 0)
+  const tdbBalance = profileData?.tdb_balance ? parseFloat(profileData.tdb_balance) : (user?.tdbBalance || 0)
+  const yldBalance = profileData?.yld_balance ? parseFloat(profileData.yld_balance) : (user?.yldBalance || 0)
 
   const userData = {
     username: displayData?.nickname || displayData?.username || '数字公民',
