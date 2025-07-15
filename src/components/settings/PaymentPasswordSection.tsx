@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelInput, PixelCodeInput } from '@/components/ui/PixelInput'
-import { api, getAccountErrorMessage, ApiError } from '@/lib/api'
+import { api, getErrorMessage, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 
@@ -167,7 +167,7 @@ export function PaymentPasswordSection() {
         }
       } catch (error) {
         if (error instanceof ApiError) {
-          const errorMessage = getAccountErrorMessage(error)
+          const errorMessage = getErrorMessage(error)
           toast.error(errorMessage)
         }
       } finally {
@@ -252,7 +252,7 @@ export function PaymentPasswordSection() {
         }
       } catch (error) {
         if (error instanceof ApiError) {
-          const errorMessage = getAccountErrorMessage(error)
+          const errorMessage = getErrorMessage(error)
           toast.error(errorMessage)
         }
       } finally {
@@ -331,7 +331,7 @@ export function PaymentPasswordSection() {
         }
       } catch (error) {
         if (error instanceof ApiError) {
-          const errorMessage = getAccountErrorMessage(error)
+          const errorMessage = getErrorMessage(error)
           toast.error(errorMessage)
         }
       } finally {
@@ -358,7 +358,7 @@ export function PaymentPasswordSection() {
         }
       } catch (error) {
         if (error instanceof ApiError) {
-          const errorMessage = getAccountErrorMessage(error)
+          const errorMessage = getErrorMessage(error)
           toast.error(errorMessage)
         }
       } finally {
