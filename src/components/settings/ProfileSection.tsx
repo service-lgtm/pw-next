@@ -8,7 +8,7 @@ import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelInput } from '@/components/ui/PixelInput'
-import { api, getAccountErrorMessage, ApiError } from '@/lib/api'
+import { api, getErrorMessage, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 
@@ -54,7 +54,7 @@ export function ProfileSection() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        const errorMessage = getAccountErrorMessage(error)
+        const errorMessage = getErrorMessage(error)
         toast.error(errorMessage)
         
         // 处理字段级错误
