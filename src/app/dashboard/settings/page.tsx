@@ -5,13 +5,13 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { cn } from '@/lib/utils'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { ProfileSection } from '@/components/settings/ProfileSection'
 import { PasswordSection } from '@/components/settings/PasswordSection'
 import { PaymentPasswordSection } from '@/components/settings/PaymentPasswordSection'
 import { TeamSection } from '@/components/settings/TeamSection'
+import { cn } from '@/lib/utils'
 
 type TabType = 'profile' | 'password' | 'payment' | 'team'
 
