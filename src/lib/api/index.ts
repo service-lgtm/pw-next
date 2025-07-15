@@ -686,5 +686,5 @@ const isApiError = (error: unknown, status?: number): error is ApiError => {
 }
 
 // ========== 导出 ==========
-export { api, getErrorMessage, isApiError, request, API_BASE_URL, getAccountErrorMessage }
+export { api, getErrorMessage, isApiError, request, API_BASE_URL }
 export default api
