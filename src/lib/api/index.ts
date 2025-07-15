@@ -1,5 +1,5 @@
 // lib/api/index.ts
-// 统一的 API 层
+// 统一的 API 层 - 更新了字段映射
 
 // ========== 重要说明 ==========
 // 注意：由于某些第三方库或框架可能会修改全局 fetch 函数，
@@ -62,7 +62,14 @@ export class TokenManager {
   // 保存用户信息
   static setUser(user: User) {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(USER_INFO_KEY, JSON.stringify(user))
+      // 处理字段映射，确保兼容性
+      const normalizedUser = {
+        ...user,
+        // 将字符串的 tdb_balance 和 yld_balance 转换为数字并保存为兼容字段
+        tdbBalance: user.tdb_balance ? parseFloat(user.tdb_balance) : (user.tdbBalance || 0),
+        yldBalance: user.yld_balance ? parseFloat(user.yld_balance) : (user.yldBalance || 0),
+      }
+      localStorage.setItem(USER_INFO_KEY, JSON.stringify(normalizedUser))
     }
   }
   
@@ -98,8 +105,24 @@ export interface User {
   is_verified?: boolean
   energy?: number
   referral_code?: string
-  tdbBalance?: number  // TDB积分余额
-  yldBalance?: number  // YLD积分余额
+  // 新增字段
+  masked_email?: string
+  masked_phone?: string
+  level_name?: string
+  level_color?: string
+  referrer_nickname?: string | null
+  direct_referrals_count?: number
+  total_referrals_count?: number
+  community_performance?: string
+  tdb_balance?: string  // TDB积分余额 - API返回字符串
+  yld_balance?: string  // YLD积分余额 - API返回字符串
+  email_verified?: boolean
+  is_activated?: boolean
+  created_at?: string
+  last_login?: string
+  // 兼容旧字段
+  tdbBalance?: number
+  yldBalance?: number
 }
 
 export interface TokenLoginRequest {
@@ -171,6 +194,48 @@ export interface AuthStatus {
   user?: User
 }
 
+// 新增类型定义 - 账户管理相关
+export interface ChangePasswordRequest {
+  old_password: string
+  new_password: string
+  confirm_new_password: string
+}
+
+export interface SetPaymentPasswordRequest {
+  password: string
+  confirm_password: string
+}
+
+export interface ChangePaymentPasswordRequest {
+  old_password: string
+  new_password: string
+  confirm_new_password: string
+}
+
+export interface ResetPaymentPasswordRequest {
+  email_code: string
+  new_password: string
+  confirm_password: string
+}
+
+export interface ProfileUpdateRequest {
+  nickname?: string
+  description?: string
+}
+
+export interface TeamSummaryResponse {
+  success: boolean
+  data: {
+    total_members: number
+    total_performance: string
+  }
+}
+
+export interface ProfileResponse {
+  success: boolean
+  data: User
+}
+
 // ========== 错误处理 ==========
 export class ApiError extends Error {
   constructor(
@@ -181,6 +246,41 @@ export class ApiError extends Error {
   ) {
     super(message || '请求失败')
     this.name = 'ApiError'
+  }
+}
+
+// 账户管理特定错误处理
+export function getAccountErrorMessage(error: ApiError): string {
+  if (error.status === 400 && error.details?.errors) {
+    const errors = error.details.errors
+    // 处理字段级错误
+    if (errors.nickname) {
+      return errors.nickname[0]
+    }
+    if (errors.old_password) {
+      return errors.old_password[0]
+    }
+    if (errors.new_password) {
+      return errors.new_password[0]
+    }
+    if (errors.password) {
+      return errors.password[0]
+    }
+    if (errors.email_code) {
+      return errors.email_code[0]
+    }
+  }
+  
+  // 处理特定状态码
+  switch (error.status) {
+    case 429:
+      return '请求过于频繁，请稍后再试'
+    case 401:
+      return '登录已过期，请重新登录'
+    case 403:
+      return '无权限执行此操作'
+    default:
+      return error.message || '操作失败，请稍后重试'
   }
 }
 
@@ -509,123 +609,54 @@ const api = {
       }),
   },
   
-  // 用户相关
+  // 用户相关 - 扩展账户管理功能
   accounts: {
     // 获取个人资料
-    profile: () => request<{
-      success: boolean
-      data: {
-        id: number
-        username: string
-        nickname: string
-        masked_email: string
-        masked_phone: string
-        level: number
-        level_name: string
-        level_color: string
-        energy: number
-        referrer_nickname: string | null
-        referral_code: string
-        direct_referrals_count: number
-        total_referrals_count: number
-        community_performance: string
-        ut_assets: string
-        ap_points: string
-        is_verified: boolean
-        email_verified: boolean
-        is_activated: boolean
-        created_at: string
-        last_login: string
-      }
-    }>('/auth/profile/'),
+    profile: () => request<ProfileResponse>('/auth/profile/'),
     
     // 更新个人资料
-    updateProfile: (data: {
-      nickname?: string
-      description?: string
-    }) => 
-      request<{
-        success: boolean
-        message: string
-        data: any
-      }>('/auth/profile/', {
+    updateProfile: (data: ProfileUpdateRequest) => 
+      request<ProfileResponse>('/auth/profile/', {
         method: 'PATCH',
         body: data as any,
       }),
     
     // 修改登录密码
-    changePassword: (data: {
-      old_password: string
-      new_password: string
-      confirm_new_password: string
-    }) =>
-      request<{
-        success: boolean
-        message: string
-      }>('/auth/password/change/', {
+    changePassword: (data: ChangePasswordRequest) => 
+      request<{ success: boolean; message: string }>('/auth/password/change/', {
         method: 'POST',
         body: data as any,
       }),
     
     // 设置支付密码
-    setPaymentPassword: (data: {
-      password: string
-      confirm_password: string
-    }) =>
-      request<{
-        success: boolean
-        message: string
-      }>('/auth/payment-password/set/', {
+    setPaymentPassword: (data: SetPaymentPasswordRequest) => 
+      request<{ success: boolean; message: string }>('/auth/payment-password/set/', {
         method: 'POST',
         body: data as any,
       }),
     
     // 修改支付密码
-    changePaymentPassword: (data: {
-      old_password: string
-      new_password: string
-      confirm_new_password: string
-    }) =>
-      request<{
-        success: boolean
-        message: string
-      }>('/auth/payment-password/change/', {
+    changePaymentPassword: (data: ChangePaymentPasswordRequest) => 
+      request<{ success: boolean; message: string }>('/auth/payment-password/change/', {
         method: 'POST',
         body: data as any,
       }),
     
     // 发送支付密码重置验证码
-    sendPaymentPasswordResetCode: () =>
-      request<{
-        success: boolean
-        message: string
-      }>('/auth/payment-password/reset-code/', {
+    sendPaymentPasswordResetCode: () => 
+      request<{ success: boolean; message: string }>('/auth/payment-password/reset-code/', {
         method: 'POST',
       }),
     
     // 重置支付密码
-    resetPaymentPassword: (data: {
-      email_code: string
-      new_password: string
-      confirm_password: string
-    }) =>
-      request<{
-        success: boolean
-        message: string
-      }>('/auth/payment-password/reset/', {
+    resetPaymentPassword: (data: ResetPaymentPasswordRequest) => 
+      request<{ success: boolean; message: string }>('/auth/payment-password/reset/', {
         method: 'POST',
         body: data as any,
       }),
     
     // 获取团队概览
-    getTeamSummary: () =>
-      request<{
-        success: boolean
-        data: {
-          total_members: number
-          total_performance: string
-        }
-      }>('/auth/team/summary/'),
+    getTeamSummary: () => request<TeamSummaryResponse>('/auth/team/summary/'),
   }
 }
 
@@ -654,76 +685,6 @@ const isApiError = (error: unknown, status?: number): error is ApiError => {
   return true
 }
 
-// 账户错误消息处理
-export function getAccountErrorMessage(error: ApiError): string {
-  // 根据错误状态码或详情返回友好的错误消息
-  if (error.status === 401) {
-    // 检查是否是密码错误
-    if (error.details?.non_field_errors?.[0]?.includes('密码') || 
-        error.message?.includes('密码错误') ||
-        error.message?.includes('password')) {
-      return '当前密码错误'
-    }
-    return '认证失败，请重新登录'
-  }
-  
-  if (error.status === 400) {
-    // 处理特定的错误代码
-    if (error.details?.code === 'PASSWORD_TOO_WEAK') {
-      return '密码强度不足，请使用更复杂的密码'
-    }
-    if (error.details?.code === 'PASSWORD_SAME_AS_OLD') {
-      return '新密码不能与旧密码相同'
-    }
-    
-    // 处理字段错误
-    if (error.details?.errors) {
-      // 优先显示密码相关错误
-      const passwordFields = ['old_password', 'new_password', 'confirm_new_password', 'password', 'confirm_password']
-      for (const field of passwordFields) {
-        if (error.details.errors[field]) {
-          const fieldError = Array.isArray(error.details.errors[field]) 
-            ? error.details.errors[field][0] 
-            : error.details.errors[field]
-          return fieldError
-        }
-      }
-      
-      // 显示第一个错误
-      const firstField = Object.keys(error.details.errors)[0]
-      if (firstField) {
-        const fieldError = Array.isArray(error.details.errors[firstField]) 
-          ? error.details.errors[firstField][0] 
-          : error.details.errors[firstField]
-        return fieldError
-      }
-    }
-    
-    // 检查 non_field_errors
-    if (error.details?.non_field_errors) {
-      const nonFieldError = Array.isArray(error.details.non_field_errors)
-        ? error.details.non_field_errors[0]
-        : error.details.non_field_errors
-      return nonFieldError
-    }
-  }
-  
-  if (error.status === 429) {
-    return '操作过于频繁，请稍后再试'
-  }
-  
-  if (error.status === 500) {
-    return '服务器错误，请稍后重试'
-  }
-  
-  // 返回原始错误消息或默认消息
-  if (error.details?.message) {
-    return error.details.message
-  }
-  
-  return error.message || '操作失败，请稍后重试'
-}
-
 // ========== 导出 ==========
-export { api, getErrorMessage, isApiError, request, API_BASE_URL }
+export { api, getErrorMessage, isApiError, request, API_BASE_URL, getAccountErrorMessage }
 export default api
