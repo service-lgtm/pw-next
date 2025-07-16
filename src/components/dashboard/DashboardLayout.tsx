@@ -411,15 +411,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       <div className="p-4 border-t-2 border-gray-800 bg-gray-800/30">
                         <div className="grid grid-cols-2 gap-2 text-center">
                           <div>
-                            <p className="text-xs text-gray-400">社区业绩</p>
+                            <p className="text-xs text-gray-400">TDB余额</p>
                             <p className="text-sm font-bold text-gold-500">
-                              {parseFloat(displayUser?.community_performance || '0').toLocaleString()}
+                              {tdbBalance.toLocaleString()}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-gray-400">团队人数</p>
+                            <p className="text-xs text-gray-400">YLD余额</p>
                             <p className="text-sm font-bold text-purple-500">
-                              {displayUser?.total_referrals_count || 0}
+                              {yldBalance.toLocaleString()}
                             </p>
                           </div>
                         </div>
