@@ -221,7 +221,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 账户状态卡片 */}
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid md:grid-cols-2 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -229,9 +229,9 @@ export default function DashboardPage() {
         >
           <PixelCard className="p-4 text-center">
             <p className="text-2xl font-black text-green-500">
-              {displayData?.direct_referrals_count || 0}
+              {displayData?.energy || 100}%
             </p>
-            <p className="text-sm text-gray-400 mt-1">直接推荐</p>
+            <p className="text-sm text-gray-400 mt-1">能量值</p>
           </PixelCard>
         </motion.div>
 
@@ -239,32 +239,6 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-        >
-          <PixelCard className="p-4 text-center">
-            <p className="text-2xl font-black text-blue-500">
-              {displayData?.total_referrals_count || 0}
-            </p>
-            <p className="text-sm text-gray-400 mt-1">团队人数</p>
-          </PixelCard>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <PixelCard className="p-4 text-center">
-            <p className="text-2xl font-black text-orange-500">
-              {parseFloat(displayData?.community_performance || '0').toLocaleString()}
-            </p>
-            <p className="text-sm text-gray-400 mt-1">社区业绩</p>
-          </PixelCard>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
         >
           <PixelCard className="p-4 text-center">
             <p className="text-2xl font-black text-purple-500">
