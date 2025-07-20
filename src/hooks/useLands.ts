@@ -1,7 +1,7 @@
 // src/hooks/useLands.ts
 // 土地数据Hook - 完整版本
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { assetsApi } from '@/lib/api/assets'
 import type { Land, LandDetail, PaginatedResponse, FilterState } from '@/types/assets'
 
@@ -14,9 +14,26 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
   const [totalCount, setTotalCount] = useState(0)
   const [stats, setStats] = useState<any>(null)
   
+  // 使用 ref 来保存当前的 filters，避免依赖问题
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
+  
+  // 使用 JSON.stringify 来稳定依赖
+  const filtersKey = filters === null ? 'null' : JSON.stringify({
+    page: filters.page || 1,
+    page_size: filters.page_size || 20,
+    ordering: filters.ordering || '-created_at',
+    land_type: filters.land_type,
+    priceRange: filters.priceRange,
+    search: filters.search,
+    region_id: filters.region_id,
+  })
+  
   const fetchLands = useCallback(async () => {
+    const currentFilters = filtersRef.current
+    
     // 如果 filters 为 null，说明不应该加载土地
-    if (filters === null) {
+    if (currentFilters === null) {
       setLands([])
       setLoading(false)
       return
@@ -27,29 +44,29 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
       setError(null)
       
       const params: any = {
-        page: filters.page || 1,
-        page_size: filters.page_size || 20,
-        ordering: filters.ordering || '-created_at',
+        page: currentFilters.page || 1,
+        page_size: currentFilters.page_size || 20,
+        ordering: currentFilters.ordering || '-created_at',
       }
       
-      if (filters.land_type && filters.land_type !== 'all') {
-        params.blueprint__land_type = filters.land_type
+      if (currentFilters.land_type && currentFilters.land_type !== 'all') {
+        params.blueprint__land_type = currentFilters.land_type
       }
       
-      if (filters.priceRange?.min) {
-        params.min_price = filters.priceRange.min
+      if (currentFilters.priceRange?.min) {
+        params.min_price = currentFilters.priceRange.min
       }
       
-      if (filters.priceRange?.max) {
-        params.max_price = filters.priceRange.max
+      if (currentFilters.priceRange?.max) {
+        params.max_price = currentFilters.priceRange.max
       }
       
-      if (filters.search) {
-        params.search = filters.search
+      if (currentFilters.search) {
+        params.search = currentFilters.search
       }
       
-      if (filters.region_id) {
-        params.region_id = filters.region_id
+      if (currentFilters.region_id) {
+        params.region_id = currentFilters.region_id
       }
       
       const response = await assetsApi.lands.available(params)
@@ -63,11 +80,11 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [])
   
   useEffect(() => {
     fetchLands()
-  }, [fetchLands])
+  }, [filtersKey])
   
   return { lands, loading, error, hasMore, totalCount, stats, refetch: fetchLands }
 }
@@ -79,6 +96,12 @@ export function useLandDetail(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
+    if (!id || isNaN(id)) {
+      setError('无效的土地ID')
+      setLoading(false)
+      return
+    }
+    
     const fetchLand = async () => {
       try {
         setLoading(true)
@@ -93,9 +116,7 @@ export function useLandDetail(id: number) {
       }
     }
     
-    if (id) {
-      fetchLand()
-    }
+    fetchLand()
   }, [id])
   
   return { land, loading, error }
@@ -139,70 +160,111 @@ export function useMyLandsInRegion(regionId: number | null, regionName?: string)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const fetchMyLandsInRegion = useCallback(async () => {
-    if (!regionId) {
-      setLands([])
-      setLoading(false)
-      return
+  useEffect(() => {
+    const fetchMyLandsInRegion = async () => {
+      if (!regionId) {
+        setLands([])
+        setLoading(false)
+        return
+      }
+      
+      try {
+        setLoading(true)
+        setError(null)
+        
+        console.log('[useMyLandsInRegion] Fetching lands for region:', regionId, regionName)
+        
+        // 获取用户所有土地
+        const response = await assetsApi.lands.myLands({
+          page_size: 100 // 确保获取所有土地
+        })
+        
+        console.log('[useMyLandsInRegion] Total user lands:', response.results.length)
+        
+        // 过滤出在当前区域的土地
+        const landsInRegion = response.results.filter(land => {
+          // 方法1: 如果土地有 region_id 字段
+          if ('region_id' in land && land.region_id === regionId) {
+            return true
+          }
+          
+          // 方法2: 通过区域名称匹配
+          if (regionName && land.region_name === regionName) {
+            return true
+          }
+          
+          // 方法3: 解析 land_id 中的区域代码
+          // land_id 格式可能是: LAND-CN-BJ-CY-xxxxx
+          // 这需要知道区域的代码
+          
+          return false
+        })
+        
+        console.log('[useMyLandsInRegion] Filtered lands in region:', landsInRegion.length)
+        
+        // 如果没有找到该区域的土地，返回所有土地（临时解决方案）
+        if (landsInRegion.length === 0 && response.results.length > 0) {
+          console.log('[useMyLandsInRegion] No lands in specific region, showing all lands')
+          setLands(response.results)
+        } else {
+          setLands(landsInRegion)
+        }
+      } catch (err) {
+        console.error('[useMyLandsInRegion] Error:', err)
+        // 如果是认证错误，不显示错误，只是返回空数组
+        if (err instanceof Error && err.message.includes('401')) {
+          setLands([])
+        } else {
+          setError(err instanceof Error ? err.message : '加载失败')
+        }
+      } finally {
+        setLoading(false)
+      }
     }
     
-    try {
-      setLoading(true)
-      setError(null)
-      
-      console.log('[useMyLandsInRegion] Fetching lands for region:', regionId, regionName)
-      
-      // 获取用户所有土地
-      const response = await assetsApi.lands.myLands({
-        page_size: 100 // 确保获取所有土地
-      })
-      
-      console.log('[useMyLandsInRegion] Total user lands:', response.results.length)
-      
-      // 过滤出在当前区域的土地
-      const landsInRegion = response.results.filter(land => {
-        // 方法1: 如果土地有 region_id 字段
-        if ('region_id' in land && land.region_id === regionId) {
-          return true
-        }
-        
-        // 方法2: 通过区域名称匹配
-        if (regionName && land.region_name === regionName) {
-          return true
-        }
-        
-        // 方法3: 解析 land_id 中的区域代码
-        // land_id 格式可能是: LAND-CN-BJ-CY-xxxxx
-        // 这需要知道区域的代码
-        
-        return false
-      })
-      
-      console.log('[useMyLandsInRegion] Filtered lands in region:', landsInRegion.length)
-      
-      // 如果没有找到该区域的土地，返回所有土地（临时解决方案）
-      if (landsInRegion.length === 0 && response.results.length > 0) {
-        console.log('[useMyLandsInRegion] No lands in specific region, showing all lands')
-        setLands(response.results)
-      } else {
-        setLands(landsInRegion)
-      }
-    } catch (err) {
-      console.error('[useMyLandsInRegion] Error:', err)
-      // 如果是认证错误，不显示错误，只是返回空数组
-      if (err instanceof Error && err.message.includes('401')) {
-        setLands([])
-      } else {
-        setError(err instanceof Error ? err.message : '加载失败')
-      }
-    } finally {
-      setLoading(false)
-    }
+    fetchMyLandsInRegion()
   }, [regionId, regionName])
   
-  useEffect(() => {
+  const refetchMyLandsInRegion = useCallback(() => {
+    if (!regionId) return
+    
+    const fetchMyLandsInRegion = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await assetsApi.lands.myLands({
+          page_size: 100
+        })
+        
+        const landsInRegion = response.results.filter(land => {
+          if ('region_id' in land && land.region_id === regionId) {
+            return true
+          }
+          if (regionName && land.region_name === regionName) {
+            return true
+          }
+          return false
+        })
+        
+        if (landsInRegion.length === 0 && response.results.length > 0) {
+          setLands(response.results)
+        } else {
+          setLands(landsInRegion)
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('401')) {
+          setLands([])
+        } else {
+          setError(err instanceof Error ? err.message : '加载失败')
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    
     fetchMyLandsInRegion()
-  }, [fetchMyLandsInRegion])
+  }, [regionId, regionName])
   
-  return { lands, loading, error, refetch: fetchMyLandsInRegion }
+  return { lands, loading, error, refetch: refetchMyLandsInRegion }
 }
