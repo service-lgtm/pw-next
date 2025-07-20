@@ -31,7 +31,7 @@ export function LandDetailModal({
   onPurchaseSuccess,
 }: LandDetailModalProps) {
   const { requireAuth, isAuthenticated } = useRequireAuth()
-  const { land, loading, error } = useLandDetail(landId)
+  const { land, loading, error } = landId ? useLandDetail(landId) : { land: null, loading: false, error: null }
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [purchaseSuccess, setPurchaseSuccess] = useState(false)
   
