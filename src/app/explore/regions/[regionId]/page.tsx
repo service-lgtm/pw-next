@@ -1,565 +1,434 @@
 // src/app/explore/regions/[regionId]/page.tsx
-// 区域详情页面 - 完整版本
+// 区域详情页面 - 修复循环请求问题 - 完整版本
 
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { 
-  ArrowLeft, Loader2, AlertCircle, MapPin, Globe, 
-  Building2, Trees, Gem, Filter, Grid3x3, List,
-  TrendingUp, Activity, Eye, ShoppingBag, ChevronDown,
-  LayoutDashboard, Crown, Star
-} from 'lucide-react'
-import { useRegion, useRegionStats, useRegions } from '@/hooks/useRegions'
-import { useLands, useMyLandsInRegion } from '@/hooks/useLands'
+import { motion, AnimatePresence } from 'framer-motion'
 import { RegionBreadcrumb } from '@/components/explore/RegionBreadcrumb'
-import { LandGrid } from '@/components/explore/LandGrid'
-import { FilterPanel } from '@/components/explore/FilterPanel'
-import { LandDetailModal } from '@/components/explore/LandDetailModal'
-import { MyLandsSection } from '@/components/explore/MyLandsSection'
-import type { FilterState, Land } from '@/types/assets'
-import { cn } from '@/lib/utils'
+import { RegionHero } from '@/components/explore/RegionHero'
+import { RegionStats } from '@/components/explore/RegionStats'
+import { LandCard } from '@/components/explore/LandCard'
+import { Container } from '@/components/ui/Container'
+import { Navbar } from '@/components/layout/Navbar'
+import { PixelCard } from '@/components/shared/PixelCard'
+import { PixelButton } from '@/components/shared/PixelButton'
+import { useRegion, useRegions, useRegionStats } from '@/hooks/useRegions'
+import { useLands, useMyLandsInRegion } from '@/hooks/useLands'
 import { useAuth } from '@/hooks/useAuth'
+import type { Region } from '@/types/assets'
+// 如果你安装了 @heroicons/react，请取消下面的注释
+// import { MapPinIcon, GlobeAsiaAustraliaIcon, BuildingOfficeIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
-// 获取区域类型的中文显示
-function getRegionTypeDisplay(type?: string): string {
-  const typeMap: Record<string, string> = {
-    world: '世界',
-    continent: '大洲',
-    country: '国家',
-    province: '省份',
-    city: '城市',
-    district: '区/县',
-    area: '区域'
+// 如果没有安装 heroicons，使用这些简单的 SVG 图标组件
+const ChevronRightIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+)
+
+const MapPinIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+  </svg>
+)
+
+const GlobeAsiaAustraliaIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+  </svg>
+)
+
+const BuildingOfficeIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+  </svg>
+)
+
+// 区域类型映射
+const regionTypeMap: Record<string, { 
+  name: string; 
+  icon: React.ReactNode;
+  childType?: string;
+  showLands?: boolean;
+}> = {
+  world: { 
+    name: '世界', 
+    icon: <span className="text-2xl">🌍</span>,
+    childType: 'continent'
+  },
+  continent: { 
+    name: '大洲', 
+    icon: <span className="text-2xl">🗺️</span>,
+    childType: 'country'
+  },
+  country: { 
+    name: '国家', 
+    icon: <span className="text-2xl">🏛️</span>,
+    childType: 'province'
+  },
+  province: { 
+    name: '省份', 
+    icon: <span className="text-2xl">🏙️</span>,
+    childType: 'city',
+    showLands: true
+  },
+  city: { 
+    name: '城市', 
+    icon: <span className="text-2xl">🌆</span>,
+    childType: 'district',
+    showLands: true
+  },
+  district: { 
+    name: '区县', 
+    icon: <span className="text-2xl">🏘️</span>,
+    childType: 'area',
+    showLands: true
+  },
+  area: { 
+    name: '区域', 
+    icon: <span className="text-2xl">📍</span>,
+    showLands: true
   }
-  return typeMap[type || ''] || type || '未知'
-}
-
-// 获取子区域类型的中文显示
-function getChildRegionTypeDisplay(parentType?: string): string {
-  const childTypeMap: Record<string, string> = {
-    world: '大洲',
-    continent: '国家',
-    country: '省份',
-    province: '城市',
-    city: '区/县',
-    district: '区域',
-    area: '地块'
-  }
-  return childTypeMap[parentType || ''] || '子区域'
-}
-
-// 区域类型图标
-const regionTypeIcons: Record<string, any> = {
-  world: Globe,
-  continent: Globe,
-  country: MapPin,
-  province: MapPin,
-  city: Building2,
-  district: Building2,
-  area: Trees
 }
 
 export default function RegionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const regionId = Number(params.regionId)
-  const { isAuthenticated } = useAuth()
-  
-  // 移动端检测
-  const [isMobile, setIsMobile] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  
-  const [filters, setFilters] = useState<FilterState>({
-    land_type: 'all',
-    status: 'all',
-    priceRange: {},
-    search: '',
-    ordering: '-created_at',
-    page: 1,
-    page_size: 20,
-  })
-  
-  const [selectedLand, setSelectedLand] = useState<Land | null>(null)
-  const [showLandDetail, setShowLandDetail] = useState(false)
+  const { user, isAuthenticated } = useAuth()
   
   // 获取区域信息
   const { region, loading: regionLoading, error: regionError } = useRegion(regionId)
-  const { stats, loading: statsLoading } = useRegionStats(regionId)
   
-  // 获取子区域
-  const { regions: childRegions, loading: childRegionsLoading } = useRegions({ 
-    parent_id: regionId,
-    is_active: true 
-  })
+  // 获取区域统计信息
+  const { stats: regionStats } = useRegionStats(regionId)
   
-  // 使用 useMemo 来稳定判断条件
-  const shouldShowLands = useMemo(() => {
-    if (!region) return false
-    return (
-      region.region_type === 'district' || 
-      region.region_type === 'area' ||
-      (region.children_count === 0 && region.is_open_for_sale)
-    )
-  }, [region])
-  
-  // 使用 useMemo 来稳定查询参数
-  const landQueryParams = useMemo(() => {
-    if (!shouldShowLands) return null
+  // 使用 useMemo 稳定子区域查询参数
+  const subRegionOptions = useMemo(() => {
+    if (!region?.id) return null
     return {
-      ...filters,
-      region_id: regionId,
+      parent_id: region.id,
+      isActive: true
     }
-  }, [shouldShowLands, filters, regionId])
+  }, [region?.id])
   
-  // 获取可购买的土地列表
+  // 获取子区域 - 只在有参数时才调用
+  const { regions: subRegions = [], loading: subRegionsLoading } = useRegions(subRegionOptions)
+  
+  // 使用 useMemo 稳定土地查询参数
+  const landFilters = useMemo(() => {
+    const typeConfig = region ? regionTypeMap[region.region_type] : null
+    if (!region || !typeConfig?.showLands) return null
+    
+    return {
+      region_id: region.id,
+      page: 1,
+      page_size: 20,
+      ordering: '-created_at'
+    }
+  }, [region?.id, region?.region_type])
+  
+  // 获取可购买的土地
   const { 
-    lands, 
-    loading: landsLoading, 
-    error: landsError,
-    totalCount,
-    stats: landStats,
-    refetch
-  } = useLands(landQueryParams)
+    lands: availableLands = [], 
+    loading: landsLoading,
+    totalCount: totalLands = 0
+  } = useLands(landFilters)
   
   // 获取用户在该区域的土地
-  const {
-    lands: myLands,
-    loading: myLandsLoading,
-    refetch: refetchMyLands
-  } = useMyLandsInRegion(
-    shouldShowLands && isAuthenticated ? regionId : null,
-    region?.name  // 传入区域名称用于匹配
-  )
+  const { 
+    lands: myLands = [], 
+    loading: myLandsLoading 
+  } = useMyLandsInRegion(region?.id || null, region?.name)
   
-  const loading = regionLoading || childRegionsLoading || (shouldShowLands && landsLoading)
-  const error = regionError || (shouldShowLands && landsError)
+  // Tab 状态
+  const [activeTab, setActiveTab] = useState<'subregions' | 'lands' | 'mylands'>('subregions')
   
-  // 移动端检测
+  // 根据区域类型和数据自动选择 tab
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
+    if (!region) return
+    
+    const typeConfig = regionTypeMap[region.region_type]
+    
+    // 如果有子区域，默认显示子区域
+    if (subRegions.length > 0) {
+      setActiveTab('subregions')
+    } 
+    // 如果该类型应该显示土地且有土地，显示土地
+    else if (typeConfig?.showLands && totalLands > 0) {
+      setActiveTab('lands')
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-  
-  // 路由验证
-  useEffect(() => {
-    if (!regionId || isNaN(regionId)) {
-      router.push('/explore')
+    // 如果用户有土地，显示我的土地
+    else if (myLands.length > 0) {
+      setActiveTab('mylands')
     }
-  }, [regionId, router])
+  }, [region, subRegions.length, totalLands, myLands.length])
   
-  if (loading) {
+  // 加载状态
+  if (regionLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center">
         <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <Gem className="w-12 h-12 text-gold-500 mx-auto mb-4" />
-          </motion.div>
-          <p className="text-gray-400">加载中...</p>
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">加载区域信息...</p>
         </div>
       </div>
     )
   }
   
-  if (error || !region) {
+  // 错误状态
+  if (regionError || !region) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10"
-        >
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">出错了</h2>
-          <p className="text-gray-400 mb-6">{error || '区域不存在'}</p>
-          <button
-            onClick={() => router.push('/explore')}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-          >
-            返回探索页
-          </button>
-        </motion.div>
+      <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center">
+        <PixelCard className="p-8 max-w-md text-center">
+          <span className="text-4xl mb-4 block">❌</span>
+          <h2 className="text-xl font-bold text-white mb-2">加载失败</h2>
+          <p className="text-gray-400 mb-4">{regionError || '区域不存在'}</p>
+          <PixelButton onClick={() => router.push('/explore/regions')}>
+            返回区域列表
+          </PixelButton>
+        </PixelCard>
       </div>
     )
   }
   
-  const handleFilterChange = (newFilters: Partial<FilterState>) => {
-    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }))
+  const regionType = regionTypeMap[region.region_type] || { 
+    name: region.region_type, 
+    icon: <MapPinIcon className="w-6 h-6" />
   }
   
-  const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-  
-  const handleLandClick = (land: Land) => {
-    setSelectedLand(land)
-    setShowLandDetail(true)
-  }
-  
-  const RegionIcon = regionTypeIcons[region.region_type] || MapPin
+  // 判断是否应该显示各个 tab
+  const showSubRegions = subRegions.length > 0
+  const showLands = regionType.showLands && totalLands > 0
+  const showMyLands = myLands.length > 0
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
-      {/* 动态背景 */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
+    <div className="min-h-screen bg-[#0F0F1E] relative">
+      <Navbar />
       
-      {/* 顶部导航 - 添加Dashboard按钮 */}
-      <div className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => router.back()}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all hover:scale-105"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <RegionBreadcrumb regionId={regionId} />
-            </div>
-            
-            {/* Dashboard 按钮 */}
-            {isAuthenticated && (
-              <Link
-                href="/dashboard"
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-                  "bg-gradient-to-r from-purple-600 to-pink-600 text-white",
-                  "hover:shadow-lg hover:shadow-purple-500/25",
-                  "font-medium text-sm md:text-base"
-                )}
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden md:inline">控制台</span>
-              </Link>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* 主内容 - 保持原有结构 */}
-      <div className="relative container mx-auto px-4 py-6 md:py-10">
-        {/* 区域信息头部 */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 md:mb-10"
-        >
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 border border-white/10">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <RegionIcon className="w-6 h-6 md:w-8 md:h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl md:text-4xl font-black text-white mb-2">{region?.name}</h1>
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <span className="px-3 py-1 bg-white/10 rounded-full">
-                      {getRegionTypeDisplay(region?.region_type)}
-                    </span>
-                    {region?.is_open_for_sale && (
-                      <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        已开放销售
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+      <Container className="pt-24 pb-16">
+        {/* 面包屑导航 */}
+        <RegionBreadcrumb region={region} />
+        
+        {/* 区域信息展示 */}
+        <RegionHero region={region} regionType={regionType} />
+        
+        {/* 统计信息展示 */}
+        {regionStats && <RegionStats stats={regionStats} />}
+        
+        {/* Tab 导航 */}
+        {(showSubRegions || showLands || showMyLands) && (
+          <div className="mb-8 border-b-4 border-gray-800">
+            <div className="flex gap-2">
+              {showSubRegions && (
+                <button
+                  onClick={() => setActiveTab('subregions')}
+                  className={`px-6 py-3 font-bold text-sm transition-all relative ${
+                    activeTab === 'subregions'
+                      ? 'text-gold-500'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {regionType.childType ? regionTypeMap[regionType.childType].name : '子区域'}
+                  <span className="ml-2 text-xs">({subRegions.length})</span>
+                  {activeTab === 'subregions' && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-1 bg-gold-500"
+                    />
+                  )}
+                </button>
+              )}
               
-              {/* 统计信息卡片 */}
-              {stats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 md:mt-0">
-                  <div className="bg-black/20 rounded-xl p-3 text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-white">{stats.total_lands}</p>
-                    <p className="text-xs text-gray-400">总土地</p>
-                  </div>
-                  <div className="bg-black/20 rounded-xl p-3 text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-green-400">{stats.available_lands}</p>
-                    <p className="text-xs text-gray-400">可购买</p>
-                  </div>
-                  <div className="bg-black/20 rounded-xl p-3 text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-gold-500">
-                      {stats.average_price ? `¥${Math.round(stats.average_price / 10000)}万` : '-'}
-                    </p>
-                    <p className="text-xs text-gray-400">均价</p>
-                  </div>
-                  <div className="bg-black/20 rounded-xl p-3 text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-purple-400">
-                      {Math.round((stats.owned_lands / stats.total_lands) * 100)}%
-                    </p>
-                    <p className="text-xs text-gray-400">持有率</p>
-                  </div>
-                </div>
+              {showLands && (
+                <button
+                  onClick={() => setActiveTab('lands')}
+                  className={`px-6 py-3 font-bold text-sm transition-all relative ${
+                    activeTab === 'lands'
+                      ? 'text-gold-500'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  可购买土地
+                  <span className="ml-2 text-xs">({totalLands})</span>
+                  {activeTab === 'lands' && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-1 bg-gold-500"
+                    />
+                  )}
+                </button>
+              )}
+              
+              {showMyLands && (
+                <button
+                  onClick={() => setActiveTab('mylands')}
+                  className={`px-6 py-3 font-bold text-sm transition-all relative ${
+                    activeTab === 'mylands'
+                      ? 'text-gold-500'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  我的土地
+                  <span className="ml-2 text-xs">({myLands.length})</span>
+                  {activeTab === 'mylands' && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-1 bg-gold-500"
+                    />
+                  )}
+                </button>
               )}
             </div>
           </div>
-        </motion.div>
+        )}
         
-        {/* 如果有子区域，显示子区域网格 */}
-        {childRegions.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl md:text-2xl font-bold text-white">
-                选择{getChildRegionTypeDisplay(region?.region_type)}
-              </h2>
-              <div className="text-sm text-gray-400">
-                共 {childRegions.length} 个区域
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {childRegions.map((child, index) => (
-                <motion.div
-                  key={child.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                >
-                  <Link
-                    href={`/explore/regions/${child.id}`}
-                    className={cn(
-                      "block h-full p-5 bg-white/5 backdrop-blur-sm hover:bg-white/10",
-                      "rounded-xl transition-all border-2",
-                      child.is_open_for_sale 
-                        ? "border-purple-500/30 hover:border-purple-500/60 hover:shadow-lg hover:shadow-purple-500/20" 
-                        : "border-gray-700/50 hover:border-gray-600"
-                    )}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-bold text-lg">{child.name}</h3>
-                      {child.is_open_for_sale ? (
-                        <Eye className="w-5 h-5 text-purple-400" />
-                      ) : (
-                        <div className="w-5 h-5" />
-                      )}
-                    </div>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between text-gray-400">
-                        <span>代码</span>
-                        <span className="text-white font-mono">{child.code}</span>
-                      </div>
-                      
-                      {child.total_lands > 0 && (
-                        <>
-                          <div className="flex justify-between text-gray-400">
-                            <span>总土地</span>
-                            <span className="text-white font-medium">{child.total_lands}</span>
-                          </div>
-                          <div className="flex justify-between text-gray-400">
-                            <span>可购买</span>
-                            <span className="text-green-400 font-medium">{child.available_lands}</span>
-                          </div>
-                          
-                          {/* 进度条 */}
-                          <div className="mt-3">
-                            <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ 
-                                  width: `${((child.total_lands - child.available_lands) / child.total_lands) * 100}%`
-                                }}
-                                transition={{ delay: index * 0.1 + 0.5, duration: 1 }}
-                                className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                              />
+        {/* Tab 内容区域 */}
+        <AnimatePresence mode="wait">
+          {/* 子区域列表 */}
+          {activeTab === 'subregions' && showSubRegions && (
+            <motion.div
+              key="subregions"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {subRegionsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin text-2xl">⏳</div>
+                  <p className="text-gray-400 mt-2">加载子区域...</p>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {subRegions.map((subRegion) => (
+                    <Link
+                      key={subRegion.id}
+                      href={`/explore/regions/${subRegion.id}`}
+                    >
+                      <PixelCard className="p-6 hover:border-gold-500 transition-all cursor-pointer group">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            {regionTypeMap[subRegion.region_type]?.icon}
+                            <div>
+                              <h3 className="font-bold text-white group-hover:text-gold-500 transition-colors">
+                                {subRegion.name}
+                              </h3>
+                              <p className="text-xs text-gray-500">{subRegion.code}</p>
                             </div>
-                            <p className="text-xs text-gray-400 mt-1">
-                              已售 {Math.round(((child.total_lands - child.available_lands) / child.total_lands) * 100)}%
+                          </div>
+                          <ChevronRightIcon className="w-5 h-5 text-gray-600 group-hover:text-gold-500 transition-colors" />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-gray-500">土地总数</p>
+                            <p className="font-bold text-white">{subRegion.total_lands.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">可购买</p>
+                            <p className="font-bold text-green-500">{subRegion.available_lands.toLocaleString()}</p>
+                          </div>
+                        </div>
+                        
+                        {subRegion.children_count > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-800">
+                            <p className="text-xs text-gray-500">
+                              包含 {subRegion.children_count} 个{regionTypeMap[subRegion.region_type]?.childType ? regionTypeMap[regionTypeMap[subRegion.region_type].childType!].name : '子区域'}
                             </p>
                           </div>
-                        </>
-                      )}
-                      
-                      <div className="pt-3">
-                        {child.is_open_for_sale ? (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
-                            <Activity className="w-3 h-3" />
-                            已开放
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-700/50 text-gray-400 text-xs rounded-full">
-                            即将开放
-                          </span>
                         )}
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        ) : shouldShowLands ? (
-          // 如果没有子区域且应该显示土地，显示土地列表
-          <div>
-            {/* 我的土地展示区域 */}
-            {isAuthenticated && myLands.length > 0 && (
-              <MyLandsSection
-                lands={myLands}
-                loading={myLandsLoading}
-                onLandClick={handleLandClick}
-                regionName={region.name}
-              />
-            )}
-            
-            {/* 工具栏 */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white">可购买土地</h2>
-                <p className="text-sm text-gray-400 mt-1">
-                  共 {totalCount} 块土地可供选购
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {/* 移动端筛选按钮 */}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={cn(
-                    "md:hidden px-4 py-2 rounded-lg flex items-center gap-2 transition-all",
-                    showFilters 
-                      ? "bg-purple-600 text-white" 
-                      : "bg-white/10 hover:bg-white/20"
-                  )}
-                >
-                  <Filter className="w-4 h-4" />
-                  筛选
-                  {showFilters && <ChevronDown className="w-4 h-4 rotate-180" />}
-                </button>
-                
-                {/* 视图切换 */}
-                <div className="flex items-center bg-white/10 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={cn(
-                      "p-2 rounded transition-all",
-                      viewMode === 'grid' 
-                        ? "bg-purple-600 text-white" 
-                        : "text-gray-400 hover:text-white"
-                    )}
-                  >
-                    <Grid3x3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={cn(
-                      "p-2 rounded transition-all",
-                      viewMode === 'list' 
-                        ? "bg-purple-600 text-white" 
-                        : "text-gray-400 hover:text-white"
-                    )}
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
+                      </PixelCard>
+                    </Link>
+                  ))}
                 </div>
-              </div>
-            </div>
-            
-            <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-              {/* 筛选面板 - 响应式 */}
-              <AnimatePresence>
-                {(showFilters || !isMobile) && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className={cn(
-                      "lg:relative",
-                      isMobile && "fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-xl p-4 overflow-y-auto"
-                    )}
-                  >
-                    {isMobile && (
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-bold">筛选条件</h3>
-                        <button
-                          onClick={() => setShowFilters(false)}
-                          className="p-2 hover:bg-white/10 rounded-lg"
-                        >
-                          <ArrowLeft className="w-5 h-5" />
-                        </button>
-                      </div>
-                    )}
-                    <FilterPanel
-                      filters={filters}
-                      onFilterChange={handleFilterChange}
-                      stats={stats}
-                      totalLands={totalCount}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {/* 土地网格 */}
-              <div className={cn(isMobile && showFilters && "hidden")}>
-                <LandGrid
-                  lands={lands}
-                  loading={landsLoading}
-                  onLandClick={handleLandClick}
-                  currentPage={filters.page}
-                  totalPages={Math.ceil(totalCount / filters.page_size)}
-                  onPageChange={handlePageChange}
-                  viewMode={viewMode}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          // 既没有子区域也不应该显示土地
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-20"
-          >
-            <div className="max-w-md mx-auto">
-              <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-6 flex items-center justify-center">
-                <MapPin className="w-12 h-12 text-white" />
-              </div>
-              <p className="text-xl text-gray-300 mb-2">
-                {region?.is_open_for_sale ? '该区域暂无可用数据' : '该区域尚未开放'}
-              </p>
-              <p className="text-sm text-gray-500">
-                {region?.is_open_for_sale 
-                  ? '请稍后再来查看或选择其他区域' 
-                  : '敬请期待后续开放'
-                }
-              </p>
-            </div>
-          </motion.div>
+              )}
+            </motion.div>
+          )}
+          
+          {/* 可购买土地列表 */}
+          {activeTab === 'lands' && showLands && (
+            <motion.div
+              key="lands"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {!isAuthenticated ? (
+                <PixelCard className="p-8 text-center">
+                  <span className="text-4xl mb-4 block">🔒</span>
+                  <h3 className="text-xl font-bold text-white mb-2">需要登录</h3>
+                  <p className="text-gray-400 mb-4">登录后才能查看和购买土地</p>
+                  <Link href="/login">
+                    <PixelButton>立即登录</PixelButton>
+                  </Link>
+                </PixelCard>
+              ) : landsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin text-2xl">⏳</div>
+                  <p className="text-gray-400 mt-2">加载土地信息...</p>
+                </div>
+              ) : availableLands.length === 0 ? (
+                <PixelCard className="p-8 text-center">
+                  <span className="text-4xl mb-4 block">🏞️</span>
+                  <h3 className="text-xl font-bold text-white mb-2">暂无可购买土地</h3>
+                  <p className="text-gray-400">该区域暂时没有可购买的土地</p>
+                </PixelCard>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {availableLands.map((land) => (
+                    <LandCard key={land.id} land={land} />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+          
+          {/* 我的土地列表 */}
+          {activeTab === 'mylands' && showMyLands && (
+            <motion.div
+              key="mylands"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {myLandsLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin text-2xl">⏳</div>
+                  <p className="text-gray-400 mt-2">加载我的土地...</p>
+                </div>
+              ) : myLands.length === 0 ? (
+                <PixelCard className="p-8 text-center">
+                  <span className="text-4xl mb-4 block">🏞️</span>
+                  <h3 className="text-xl font-bold text-white mb-2">暂无土地</h3>
+                  <p className="text-gray-400">您在该区域还没有土地</p>
+                </PixelCard>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {myLands.map((land) => (
+                    <LandCard key={land.id} land={land} isOwned />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {/* 空状态 - 当没有任何数据时显示 */}
+        {!showSubRegions && !showLands && !showMyLands && (
+          <PixelCard className="p-8 text-center">
+            <span className="text-4xl mb-4 block">📍</span>
+            <h3 className="text-xl font-bold text-white mb-2">暂无数据</h3>
+            <p className="text-gray-400">该区域暂无子区域或可购买的土地</p>
+          </PixelCard>
         )}
-      </div>
-      
-      {/* 土地详情弹窗 */}
-      {selectedLand && (
-        <LandDetailModal
-          landId={selectedLand.id}
-          isOpen={showLandDetail}
-          onClose={() => setShowLandDetail(false)}
-          onPurchaseSuccess={() => {
-            setShowLandDetail(false)
-            refetch()
-            refetchMyLands()
-          }}
-        />
-      )}
+      </Container>
     </div>
   )
 }
