@@ -3,7 +3,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRegions } from '@/hooks/useRegions'
@@ -38,12 +38,15 @@ export default function ExplorePage() {
   const [selectedRegion, setSelectedRegion] = useState<number | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   
-  // 使用正确的查询参数
-  const { regions, loading, error } = useRegions({
+  // 使用 useMemo 稳定查询参数对象
+  const regionsQueryParams = useMemo(() => ({
     regionType: 'country',
     isActive: true,
     isOpenForSale: true,
-  })
+  }), [])
+  
+  // 使用正确的查询参数
+  const { regions, loading, error } = useRegions(regionsQueryParams)
   
   const { isAuthenticated, user } = useAuth()
   
