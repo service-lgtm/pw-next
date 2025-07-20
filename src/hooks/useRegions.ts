@@ -1,7 +1,7 @@
 // src/hooks/useRegions.ts
-// 区域数据Hook - 修复循环请求问题
+// 区域数据Hook - 最小化修复循环请求
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { assetsApi } from '@/lib/api/assets'
 import { ApiError } from '@/lib/api'
 import type { Region } from '@/types/assets'
@@ -18,16 +18,14 @@ export function useRegions(options: UseRegionsOptions = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // 使用 useMemo 来稳定请求参数，避免对象引用变化导致的重复请求
-  const stableParams = useMemo(() => ({
-    parent_id: options.parent_id,
-    region_type: options.regionType,
-    is_active: options.isActive,
-    is_open_for_sale: options.isOpenForSale,
-  }), [options.parent_id, options.regionType, options.isActive, options.isOpenForSale])
-  
   useEffect(() => {
-    // 添加取消标志，防止组件卸载后更新状态
+    // 如果 options 为 null，不执行请求
+    if (options === null) {
+      setRegions([])
+      setLoading(false)
+      return
+    }
+    
     let cancelled = false
     
     const fetchRegions = async () => {
@@ -35,33 +33,26 @@ export function useRegions(options: UseRegionsOptions = {}) {
         setLoading(true)
         setError(null)
         
-        console.log('[useRegions] Fetching regions with params:', stableParams)
+        const response = await assetsApi.regions.list({
+          parent_id: options.parent_id,
+          region_type: options.regionType,
+          is_active: options.isActive,
+          is_open_for_sale: options.isOpenForSale,
+        })
         
-        const response = await assetsApi.regions.list(stableParams)
-        
-        // 如果组件已卸载，不要更新状态
-        if (cancelled) {
-          console.log('[useRegions] Request cancelled, skipping state update')
-          return
+        if (!cancelled) {
+          setRegions(response.results)
         }
-        
-        setRegions(response.results)
-        console.log('[useRegions] Loaded regions:', response.results.length)
       } catch (err) {
-        // 如果组件已卸载，不要更新状态
-        if (cancelled) {
-          console.log('[useRegions] Error handling cancelled')
-          return
-        }
-        
-        if (err instanceof ApiError && err.status === 403) {
-          console.log('[useRegions] 用户未登录，显示登录提示')
-          setError('需要登录后查看')
-        } else {
-          setError(err instanceof Error ? err.message : '加载失败')
+        if (!cancelled) {
+          if (err instanceof ApiError && err.status === 403) {
+            console.log('[useRegions] 用户未登录，显示登录提示')
+            setError('需要登录后查看')
+          } else {
+            setError(err instanceof Error ? err.message : '加载失败')
+          }
         }
       } finally {
-        // 如果组件已卸载，不要更新状态
         if (!cancelled) {
           setLoading(false)
         }
@@ -70,12 +61,10 @@ export function useRegions(options: UseRegionsOptions = {}) {
     
     fetchRegions()
     
-    // 清理函数：组件卸载时设置取消标志
     return () => {
       cancelled = true
-      console.log('[useRegions] Cleanup: setting cancelled flag')
     }
-  }, [stableParams.parent_id, stableParams.region_type, stableParams.is_active, stableParams.is_open_for_sale])
+  }, [options.parent_id, options.regionType, options.isActive, options.isOpenForSale])
   
   return { regions, loading, error }
 }
@@ -86,7 +75,12 @@ export function useRegion(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    // 添加取消标志
+    if (!id) {
+      setRegion(null)
+      setLoading(false)
+      return
+    }
+    
     let cancelled = false
     
     const fetchRegion = async () => {
@@ -94,29 +88,20 @@ export function useRegion(id: number) {
         setLoading(true)
         setError(null)
         
-        console.log('[useRegion] Fetching region:', id)
-        
         const data = await assetsApi.regions.get(id)
         
-        if (cancelled) {
-          console.log('[useRegion] Request cancelled, skipping state update')
-          return
+        if (!cancelled) {
+          setRegion(data)
         }
-        
-        setRegion(data)
-        console.log('[useRegion] Loaded region:', data.name)
       } catch (err) {
-        if (cancelled) {
-          console.log('[useRegion] Error handling cancelled')
-          return
-        }
-        
-        if (err instanceof ApiError && err.status === 403) {
-          setError('需要登录后查看')
-        } else if (err instanceof ApiError && err.status === 404) {
-          setError('区域不存在')
-        } else {
-          setError(err instanceof Error ? err.message : '加载失败')
+        if (!cancelled) {
+          if (err instanceof ApiError && err.status === 403) {
+            setError('需要登录后查看')
+          } else if (err instanceof ApiError && err.status === 404) {
+            setError('区域不存在')
+          } else {
+            setError(err instanceof Error ? err.message : '加载失败')
+          }
         }
       } finally {
         if (!cancelled) {
@@ -125,13 +110,10 @@ export function useRegion(id: number) {
       }
     }
     
-    if (id) {
-      fetchRegion()
-    }
+    fetchRegion()
     
     return () => {
       cancelled = true
-      console.log('[useRegion] Cleanup: setting cancelled flag')
     }
   }, [id])
   
@@ -144,6 +126,12 @@ export function useRegionStats(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
+    if (!id) {
+      setStats(null)
+      setLoading(false)
+      return
+    }
+    
     let cancelled = false
     
     const fetchStats = async () => {
@@ -151,30 +139,20 @@ export function useRegionStats(id: number) {
         setLoading(true)
         setError(null)
         
-        console.log('[useRegionStats] Fetching stats for region:', id)
-        
         const response = await assetsApi.regions.stats(id)
         
-        if (cancelled) {
-          console.log('[useRegionStats] Request cancelled, skipping state update')
-          return
-        }
-        
-        if (response.success) {
-          setStats(response.data)
-          console.log('[useRegionStats] Loaded stats:', response.data)
+        if (!cancelled) {
+          if (response.success) {
+            setStats(response.data)
+          }
         }
       } catch (err) {
-        if (cancelled) {
-          console.log('[useRegionStats] Error handling cancelled')
-          return
-        }
-        
-        if (err instanceof ApiError && err.status === 403) {
-          console.log('[useRegionStats] 需要登录后查看统计信息')
-          // 不设置错误，让UI显示登录提示
-        } else {
-          setError(err instanceof Error ? err.message : '加载失败')
+        if (!cancelled) {
+          if (err instanceof ApiError && err.status === 403) {
+            console.log('[useRegionStats] 需要登录后查看统计信息')
+          } else {
+            setError(err instanceof Error ? err.message : '加载失败')
+          }
         }
       } finally {
         if (!cancelled) {
@@ -183,13 +161,10 @@ export function useRegionStats(id: number) {
       }
     }
     
-    if (id) {
-      fetchStats()
-    }
+    fetchStats()
     
     return () => {
       cancelled = true
-      console.log('[useRegionStats] Cleanup: setting cancelled flag')
     }
   }, [id])
   
