@@ -18,6 +18,14 @@ export function useRegions(options: UseRegionsOptions = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
+  // 使用 JSON.stringify 来比较对象内容而非引用
+  const optionsKey = JSON.stringify({
+    parent_id: options.parent_id,
+    region_type: options.regionType,
+    is_active: options.isActive,
+    is_open_for_sale: options.isOpenForSale,
+  })
+  
   useEffect(() => {
     const fetchRegions = async () => {
       try {
@@ -45,7 +53,7 @@ export function useRegions(options: UseRegionsOptions = {}) {
     }
     
     fetchRegions()
-  }, [options.parent_id, options.regionType, options.isActive, options.isOpenForSale])
+  }, [optionsKey])
   
   return { regions, loading, error }
 }
@@ -56,6 +64,13 @@ export function useRegion(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
+    // 确保 id 有效
+    if (!id || isNaN(id)) {
+      setError('无效的区域ID')
+      setLoading(false)
+      return
+    }
+    
     const fetchRegion = async () => {
       try {
         setLoading(true)
@@ -76,9 +91,7 @@ export function useRegion(id: number) {
       }
     }
     
-    if (id) {
-      fetchRegion()
-    }
+    fetchRegion()
   }, [id])
   
   return { region, loading, error }
@@ -90,6 +103,12 @@ export function useRegionStats(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
+    // 确保 id 有效
+    if (!id || isNaN(id)) {
+      setLoading(false)
+      return
+    }
+    
     const fetchStats = async () => {
       try {
         setLoading(true)
@@ -110,9 +129,7 @@ export function useRegionStats(id: number) {
       }
     }
     
-    if (id) {
-      fetchStats()
-    }
+    fetchStats()
   }, [id])
   
   return { stats, loading, error }
