@@ -22,8 +22,6 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
       return
     }
     
-    let cancelled = false
-    
     try {
       setLoading(true)
       setError(null)
@@ -56,30 +54,19 @@ export function useLands(filters: Partial<FilterState> | null = {}) {
       
       const response = await assetsApi.lands.available(params)
       
-      if (!cancelled) {
-        setLands(response.results)
-        setHasMore(!!response.next)
-        setTotalCount(response.count)
-        setStats(response.stats)
-      }
+      setLands(response.results)
+      setHasMore(!!response.next)
+      setTotalCount(response.count)
+      setStats(response.stats)
     } catch (err) {
-      if (!cancelled) {
-        setError(err instanceof Error ? err.message : '加载失败')
-      }
+      setError(err instanceof Error ? err.message : '加载失败')
     } finally {
-      if (!cancelled) {
-        setLoading(false)
-      }
-    }
-    
-    return () => {
-      cancelled = true
+      setLoading(false)
     }
   }, [filters])
   
   useEffect(() => {
-    const cleanup = fetchLands()
-    return cleanup
+    fetchLands()
   }, [fetchLands])
   
   return { lands, loading, error, hasMore, totalCount, stats, refetch: fetchLands }
@@ -135,8 +122,6 @@ export function useMyLands() {
   const [stats, setStats] = useState<any>(null)
   
   const fetchMyLands = useCallback(async () => {
-    let cancelled = false
-    
     try {
       setLoading(true)
       setError(null)
@@ -145,28 +130,17 @@ export function useMyLands() {
         page_size: 100 // 获取更多数据
       })
       
-      if (!cancelled) {
-        setLands(response.results)
-        setStats(response.stats)
-      }
+      setLands(response.results)
+      setStats(response.stats)
     } catch (err) {
-      if (!cancelled) {
-        setError(err instanceof Error ? err.message : '加载失败')
-      }
+      setError(err instanceof Error ? err.message : '加载失败')
     } finally {
-      if (!cancelled) {
-        setLoading(false)
-      }
-    }
-    
-    return () => {
-      cancelled = true
+      setLoading(false)
     }
   }, [])
   
   useEffect(() => {
-    const cleanup = fetchMyLands()
-    return cleanup
+    fetchMyLands()
   }, [fetchMyLands])
   
   return { lands, loading, error, stats, refetch: fetchMyLands }
@@ -185,8 +159,6 @@ export function useMyLandsInRegion(regionId: number | null, regionName?: string)
       return
     }
     
-    let cancelled = false
-    
     try {
       setLoading(true)
       setError(null)
@@ -197,8 +169,6 @@ export function useMyLandsInRegion(regionId: number | null, regionName?: string)
       const response = await assetsApi.lands.myLands({
         page_size: 100 // 确保获取所有土地
       })
-      
-      if (cancelled) return
       
       console.log('[useMyLandsInRegion] Total user lands:', response.results.length)
       
@@ -224,17 +194,13 @@ export function useMyLandsInRegion(regionId: number | null, regionName?: string)
       console.log('[useMyLandsInRegion] Filtered lands in region:', landsInRegion.length)
       
       // 如果没有找到该区域的土地，返回所有土地（临时解决方案）
-      if (!cancelled) {
-        if (landsInRegion.length === 0 && response.results.length > 0) {
-          console.log('[useMyLandsInRegion] No lands in specific region, showing all lands')
-          setLands(response.results)
-        } else {
-          setLands(landsInRegion)
-        }
+      if (landsInRegion.length === 0 && response.results.length > 0) {
+        console.log('[useMyLandsInRegion] No lands in specific region, showing all lands')
+        setLands(response.results)
+      } else {
+        setLands(landsInRegion)
       }
     } catch (err) {
-      if (cancelled) return
-      
       console.error('[useMyLandsInRegion] Error:', err)
       // 如果是认证错误，不显示错误，只是返回空数组
       if (err instanceof Error && err.message.includes('401')) {
@@ -243,19 +209,12 @@ export function useMyLandsInRegion(regionId: number | null, regionName?: string)
         setError(err instanceof Error ? err.message : '加载失败')
       }
     } finally {
-      if (!cancelled) {
-        setLoading(false)
-      }
-    }
-    
-    return () => {
-      cancelled = true
+      setLoading(false)
     }
   }, [regionId, regionName])
   
   useEffect(() => {
-    const cleanup = fetchMyLandsInRegion()
-    return cleanup
+    fetchMyLandsInRegion()
   }, [fetchMyLandsInRegion])
   
   return { lands, loading, error, refetch: fetchMyLandsInRegion }
