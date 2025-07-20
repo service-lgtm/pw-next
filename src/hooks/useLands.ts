@@ -79,35 +79,22 @@ export function useLandDetail(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    let cancelled = false
-    
     const fetchLand = async () => {
       try {
         setLoading(true)
         setError(null)
         
         const data = await assetsApi.lands.get(id)
-        
-        if (!cancelled) {
-          setLand(data)
-        }
+        setLand(data)
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : '加载失败')
-        }
+        setError(err instanceof Error ? err.message : '加载失败')
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
     
     if (id) {
       fetchLand()
-    }
-    
-    return () => {
-      cancelled = true
     }
   }, [id])
   
