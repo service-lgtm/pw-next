@@ -74,7 +74,8 @@ export default function RegionDetailPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   
-  const [filters, setFilters] = useState<FilterState>({
+  // 使用 useMemo 稳定初始 filters 对象
+  const initialFilters = useMemo<FilterState>(() => ({
     land_type: 'all',
     status: 'all',
     priceRange: {},
@@ -82,7 +83,9 @@ export default function RegionDetailPage() {
     ordering: '-created_at',
     page: 1,
     page_size: 20,
-  })
+  }), [])
+  
+  const [filters, setFilters] = useState<FilterState>(initialFilters)
   
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [showLandDetail, setShowLandDetail] = useState(false)
@@ -91,11 +94,13 @@ export default function RegionDetailPage() {
   const { region, loading: regionLoading, error: regionError } = useRegion(regionId)
   const { stats, loading: statsLoading } = useRegionStats(regionId)
   
-  // 获取子区域
-  const { regions: childRegions, loading: childRegionsLoading } = useRegions({ 
+  // 获取子区域 - 使用 useMemo 稳定对象引用
+  const childRegionsOptions = useMemo(() => ({
     parent_id: regionId,
-    is_active: true 
-  })
+    is_active: true
+  }), [regionId])
+  
+  const { regions: childRegions, loading: childRegionsLoading } = useRegions(childRegionsOptions)
   
   // 使用 useMemo 来稳定判断条件
   const shouldShowLands = useMemo(() => {
