@@ -1,5 +1,5 @@
 // src/hooks/useRegions.ts
-// 区域数据Hook - 最小化修复循环请求
+// 区域数据Hook
 
 import { useState, useEffect } from 'react'
 import { assetsApi } from '@/lib/api/assets'
@@ -19,13 +19,6 @@ export function useRegions(options: UseRegionsOptions = {}) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    // 如果 options 为 null，不执行请求
-    if (options === null) {
-      setRegions([])
-      setLoading(false)
-      return
-    }
-    
     let cancelled = false
     
     const fetchRegions = async () => {
@@ -75,12 +68,6 @@ export function useRegion(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    if (!id) {
-      setRegion(null)
-      setLoading(false)
-      return
-    }
-    
     let cancelled = false
     
     const fetchRegion = async () => {
@@ -110,7 +97,9 @@ export function useRegion(id: number) {
       }
     }
     
-    fetchRegion()
+    if (id) {
+      fetchRegion()
+    }
     
     return () => {
       cancelled = true
@@ -126,12 +115,6 @@ export function useRegionStats(id: number) {
   const [error, setError] = useState<string | null>(null)
   
   useEffect(() => {
-    if (!id) {
-      setStats(null)
-      setLoading(false)
-      return
-    }
-    
     let cancelled = false
     
     const fetchStats = async () => {
@@ -161,7 +144,9 @@ export function useRegionStats(id: number) {
       }
     }
     
-    fetchStats()
+    if (id) {
+      fetchStats()
+    }
     
     return () => {
       cancelled = true
