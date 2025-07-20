@@ -3,7 +3,7 @@
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -23,6 +23,9 @@ import { MyLandsSection } from '@/components/explore/MyLandsSection'
 import type { FilterState, Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
+
+// 诊断计数器
+let renderCount = 0
 
 // 获取区域类型的中文显示
 function getRegionTypeDisplay(type?: string): string {
@@ -64,10 +67,28 @@ const regionTypeIcons: Record<string, any> = {
 }
 
 export default function RegionDetailPage() {
+  // 诊断：记录渲染次数
+  useEffect(() => {
+    renderCount++
+    console.log(`[RegionDetailPage] Render #${renderCount}`)
+  })
+  
   const params = useParams()
   const router = useRouter()
   const regionId = Number(params.regionId)
   const { isAuthenticated } = useAuth()
+  
+  // 诊断：记录 regionId 变化
+  const lastRegionIdRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (regionId !== lastRegionIdRef.current) {
+      console.log('[RegionDetailPage] regionId changed:', {
+        old: lastRegionIdRef.current,
+        new: regionId
+      })
+      lastRegionIdRef.current = regionId
+    }
+  }, [regionId])
   
   // 移动端检测
   const [isMobile, setIsMobile] = useState(false)
@@ -75,53 +96,79 @@ export default function RegionDetailPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   
   // 使用 useMemo 稳定初始 filters 对象
-  const initialFilters = useMemo<FilterState>(() => ({
-    land_type: 'all',
-    status: 'all',
-    priceRange: {},
-    search: '',
-    ordering: '-created_at',
-    page: 1,
-    page_size: 20,
-  }), [])
+  const initialFilters = useMemo<FilterState>(() => {
+    console.log('[RegionDetailPage] Creating initial filters')
+    return {
+      land_type: 'all',
+      status: 'all',
+      priceRange: {},
+      search: '',
+      ordering: '-created_at',
+      page: 1,
+      page_size: 20,
+    }
+  }, [])
   
   const [filters, setFilters] = useState<FilterState>(initialFilters)
+  
+  // 诊断：记录 filters 变化
+  useEffect(() => {
+    console.log('[RegionDetailPage] Filters updated:', filters)
+  }, [filters])
   
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [showLandDetail, setShowLandDetail] = useState(false)
   
   // 获取区域信息
+  console.log('[RegionDetailPage] Calling useRegion with:', regionId)
   const { region, loading: regionLoading, error: regionError } = useRegion(regionId)
   const { stats, loading: statsLoading } = useRegionStats(regionId)
   
   // 获取子区域 - 使用 useMemo 稳定对象引用
-  const childRegionsOptions = useMemo(() => ({
-    parent_id: regionId,
-    is_active: true
-  }), [regionId])
+  const childRegionsOptions = useMemo(() => {
+    const options = {
+      parent_id: regionId,
+      is_active: true
+    }
+    console.log('[RegionDetailPage] Creating childRegionsOptions:', options)
+    return options
+  }, [regionId])
   
+  console.log('[RegionDetailPage] Calling useRegions with:', childRegionsOptions)
   const { regions: childRegions, loading: childRegionsLoading } = useRegions(childRegionsOptions)
   
   // 使用 useMemo 来稳定判断条件
   const shouldShowLands = useMemo(() => {
     if (!region) return false
-    return (
+    const result = (
       region.region_type === 'district' || 
       region.region_type === 'area' ||
       (region.children_count === 0 && region.is_open_for_sale)
     )
+    console.log('[RegionDetailPage] shouldShowLands:', result, {
+      region_type: region.region_type,
+      children_count: region.children_count,
+      is_open_for_sale: region.is_open_for_sale
+    })
+    return result
   }, [region])
   
   // 使用 useMemo 来稳定查询参数
   const landQueryParams = useMemo(() => {
-    if (!shouldShowLands) return null
-    return {
+    if (!shouldShowLands) {
+      console.log('[RegionDetailPage] Not showing lands, returning null')
+      return null
+    }
+    const params = {
       ...filters,
       region_id: regionId,
     }
+    console.log('[RegionDetailPage] Creating landQueryParams:', params)
+    return params
   }, [shouldShowLands, filters, regionId])
   
   // 获取可购买的土地列表
+  console.log('[RegionDetailPage] Calling useLands with:', landQueryParams)
   const { 
     lands, 
     loading: landsLoading, 
@@ -132,14 +179,16 @@ export default function RegionDetailPage() {
   } = useLands(landQueryParams)
   
   // 获取用户在该区域的土地
+  const myLandsRegionId = shouldShowLands && isAuthenticated ? regionId : null
+  console.log('[RegionDetailPage] Calling useMyLandsInRegion with:', {
+    regionId: myLandsRegionId,
+    regionName: region?.name
+  })
   const {
     lands: myLands,
     loading: myLandsLoading,
     refetch: refetchMyLands
-  } = useMyLandsInRegion(
-    shouldShowLands && isAuthenticated ? regionId : null,
-    region?.name  // 传入区域名称用于匹配
-  )
+  } = useMyLandsInRegion(myLandsRegionId, region?.name)
   
   const loading = regionLoading || childRegionsLoading || (shouldShowLands && landsLoading)
   const error = regionError || (shouldShowLands && landsError)
@@ -157,63 +206,111 @@ export default function RegionDetailPage() {
   // 路由验证
   useEffect(() => {
     if (!regionId || isNaN(regionId)) {
+      console.log('[RegionDetailPage] Invalid regionId, redirecting to /explore')
       router.push('/explore')
     }
   }, [regionId, router])
   
-  if (loading) {
+  // 诊断信息显示
+  if (process.env.NODE_ENV === 'development') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <Gem className="w-12 h-12 text-gold-500 mx-auto mb-4" />
-          </motion.div>
-          <p className="text-gray-400">加载中...</p>
+      <>
+        <div className="fixed top-20 right-4 bg-black/90 text-white p-4 rounded-lg text-xs font-mono max-w-md z-50">
+          <div className="mb-2 font-bold text-yellow-400">诊断信息</div>
+          <div>组件渲染次数: {renderCount}</div>
+          <div>Region ID: {regionId}</div>
+          <div>Should Show Lands: {String(shouldShowLands)}</div>
+          <div className="mt-2">
+            <details>
+              <summary className="cursor-pointer">Filters</summary>
+              <pre className="mt-2 overflow-auto max-h-40">
+                {JSON.stringify(filters, null, 2)}
+              </pre>
+            </details>
+          </div>
+          <div className="mt-2">
+            <details>
+              <summary className="cursor-pointer">Region</summary>
+              <pre className="mt-2 overflow-auto max-h-40">
+                {JSON.stringify(region, null, 2)}
+              </pre>
+            </details>
+          </div>
+          <div className="mt-2">Loading States:</div>
+          <div className="ml-2">
+            <div>Region: {String(regionLoading)}</div>
+            <div>Stats: {String(statsLoading)}</div>
+            <div>Child Regions: {String(childRegionsLoading)}</div>
+            <div>Lands: {String(landsLoading)}</div>
+            <div>My Lands: {String(myLandsLoading)}</div>
+          </div>
         </div>
-      </div>
+        {/* 原始页面内容 */}
+        {renderOriginalContent()}
+      </>
     )
   }
   
-  if (error || !region) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10"
-        >
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">出错了</h2>
-          <p className="text-gray-400 mb-6">{error || '区域不存在'}</p>
-          <button
-            onClick={() => router.push('/explore')}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+  return renderOriginalContent()
+  
+  function renderOriginalContent() {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            >
+              <Gem className="w-12 h-12 text-gold-500 mx-auto mb-4" />
+            </motion.div>
+            <p className="text-gray-400">加载中...</p>
+          </div>
+        </div>
+      )
+    }
+    
+    if (error || !region) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900 flex items-center justify-center">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10"
           >
-            返回探索页
-          </button>
-        </motion.div>
-      </div>
-    )
-  }
-  
-  const handleFilterChange = (newFilters: Partial<FilterState>) => {
-    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }))
-  }
-  
-  const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-  
-  const handleLandClick = (land: Land) => {
-    setSelectedLand(land)
-    setShowLandDetail(true)
-  }
-  
-  const RegionIcon = regionTypeIcons[region.region_type] || MapPin
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">出错了</h2>
+            <p className="text-gray-400 mb-6">{error || '区域不存在'}</p>
+            <button
+              onClick={() => router.push('/explore')}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+            >
+              返回探索页
+            </button>
+          </motion.div>
+        </div>
+      )
+    }
+    
+    const handleFilterChange = (newFilters: Partial<FilterState>) => {
+      console.log('[RegionDetailPage] handleFilterChange:', newFilters)
+      setFilters(prev => ({ ...prev, ...newFilters, page: 1 }))
+    }
+    
+    const handlePageChange = (page: number) => {
+      console.log('[RegionDetailPage] handlePageChange:', page)
+      setFilters(prev => ({ ...prev, page }))
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    
+    const handleLandClick = (land: Land) => {
+      console.log('[RegionDetailPage] handleLandClick:', land.id)
+      setSelectedLand(land)
+      setShowLandDetail(true)
+    }
+    
+    const RegionIcon = regionTypeIcons[region.region_type] || MapPin
+    
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
