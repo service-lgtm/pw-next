@@ -1,7 +1,7 @@
 // src/hooks/useRegions.ts
-// 区域数据Hook
+// 区域数据Hook - 最终修复版本
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { assetsApi } from '@/lib/api/assets'
 import { ApiError } from '@/lib/api'
 import type { Region } from '@/types/assets'
@@ -18,15 +18,26 @@ export function useRegions(options: UseRegionsOptions = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // 使用 JSON.stringify 来比较对象内容而非引用
-  const optionsKey = JSON.stringify({
-    parent_id: options.parent_id,
-    region_type: options.regionType,
-    is_active: options.isActive,
-    is_open_for_sale: options.isOpenForSale,
-  })
+  // 使用 useRef 来存储上一次的请求参数
+  const lastRequestRef = useRef<string>('')
   
   useEffect(() => {
+    // 创建请求参数的唯一标识
+    const requestKey = JSON.stringify({
+      parent_id: options.parent_id,
+      region_type: options.regionType,
+      is_active: options.isActive,
+      is_open_for_sale: options.isOpenForSale,
+    })
+    
+    // 如果参数没有变化，不重新请求
+    if (requestKey === lastRequestRef.current) {
+      return
+    }
+    
+    // 更新最后一次请求的参数
+    lastRequestRef.current = requestKey
+    
     const fetchRegions = async () => {
       try {
         setLoading(true)
@@ -53,7 +64,7 @@ export function useRegions(options: UseRegionsOptions = {}) {
     }
     
     fetchRegions()
-  }, [optionsKey])
+  }, [options.parent_id, options.regionType, options.isActive, options.isOpenForSale])
   
   return { regions, loading, error }
 }
@@ -63,6 +74,9 @@ export function useRegion(id: number) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
+  // 使用 useRef 来防止重复请求
+  const lastIdRef = useRef<number | null>(null)
+  
   useEffect(() => {
     // 确保 id 有效
     if (!id || isNaN(id)) {
@@ -70,6 +84,13 @@ export function useRegion(id: number) {
       setLoading(false)
       return
     }
+    
+    // 如果 ID 没有变化，不重新请求
+    if (id === lastIdRef.current) {
+      return
+    }
+    
+    lastIdRef.current = id
     
     const fetchRegion = async () => {
       try {
@@ -102,12 +123,22 @@ export function useRegionStats(id: number) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
+  // 使用 useRef 来防止重复请求
+  const lastIdRef = useRef<number | null>(null)
+  
   useEffect(() => {
     // 确保 id 有效
     if (!id || isNaN(id)) {
       setLoading(false)
       return
     }
+    
+    // 如果 ID 没有变化，不重新请求
+    if (id === lastIdRef.current) {
+      return
+    }
+    
+    lastIdRef.current = id
     
     const fetchStats = async () => {
       try {
