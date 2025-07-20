@@ -1,5 +1,5 @@
 // src/lib/api/assets.ts
-// 资产 API - 增加请求缓存和去重功能
+// 资产 API - 使用 JWT 认证
 
 import { API_BASE_URL, request, ApiError } from './index'
 import type { 
@@ -10,59 +10,6 @@ import type {
   LandTransaction,
   PaginatedResponse 
 } from '@/types/assets'
-
-// 请求缓存类
-class RequestCache {
-  private cache: Map<string, { data: any; timestamp: number }> = new Map()
-  private pending: Map<string, Promise<any>> = new Map()
-  private cacheTime = 5000 // 5秒缓存
-  
-  async get<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-    // 检查是否有正在进行的请求
-    const pending = this.pending.get(key)
-    if (pending) {
-      console.log('[RequestCache] Returning pending request for:', key)
-      return pending
-    }
-    
-    // 检查缓存
-    const cached = this.cache.get(key)
-    if (cached && Date.now() - cached.timestamp < this.cacheTime) {
-      console.log('[RequestCache] Returning cached data for:', key)
-      return cached.data
-    }
-    
-    // 发起新请求
-    console.log('[RequestCache] Making new request for:', key)
-    const promise = fetcher().then(data => {
-      this.cache.set(key, { data, timestamp: Date.now() })
-      this.pending.delete(key)
-      return data
-    }).catch(error => {
-      this.pending.delete(key)
-      throw error
-    })
-    
-    this.pending.set(key, promise)
-    return promise
-  }
-  
-  clear(pattern?: string) {
-    if (pattern) {
-      for (const key of this.cache.keys()) {
-        if (key.includes(pattern)) {
-          this.cache.delete(key)
-        }
-      }
-    } else {
-      this.cache.clear()
-    }
-    console.log('[RequestCache] Cache cleared', pattern ? `for pattern: ${pattern}` : 'completely')
-  }
-}
-
-// 创建缓存实例
-const requestCache = new RequestCache()
 
 // 定义公开访问的端点模式
 const PUBLIC_ENDPOINTS = [
@@ -161,41 +108,26 @@ export const assetsApi = {
       is_active?: boolean
       is_open_for_sale?: boolean
       search?: string
-    }) => {
-      const cacheKey = `regions:list:${JSON.stringify(params || {})}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<PaginatedResponse<Region>>('/assets/regions/', { params })
-      )
-    },
+    }) => assetsRequest<PaginatedResponse<Region>>('/assets/regions/', { params }),
     
-    get: (id: number) => {
-      const cacheKey = `regions:get:${id}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<Region>(`/assets/regions/${id}/`)
-      )
-    },
+    get: (id: number) => assetsRequest<Region>(`/assets/regions/${id}/`),
     
-    stats: (id: number) => {
-      const cacheKey = `regions:stats:${id}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<{
-          success: boolean
-          data: {
-            region: { id: number; name: string; code: string }
-            total_lands: number
-            available_lands: number
-            owned_lands: number
-            total_value: number
-            average_price: number
-            by_type: Record<string, {
-              total: number
-              available: number
-              value: number
-            }>
-          }
-        }>(`/assets/regions/${id}/stats/`)
-      )
-    },
+    stats: (id: number) => assetsRequest<{
+      success: boolean
+      data: {
+        region: { id: number; name: string; code: string }
+        total_lands: number
+        available_lands: number
+        owned_lands: number
+        total_value: number
+        average_price: number
+        by_type: Record<string, {
+          total: number
+          available: number
+          value: number
+        }>
+      }
+    }>(`/assets/regions/${id}/stats/`),
   },
   
   // 蓝图相关
@@ -204,19 +136,9 @@ export const assetsApi = {
       land_type?: string
       is_active?: boolean
       ordering?: string
-    }) => {
-      const cacheKey = `blueprints:list:${JSON.stringify(params || {})}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<PaginatedResponse<LandBlueprint>>('/assets/blueprints/', { params })
-      )
-    },
+    }) => assetsRequest<PaginatedResponse<LandBlueprint>>('/assets/blueprints/', { params }),
     
-    get: (id: number) => {
-      const cacheKey = `blueprints:get:${id}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<LandBlueprint>(`/assets/blueprints/${id}/`)
-      )
-    },
+    get: (id: number) => assetsRequest<LandBlueprint>(`/assets/blueprints/${id}/`),
   },
   
   // 土地相关
@@ -229,12 +151,7 @@ export const assetsApi = {
       ordering?: string
       page?: number
       page_size?: number
-    }) => {
-      const cacheKey = `lands:available:${JSON.stringify(params || {})}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<PaginatedResponse<Land>>('/assets/lands/available/', { params })
-      )
-    },
+    }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/available/', { params }),
     
     myLands: (params?: {
       blueprint__land_type?: string
@@ -244,82 +161,41 @@ export const assetsApi = {
       ordering?: string
       page?: number
       page_size?: number
-    }) => {
-      // 我的土地不使用缓存，因为需要实时数据
-      return assetsRequest<PaginatedResponse<Land>>('/assets/lands/my-lands/', { params })
-    },
+    }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/my-lands/', { params }),
     
-    get: (id: number) => {
-      const cacheKey = `lands:get:${id}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<LandDetail>(`/assets/lands/${id}/`)
-      )
-    },
+    get: (id: number) => assetsRequest<LandDetail>(`/assets/lands/${id}/`),
     
     buy: (data: {
       land_id: number
       payment_password: string
-    }) => {
-      // 购买操作不使用缓存
-      // 购买成功后清除相关缓存
-      const result = assetsRequest<{
-        success: boolean
-        message: string
-        data: LandDetail
-      }>('/assets/lands/buy/', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-      
-      // 清除土地相关缓存
-      result.then(() => {
-        requestCache.clear('lands:')
-        requestCache.clear('regions:stats:')
-      })
-      
-      return result
-    },
+    }) => assetsRequest<{
+      success: boolean
+      message: string
+      data: LandDetail
+    }>('/assets/lands/buy/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
     
     transfer: (data: {
       land_id: number
       to_user_id: number
       payment_password: string
-    }) => {
-      // 转让操作不使用缓存
-      const result = assetsRequest<{
-        success: boolean
-        message: string
-        data: { land_id: string; new_owner: string }
-      }>('/assets/lands/transfer/', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-      
-      // 清除土地相关缓存
-      result.then(() => {
-        requestCache.clear('lands:')
-        requestCache.clear('regions:stats:')
-      })
-      
-      return result
-    },
+    }) => assetsRequest<{
+      success: boolean
+      message: string
+      data: { land_id: string; new_owner: string }
+    }>('/assets/lands/transfer/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
     
     transactions: (landId: number, params?: {
       transaction_type?: string
       ordering?: string
-    }) => {
-      const cacheKey = `lands:transactions:${landId}:${JSON.stringify(params || {})}`
-      return requestCache.get(cacheKey, () => 
-        assetsRequest<PaginatedResponse<LandTransaction>>(
-          `/assets/lands/${landId}/transactions/`,
-          { params }
-        )
-      )
-    },
+    }) => assetsRequest<PaginatedResponse<LandTransaction>>(
+      `/assets/lands/${landId}/transactions/`,
+      { params }
+    ),
   },
-  
-  // 缓存管理
-  cache: {
-    clear: (pattern?: string) => requestCache.clear(pattern)
-  }
 }
