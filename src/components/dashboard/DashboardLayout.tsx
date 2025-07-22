@@ -46,6 +46,7 @@ const sidebarItems = [
     title: '账户管理',
     icon: '⚙️',
     items: [
+      { label: '我的推荐码', href: '/dashboard/referral', icon: '🎯', isActive: true },
       { label: '账户设置', href: '/dashboard/settings', icon: '🔧', isActive: true },
     ]
   }
@@ -376,6 +377,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         >
                           <span className="mr-2">🏠</span>
                           仪表盘
+                        </Link>
+                        <Link
+                          href="/dashboard/referral"
+                          className="block px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
+                          onClick={() => setShowUserDropdown(false)}
+                        >
+                          <span className="mr-2">🎯</span>
+                          我的推荐码
                         </Link>
                         <Link
                           href="/dashboard/settings"
