@@ -89,8 +89,10 @@ export default function AssetsPage() {
         return total + parseFloat(land.current_price || '0')
       }, 0)
       
+      // 注意：这里将总价值计算改为只包含 TDB 相关的资产
+      // YLD 是治理币，不计入总资产价值
       setAssetSummary({
-        totalValue: tdb + yld + landValue,
+        totalValue: tdb + landValue, // 只计算 TDB 和土地价值
         tdbBalance: tdb,
         yldBalance: yld,
         landCount: lands.length,
@@ -155,10 +157,13 @@ export default function AssetsPage() {
             <p className="text-lg text-gray-300 mb-2">总资产价值</p>
             <p className="text-5xl font-black text-gold-500">
               {assetSummary.totalValue.toLocaleString()}
-              <span className="text-2xl ml-2">USDT</span>
+              <span className="text-2xl ml-2">TDB</span>
             </p>
             <p className="text-sm text-gray-400 mt-2">
               ≈ {(assetSummary.totalValue * 0.01).toFixed(2)} 克黄金
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              (1 TDB ≈ 0.01克黄金)
             </p>
           </div>
         </PixelCard>
@@ -183,7 +188,10 @@ export default function AssetsPage() {
             <p className="text-sm text-gray-400 mt-1">稳定交易币</p>
             <div className="mt-4 pt-4 border-t border-gray-700">
               <p className="text-xs text-gray-400">
-                占比：{assetSummary.totalValue > 0 ? ((assetSummary.tdbBalance / assetSummary.totalValue) * 100).toFixed(1) : 0}%
+                ≈ {(assetSummary.tdbBalance * 0.01).toFixed(2)} 克黄金
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                占总资产：{assetSummary.totalValue > 0 ? ((assetSummary.tdbBalance / assetSummary.totalValue) * 100).toFixed(1) : 0}%
               </p>
             </div>
           </PixelCard>
@@ -206,7 +214,10 @@ export default function AssetsPage() {
             <p className="text-sm text-gray-400 mt-1">治理代币</p>
             <div className="mt-4 pt-4 border-t border-gray-700">
               <p className="text-xs text-gray-400">
-                占比：{assetSummary.totalValue > 0 ? ((assetSummary.yldBalance / assetSummary.totalValue) * 100).toFixed(1) : 0}%
+                限量发行：21亿枚
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                用于平台治理投票
               </p>
             </div>
           </PixelCard>
@@ -229,12 +240,37 @@ export default function AssetsPage() {
             <p className="text-sm text-gray-400 mt-1">{assetSummary.landCount} 块土地</p>
             <div className="mt-4 pt-4 border-t border-gray-700">
               <p className="text-xs text-gray-400">
-                占比：{assetSummary.totalValue > 0 ? ((assetSummary.landValue / assetSummary.totalValue) * 100).toFixed(1) : 0}%
+                ≈ {(assetSummary.landValue * 0.01).toFixed(2)} 克黄金
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                占总资产：{assetSummary.totalValue > 0 ? ((assetSummary.landValue / assetSummary.totalValue) * 100).toFixed(1) : 0}%
               </p>
             </div>
           </PixelCard>
         </motion.div>
       </div>
+
+      {/* 黄金价值说明 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="mb-8"
+      >
+        <PixelCard className="p-4 bg-gold-500/10 border-gold-500/30">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">💰</span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-gold-500">黄金价值对照</p>
+              <p className="text-xs text-gray-400 mt-1">
+                TDB积分锚定黄金价值，1 TDB ≈ 0.01克黄金。您的总资产约等于 
+                <span className="text-gold-500 font-bold"> {(assetSummary.totalValue * 0.01).toFixed(2)} </span>
+                克黄金
+              </p>
+            </div>
+          </div>
+        </PixelCard>
+      </motion.div>
 
       {/* 快速操作 */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
