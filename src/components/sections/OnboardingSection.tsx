@@ -609,6 +609,25 @@ export function OnboardingSection() {
             </p>
           </div>
         </motion.div>
+
+        {/* 备案信息 */}
+        <motion.div
+          className="mt-12 pt-8 border-t border-gray-800 text-center"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+        >
+          <p className="text-xs text-gray-500">
+            <a 
+              href="https://beian.miit.gov.cn/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-gray-400 transition-colors"
+            >
+              琼ICP备2025058711号
+            </a>
+          </p>
+        </motion.div>
       </Container>
     </section>
   )
