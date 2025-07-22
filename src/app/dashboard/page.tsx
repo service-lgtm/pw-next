@@ -295,15 +295,15 @@ export default function DashboardPage() {
                 <span className="text-sm font-bold">探索世界</span>
               </motion.button>
 
-              {/* 账户设置 */}
+              {/* 我的推荐码 - 替换原来的账户设置 */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/dashboard/settings')}
+                onClick={() => router.push('/dashboard/referral')}
                 className="bg-purple-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
-                <span className="text-3xl block mb-2">⚙️</span>
-                <span className="text-sm font-bold">账户设置</span>
+                <span className="text-3xl block mb-2">🎯</span>
+                <span className="text-sm font-bold">我的推荐码</span>
               </motion.button>
 
               {/* 未开放功能 */}
