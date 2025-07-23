@@ -236,6 +236,158 @@ export interface ProfileResponse {
   data: User
 }
 
+// ========== 地址管理类型定义 ==========
+export interface Address {
+  id: string
+  user_id: number
+  name: string
+  phone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  postcode?: string
+  is_default: boolean
+  full_address?: string
+  create_time?: string
+  update_time?: string
+}
+
+export interface AddressListResponse {
+  success: boolean
+  data: Address[]
+}
+
+export interface AddressDetailResponse {
+  success: boolean
+  data: Address
+}
+
+export interface AddressCreateRequest {
+  name: string
+  phone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  postcode?: string
+  is_default?: boolean
+}
+
+export interface AddressUpdateRequest extends AddressCreateRequest {}
+
+export interface AddressResponse {
+  success: boolean
+  message: string
+  data?: Address
+}
+
+// ========== 商城类型定义 ==========
+export interface Product {
+  id: string
+  name: string
+  description?: string
+  price: string
+  tdb_amount: string
+  images: string[]
+  stock: number
+  category: string
+  is_hot?: boolean
+  discount?: string
+  final_price?: string
+  payment_methods: string[]
+  specifications?: Record<string, string>
+  is_active?: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ProductDetail extends Product {
+  payment_methods: PaymentMethodInfo[]
+}
+
+export interface PaymentMethodInfo {
+  method: 'alipay' | 'bank' | 'wechat'
+  is_enabled: boolean
+  account_info?: {
+    account: string
+    account_name: string
+    bank?: string
+    branch?: string
+    qr_code?: string
+  }
+}
+
+export interface CreateOrderRequest {
+  product_id: string
+  quantity: number
+  payment_method: 'alipay' | 'bank' | 'wechat'
+}
+
+export interface CreateOrderResponse {
+  success: boolean
+  message: string
+  data: {
+    order_id: string
+    payment_account: {
+      method: string
+      account: string
+      account_name: string
+      qr_code?: string
+    }
+    expire_time: string
+    total_price: string
+    tdb_amount: string
+  }
+}
+
+export interface Order {
+  id: string
+  user: number
+  user_nickname: string
+  product: string
+  product_name: string
+  product_snapshot: {
+    name: string
+    price: string
+    tdb_amount: string
+    images: string[]
+  }
+  quantity: number
+  unit_price: string
+  total_price: string
+  tdb_amount: string
+  payment_method: string
+  payment_method_display: string
+  payment_account_info: {
+    method: string
+    account: string
+    account_name: string
+  }
+  status: string
+  status_display: string
+  transaction_id?: string
+  paid_at?: string
+  payment_screenshot?: string
+  confirmed_at?: string
+  shipping_address?: Address
+  shipping_address_detail?: string
+  tracking_number?: string
+  shipping_company?: string
+  shipped_at?: string
+  tdb_credited: boolean
+  remark: string
+  created_at: string
+  expire_at?: string
+  can_operations: {
+    can_pay: boolean
+    can_cancel: boolean
+    can_confirm: boolean
+    can_set_address: boolean
+    can_ship: boolean
+  }
+}
+
 // ========== 错误处理 ==========
 export class ApiError extends Error {
   constructor(
@@ -321,10 +473,17 @@ async function request<T = any>(
   const config: RequestInit = {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...init.headers,
     },
+  }
+  
+  // 只有在body存在且不是FormData时才设置Content-Type
+  if (config.body && !(config.body instanceof FormData)) {
+    config.headers = {
+      ...config.headers,
+      'Content-Type': 'application/json',
+    }
   }
   
   // 添加认证头（除非明确跳过）
@@ -338,7 +497,7 @@ async function request<T = any>(
     }
   }
   
-  if (config.body && typeof config.body === 'object') {
+  if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
     config.body = JSON.stringify(config.body)
   }
   
@@ -442,6 +601,17 @@ async function request<T = any>(
           errorMessage = data.detail
         } else if (data.non_field_errors) {
           errorMessage = Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors
+        } else if (data.errors) {
+          // 处理字段错误
+          const fieldErrors = []
+          for (const [field, errors] of Object.entries(data.errors)) {
+            if (Array.isArray(errors) && errors.length > 0) {
+              fieldErrors.push(errors[0])
+            }
+          }
+          if (fieldErrors.length > 0) {
+            errorMessage = fieldErrors[0]
+          }
         } else {
           const fieldErrors = []
           for (const field of ['email', 'password', 'verification_code', 'username']) {
@@ -456,7 +626,7 @@ async function request<T = any>(
         }
       }
       
-      throw new ApiError(response.status, 'API_ERROR', errorMessage, data)
+      throw new ApiError(response.status, data?.error_code || 'API_ERROR', errorMessage, data)
     }
     
     console.log(`[API] Success:`, data)
@@ -657,7 +827,131 @@ const api = {
     
     // 获取团队概览
     getTeamSummary: () => request<TeamSummaryResponse>('/auth/team/summary/'),
-  }
+    
+    // ========== 地址管理 API ==========
+    // 获取地址列表
+    addresses: {
+      list: () => request<AddressListResponse>('/accounts/addresses/'),
+      
+      // 获取单个地址
+      get: (addressId: string) => 
+        request<AddressDetailResponse>(`/accounts/addresses/${addressId}/`),
+      
+      // 创建地址
+      create: (data: AddressCreateRequest) =>
+        request<AddressResponse>('/accounts/addresses/', {
+          method: 'POST',
+          body: data as any,
+        }),
+      
+      // 更新地址
+      update: (addressId: string, data: AddressUpdateRequest) =>
+        request<AddressResponse>(`/accounts/addresses/${addressId}/`, {
+          method: 'PATCH',
+          body: data as any,
+        }),
+      
+      // 删除地址
+      delete: (addressId: string) =>
+        request<AddressResponse>(`/accounts/addresses/${addressId}/`, {
+          method: 'DELETE',
+        }),
+      
+      // 设置默认地址
+      setDefault: (addressId: string) =>
+        request<AddressResponse>(`/accounts/addresses/${addressId}/set-default/`, {
+          method: 'POST',
+        }),
+      
+      // 获取默认地址
+      getDefault: () =>
+        request<AddressDetailResponse>('/accounts/addresses/default/'),
+      
+      // 验证地址
+      validate: (addressId: string) =>
+        request<{ success: boolean; data: { is_valid: boolean; address?: Address } }>('/accounts/addresses/validate/', {
+          method: 'POST',
+          body: { address_id: addressId } as any,
+        }),
+    },
+  },
+  
+  // ========== 商城 API ==========
+  shop: {
+    // 获取商品列表
+    products: {
+      list: (params?: {
+        page?: number
+        page_size?: number
+        category?: string
+        is_hot?: boolean
+        search?: string
+      }) => request<{
+        count: number
+        next: string | null
+        previous: string | null
+        results: Product[]
+      }>('/shop/products/', { params }),
+      
+      // 获取商品详情
+      get: (productId: string) =>
+        request<ProductDetail>(`/shop/products/${productId}/`),
+    },
+    
+    // 订单相关
+    orders: {
+      // 创建订单
+      create: (data: CreateOrderRequest) =>
+        request<CreateOrderResponse>('/shop/orders/create/', {
+          method: 'POST',
+          body: data as any,
+        }),
+      
+      // 获取订单列表
+      list: (params?: {
+        status?: string
+        page?: number
+        page_size?: number
+      }) => request<{
+        count: number
+        next: string | null
+        previous: string | null
+        results: Order[]
+      }>('/shop/orders/', { params }),
+      
+      // 获取订单详情
+      get: (orderId: string) =>
+        request<Order>(`/shop/orders/${orderId}/`),
+      
+      // 提交支付信息
+      pay: (orderId: string, formData: FormData) =>
+        request<{ success: boolean; message: string }>(`/shop/orders/${orderId}/pay/`, {
+          method: 'POST',
+          body: formData,
+        }),
+      
+      // 设置收货地址
+      setAddress: (orderId: string, addressId: string) =>
+        request<{
+          success: boolean
+          message: string
+          data: {
+            order_id: string
+            status: string
+            shipping_address: Address
+          }
+        }>(`/shop/orders/${orderId}/address/`, {
+          method: 'POST',
+          body: { address_id: addressId } as any,
+        }),
+      
+      // 取消订单
+      cancel: (orderId: string) =>
+        request<{ success: boolean; message: string }>(`/shop/orders/${orderId}/cancel/`, {
+          method: 'POST',
+        }),
+    },
+  },
 }
 
 // ========== 工具函数 ==========
