@@ -309,7 +309,7 @@ export default function LandAssetsPage() {
                 : '前往探索世界，购买您的第一块土地'}
             </p>
             {!searchTerm && filterBy === 'all' && (
-              <PixelButton onClick={() => router.push('/explore/lands')}>
+              <PixelButton onClick={() => router.push('/explore')}>
                 去购买土地
               </PixelButton>
             )}
