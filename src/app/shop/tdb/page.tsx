@@ -11,8 +11,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
-import { api } from '@/lib/api'
-import type { Product } from '@/lib/api'
+import { ProductImage } from '@/components/shop/ProductImage'
 
 export default function TDBShopPage() {
   const router = useRouter()
@@ -229,26 +228,10 @@ export default function TDBShopPage() {
                   <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
                     {/* 商品图片 */}
                     <div className="aspect-square bg-gray-800 relative overflow-hidden group">
-                      {product.images && product.images.length > 0 ? (
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement
-                            // 创建占位符元素
-                            const placeholder = document.createElement('div')
-                            placeholder.className = 'w-full h-full flex items-center justify-center text-6xl opacity-20'
-                            placeholder.textContent = '📦'
-                            // 替换图片元素
-                            target.parentElement?.replaceChild(placeholder, target)
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
-                          📦
-                        </div>
-                      )}
+                      <ProductImage
+                        src={product.images?.[0]}
+                        alt={product.name}
+                      />
                       
                       {/* 标签 */}
                       <div className="absolute top-2 left-2 flex gap-2">
