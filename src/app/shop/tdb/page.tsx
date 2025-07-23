@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
-import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Product } from '@/lib/api'
 
