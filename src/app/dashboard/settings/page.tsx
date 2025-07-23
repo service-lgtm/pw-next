@@ -11,15 +11,17 @@ import { ProfileSection } from '@/components/settings/ProfileSection'
 import { PasswordSection } from '@/components/settings/PasswordSection'
 import { PaymentPasswordSection } from '@/components/settings/PaymentPasswordSection'
 import { TeamSection } from '@/components/settings/TeamSection'
+import { AddressSection } from '@/components/settings/AddressSection'
 import { cn } from '@/lib/utils'
 
-type TabType = 'profile' | 'password' | 'payment' | 'team'
+type TabType = 'profile' | 'password' | 'payment' | 'team' | 'address'
 
 const tabs: { id: TabType; label: string; icon: string }[] = [
   { id: 'profile', label: '个人资料', icon: '👤' },
   { id: 'password', label: '登录密码', icon: '🔐' },
   { id: 'payment', label: '支付密码', icon: '💳' },
   { id: 'team', label: '团队信息', icon: '👥' },
+  { id: 'address', label: '收货地址', icon: '📍' },
 ]
 
 export default function SettingsPage() {
@@ -82,6 +84,7 @@ export default function SettingsPage() {
           {activeTab === 'password' && <PasswordSection />}
           {activeTab === 'payment' && <PaymentPasswordSection />}
           {activeTab === 'team' && <TeamSection />}
+          {activeTab === 'address' && <AddressSection />}
         </motion.div>
       </div>
     </div>
