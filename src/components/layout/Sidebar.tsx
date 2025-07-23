@@ -6,15 +6,15 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { 
-  FaHome, 
-  FaShoppingCart, 
-  FaClipboardList, 
-  FaWallet,
-  FaUsers,
-  FaCog,
-  FaGift,
-  FaChartLine
-} from 'react-icons/fa'
+  Home,
+  ShoppingCart,
+  ClipboardList,
+  Wallet,
+  Users,
+  Settings,
+  Gift,
+  TrendingUp
+} from 'lucide-react'
 
 interface SidebarItem {
   label: string
@@ -31,11 +31,11 @@ export function Sidebar() {
     {
       label: '仪表盘',
       href: '/dashboard',
-      icon: <FaHome className="text-lg" />
+      icon: <Home className="w-5 h-5" />
     },
     {
       label: '商城',
-      icon: <FaShoppingCart className="text-lg" />,
+      icon: <ShoppingCart className="w-5 h-5" />,
       items: [
         { label: 'TDB商城', href: '/shop/tdb' },
         { label: '我的订单', href: '/shop/orders' }
@@ -43,7 +43,7 @@ export function Sidebar() {
     },
     {
       label: '资产管理',
-      icon: <FaWallet className="text-lg" />,
+      icon: <Wallet className="w-5 h-5" />,
       items: [
         { label: '资产总览', href: '/assets' },
         { label: '土地资产', href: '/assets/lands' },
@@ -52,7 +52,7 @@ export function Sidebar() {
     },
     {
       label: '团队管理',
-      icon: <FaUsers className="text-lg" />,
+      icon: <Users className="w-5 h-5" />,
       items: [
         { label: '团队总览', href: '/team' },
         { label: '推广链接', href: '/team/invite' },
@@ -62,12 +62,12 @@ export function Sidebar() {
     {
       label: '数据分析',
       href: '/analytics',
-      icon: <FaChartLine className="text-lg" />
+      icon: <TrendingUp className="w-5 h-5" />
     },
     {
       label: '账户设置',
       href: '/settings',
-      icon: <FaCog className="text-lg" />
+      icon: <Settings className="w-5 h-5" />
     }
   ]
 
