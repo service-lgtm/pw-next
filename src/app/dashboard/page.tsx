@@ -11,15 +11,15 @@ import { PixelButton } from '@/components/shared/PixelButton'
 import { useAuth } from '@/hooks/useAuth'
 import { formatNumber } from '@/lib/utils'
 import { 
-  FaChartLine, 
-  FaUsers, 
-  FaCoins, 
-  FaTrophy,
-  FaShoppingCart,
-  FaClipboardList,
-  FaGift,
-  FaWallet
-} from 'react-icons/fa'
+  TrendingUp,
+  Users,
+  Coins,
+  Trophy,
+  ShoppingCart,
+  ClipboardList,
+  Gift,
+  Wallet
+} from 'lucide-react'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
   const quickActions = [
     {
-      icon: <FaShoppingCart className="text-3xl" />,
+      icon: <ShoppingCart className="w-8 h-8" />,
       title: 'TDB商城',
       description: '购买商品获得TDB积分',
       color: 'from-blue-500 to-purple-600',
@@ -52,21 +52,21 @@ export default function DashboardPage() {
       highlight: true
     },
     {
-      icon: <FaClipboardList className="text-3xl" />,
+      icon: <ClipboardList className="w-8 h-8" />,
       title: '我的订单',
       description: '查看订单状态',
       color: 'from-green-500 to-teal-600',
       onClick: () => router.push('/shop/orders')
     },
     {
-      icon: <FaWallet className="text-3xl" />,
+      icon: <Wallet className="w-8 h-8" />,
       title: '我的资产',
       description: '查看资产详情',
       color: 'from-orange-500 to-red-600',
       onClick: () => router.push('/assets')
     },
     {
-      icon: <FaGift className="text-3xl" />,
+      icon: <Gift className="w-8 h-8" />,
       title: '邀请好友',
       description: '邀请获得奖励',
       color: 'from-pink-500 to-rose-600',
@@ -99,7 +99,7 @@ export default function DashboardPage() {
         >
           <PixelCard className="p-6 bg-gradient-to-br from-blue-500/10 to-purple-600/10">
             <div className="flex items-center justify-between mb-4">
-              <FaChartLine className="text-3xl text-blue-500" />
+              <TrendingUp className="w-8 h-8 text-blue-500" />
               <span className="text-xs text-green-500">+12.5%</span>
             </div>
             <p className="text-sm text-gray-400 mb-1">总资产</p>
@@ -114,7 +114,7 @@ export default function DashboardPage() {
         >
           <PixelCard className="p-6 bg-gradient-to-br from-green-500/10 to-teal-600/10">
             <div className="flex items-center justify-between mb-4">
-              <FaCoins className="text-3xl text-green-500" />
+              <Coins className="w-8 h-8 text-green-500" />
               <span className="text-xs text-green-500">+5.8%</span>
             </div>
             <p className="text-sm text-gray-400 mb-1">今日收益</p>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
         >
           <PixelCard className="p-6 bg-gradient-to-br from-orange-500/10 to-red-600/10">
             <div className="flex items-center justify-between mb-4">
-              <FaUsers className="text-3xl text-orange-500" />
+              <Users className="w-8 h-8 text-orange-500" />
               <span className="text-xs text-green-500">+3</span>
             </div>
             <p className="text-sm text-gray-400 mb-1">团队人数</p>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
         >
           <PixelCard className="p-6 bg-gradient-to-br from-pink-500/10 to-rose-600/10">
             <div className="flex items-center justify-between mb-4">
-              <FaTrophy className="text-3xl text-pink-500" />
+              <Trophy className="w-8 h-8 text-pink-500" />
               <span className="text-xs text-yellow-500">Top 1%</span>
             </div>
             <p className="text-sm text-gray-400 mb-1">全球排名</p>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
             className="relative overflow-hidden group px-8 py-4 text-lg"
           >
             <span className="relative z-10 flex items-center gap-3">
-              <FaShoppingCart className="text-xl" />
+              <ShoppingCart className="w-5 h-5" />
               进入TDB商城
               <span className="text-sm">→</span>
             </span>
