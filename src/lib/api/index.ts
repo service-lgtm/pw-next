@@ -831,45 +831,45 @@ const api = {
     // ========== 地址管理 API ==========
     // 获取地址列表
     addresses: {
-      list: () => request<AddressListResponse>('/accounts/addresses/'),
+      list: () => request<AddressListResponse>('/auth/addresses/'),
       
       // 获取单个地址
       get: (addressId: string) => 
-        request<AddressDetailResponse>(`/accounts/addresses/${addressId}/`),
+        request<AddressDetailResponse>(`/auth/addresses/${addressId}/`),
       
       // 创建地址
       create: (data: AddressCreateRequest) =>
-        request<AddressResponse>('/accounts/addresses/', {
+        request<AddressResponse>('/auth/addresses/', {
           method: 'POST',
           body: data as any,
         }),
       
       // 更新地址
       update: (addressId: string, data: AddressUpdateRequest) =>
-        request<AddressResponse>(`/accounts/addresses/${addressId}/`, {
+        request<AddressResponse>(`/auth/addresses/${addressId}/`, {
           method: 'PATCH',
           body: data as any,
         }),
       
       // 删除地址
       delete: (addressId: string) =>
-        request<AddressResponse>(`/accounts/addresses/${addressId}/`, {
+        request<AddressResponse>(`/auth/addresses/${addressId}/`, {
           method: 'DELETE',
         }),
       
       // 设置默认地址
       setDefault: (addressId: string) =>
-        request<AddressResponse>(`/accounts/addresses/${addressId}/set-default/`, {
+        request<AddressResponse>(`/auth/addresses/${addressId}/set-default/`, {
           method: 'POST',
         }),
       
       // 获取默认地址
       getDefault: () =>
-        request<AddressDetailResponse>('/accounts/addresses/default/'),
+        request<AddressDetailResponse>('/auth/addresses/default/'),
       
       // 验证地址
       validate: (addressId: string) =>
-        request<{ success: boolean; data: { is_valid: boolean; address?: Address } }>('/accounts/addresses/validate/', {
+        request<{ success: boolean; data: { is_valid: boolean; address?: Address } }>('/auth/addresses/validate/', {
           method: 'POST',
           body: { address_id: addressId } as any,
         }),
