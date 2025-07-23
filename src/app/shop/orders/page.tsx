@@ -230,8 +230,11 @@ export default function OrdersListPage() {
                             alt={order.product_name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                              e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-3xl opacity-20">📦</div>'
+                              const target = e.currentTarget as HTMLImageElement
+                              const placeholder = document.createElement('div')
+                              placeholder.className = 'w-full h-full flex items-center justify-center text-3xl opacity-20'
+                              placeholder.textContent = '📦'
+                              target.parentElement?.replaceChild(placeholder, target)
                             }}
                           />
                         </div>
