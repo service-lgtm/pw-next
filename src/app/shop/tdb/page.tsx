@@ -11,7 +11,9 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
-import { ProductImage } from '@/components/shop/ProductImage'
+import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
+import type { Product } from '@/lib/api'
 
 export default function TDBShopPage() {
   const router = useRouter()
@@ -228,10 +230,27 @@ export default function TDBShopPage() {
                   <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
                     {/* 商品图片 */}
                     <div className="aspect-square bg-gray-800 relative overflow-hidden group">
-                      <ProductImage
-                        src={product.images?.[0]}
-                        alt={product.name}
-                      />
+                      {product.images && product.images.length > 0 ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const img = e.currentTarget
+                            img.style.display = 'none'
+                            const fallback = document.createElement('div')
+                            fallback.className = 'w-full h-full flex items-center justify-center text-6xl opacity-20'
+                            fallback.textContent = '📦'
+                            if (img.parentElement && !img.parentElement.querySelector('div')) {
+                              img.parentElement.appendChild(fallback)
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
+                          📦
+                        </div>
+                      )}
                       
                       {/* 标签 */}
                       <div className="absolute top-2 left-2 flex gap-2">
