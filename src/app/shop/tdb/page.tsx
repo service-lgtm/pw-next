@@ -235,9 +235,13 @@ export default function TDBShopPage() {
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = ''
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-6xl opacity-20">📦</div>'
+                            const target = e.currentTarget as HTMLImageElement
+                            // 创建占位符元素
+                            const placeholder = document.createElement('div')
+                            placeholder.className = 'w-full h-full flex items-center justify-center text-6xl opacity-20'
+                            placeholder.textContent = '📦'
+                            // 替换图片元素
+                            target.parentElement?.replaceChild(placeholder, target)
                           }}
                         />
                       ) : (
