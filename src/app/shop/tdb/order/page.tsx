@@ -3,7 +3,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
@@ -52,7 +52,8 @@ const mockAddresses: Address[] = [
   },
 ]
 
-export default function OrderPage() {
+// 订单内容组件
+function OrderContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -482,5 +483,21 @@ export default function OrderPage() {
         </motion.div>
       )}
     </div>
+  )
+}
+
+// 主页面组件
+export default function OrderPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">加载中...</p>
+        </div>
+      </div>
+    }>
+      <OrderContent />
+    </Suspense>
   )
 }
