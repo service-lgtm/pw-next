@@ -3,7 +3,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
@@ -58,7 +58,8 @@ const tdbPackages: Record<string, any> = {
   vip: { name: 'VIP套餐', amount: 50000, price: 45000, bonus: 2000 },
 }
 
-export default function PaymentPage() {
+// 支付页面内容组件
+function PaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -389,5 +390,21 @@ export default function PaymentPage() {
         </PixelButton>
       </motion.div>
     </div>
+  )
+}
+
+// 主页面组件
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">加载中...</p>
+        </div>
+      </div>
+    }>
+      <PaymentContent />
+    </Suspense>
   )
 }
