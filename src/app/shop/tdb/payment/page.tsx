@@ -48,14 +48,46 @@ const paymentAccounts: Record<PaymentMethod, PaymentInfo> = {
   },
 }
 
-// TDB套餐数据（与商品页面一致）
-const tdbPackages: Record<string, any> = {
-  starter: { name: '新手套餐', amount: 100, price: 100 },
-  basic: { name: '基础套餐', amount: 500, price: 490 },
-  standard: { name: '标准套餐', amount: 1000, price: 960 },
-  premium: { name: '进阶套餐', amount: 5000, price: 4700, bonus: 100 },
-  pro: { name: '专业套餐', amount: 10000, price: 9200, bonus: 300 },
-  vip: { name: 'VIP套餐', amount: 50000, price: 45000, bonus: 2000 },
+// 模拟的商品数据（实际应从后端获取）
+const mockProducts: Record<string, any> = {
+  'gold-coin-100': { 
+    name: '黄金纪念币 - 平行世界开服限定版', 
+    tdbAmount: 100, 
+    price: 500,
+    category: '纪念币'
+  },
+  'silver-coin-500': { 
+    name: '银质纪念币套装（5枚）', 
+    tdbAmount: 500, 
+    price: 800,
+    category: '纪念币'
+  },
+  'crystal-trophy-1000': { 
+    name: '水晶奖杯 - 数字先锋', 
+    tdbAmount: 1000, 
+    price: 1500,
+    category: '奖杯'
+  },
+  'art-painting-5000': { 
+    name: '限量版数字艺术画作', 
+    tdbAmount: 5000, 
+    price: 5000,
+    category: '艺术品',
+    discount: 10
+  },
+  'luxury-watch-10000': { 
+    name: '瑞士机械手表 - 平行世界定制款', 
+    tdbAmount: 10000, 
+    price: 12000,
+    category: '手表'
+  },
+  'gold-bar-50000': { 
+    name: '投资金条 50克', 
+    tdbAmount: 50000, 
+    price: 25000,
+    category: '黄金',
+    discount: 5
+  },
 }
 
 // 支付页面内容组件
@@ -71,26 +103,25 @@ function PaymentContent() {
   
   // 获取订单信息
   useEffect(() => {
-    const packageId = searchParams.get('package')
-    const type = searchParams.get('type')
-    const amount = searchParams.get('amount')
-    const price = searchParams.get('price')
+    const productId = searchParams.get('productId')
     
-    if (packageId && tdbPackages[packageId]) {
+    if (productId && mockProducts[productId]) {
+      const product = mockProducts[productId]
+      const finalPrice = product.discount 
+        ? Math.floor(product.price * (100 - product.discount) / 100)
+        : product.price
+        
       setOrderInfo({
-        type: 'package',
-        ...tdbPackages[packageId],
-        packageId,
-      })
-    } else if (type === 'custom' && amount && price) {
-      setOrderInfo({
-        type: 'custom',
-        amount: parseInt(amount),
-        price: parseInt(price),
-        name: '自定义金额',
+        productId,
+        name: product.name,
+        category: product.category,
+        tdbAmount: product.tdbAmount,
+        price: finalPrice,
+        originalPrice: product.price,
+        discount: product.discount
       })
     } else {
-      toast.error('订单信息无效')
+      toast.error('商品信息无效')
       router.push('/shop/tdb')
     }
   }, [searchParams, router])
@@ -209,20 +240,32 @@ function PaymentContent() {
               <span className="font-bold">{orderInfo.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400">购买数量</span>
-              <span className="font-bold">{orderInfo.amount} TDB</span>
+              <span className="text-gray-400">商品分类</span>
+              <span>{orderInfo.category}</span>
             </div>
-            {orderInfo.bonus && (
+            <div className="flex justify-between">
+              <span className="text-gray-400">获得TDB积分</span>
+              <span className="font-bold text-gold-500">{orderInfo.tdbAmount.toLocaleString()} TDB</span>
+            </div>
+            {orderInfo.discount && (
               <div className="flex justify-between">
-                <span className="text-gray-400">赠送数量</span>
-                <span className="font-bold text-green-500">+{orderInfo.bonus} TDB</span>
+                <span className="text-gray-400">优惠折扣</span>
+                <span className="text-green-500">{orderInfo.discount}% OFF</span>
               </div>
             )}
-            <div className="border-t border-gray-700 pt-3 flex justify-between">
-              <span className="text-gray-400">应付金额</span>
-              <span className="text-2xl font-black text-gold-500">
-                ¥{orderInfo.price.toLocaleString()}
-              </span>
+            <div className="border-t border-gray-700 pt-3">
+              {orderInfo.discount && (
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-400">原价</span>
+                  <span className="line-through text-gray-500">¥{orderInfo.originalPrice.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-400">应付金额</span>
+                <span className="text-2xl font-black text-gold-500">
+                  ¥{orderInfo.price.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
         </PixelCard>
