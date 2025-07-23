@@ -1,5 +1,5 @@
 // src/app/dashboard/page.tsx
-// 仪表盘页面 - 更新版
+// 仪表盘页面 - 使用真实API数据
 
 'use client'
 
@@ -10,69 +10,39 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { useAuth } from '@/hooks/useAuth'
 import { formatNumber } from '@/lib/utils'
-import { 
-  TrendingUp,
-  Users,
-  Coins,
-  Trophy,
-  ShoppingCart,
-  ClipboardList,
-  Gift,
-  Wallet
-} from 'lucide-react'
+import { api } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 export default function DashboardPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const [stats, setStats] = useState({
-    totalAssets: 0,
-    todayEarnings: 0,
-    teamSize: 0,
-    rank: 0
-  })
+  const [teamSummary, setTeamSummary] = useState<{
+    total_members: number
+    total_performance: string
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // 模拟数据加载
+  // 加载团队数据
   useEffect(() => {
-    // TODO: 从API加载实际数据
-    setStats({
-      totalAssets: 125000,
-      todayEarnings: 580,
-      teamSize: 42,
-      rank: 156
-    })
+    const loadTeamSummary = async () => {
+      try {
+        const response = await api.accounts.getTeamSummary()
+        if (response.success && response.data) {
+          setTeamSummary(response.data)
+        }
+      } catch (error) {
+        console.error('加载团队数据失败:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTeamSummary()
   }, [])
 
-  const quickActions = [
-    {
-      icon: <ShoppingCart className="w-8 h-8" />,
-      title: 'TDB商城',
-      description: '购买商品获得TDB积分',
-      color: 'from-blue-500 to-purple-600',
-      onClick: () => router.push('/shop/tdb'),
-      highlight: true
-    },
-    {
-      icon: <ClipboardList className="w-8 h-8" />,
-      title: '我的订单',
-      description: '查看订单状态',
-      color: 'from-green-500 to-teal-600',
-      onClick: () => router.push('/shop/orders')
-    },
-    {
-      icon: <Wallet className="w-8 h-8" />,
-      title: '我的资产',
-      description: '查看资产详情',
-      color: 'from-orange-500 to-red-600',
-      onClick: () => router.push('/assets')
-    },
-    {
-      icon: <Gift className="w-8 h-8" />,
-      title: '邀请好友',
-      description: '邀请获得奖励',
-      color: 'from-pink-500 to-rose-600',
-      onClick: () => router.push('/invite')
-    }
-  ]
+  // 获取TDB和YLD余额
+  const tdbBalance = user?.tdb_balance ? parseFloat(user.tdb_balance) : (user?.tdbBalance || 0)
+  const yldBalance = user?.yld_balance ? parseFloat(user.yld_balance) : (user?.yldBalance || 0)
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -82,174 +52,215 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="text-3xl md:text-4xl font-black text-white mb-2">
+        <h1 className="text-2xl md:text-3xl font-black text-white mb-2">
           欢迎回来，{user?.nickname || user?.username}！
         </h1>
         <p className="text-gray-400">
-          今天是成功的又一天，让我们一起创造更多价值
+          探索平行世界，创造无限可能
         </p>
       </motion.div>
 
-      {/* 统计卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      {/* 资产卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {/* TDB余额 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <PixelCard className="p-6 bg-gradient-to-br from-blue-500/10 to-purple-600/10">
+          <PixelCard className="p-6 bg-gradient-to-br from-gold-500/10 to-yellow-600/10">
             <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="w-8 h-8 text-blue-500" />
-              <span className="text-xs text-green-500">+12.5%</span>
+              <div className="text-3xl">💰</div>
             </div>
-            <p className="text-sm text-gray-400 mb-1">总资产</p>
-            <p className="text-2xl font-bold">¥{formatNumber(stats.totalAssets)}</p>
+            <p className="text-sm text-gray-400 mb-1">TDB积分</p>
+            <p className="text-2xl font-bold text-gold-500">{formatNumber(tdbBalance)}</p>
           </PixelCard>
         </motion.div>
 
+        {/* 黄金(YLD)余额 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <PixelCard className="p-6 bg-gradient-to-br from-green-500/10 to-teal-600/10">
+          <PixelCard className="p-6 bg-gradient-to-br from-yellow-500/10 to-orange-600/10">
             <div className="flex items-center justify-between mb-4">
-              <Coins className="w-8 h-8 text-green-500" />
-              <span className="text-xs text-green-500">+5.8%</span>
+              <div className="text-3xl">🪙</div>
             </div>
-            <p className="text-sm text-gray-400 mb-1">今日收益</p>
-            <p className="text-2xl font-bold">¥{formatNumber(stats.todayEarnings)}</p>
+            <p className="text-sm text-gray-400 mb-1">黄金(YLD)</p>
+            <p className="text-2xl font-bold text-yellow-500">{formatNumber(yldBalance)}</p>
           </PixelCard>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <PixelCard className="p-6 bg-gradient-to-br from-orange-500/10 to-red-600/10">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="w-8 h-8 text-orange-500" />
-              <span className="text-xs text-green-500">+3</span>
-            </div>
-            <p className="text-sm text-gray-400 mb-1">团队人数</p>
-            <p className="text-2xl font-bold">{formatNumber(stats.teamSize)}</p>
-          </PixelCard>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <PixelCard className="p-6 bg-gradient-to-br from-pink-500/10 to-rose-600/10">
-            <div className="flex items-center justify-between mb-4">
-              <Trophy className="w-8 h-8 text-pink-500" />
-              <span className="text-xs text-yellow-500">Top 1%</span>
-            </div>
-            <p className="text-sm text-gray-400 mb-1">全球排名</p>
-            <p className="text-2xl font-bold">#{formatNumber(stats.rank)}</p>
-          </PixelCard>
-        </motion.div>
+        {/* 团队人数 */}
+        {teamSummary && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <PixelCard className="p-6 bg-gradient-to-br from-blue-500/10 to-purple-600/10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-3xl">👥</div>
+              </div>
+              <p className="text-sm text-gray-400 mb-1">团队人数</p>
+              <p className="text-2xl font-bold">{formatNumber(teamSummary.total_members)}</p>
+            </PixelCard>
+          </motion.div>
+        )}
       </div>
 
-      {/* 快捷操作 */}
+      {/* 快捷操作 - 保持原有的6个入口 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mb-8"
+      >
+        <h2 className="text-xl font-bold mb-4 text-white">快捷操作</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {/* 购买土地 */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer"
+            onClick={() => router.push('/lands')}
+          >
+            <div className="text-3xl mb-3">🏞️</div>
+            <h3 className="font-bold">购买土地</h3>
+            <p className="text-sm text-gray-400 mt-1">投资虚拟地产</p>
+          </PixelCard>
+
+          {/* 生产管理 */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer"
+            onClick={() => router.push('/production')}
+          >
+            <div className="text-3xl mb-3">⚙️</div>
+            <h3 className="font-bold">生产管理</h3>
+            <p className="text-sm text-gray-400 mt-1">管理土地生产</p>
+          </PixelCard>
+
+          {/* 购买TDB */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer border-gold-500/50"
+            onClick={() => router.push('/shop/tdb')}
+          >
+            <div className="text-3xl mb-3">🛍️</div>
+            <h3 className="font-bold">购买TDB</h3>
+            <p className="text-sm text-gray-400 mt-1">获取积分</p>
+            <span className="text-xs bg-gold-500/20 text-gold-500 px-2 py-1 rounded mt-2 inline-block">
+              热门
+            </span>
+          </PixelCard>
+
+          {/* 查看区域 */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer"
+            onClick={() => router.push('/explore/regions')}
+          >
+            <div className="text-3xl mb-3">🗺️</div>
+            <h3 className="font-bold">查看区域</h3>
+            <p className="text-sm text-gray-400 mt-1">探索世界地图</p>
+          </PixelCard>
+
+          {/* 邀请好友 */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer"
+            onClick={() => router.push('/invite')}
+          >
+            <div className="text-3xl mb-3">🎁</div>
+            <h3 className="font-bold">邀请好友</h3>
+            <p className="text-sm text-gray-400 mt-1">获得奖励</p>
+          </PixelCard>
+
+          {/* 排行榜 */}
+          <PixelCard
+            className="p-6 hover:border-gold-500 transition-all cursor-pointer"
+            onClick={() => router.push('/leaderboard')}
+          >
+            <div className="text-3xl mb-3">🏆</div>
+            <h3 className="font-bold">排行榜</h3>
+            <p className="text-sm text-gray-400 mt-1">查看排名</p>
+          </PixelCard>
+        </div>
+      </motion.div>
+
+      {/* 商城入口按钮 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="mb-8"
+        className="text-center mb-8"
       >
-        <h2 className="text-xl font-bold mb-4 text-white">快捷操作</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => (
-            <motion.div
-              key={action.title}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6 + index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <PixelCard
-                className={`p-6 cursor-pointer transition-all ${
-                  action.highlight 
-                    ? 'border-gold-500 hover:border-gold-400 hover:shadow-lg hover:shadow-gold-500/20' 
-                    : 'hover:border-gold-500'
-                }`}
-                onClick={action.onClick}
-              >
-                <div className={`p-3 rounded-lg bg-gradient-to-br ${action.color} bg-opacity-20 inline-flex mb-4`}>
-                  {action.icon}
-                </div>
-                <h3 className="font-bold text-lg mb-1">{action.title}</h3>
-                <p className="text-sm text-gray-400">{action.description}</p>
-                {action.highlight && (
-                  <div className="mt-3">
-                    <span className="text-xs bg-gold-500/20 text-gold-500 px-2 py-1 rounded">
-                      热门
-                    </span>
-                  </div>
-                )}
-              </PixelCard>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* 购买TDB特别按钮 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="text-center"
-      >
-        <div className="inline-block">
+        <div className="inline-flex gap-4">
           <PixelButton
             onClick={() => router.push('/shop/tdb')}
-            className="relative overflow-hidden group px-8 py-4 text-lg"
+            className="px-6 py-3"
           >
-            <span className="relative z-10 flex items-center gap-3">
-              <ShoppingCart className="w-5 h-5" />
-              进入TDB商城
-              <span className="text-sm">→</span>
-            </span>
-            <div className="absolute inset-0 bg-gradient-to-r from-gold-600 to-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            进入TDB商城
           </PixelButton>
-          <p className="text-xs text-gray-500 mt-2">购买商品，获得TDB积分奖励</p>
+          <PixelButton
+            onClick={() => router.push('/shop/orders')}
+            variant="secondary"
+            className="px-6 py-3"
+          >
+            我的订单
+          </PixelButton>
         </div>
       </motion.div>
 
-      {/* 最新动态 */}
+      {/* 用户信息卡片 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9 }}
-        className="mt-8"
+        transition={{ delay: 0.6 }}
       >
         <PixelCard className="p-6">
-          <h2 className="text-xl font-bold mb-4">最新动态</h2>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <p className="text-sm">
-                <span className="text-gray-400">10分钟前</span> - 
-                您的订单 #ORDER-2024-001 已发货
-              </p>
+          <h2 className="text-xl font-bold mb-4">账户信息</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-400 mb-2">基本信息</p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">用户名</span>
+                  <span>{user?.username}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">昵称</span>
+                  <span>{user?.nickname || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">等级</span>
+                  <span className="text-gold-500">{user?.level_name || `Lv.${user?.level || 1}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">邀请码</span>
+                  <span className="font-mono">{user?.referral_code || '-'}</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded">
-              <div className="w-2 h-2 bg-blue-500 rounded-full" />
-              <p className="text-sm">
-                <span className="text-gray-400">2小时前</span> - 
-                获得 100 TDB 积分奖励
-              </p>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-              <p className="text-sm">
-                <span className="text-gray-400">昨天</span> - 
-                新用户通过您的邀请码注册
-              </p>
+            
+            <div>
+              <p className="text-sm text-gray-400 mb-2">团队信息</p>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">直推人数</span>
+                  <span>{user?.direct_referrals_count || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">团队总人数</span>
+                  <span>{teamSummary?.total_members || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">团队业绩</span>
+                  <span className="text-green-500">
+                    {teamSummary?.total_performance || '0'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">推荐人</span>
+                  <span>{user?.referrer_nickname || '无'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </PixelCard>
