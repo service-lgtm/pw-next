@@ -12,79 +12,98 @@ import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
-// TDB商品套餐类型
-interface TDBPackage {
+// 商品类型
+interface Product {
   id: string
   name: string
-  amount: number
+  description: string
   price: number
+  tdbAmount: number // 对应的TDB数量
+  image: string
+  stock: number
+  category: string
+  isHot?: boolean
   discount?: number
-  popular?: boolean
-  bonus?: number
-  description?: string
 }
 
-// 预设的TDB套餐
-const tdbPackages: TDBPackage[] = [
+// 模拟的商品数据（实际应从后端获取）
+const mockProducts: Product[] = [
   {
-    id: 'starter',
-    name: '新手套餐',
-    amount: 100,
-    price: 100,
-    description: '适合初次体验',
+    id: 'gold-coin-100',
+    name: '黄金纪念币 - 平行世界开服限定版',
+    description: '限量发行的平行世界开服纪念币，采用999纯金打造，重1克，附带收藏证书',
+    price: 500,
+    tdbAmount: 100,
+    image: '/images/products/gold-coin-100.jpg',
+    stock: 100,
+    category: '纪念币',
+    isHot: true,
   },
   {
-    id: 'basic',
-    name: '基础套餐',
-    amount: 500,
-    price: 490,
-    discount: 2,
-    description: '日常使用推荐',
+    id: 'silver-coin-500',
+    name: '银质纪念币套装（5枚）',
+    description: '平行世界五大区域主题银币套装，每枚重10克，配精美收藏盒',
+    price: 800,
+    tdbAmount: 500,
+    image: '/images/products/silver-coin-set.jpg',
+    stock: 50,
+    category: '纪念币',
   },
   {
-    id: 'standard',
-    name: '标准套餐',
-    amount: 1000,
-    price: 960,
-    discount: 4,
-    popular: true,
-    description: '最受欢迎',
+    id: 'crystal-trophy-1000',
+    name: '水晶奖杯 - 数字先锋',
+    description: '高级水晶材质，激光内雕平行世界logo，高度30cm，底座可定制刻字',
+    price: 1500,
+    tdbAmount: 1000,
+    image: '/images/products/crystal-trophy.jpg',
+    stock: 30,
+    category: '奖杯',
+    isHot: true,
   },
   {
-    id: 'premium',
-    name: '进阶套餐',
-    amount: 5000,
-    price: 4700,
-    discount: 6,
-    bonus: 100,
-    description: '额外赠送100 TDB',
-  },
-  {
-    id: 'pro',
-    name: '专业套餐',
-    amount: 10000,
-    price: 9200,
-    discount: 8,
-    bonus: 300,
-    description: '额外赠送300 TDB',
-  },
-  {
-    id: 'vip',
-    name: 'VIP套餐',
-    amount: 50000,
-    price: 45000,
+    id: 'art-painting-5000',
+    name: '限量版数字艺术画作',
+    description: '知名数字艺术家创作的平行世界主题画作，限量100幅，附艺术家签名证书',
+    price: 5000,
+    tdbAmount: 5000,
+    image: '/images/products/art-painting.jpg',
+    stock: 20,
+    category: '艺术品',
     discount: 10,
-    bonus: 2000,
-    description: '额外赠送2000 TDB',
+  },
+  {
+    id: 'luxury-watch-10000',
+    name: '瑞士机械手表 - 平行世界定制款',
+    description: '瑞士原装机芯，表盘镶嵌平行世界元素，全球限量500只',
+    price: 12000,
+    tdbAmount: 10000,
+    image: '/images/products/luxury-watch.jpg',
+    stock: 10,
+    category: '手表',
+  },
+  {
+    id: 'gold-bar-50000',
+    name: '投资金条 50克',
+    description: '999.9纯金，国际认证，附平行世界专属防伪标识',
+    price: 25000,
+    tdbAmount: 50000,
+    image: '/images/products/gold-bar.jpg',
+    stock: 5,
+    category: '黄金',
+    discount: 5,
   },
 ]
+
+// 商品分类
+const categories = ['全部', '纪念币', '奖杯', '艺术品', '手表', '黄金']
 
 export default function TDBShopPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [selectedPackage, setSelectedPackage] = useState<TDBPackage | null>(null)
-  const [customAmount, setCustomAmount] = useState('')
-  const [isCustom, setIsCustom] = useState(false)
+  const [products, setProducts] = useState<Product[]>(mockProducts)
+  const [loading, setLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('全部')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // 检查认证状态
   useEffect(() => {
@@ -94,7 +113,50 @@ export default function TDBShopPage() {
     }
   }, [authLoading, isAuthenticated, router])
 
-  if (authLoading) {
+  // 加载商品列表
+  useEffect(() => {
+    const loadProducts = async () => {
+      setLoading(true)
+      try {
+        // TODO: 从后端加载商品列表
+        // const response = await api.shop.getProducts()
+        // setProducts(response.data)
+        
+        // 模拟加载延迟
+        await new Promise(resolve => setTimeout(resolve, 500))
+        setProducts(mockProducts)
+      } catch (error) {
+        toast.error('加载商品失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (isAuthenticated) {
+      loadProducts()
+    }
+  }, [isAuthenticated])
+
+  // 过滤商品
+  const filteredProducts = products.filter(product => {
+    const matchCategory = selectedCategory === '全部' || product.category === selectedCategory
+    const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       product.description.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchCategory && matchSearch
+  })
+
+  // 处理购买
+  const handlePurchase = (product: Product) => {
+    if (product.stock === 0) {
+      toast.error('商品已售罄')
+      return
+    }
+    
+    // 跳转到支付页面
+    router.push(`/shop/tdb/payment?productId=${product.id}`)
+  }
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -107,44 +169,6 @@ export default function TDBShopPage() {
 
   if (!isAuthenticated) {
     return null
-  }
-
-  // 计算自定义金额
-  const calculateCustomPrice = (amount: string) => {
-    const num = parseInt(amount)
-    if (isNaN(num) || num <= 0) return 0
-    
-    // 根据金额给予不同折扣
-    let discount = 0
-    if (num >= 50000) discount = 10
-    else if (num >= 10000) discount = 8
-    else if (num >= 5000) discount = 6
-    else if (num >= 1000) discount = 4
-    else if (num >= 500) discount = 2
-    
-    return Math.floor(num * (100 - discount) / 100)
-  }
-
-  // 处理购买
-  const handlePurchase = () => {
-    if (!isCustom && !selectedPackage) {
-      toast.error('请选择一个套餐')
-      return
-    }
-    
-    if (isCustom) {
-      const amount = parseInt(customAmount)
-      if (isNaN(amount) || amount < 100) {
-        toast.error('最低购买金额为100 TDB')
-        return
-      }
-      
-      // 跳转到支付页面，传递自定义购买信息
-      router.push(`/shop/tdb/payment?type=custom&amount=${amount}&price=${calculateCustomPrice(customAmount)}`)
-    } else if (selectedPackage) {
-      // 跳转到支付页面，传递套餐信息
-      router.push(`/shop/tdb/payment?package=${selectedPackage.id}`)
-    }
   }
 
   return (
@@ -164,171 +188,180 @@ export default function TDBShopPage() {
           </button>
         </div>
         <h1 className="text-2xl md:text-3xl font-black text-white">
-          购买 TDB 积分
+          TDB 积分商城
         </h1>
         <p className="text-gray-400 mt-2">
-          TDB 是平行世界的稳定交易币，1 TDB ≈ 0.01克黄金
+          购买实物商品，获得对应TDB积分
         </p>
       </motion.div>
 
-      {/* 套餐选择 */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {tdbPackages.map((pkg, index) => (
-          <motion.div
-            key={pkg.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
-            <PixelCard
-              className={cn(
-                "p-6 cursor-pointer transition-all",
-                selectedPackage?.id === pkg.id ? "border-gold-500" : "hover:border-gold-500/50",
-                pkg.popular && "relative overflow-hidden"
-              )}
-              onClick={() => {
-                setSelectedPackage(pkg)
-                setIsCustom(false)
-              }}
-            >
-              {pkg.popular && (
-                <div className="absolute top-0 right-0 bg-gold-500 text-black text-xs px-3 py-1 font-bold">
-                  热门
-                </div>
-              )}
-              
-              <div className="text-center mb-4">
-                <h3 className="text-lg font-bold mb-2">{pkg.name}</h3>
-                <p className="text-3xl font-black text-gold-500">
-                  {pkg.amount.toLocaleString()}
-                  <span className="text-sm ml-1">TDB</span>
-                </p>
-                {pkg.bonus && (
-                  <p className="text-sm text-green-500 mt-1">
-                    +{pkg.bonus} TDB 赠送
-                  </p>
-                )}
-              </div>
-              
-              <div className="text-center mb-4">
-                <p className="text-2xl font-bold text-white">
-                  ¥{pkg.price.toLocaleString()}
-                </p>
-                {pkg.discount && (
-                  <p className="text-sm text-gray-400">
-                    <span className="line-through">¥{pkg.amount}</span>
-                    <span className="ml-2 text-green-500">省{pkg.discount}%</span>
-                  </p>
-                )}
-              </div>
-              
-              {pkg.description && (
-                <p className="text-xs text-gray-400 text-center">
-                  {pkg.description}
-                </p>
-              )}
-              
-              <div className="mt-4 text-center">
-                <p className="text-xs text-gray-500">
-                  单价: ¥{(pkg.price / (pkg.amount + (pkg.bonus || 0))).toFixed(3)}/TDB
-                </p>
-              </div>
-            </PixelCard>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* 自定义金额 */}
+      {/* 搜索和筛选 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="mb-8"
+        transition={{ delay: 0.1 }}
+        className="mb-6"
       >
-        <PixelCard className="p-6">
-          <h3 className="text-lg font-bold mb-4">自定义金额</h3>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="number"
-                placeholder="输入购买数量（最低100 TDB）"
-                value={customAmount}
-                onChange={(e) => {
-                  setCustomAmount(e.target.value)
-                  setIsCustom(true)
-                  setSelectedPackage(null)
-                }}
-                className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 focus:border-gold-500 rounded outline-none"
-                min="100"
-                step="100"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <p className="text-sm text-gray-400">应付金额</p>
-                <p className="text-2xl font-bold text-gold-500">
-                  ¥{calculateCustomPrice(customAmount).toLocaleString()}
-                </p>
-              </div>
-            </div>
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* 搜索框 */}
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="搜索商品..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 focus:border-gold-500 rounded outline-none"
+            />
           </div>
-          {customAmount && parseInt(customAmount) >= 100 && (
-            <div className="mt-4 text-sm text-gray-400">
-              {parseInt(customAmount) >= 50000 && '享受10%折扣'}
-              {parseInt(customAmount) >= 10000 && parseInt(customAmount) < 50000 && '享受8%折扣'}
-              {parseInt(customAmount) >= 5000 && parseInt(customAmount) < 10000 && '享受6%折扣'}
-              {parseInt(customAmount) >= 1000 && parseInt(customAmount) < 5000 && '享受4%折扣'}
-              {parseInt(customAmount) >= 500 && parseInt(customAmount) < 1000 && '享受2%折扣'}
-            </div>
-          )}
-        </PixelCard>
+          
+          {/* 分类筛选 */}
+          <div className="flex gap-2 flex-wrap">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={cn(
+                  "px-4 py-2 rounded font-bold transition-all",
+                  selectedCategory === category
+                    ? "bg-gold-500 text-black"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                )}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
       </motion.div>
 
-      {/* 购买须知 */}
+      {/* 商品列表 */}
+      {filteredProducts.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-20"
+        >
+          <p className="text-gray-400 text-lg">没有找到相关商品</p>
+        </motion.div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProducts.map((product, index) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
+                {/* 商品图片 */}
+                <div className="aspect-square bg-gray-800 relative overflow-hidden group">
+                  {/* 模拟图片占位 */}
+                  <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
+                    📦
+                  </div>
+                  
+                  {/* 标签 */}
+                  <div className="absolute top-2 left-2 flex gap-2">
+                    {product.isHot && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
+                        热卖
+                      </span>
+                    )}
+                    {product.discount && (
+                      <span className="bg-gold-500 text-black text-xs px-2 py-1 rounded">
+                        {product.discount}% OFF
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* 库存状态 */}
+                  {product.stock === 0 && (
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                      <p className="text-white font-bold text-lg">已售罄</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 商品信息 */}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-2 line-clamp-2">{product.name}</h3>
+                    <p className="text-sm text-gray-400 mb-3 line-clamp-2">{product.description}</p>
+                    
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">分类：{product.category}</span>
+                      <span className="text-xs text-gray-500">库存：{product.stock}</span>
+                    </div>
+                  </div>
+                  
+                  {/* 价格和TDB */}
+                  <div className="border-t border-gray-700 pt-3 mt-3">
+                    <div className="flex items-end justify-between mb-3">
+                      <div>
+                        <p className="text-xs text-gray-400">商品价格</p>
+                        <p className="text-2xl font-bold text-white">
+                          ¥{product.discount 
+                            ? (product.price * (100 - product.discount) / 100).toFixed(0)
+                            : product.price
+                          }
+                          {product.discount && (
+                            <span className="text-sm text-gray-500 line-through ml-2">
+                              ¥{product.price}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-400">获得TDB</p>
+                        <p className="text-xl font-bold text-gold-500">
+                          {product.tdbAmount.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <PixelButton
+                      className="w-full"
+                      onClick={() => handlePurchase(product)}
+                      disabled={product.stock === 0}
+                    >
+                      {product.stock === 0 ? '已售罄' : '立即购买'}
+                    </PixelButton>
+                  </div>
+                </div>
+              </PixelCard>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* 底部说明 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="mb-8"
+        className="mt-12"
       >
         <PixelCard className="p-6 bg-gold-500/10 border-gold-500/30">
-          <h3 className="text-lg font-bold mb-3 text-gold-500">购买须知</h3>
+          <h3 className="text-lg font-bold mb-3 text-gold-500">购买说明</h3>
           <ul className="space-y-2 text-sm text-gray-300">
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>TDB积分购买后立即到账，不支持退款</span>
+              <span>所有商品均为实物商品，购买后需要填写收货地址</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>支持支付宝、银行转账等多种支付方式</span>
+              <span>支付成功并确认收货地址后，对应的TDB积分会立即到账</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>大额购买享受更多优惠，最高可享10%折扣</span>
+              <span>商品将在3-7个工作日内发货，可在订单中心查看物流信息</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>如需发票，请在支付后联系客服</span>
+              <span>如需退换货，请在收货后7天内联系客服</span>
             </li>
           </ul>
         </PixelCard>
-      </motion.div>
-
-      {/* 底部操作 */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="flex justify-center"
-      >
-        <PixelButton
-          size="lg"
-          onClick={handlePurchase}
-          disabled={!selectedPackage && (!isCustom || !customAmount || parseInt(customAmount) < 100)}
-          className="px-12"
-        >
-          立即购买
-        </PixelButton>
       </motion.div>
     </div>
   )
