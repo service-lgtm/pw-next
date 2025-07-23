@@ -178,25 +178,34 @@ export default function DashboardPage() {
       {/* 积分卡片 */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* TDB 卡片 */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-        >
-          <PixelCard className="p-6 bg-gradient-to-br from-gold-500/10 to-yellow-600/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400 mb-2">TDB积分</p>
-                <p className="text-3xl font-black text-gold-500">
-                  {tdbBalance.toLocaleString()}
-                  <span className="text-sm ml-2">TDB</span>
-                </p>
-                <p className="text-xs text-gray-400 mt-1">≈ 0.01克黄金/枚</p>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <PixelCard className="p-6 bg-gradient-to-br from-gold-500/10 to-yellow-600/10">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm text-gray-400 mb-2">TDB积分</p>
+                  <p className="text-3xl font-black text-gold-500">
+                    {tdbBalance.toLocaleString()}
+                    <span className="text-sm ml-2">TDB</span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">≈ 0.01克黄金/枚</p>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push('/shop/tdb')}
+                    className="mt-3 text-xs text-gold-500 hover:text-gold-400 font-bold flex items-center gap-1"
+                  >
+                    <span>购买TDB</span>
+                    <span>→</span>
+                  </motion.button>
+                </div>
+                <span className="text-5xl opacity-30">💎</span>
               </div>
-              <span className="text-5xl opacity-30">💎</span>
-            </div>
-          </PixelCard>
-        </motion.div>
+            </PixelCard>
+          </motion.div>
 
         {/* YLD 卡片 */}
         <motion.div
