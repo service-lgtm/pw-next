@@ -11,99 +11,20 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
-
-// 商品类型
-interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  tdbAmount: number // 对应的TDB数量
-  image: string
-  stock: number
-  category: string
-  isHot?: boolean
-  discount?: number
-}
-
-// 模拟的商品数据（实际应从后端获取）
-const mockProducts: Product[] = [
-  {
-    id: 'gold-coin-100',
-    name: '黄金纪念币 - 平行世界开服限定版',
-    description: '限量发行的平行世界开服纪念币，采用999纯金打造，重1克，附带收藏证书',
-    price: 500,
-    tdbAmount: 100,
-    image: '/images/products/gold-coin-100.jpg',
-    stock: 100,
-    category: '纪念币',
-    isHot: true,
-  },
-  {
-    id: 'silver-coin-500',
-    name: '银质纪念币套装（5枚）',
-    description: '平行世界五大区域主题银币套装，每枚重10克，配精美收藏盒',
-    price: 800,
-    tdbAmount: 500,
-    image: '/images/products/silver-coin-set.jpg',
-    stock: 50,
-    category: '纪念币',
-  },
-  {
-    id: 'crystal-trophy-1000',
-    name: '水晶奖杯 - 数字先锋',
-    description: '高级水晶材质，激光内雕平行世界logo，高度30cm，底座可定制刻字',
-    price: 1500,
-    tdbAmount: 1000,
-    image: '/images/products/crystal-trophy.jpg',
-    stock: 30,
-    category: '奖杯',
-    isHot: true,
-  },
-  {
-    id: 'art-painting-5000',
-    name: '限量版数字艺术画作',
-    description: '知名数字艺术家创作的平行世界主题画作，限量100幅，附艺术家签名证书',
-    price: 5000,
-    tdbAmount: 5000,
-    image: '/images/products/art-painting.jpg',
-    stock: 20,
-    category: '艺术品',
-    discount: 10,
-  },
-  {
-    id: 'luxury-watch-10000',
-    name: '瑞士机械手表 - 平行世界定制款',
-    description: '瑞士原装机芯，表盘镶嵌平行世界元素，全球限量500只',
-    price: 12000,
-    tdbAmount: 10000,
-    image: '/images/products/luxury-watch.jpg',
-    stock: 10,
-    category: '手表',
-  },
-  {
-    id: 'gold-bar-50000',
-    name: '投资金条 50克',
-    description: '999.9纯金，国际认证，附平行世界专属防伪标识',
-    price: 25000,
-    tdbAmount: 50000,
-    image: '/images/products/gold-bar.jpg',
-    stock: 5,
-    category: '黄金',
-    discount: 5,
-  },
-]
-
-// 商品分类
-const categories = ['全部', '纪念币', '奖杯', '艺术品', '手表', '黄金']
+import { api } from '@/lib/api'
+import type { Product } from '@/lib/api'
 
 export default function TDBShopPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [products, setProducts] = useState<Product[]>(mockProducts)
-  const [loading, setLoading] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('全部')
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [categories, setCategories] = useState<string[]>(['全部'])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
 
   // 检查认证状态
   useEffect(() => {
@@ -114,36 +35,70 @@ export default function TDBShopPage() {
   }, [authLoading, isAuthenticated, router])
 
   // 加载商品列表
-  useEffect(() => {
-    const loadProducts = async () => {
-      setLoading(true)
-      try {
-        // TODO: 从后端加载商品列表
-        // const response = await api.shop.getProducts()
-        // setProducts(response.data)
-        
-        // 模拟加载延迟
-        await new Promise(resolve => setTimeout(resolve, 500))
-        setProducts(mockProducts)
-      } catch (error) {
-        toast.error('加载商品失败')
-      } finally {
-        setLoading(false)
+  const loadProducts = async (reset = false) => {
+    if (loading && !reset) return
+    
+    setLoading(true)
+    try {
+      const params: any = {
+        page: reset ? 1 : page,
+        page_size: 12,
       }
+      
+      if (searchTerm) {
+        params.search = searchTerm
+      }
+      
+      if (selectedCategory && selectedCategory !== '全部') {
+        params.category = selectedCategory
+      }
+      
+      const response = await api.shop.products.list(params)
+      
+      if (reset) {
+        setProducts(response.results)
+        setPage(1)
+      } else {
+        setProducts(prev => [...prev, ...response.results])
+      }
+      
+      setHasMore(!!response.next)
+      setTotalCount(response.count)
+      
+      // 提取分类
+      const allCategories = new Set(['全部'])
+      response.results.forEach(product => {
+        if (product.category) {
+          allCategories.add(product.category)
+        }
+      })
+      setCategories(Array.from(allCategories))
+      
+    } catch (error) {
+      console.error('加载商品失败:', error)
+      toast.error('加载商品失败')
+    } finally {
+      setLoading(false)
     }
+  }
 
+  // 初始加载
+  useEffect(() => {
     if (isAuthenticated) {
-      loadProducts()
+      loadProducts(true)
     }
   }, [isAuthenticated])
 
-  // 过滤商品
-  const filteredProducts = products.filter(product => {
-    const matchCategory = selectedCategory === '全部' || product.category === selectedCategory
-    const matchSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       product.description.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchCategory && matchSearch
-  })
+  // 搜索和筛选变化时重新加载
+  useEffect(() => {
+    if (isAuthenticated) {
+      const timer = setTimeout(() => {
+        loadProducts(true)
+      }, 500)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [searchTerm, selectedCategory])
 
   // 处理购买
   const handlePurchase = (product: Product) => {
@@ -156,7 +111,15 @@ export default function TDBShopPage() {
     router.push(`/shop/tdb/payment?productId=${product.id}`)
   }
 
-  if (authLoading || loading) {
+  // 加载更多
+  const loadMore = () => {
+    if (!loading && hasMore) {
+      setPage(prev => prev + 1)
+      loadProducts(false)
+    }
+  }
+
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -219,10 +182,10 @@ export default function TDBShopPage() {
             {categories.map((category) => (
               <button
                 key={category}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => setSelectedCategory(category === '全部' ? '' : category)}
                 className={cn(
                   "px-4 py-2 rounded font-bold transition-all",
-                  selectedCategory === category
+                  (category === '全部' && !selectedCategory) || selectedCategory === category
                     ? "bg-gold-500 text-black"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                 )}
@@ -235,7 +198,12 @@ export default function TDBShopPage() {
       </motion.div>
 
       {/* 商品列表 */}
-      {filteredProducts.length === 0 ? (
+      {loading && products.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">加载商品中...</p>
+        </div>
+      ) : products.length === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -244,94 +212,146 @@ export default function TDBShopPage() {
           <p className="text-gray-400 text-lg">没有找到相关商品</p>
         </motion.div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
-                {/* 商品图片 */}
-                <div className="aspect-square bg-gray-800 relative overflow-hidden group">
-                  {/* 模拟图片占位 */}
-                  <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
-                    📦
-                  </div>
-                  
-                  {/* 标签 */}
-                  <div className="absolute top-2 left-2 flex gap-2">
-                    {product.isHot && (
-                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
-                        热卖
-                      </span>
-                    )}
-                    {product.discount && (
-                      <span className="bg-gold-500 text-black text-xs px-2 py-1 rounded">
-                        {product.discount}% OFF
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* 库存状态 */}
-                  {product.stock === 0 && (
-                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                      <p className="text-white font-bold text-lg">已售罄</p>
-                    </div>
-                  )}
-                </div>
-                
-                {/* 商品信息 */}
-                <div className="p-4 flex-1 flex flex-col">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-2 line-clamp-2">{product.name}</h3>
-                    <p className="text-sm text-gray-400 mb-3 line-clamp-2">{product.description}</p>
-                    
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500">分类：{product.category}</span>
-                      <span className="text-xs text-gray-500">库存：{product.stock}</span>
-                    </div>
-                  </div>
-                  
-                  {/* 价格和TDB */}
-                  <div className="border-t border-gray-700 pt-3 mt-3">
-                    <div className="flex items-end justify-between mb-3">
-                      <div>
-                        <p className="text-xs text-gray-400">商品价格</p>
-                        <p className="text-2xl font-bold text-white">
-                          ¥{product.discount 
-                            ? (product.price * (100 - product.discount) / 100).toFixed(0)
-                            : product.price
-                          }
-                          {product.discount && (
-                            <span className="text-sm text-gray-500 line-through ml-2">
-                              ¥{product.price}
-                            </span>
+        <>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {products.map((product, index) => {
+              const finalPrice = product.final_price ? parseFloat(product.final_price) : parseFloat(product.price)
+              const originalPrice = parseFloat(product.price)
+              const hasDiscount = product.discount && parseFloat(product.discount) < 1
+              
+              return (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.05, 0.3) }}
+                >
+                  <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
+                    {/* 商品图片 */}
+                    <div className="aspect-square bg-gray-800 relative overflow-hidden group">
+                      {product.images && product.images.length > 0 ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = ''
+                            e.currentTarget.style.display = 'none'
+                            e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-6xl opacity-20">📦</div>'
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
+                          📦
+                        </div>
+                      )}
+                      
+                      {/* 标签 */}
+                      <div className="absolute top-2 left-2 flex gap-2">
+                        {product.is_hot && (
+                          <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
+                            热卖
+                          </span>
+                        )}
+                        {hasDiscount && (
+                          <span className="bg-gold-500 text-black text-xs px-2 py-1 rounded">
+                            {Math.round((1 - parseFloat(product.discount!)) * 100)}% OFF
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* 库存状态 */}
+                      {product.stock === 0 && (
+                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                          <p className="text-white font-bold text-lg">已售罄</p>
+                        </div>
+                      )}
+                      
+                      {/* 支付方式 */}
+                      {product.payment_methods && product.payment_methods.length > 0 && (
+                        <div className="absolute bottom-2 right-2 flex gap-1">
+                          {product.payment_methods.includes('alipay') && (
+                            <span className="bg-blue-500/80 text-white text-xs px-2 py-1 rounded">支付宝</span>
                           )}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">获得TDB</p>
-                        <p className="text-xl font-bold text-gold-500">
-                          {product.tdbAmount.toLocaleString()}
-                        </p>
-                      </div>
+                          {product.payment_methods.includes('wechat') && (
+                            <span className="bg-green-500/80 text-white text-xs px-2 py-1 rounded">微信</span>
+                          )}
+                          {product.payment_methods.includes('bank') && (
+                            <span className="bg-gray-600/80 text-white text-xs px-2 py-1 rounded">银行</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
-                    <PixelButton
-                      className="w-full"
-                      onClick={() => handlePurchase(product)}
-                      disabled={product.stock === 0}
-                    >
-                      {product.stock === 0 ? '已售罄' : '立即购买'}
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            </motion.div>
-          ))}
-        </div>
+                    {/* 商品信息 */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg mb-2 line-clamp-2">{product.name}</h3>
+                        {product.description && (
+                          <p className="text-sm text-gray-400 mb-3 line-clamp-2">{product.description}</p>
+                        )}
+                        
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-gray-500">分类：{product.category}</span>
+                          <span className="text-xs text-gray-500">库存：{product.stock}</span>
+                        </div>
+                      </div>
+                      
+                      {/* 价格和TDB */}
+                      <div className="border-t border-gray-700 pt-3 mt-3">
+                        <div className="flex items-end justify-between mb-3">
+                          <div>
+                            <p className="text-xs text-gray-400">商品价格</p>
+                            <p className="text-2xl font-bold text-white">
+                              ¥{finalPrice.toFixed(2)}
+                              {hasDiscount && (
+                                <span className="text-sm text-gray-500 line-through ml-2">
+                                  ¥{originalPrice.toFixed(2)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-gray-400">获得TDB</p>
+                            <p className="text-xl font-bold text-gold-500">
+                              {parseFloat(product.tdb_amount).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <PixelButton
+                          className="w-full"
+                          onClick={() => handlePurchase(product)}
+                          disabled={product.stock === 0}
+                        >
+                          {product.stock === 0 ? '已售罄' : '立即购买'}
+                        </PixelButton>
+                      </div>
+                    </div>
+                  </PixelCard>
+                </motion.div>
+              )
+            })}
+          </div>
+          
+          {/* 加载更多 */}
+          {hasMore && (
+            <div className="text-center mt-8">
+              <PixelButton
+                onClick={loadMore}
+                disabled={loading}
+                variant="secondary"
+              >
+                {loading ? '加载中...' : '加载更多'}
+              </PixelButton>
+            </div>
+          )}
+          
+          {/* 显示总数 */}
+          <p className="text-center text-gray-400 text-sm mt-4">
+            共 {totalCount} 件商品，已加载 {products.length} 件
+          </p>
+        </>
       )}
 
       {/* 底部说明 */}
