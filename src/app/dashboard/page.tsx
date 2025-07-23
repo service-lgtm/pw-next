@@ -208,12 +208,12 @@ export default function DashboardPage() {
           <PixelCard className="p-6 bg-gradient-to-br from-purple-500/10 to-pink-600/10">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400 mb-2">黄金(YLD)</p>
+                <p className="text-sm text-gray-400 mb-2">治理通证(YLD)</p>
                 <p className="text-3xl font-black text-purple-500">
                   {yldBalance.toLocaleString()}
                   <span className="text-sm ml-2">YLD</span>
                 </p>
-                <p className="text-xs text-gray-400 mt-1">治理币·限量21亿</p>
+                <p className="text-xs text-gray-400 mt-1">治理通证·限量21亿</p>
               </div>
               <span className="text-5xl opacity-30">⚡</span>
             </div>
@@ -394,7 +394,7 @@ export default function DashboardPage() {
               💡 新手提示
             </h3>
             <p className="text-sm text-gray-300">
-              欢迎来到平行世界！黄金通证(TDB)是稳定交易币，黄金(YLD)是治理代币，土地是您的核心资产。
+              欢迎来到平行世界的字符！黄金通证(TDB)是稳定交易通证，(YLD)是治理通证，土地是您的核心资产。
             </p>
           </PixelCard>
         </div>
