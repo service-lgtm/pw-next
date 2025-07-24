@@ -97,20 +97,14 @@ function PaymentContent() {
     })
   }, [])
   
-  // 创建订单
-  const handleCreateOrder = async () => {
+  // 创建提货单
+  const handleCreateTicket = async () => {
     if (!product || !selectedMethod) return
-    
-    // 检查库存
-    if (product.stock < quantity) {
-      toast.error('库存不足')
-      return
-    }
     
     setIsSubmitting(true)
     
     try {
-      const response = await api.shop.orders.create({
+      const response = await api.shop.tickets.create({
         product_id: product.id,
         quantity: quantity,
         payment_method: selectedMethod as 'alipay' | 'bank' | 'wechat',
@@ -118,19 +112,17 @@ function PaymentContent() {
       
       if (response.success && response.data) {
         setOrderInfo(response.data)
-        toast.success('订单创建成功，请尽快支付')
+        toast.success('提货单创建成功，请尽快支付')
       } else {
-        throw new Error(response.message || '创建订单失败')
+        throw new Error(response.message || '创建提货单失败')
       }
     } catch (error: any) {
-      console.error('创建订单失败:', error)
+      console.error('创建提货单失败:', error)
       
       if (error.code === 'PAYMENT_METHOD_NOT_SUPPORTED') {
         toast.error('该商品不支持所选支付方式')
-      } else if (error.message?.includes('库存')) {
-        toast.error('商品库存不足')
       } else {
-        toast.error(error.message || '创建订单失败，请重试')
+        toast.error(error.message || '创建提货单失败，请重试')
       }
     } finally {
       setIsSubmitting(false)
@@ -144,8 +136,8 @@ function PaymentContent() {
     setIsSubmitting(true)
     
     try {
-      // 跳转到订单页面，让用户上传支付凭证
-      router.push(`/shop/tdb/order?id=${orderInfo.order_id}`)
+      // 跳转到提货单页面，让用户上传支付凭证
+      router.push(`/shop/tdb/ticket?id=${orderInfo.ticket_id}`)
     } catch (error) {
       toast.error('操作失败，请重试')
     } finally {
@@ -191,7 +183,7 @@ function PaymentContent() {
         className="mb-6"
       >
         <h1 className="text-2xl md:text-3xl font-black text-white">
-          {orderInfo ? '支付订单' : '确认订单'}
+          {orderInfo ? '支付提货单' : '确认购买'}
         </h1>
         {orderInfo && (
           <p className="text-gray-400 mt-1">
@@ -445,7 +437,7 @@ function PaymentContent() {
               <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded">
                 <p className="text-sm text-yellow-500">
                   <span className="font-bold">重要提示：</span>
-                  转账时请务必备注订单号 <span className="font-mono">{orderInfo.order_id}</span>
+                  转账时请务必备注提货单号 <span className="font-mono">{orderInfo.ticket_id}</span>
                 </p>
               </div>
             </PixelCard>
