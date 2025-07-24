@@ -98,7 +98,7 @@ function PaymentContent() {
   }, [])
   
   // 创建提货单
-  const handleCreateTicket = async () => {
+  const handleCreateOrder = async () => {
     if (!product || !selectedMethod) return
     
     setIsSubmitting(true)
