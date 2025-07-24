@@ -102,11 +102,6 @@ export default function TDBShopPage() {
 
   // 处理购买
   const handlePurchase = (product: Product) => {
-    if (product.stock === 0) {
-      toast.error('商品已售罄')
-      return
-    }
-    
     // 跳转到支付页面
     router.push(`/shop/tdb/payment?productId=${product.id}`)
   }
@@ -215,10 +210,6 @@ export default function TDBShopPage() {
         <>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product, index) => {
-              const finalPrice = product.final_price ? parseFloat(product.final_price) : parseFloat(product.price)
-              const originalPrice = parseFloat(product.price)
-              const hasDiscount = product.discount && parseFloat(product.discount) < 1
-              
               return (
                 <motion.div
                   key={product.id}
@@ -229,9 +220,9 @@ export default function TDBShopPage() {
                   <PixelCard className="overflow-hidden hover:border-gold-500 transition-all h-full flex flex-col">
                     {/* 商品图片 */}
                     <div className="aspect-square bg-gray-800 relative overflow-hidden group">
-                      {product.images && product.images.length > 0 ? (
+                      {product.primary_image || product.images?.[0] ? (
                         <img
-                          src={product.images[0]}
+                          src={product.primary_image || product.images?.[0]}
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -258,19 +249,7 @@ export default function TDBShopPage() {
                             热卖
                           </span>
                         )}
-                        {hasDiscount && (
-                          <span className="bg-gold-500 text-black text-xs px-2 py-1 rounded">
-                            {Math.round((1 - parseFloat(product.discount!)) * 100)}% OFF
-                          </span>
-                        )}
                       </div>
-                      
-                      {/* 库存状态 */}
-                      {product.stock === 0 && (
-                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                          <p className="text-white font-bold text-lg">已售罄</p>
-                        </div>
-                      )}
                       
                       {/* 支付方式 */}
                       {product.payment_methods && product.payment_methods.length > 0 && (
@@ -298,7 +277,6 @@ export default function TDBShopPage() {
                         
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs text-gray-500">分类：{product.category}</span>
-                          <span className="text-xs text-gray-500">库存：{product.stock}</span>
                         </div>
                       </div>
                       
@@ -306,15 +284,15 @@ export default function TDBShopPage() {
                       <div className="border-t border-gray-700 pt-3 mt-3">
                         <div className="flex items-end justify-between mb-3">
                           <div>
-                            <p className="text-xs text-gray-400">商品价格</p>
+                            <p className="text-xs text-gray-400">购买价格</p>
                             <p className="text-2xl font-bold text-white">
-                              ¥{finalPrice.toFixed(2)}
-                              {hasDiscount && (
-                                <span className="text-sm text-gray-500 line-through ml-2">
-                                  ¥{originalPrice.toFixed(2)}
-                                </span>
-                              )}
+                              ¥{parseFloat(product.price).toFixed(2)}
                             </p>
+                            {product.market_value && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                价值：¥{parseFloat(product.market_value).toFixed(2)}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-gray-400">获得TDB</p>
@@ -327,9 +305,8 @@ export default function TDBShopPage() {
                         <PixelButton
                           className="w-full"
                           onClick={() => handlePurchase(product)}
-                          disabled={product.stock === 0}
                         >
-                          {product.stock === 0 ? '已售罄' : '立即购买'}
+                          立即购买
                         </PixelButton>
                       </div>
                     </div>
