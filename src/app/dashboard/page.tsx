@@ -213,7 +213,7 @@ export default function DashboardPage() {
                   {yldBalance.toLocaleString()}
                   <span className="text-sm ml-2">YLD</span>
                 </p>
-                <p className="text-xs text-gray-400 mt-1">治理通证·限量21亿</p>
+                <p className="text-xs text-gray-400 mt-1">治理币·限量21亿</p>
               </div>
               <span className="text-5xl opacity-30">⚡</span>
             </div>
@@ -265,7 +265,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/explore')}
+                onClick={() => router.push('/explore/lands')}
                 className="bg-green-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🏞️</span>
@@ -291,7 +291,7 @@ export default function DashboardPage() {
                 className="bg-gold-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all relative"
               >
                 <span className="text-3xl block mb-2">🛍️</span>
-                <span className="text-sm font-bold">购买TDB</span>
+                <span className="text-sm font-bold">购买TDB通证</span>
                 <span className="absolute top-1 right-1 text-xs bg-red-500 text-white px-2 py-0.5 rounded">
                   热门
                 </span>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/explore')}
+                onClick={() => router.push('/explore/regions')}
                 className="bg-purple-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🗺️</span>
@@ -312,7 +312,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/dashboard/referral')}
+                onClick={() => router.push('/team')}
                 className="bg-pink-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🎁</span>
@@ -353,12 +353,12 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => router.push('/shop/orders')}
+                onClick={() => router.push('/shop/tickets')}
                 className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg hover:from-blue-500/30 hover:to-purple-600/30 transition-all"
               >
-                <span className="text-2xl block mb-2">📋</span>
-                <span className="text-sm font-bold">我的订单</span>
-                <p className="text-xs text-gray-400 mt-1">查看订单状态</p>
+                <span className="text-2xl block mb-2">🎫</span>
+                <span className="text-sm font-bold">我的提货单</span>
+                <p className="text-xs text-gray-400 mt-1">查看提货单状态</p>
               </motion.button>
             </div>
           </PixelCard>
@@ -374,9 +374,9 @@ export default function DashboardPage() {
             </h3>
             <div className="space-y-3">
               <div className="p-3 bg-gray-800 rounded">
-                <p className="text-sm text-gold-500 font-bold">TDB商城正式上线</p>
+                <p className="text-sm text-gold-500 font-bold">TDB商城提货单系统上线</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  购买实物商品，获得黄金通证奖励！
+                  购买商品获得提货单，可提货或兑换现金！
                 </p>
               </div>
               <div className="p-3 bg-gray-800 rounded">
@@ -394,7 +394,7 @@ export default function DashboardPage() {
               💡 新手提示
             </h3>
             <p className="text-sm text-gray-300">
-              欢迎来到平行世界的字符！黄金通证(TDB)是稳定交易通证，(YLD)是治理通证，土地是您的核心资产。
+              欢迎来到平行世界！黄金通证(TDB)是稳定交易币，黄金(YLD)是治理代币，土地是您的核心资产。
             </p>
           </PixelCard>
         </div>
