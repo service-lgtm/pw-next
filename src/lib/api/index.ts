@@ -288,13 +288,12 @@ export interface Product {
   name: string
   description?: string
   price: string
+  market_value?: string  // 可兑换的最大金额
   tdb_amount: string
-  images: string[]
-  stock: number
+  primary_image?: string  // 主图
+  images?: string[]
   category: string
   is_hot?: boolean
-  discount?: string
-  final_price?: string
   payment_methods: string[]
   specifications?: Record<string, string>
   is_active?: boolean
@@ -318,6 +317,82 @@ export interface PaymentMethodInfo {
   }
 }
 
+// 提货单相关类型
+export interface Ticket {
+  id: string
+  user: number
+  user_nickname: string
+  product: string
+  product_name: string
+  product_snapshot: {
+    name: string
+    price: string
+    market_value: string
+    tdb_amount: string
+    images?: string[]
+    specifications?: Record<string, string>
+  }
+  quantity: number
+  unit_price: string
+  total_price: string
+  market_value: string
+  remaining_value: string  // 剩余价值
+  tdb_amount: string
+  payment_method: string
+  payment_method_display: string
+  payment_account_info?: any
+  status: 'pending' | 'paid' | 'active' | 'used' | 'cancelled' | 'expired'
+  status_display: string
+  transaction_id?: string
+  paid_at?: string
+  payment_screenshot?: string
+  confirmed_at?: string
+  tdb_credited: boolean
+  can_use: boolean
+  pickup_requests?: any[]
+  exchange_requests?: any[]
+  remark: string
+  created_at: string
+  expire_at?: string
+}
+
+export interface CreateTicketRequest {
+  product_id: string
+  quantity: number
+  payment_method: 'alipay' | 'bank' | 'wechat'
+}
+
+export interface CreateTicketResponse {
+  success: boolean
+  message: string
+  data: {
+    ticket_id: string
+    payment_account: {
+      method: string
+      account: string
+      account_name: string
+      qr_code?: string
+    }
+    expire_time: string
+    total_price: string
+    market_value: string
+    tdb_amount: string
+  }
+}
+
+// 提货申请相关
+export interface PickupRequest {
+  ticket_id: string
+  address_id: string
+}
+
+export interface ExchangeRequest {
+  ticket_id: string
+  exchange_amount: string
+  payment_method_id: number
+}
+
+// 以下是原有的订单相关类型（保留兼容性）
 export interface CreateOrderRequest {
   product_id: string
   quantity: number
@@ -886,6 +961,7 @@ const api = {
         category?: string
         is_hot?: boolean
         search?: string
+        ordering?: string
       }) => request<{
         count: number
         next: string | null
@@ -898,7 +974,100 @@ const api = {
         request<ProductDetail>(`/shop/products/${productId}/`),
     },
     
-    // 订单相关
+    // 提货单相关
+    tickets: {
+      // 创建提货单
+      create: (data: CreateTicketRequest) =>
+        request<CreateTicketResponse>('/shop/tickets/create/', {
+          method: 'POST',
+          body: data as any,
+        }),
+      
+      // 获取提货单列表
+      list: (params?: {
+        status?: string
+        available?: boolean
+        page?: number
+        page_size?: number
+      }) => request<{
+        count: number
+        next: string | null
+        previous: string | null
+        results: Ticket[]
+      }>('/shop/tickets/', { params }),
+      
+      // 获取提货单详情
+      get: (ticketId: string) =>
+        request<Ticket>(`/shop/tickets/${ticketId}/`),
+      
+      // 支付提货单
+      pay: (ticketId: string, formData: FormData) =>
+        request<{ success: boolean; message: string }>(`/shop/tickets/${ticketId}/pay/`, {
+          method: 'POST',
+          body: formData,
+        }),
+      
+      // 取消提货单
+      cancel: (ticketId: string) =>
+        request<{ success: boolean; message: string }>(`/shop/tickets/${ticketId}/cancel/`, {
+          method: 'POST',
+        }),
+    },
+    
+    // 提货相关
+    pickup: {
+      // 申请提货
+      create: (data: PickupRequest) =>
+        request<{
+          success: boolean
+          message: string
+          data: {
+            pickup_id: string
+            status: string
+          }
+        }>('/shop/pickup/create/', {
+          method: 'POST',
+          body: data as any,
+        }),
+      
+      // 获取提货申请列表
+      list: (params?: {
+        status?: string
+        page?: number
+      }) => request<{
+        count: number
+        results: any[]
+      }>('/shop/pickup/', { params }),
+    },
+    
+    // 兑换相关
+    exchange: {
+      // 申请兑换
+      create: (data: ExchangeRequest) =>
+        request<{
+          success: boolean
+          message: string
+          data: {
+            exchange_id: string
+            status: string
+            amount: string
+          }
+        }>('/shop/exchange/create/', {
+          method: 'POST',
+          body: data as any,
+        }),
+      
+      // 获取兑换申请列表
+      list: (params?: {
+        status?: string
+        page?: number
+      }) => request<{
+        count: number
+        results: any[]
+      }>('/shop/exchange/', { params }),
+    },
+    
+    // 订单相关（保留兼容性）
     orders: {
       // 创建订单
       create: (data: CreateOrderRequest) =>
