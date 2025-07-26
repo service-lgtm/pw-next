@@ -40,8 +40,8 @@ const registrationSteps = [
     time: '即时',
     description: '新手大礼包到账',
     details: [
-      '100 TDB积分',
-      '10 YLD积分',
+      '100 TDB通证',
+      '10 YLD通证',
       '新手专属任务',
     ],
     tips: '完成新手任务，额外赚取500积分',
@@ -51,8 +51,8 @@ const registrationSteps = [
 // 新手礼包内容
 const starterPack = {
   instant: [
-    { icon: '🪙', name: 'TDB积分', amount: '100', value: '¥100', desc: '相当于1克黄金' },
-    { icon: '💎', name: 'YLD积分', amount: '10', value: '¥50', desc: '用于支付手续费' },
+    { icon: '🪙', name: 'TDB通证', amount: '100', value: '¥100', desc: '相当于1克黄金' },
+    { icon: '💎', name: 'YLD通证', amount: '10', value: '¥50', desc: '用于支付手续费' },
   ],
   tasks: [
     { icon: '🏃', name: '首次登录', reward: '50 TDB', status: 'completed' },
@@ -92,7 +92,7 @@ const earningStrategies = [
     title: '规模化经营',
     daily: '1000+',
     strategies: [
-      { action: '土地投资', income: '8-15%/月', time: '长期' },
+      { action: '土地购买', income: '8-15%/月', time: '长期' },
       { action: '开店经营', income: '视销量而定', time: '持续' },
       { action: 'VIP发展', income: '10-18%提成', time: '被动' },
     ],
@@ -106,8 +106,8 @@ const faqData = [
     icon: '📚',
     questions: [
       {
-        q: '平行世界是什么？',
-        a: '平行世界是一个基于区块链的数字资产平台，您可以通过购买虚拟土地、挖矿、开店等方式赚取收益。每个资产都有真实价值支撑。',
+        q: '平行世界的字符是什么？',
+        a: '平行世界的字符是一个基于区块链的数字资产平台，您可以通过购买虚拟土地、挖矿、开店等方式赚取收益。每个资产都有真实价值支撑。',
       },
       {
         q: '需要投入多少钱？',
