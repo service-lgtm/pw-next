@@ -245,7 +245,7 @@ export default function DashboardPage() {
             <p className="text-2xl font-black text-blue-500">
               {displayData?.direct_referrals_count || 0}
             </p>
-            <p className="text-sm text-gray-400 mt-1">直推人数</p>
+            <p className="text-sm text-gray-400 mt-1">雇佣人数</p>
           </PixelCard>
         </motion.div>
       </div>
@@ -265,7 +265,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/explore/lands')}
+                onClick={() => router.push('/explore')}
                 className="bg-green-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🏞️</span>
@@ -301,7 +301,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/explore/regions')}
+                onClick={() => router.push('/explore')}
                 className="bg-purple-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🗺️</span>
