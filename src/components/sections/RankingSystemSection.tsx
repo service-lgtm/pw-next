@@ -186,7 +186,7 @@ export function RankingSystemSection() {
           <p className="text-base lg:text-xl text-gray-400">
             从小星星到水星，每一步都是财富的飞跃
             <br />
-            <span className="text-gold-500 font-bold">团队越大，分红越多，实现真正的躺赚</span>
+            <span className="text-gold-500 font-bold">公会越大，分红越多，实现真正的躺赚</span>
           </p>
         </motion.div>
 
@@ -492,11 +492,11 @@ export function RankingSystemSection() {
               </div>
               <div>
                 <div className="text-2xl lg:text-3xl font-black text-green-500">14%</div>
-                <p className="text-xs text-gray-500">最高团队奖励</p>
+                <p className="text-xs text-gray-500">最高公会奖励</p>
               </div>
               <div>
                 <div className="text-2xl lg:text-3xl font-black text-blue-500">6%</div>
-                <p className="text-xs text-gray-500">平台分红</p>
+                <p className="text-xs text-gray-500">平台分配</p>
               </div>
             </div>
             
