@@ -66,7 +66,7 @@ export function HeroSection() {
           >
             <h1 className="text-4xl md:text-5xl lg:text-7xl font-black mb-4 lg:mb-6 leading-tight">
               <span className="block text-white pixel-text-shadow">
-                持证"世界"不玩虚的
+                持证"分配"不玩虚的
               </span>
               <span className="block text-gold-500 pixel-font text-2xl md:text-3xl lg:text-5xl mt-3 lg:mt-4 pixel-text-shadow">
                 数字商品 实在价值
