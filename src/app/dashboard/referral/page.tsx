@@ -132,13 +132,13 @@ export default function ReferralPage() {
                   <p className="text-2xl font-black text-gold-500">
                     {user?.direct_referrals_count || 0}
                   </p>
-                  <p className="text-xs text-gray-400">直接推荐</p>
+                  <p className="text-xs text-gray-400">雇佣人数</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-black text-purple-500">
                     {user?.total_referrals_count || 0}
                   </p>
-                  <p className="text-xs text-gray-400">团队总人数</p>
+                  <p className="text-xs text-gray-400">公会总人数</p>
                 </div>
               </div>
             </div>
