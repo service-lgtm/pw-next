@@ -242,37 +242,34 @@ function VerificationInput({
         {label}
       </label>
       <div className="relative">
-        {/* 移除 rounded 类，改为分别设置圆角 */}
-        <div className="flex items-center gap-2 bg-gray-900 border-2 border-gray-700 focus-within:border-gold-500 transition-all duration-200 rounded-lg overflow-hidden">
-          <span className="absolute left-4 text-xl pointer-events-none select-none z-10">
-            {icon}
-          </span>
-          <input
-            id={name}
-            name={name}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            autoComplete={autoComplete}
-            autoFocus={autoFocus}
-            className={cn(
-              'flex-1 px-4 py-3 bg-transparent',
-              'focus:outline-none',
-              'text-white placeholder-gray-500',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-              'pl-12',
-              error && 'text-red-500'
-            )}
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none select-none z-10">
+          {icon}
+        </span>
+        <input
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          className={cn(
+            'w-full px-4 py-3 bg-gray-900 border-2 border-gray-700',
+            'focus:border-gold-500 focus:outline-none transition-all duration-200',
+            'text-white placeholder-gray-500',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'pl-12 pr-28', // 为按钮留出空间
+            error && 'border-red-500'
+          )}
+        />
+        {/* 使用绝对定位放置按钮 */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <CountdownButton 
+            onClick={onSendCode} 
+            email={email}
+            type={type}
           />
-          {/* 调整按钮容器的样式 */}
-          <div className="flex-shrink-0 pr-2 bg-gray-900">
-            <CountdownButton 
-              onClick={onSendCode} 
-              email={email}
-              type={type}
-            />
-          </div>
         </div>
       </div>
       {error && (
