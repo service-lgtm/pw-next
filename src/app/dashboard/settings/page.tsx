@@ -20,7 +20,7 @@ const tabs: { id: TabType; label: string; icon: string }[] = [
   { id: 'profile', label: '个人资料', icon: '👤' },
   { id: 'password', label: '登录密码', icon: '🔐' },
   { id: 'payment', label: '支付密码', icon: '💳' },
-  { id: 'team', label: '团队信息', icon: '👥' },
+  { id: 'team', label: '工会信息', icon: '👥' },
   { id: 'address', label: '收货地址', icon: '📍' },
 ]
 
