@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 const tokenTypes = [
   {
     id: 'tdb',
-    name: 'TDB积分',
+    name: 'TDB通证',
     subtitle: '黄金通证',
     icon: '🪙',
     color: '#FFD700',
@@ -29,8 +29,8 @@ const tokenTypes = [
   },
   {
     id: 'yld',
-    name: 'YLD积分',
-    subtitle: '陨石积分',
+    name: 'YLD通证',
+    subtitle: '陨石通证',
     icon: '💎',
     color: '#9370DB',
     value: '限量发行，价值浮动',
@@ -66,13 +66,13 @@ const circulationSteps = [
   {
     step: '流通',
     icon: '🔄',
-    actions: ['用户交易', '商家结算', '平台分红', '生态激励'],
+    actions: ['用户交易', '商家结算', '平台分配', '生态激励'],
     color: '#3B82F6',
   },
   {
     step: '提现',
     icon: '🏦',
-    actions: ['链上提币', '法币兑换', '黄金提取', '跨境支付'],
+    actions: ['链上通证', '实物兑换', '黄金提取', '跨境转账'],
     color: '#10B981',
   },
 ]
@@ -118,7 +118,7 @@ const withdrawProcess = [
 
 // 手续费说明
 const feeStructure = [
-  { type: '积分提现', rate: '5%', min: '100 TDB', desc: '提现到区块链' },
+  { type: '通证提现', rate: '5%', min: '100 TDB', desc: '提现到区块链' },
   { type: 'NFT交易', rate: '3%', min: '0.008 YLD', desc: '买卖NFT资产' },
   { type: '商品上架', rate: '3%', min: '10 TDB', desc: '商城商品上架' },
   { type: '跨境支付', rate: '1%', min: '50 TDB', desc: '国际汇款' },
@@ -319,7 +319,7 @@ export function EconomySection() {
           viewport={{ once: true }}
         >
           <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
-            <span className="text-gold-500">积分流通循环</span>
+            <span className="text-gold-500">通证流通循环</span>
             <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
               健康的经济生态系统
             </span>
@@ -563,7 +563,7 @@ export function EconomySection() {
               <span className="text-gold-500">开始积累你的数字财富</span>
             </h3>
             <p className="text-sm lg:text-base text-gray-400 mb-6">
-              每一枚积分都有真实价值支撑
+              每一枚通证都有真实价值支撑
               <br />
               早参与，早受益
             </p>
