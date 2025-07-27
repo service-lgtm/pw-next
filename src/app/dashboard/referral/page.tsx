@@ -8,18 +8,52 @@ import { motion } from 'framer-motion'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { useAuth } from '@/hooks/useAuth'
+import { api } from '@/lib/api'
 import QRCode from 'qrcode'
 import toast from 'react-hot-toast'
 
 export default function ReferralPage() {
-  const { user } = useAuth()
+  const { user, checkAuth } = useAuth()
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [copyingCode, setCopyingCode] = useState(false)
   const [copyingLink, setCopyingLink] = useState(false)
+  const [profileData, setProfileData] = useState<any>(null)
+  const [loadingProfile, setLoadingProfile] = useState(true)
   
   // 获取推荐码和推荐链接
   const referralCode = user?.referral_code || ''
   const referralLink = `https://www.pxsj.net.cn/register?ref=${referralCode}`
+  
+  // 合并用户数据，优先使用最新获取的数据
+  const displayUser = profileData ? { ...user, ...profileData } : user
+  
+  // 获取最新的用户资料
+  useEffect(() => {
+    const fetchLatestProfile = async () => {
+      try {
+        setLoadingProfile(true)
+        const response = await api.accounts.profile()
+        
+        if (response.success && response.data) {
+          setProfileData(response.data)
+          // 同步更新全局用户状态
+          if (checkAuth) {
+            checkAuth()
+          }
+        }
+      } catch (error) {
+        console.error('获取用户资料失败:', error)
+        // 不显示错误提示，使用缓存的数据
+      } finally {
+        setLoadingProfile(false)
+      }
+    }
+    
+    // 只有在有用户信息时才去获取最新数据
+    if (user) {
+      fetchLatestProfile()
+    }
+  }, [user, checkAuth])
   
   // 生成二维码
   useEffect(() => {
@@ -123,6 +157,22 @@ export default function ReferralPage() {
     toast.success('二维码已下载')
   }
   
+  // 手动刷新数据
+  const refreshData = async () => {
+    try {
+      const response = await api.accounts.profile()
+      if (response.success && response.data) {
+        setProfileData(response.data)
+        toast.success('数据已更新')
+        if (checkAuth) {
+          checkAuth()
+        }
+      }
+    } catch (error) {
+      toast.error('刷新失败，请稍后重试')
+    }
+  }
+  
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* 页面标题 */}
@@ -147,7 +197,16 @@ export default function ReferralPage() {
           transition={{ delay: 0.1 }}
         >
           <PixelCard className="p-6 h-full">
-            <h2 className="text-xl font-black mb-4 text-gold-500">推荐信息</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-black text-gold-500">推荐信息</h2>
+              <button
+                onClick={refreshData}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+                title="刷新数据"
+              >
+                🔄
+              </button>
+            </div>
             
             {/* 推荐码 */}
             <div className="mb-6">
@@ -194,13 +253,21 @@ export default function ReferralPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
                   <p className="text-2xl font-black text-gold-500">
-                    {user?.direct_referrals_count || 0}
+                    {loadingProfile ? (
+                      <span className="text-base">...</span>
+                    ) : (
+                      displayUser?.direct_referrals_count || 0
+                    )}
                   </p>
                   <p className="text-xs text-gray-400">雇佣人数</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-black text-purple-500">
-                    {user?.total_referrals_count || 0}
+                    {loadingProfile ? (
+                      <span className="text-base">...</span>
+                    ) : (
+                      displayUser?.total_referrals_count || 0
+                    )}
                   </p>
                   <p className="text-xs text-gray-400">公会总人数</p>
                 </div>
@@ -257,8 +324,11 @@ export default function ReferralPage() {
         className="mt-6"
       >
         <PixelCard className="p-6">
-          <h3 className="text-lg font-black mb-3 text-gold-500">推荐说明</h3>
+          <h3 className="text-lg font-black mb-3 text-gold-500">推荐奖励说明</h3>
           <div className="space-y-2 text-sm text-gray-300">
+            <p>• 成功推荐新用户注册，您将获得相应的推荐奖励</p>
+            <p>• 被推荐人完成激活后，推荐人可获得额外奖励</p>
+            <p>• 团队成员的活跃度将影响您的等级提升速度</p>
             <p>• 推荐关系永久绑定，请珍惜您的推荐机会</p>
           </div>
         </PixelCard>
