@@ -394,7 +394,7 @@ export default function DashboardPage() {
               💡 新手提示
             </h3>
             <p className="text-sm text-gray-300">
-              欢迎来到平行世界！黄金通证(TDB)是稳定交易币，黄金(YLD)是治理代币，土地是您的核心资产。
+              欢迎来到平行世界！黄金通证(TDB)是稳定交易通证，黄金(YLD)是治理通证，土地是您的核心资产。
             </p>
           </PixelCard>
         </div>
