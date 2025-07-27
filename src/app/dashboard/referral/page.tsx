@@ -36,10 +36,6 @@ export default function ReferralPage() {
         
         if (response.success && response.data) {
           setProfileData(response.data)
-          // 同步更新全局用户状态
-          if (checkAuth) {
-            checkAuth()
-          }
         }
       } catch (error) {
         console.error('获取用户资料失败:', error)
@@ -50,10 +46,10 @@ export default function ReferralPage() {
     }
     
     // 只有在有用户信息时才去获取最新数据
-    if (user) {
+    if (user && user.referral_code) {
       fetchLatestProfile()
     }
-  }, [user, checkAuth])
+  }, [user?.referral_code]) // 只依赖 referral_code，避免循环
   
   // 生成二维码
   useEffect(() => {
@@ -164,9 +160,6 @@ export default function ReferralPage() {
       if (response.success && response.data) {
         setProfileData(response.data)
         toast.success('数据已更新')
-        if (checkAuth) {
-          checkAuth()
-        }
       }
     } catch (error) {
       toast.error('刷新失败，请稍后重试')
