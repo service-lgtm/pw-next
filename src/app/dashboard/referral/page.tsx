@@ -326,9 +326,6 @@ export default function ReferralPage() {
         <PixelCard className="p-6">
           <h3 className="text-lg font-black mb-3 text-gold-500">推荐奖励说明</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• 成功推荐新用户注册，您将获得相应的推荐奖励</p>
-            <p>• 被推荐人完成激活后，推荐人可获得额外奖励</p>
-            <p>• 团队成员的活跃度将影响您的等级提升速度</p>
             <p>• 推荐关系永久绑定，请珍惜您的推荐机会</p>
           </div>
         </PixelCard>
