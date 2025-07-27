@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { PixelEarth } from '@/components/graphics/PixelEarth'
+import Link from 'next/link' 
 
 const features = [
   {
@@ -124,32 +125,36 @@ export function HeroSection() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.8 }}
           >
-            <motion.button
-              className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5 flex items-center justify-center gap-3"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span>🚀</span>
-              <span>立即体验</span>
-            </motion.button>
-            <motion.button
-              className="relative px-8 lg:px-10 py-4 lg:py-5 font-bold text-base lg:text-lg text-gold-500 transition-all duration-100"
-              style={{
-                border: '4px solid #FFD700',
-                boxShadow: '0 4px 0 0 #DAA520, 0 8px 0 0 rgba(0, 0, 0, 0.3)'
-              }}
-              whileHover={{ 
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 0 0 #DAA520, 0 10px 0 0 rgba(0, 0, 0, 0.3)'
-              }}
-              whileTap={{ 
-                transform: 'translateY(0)',
-                boxShadow: '0 4px 0 0 #DAA520, 0 8px 0 0 rgba(0, 0, 0, 0.3)'
-              }}
-            >
-              <span>📖</span>
-              <span className="ml-2">了解更多</span>
-            </motion.button>
+            <Link href="/login">
+              <motion.button
+                className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5 flex items-center justify-center gap-3"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span>🚀</span>
+                <span>立即体验</span>
+              </motion.button>
+            </Link>
+            <Link href="/login">
+              <motion.button
+                className="relative px-8 lg:px-10 py-4 lg:py-5 font-bold text-base lg:text-lg text-gold-500 transition-all duration-100"
+                style={{
+                  border: '4px solid #FFD700',
+                  boxShadow: '0 4px 0 0 #DAA520, 0 8px 0 0 rgba(0, 0, 0, 0.3)'
+                }}
+                whileHover={{ 
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 6px 0 0 #DAA520, 0 10px 0 0 rgba(0, 0, 0, 0.3)'
+                }}
+                whileTap={{ 
+                  transform: 'translateY(0)',
+                  boxShadow: '0 4px 0 0 #DAA520, 0 8px 0 0 rgba(0, 0, 0, 0.3)'
+                }}
+              >
+                <span>📖</span>
+                <span className="ml-2">了解更多</span>
+              </motion.button>
+            </Link>
           </motion.div>
 
           {/* 实时数据 */}
