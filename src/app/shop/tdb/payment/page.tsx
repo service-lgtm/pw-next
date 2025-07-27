@@ -1,5 +1,5 @@
 // src/app/shop/tdb/payment/page.tsx
-// 支付页面
+// 支付页面 - 修复版本
 
 'use client'
 
@@ -14,13 +14,18 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { ProductDetail, PaymentMethodInfo } from '@/lib/api'
 
+// 扩展 ProductDetail 类型，临时添加 stock 字段
+interface ProductWithStock extends ProductDetail {
+  stock?: number
+}
+
 // 支付页面内容组件
 function PaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   
-  const [product, setProduct] = useState<ProductDetail | null>(null)
+  const [product, setProduct] = useState<ProductWithStock | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedMethod, setSelectedMethod] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,7 +48,7 @@ function PaymentContent() {
       try {
         setLoading(true)
         const data = await api.shop.products.get(productId)
-        setProduct(data)
+        setProduct(data as ProductWithStock)
         
         // 设置默认支付方式
         const enabledMethods = data.payment_methods.filter(m => m.is_enabled)
@@ -88,13 +93,62 @@ function PaymentContent() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
   
-  // 复制文本
+  // 传统的回退复制方法
+  const fallbackCopyTextToClipboard = (text: string): boolean => {
+    const textArea = document.createElement("textarea")
+    textArea.value = text
+    
+    // 避免在屏幕上闪现
+    textArea.style.position = "fixed"
+    textArea.style.top = "0"
+    textArea.style.left = "0"
+    textArea.style.width = "2em"
+    textArea.style.height = "2em"
+    textArea.style.padding = "0"
+    textArea.style.border = "none"
+    textArea.style.outline = "none"
+    textArea.style.boxShadow = "none"
+    textArea.style.background = "transparent"
+
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+
+    let successful = false
+    try {
+      successful = document.execCommand('copy')
+    } catch (err) {
+      successful = false
+    }
+
+    document.body.removeChild(textArea)
+    return successful
+  }
+  
+  // 复制文本 - 优化版本
   const copyToClipboard = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success('已复制到剪贴板')
-    }).catch(() => {
-      toast.error('复制失败，请手动复制')
-    })
+    // 优先使用现代的 Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast.success('已复制到剪贴板')
+      }).catch(() => {
+        // 如果 Clipboard API 失败，尝试传统方法
+        const successful = fallbackCopyTextToClipboard(text)
+        if (successful) {
+          toast.success('已复制到剪贴板')
+        } else {
+          toast.error('复制失败，请手动复制')
+        }
+      })
+    } else {
+      // 使用传统方法作为回退
+      const successful = fallbackCopyTextToClipboard(text)
+      if (successful) {
+        toast.success('已复制到剪贴板')
+      } else {
+        toast.error('复制失败，请手动复制')
+      }
+    }
   }, [])
   
   // 创建提货单
@@ -174,6 +228,9 @@ function PaymentContent() {
   const totalPrice = finalPrice * quantity
   const totalTdb = parseFloat(product.tdb_amount) * quantity
   
+  // 获取库存数量，默认为999（如果API没有返回stock字段）
+  const stockQuantity = product.stock ?? 999
+  
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* 页面标题 */}
@@ -226,21 +283,23 @@ function PaymentContent() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded"
+                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
                       disabled={quantity <= 1}
                     >
                       -
                     </button>
                     <span className="w-12 text-center">{quantity}</span>
                     <button
-                      onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded"
-                      disabled={quantity >= product.stock}
+                      onClick={() => setQuantity(Math.min(stockQuantity, quantity + 1))}
+                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
+                      disabled={quantity >= stockQuantity}
                     >
                       +
                     </button>
                   </div>
-                  <span className="text-xs text-gray-500">库存: {product.stock}</span>
+                  {stockQuantity < 999 && (
+                    <span className="text-xs text-gray-500">库存: {stockQuantity}</span>
+                  )}
                 </div>
               )}
             </div>
@@ -355,10 +414,10 @@ function PaymentContent() {
                         <div>
                           <p className="text-sm text-gray-400 mb-1">开户银行</p>
                           <div className="flex items-center justify-between">
-                            <p className="font-bold">{orderInfo.payment_account.bank}</p>
+                            <p className="font-bold select-all">{orderInfo.payment_account.bank}</p>
                             <button
                               onClick={() => copyToClipboard(orderInfo.payment_account.bank)}
-                              className="text-sm text-gold-500 hover:text-gold-400"
+                              className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                             >
                               复制
                             </button>
@@ -369,10 +428,10 @@ function PaymentContent() {
                         <div>
                           <p className="text-sm text-gray-400 mb-1">开户支行</p>
                           <div className="flex items-center justify-between">
-                            <p className="font-bold">{orderInfo.payment_account.branch}</p>
+                            <p className="font-bold select-all">{orderInfo.payment_account.branch}</p>
                             <button
                               onClick={() => copyToClipboard(orderInfo.payment_account.branch)}
-                              className="text-sm text-gold-500 hover:text-gold-400"
+                              className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                             >
                               复制
                             </button>
@@ -382,10 +441,10 @@ function PaymentContent() {
                       <div>
                         <p className="text-sm text-gray-400 mb-1">账号</p>
                         <div className="flex items-center justify-between">
-                          <p className="font-bold font-mono">{orderInfo.payment_account.account}</p>
+                          <p className="font-bold font-mono select-all">{orderInfo.payment_account.account}</p>
                           <button
                             onClick={() => copyToClipboard(orderInfo.payment_account.account.replace(/\s/g, ''))}
-                            className="text-sm text-gold-500 hover:text-gold-400"
+                            className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
                           </button>
@@ -394,10 +453,10 @@ function PaymentContent() {
                       <div>
                         <p className="text-sm text-gray-400 mb-1">户名</p>
                         <div className="flex items-center justify-between">
-                          <p className="font-bold">{orderInfo.payment_account.account_name}</p>
+                          <p className="font-bold select-all">{orderInfo.payment_account.account_name}</p>
                           <button
                             onClick={() => copyToClipboard(orderInfo.payment_account.account_name)}
-                            className="text-sm text-gold-500 hover:text-gold-400"
+                            className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
                           </button>
@@ -419,10 +478,10 @@ function PaymentContent() {
                       )}
                       <div className="space-y-2">
                         <div className="flex items-center justify-center gap-2">
-                          <p className="font-bold">{orderInfo.payment_account.account}</p>
+                          <p className="font-bold select-all">{orderInfo.payment_account.account}</p>
                           <button
                             onClick={() => copyToClipboard(orderInfo.payment_account.account)}
-                            className="text-sm text-gold-500 hover:text-gold-400"
+                            className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
                           </button>
@@ -437,7 +496,7 @@ function PaymentContent() {
               <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded">
                 <p className="text-sm text-yellow-500">
                   <span className="font-bold">重要提示：</span>
-                  转账时请务必备注提货单号 <span className="font-mono">{orderInfo.ticket_id}</span>
+                  转账时请务必备注提货单号 <span className="font-mono select-all">{orderInfo.ticket_id}</span>
                 </p>
               </div>
             </PixelCard>
@@ -464,6 +523,22 @@ function PaymentContent() {
             </PixelButton>
           </motion.div>
         </>
+      )}
+      
+      {/* 复制提示 - 新增 */}
+      {orderInfo && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-4"
+        >
+          <PixelCard className="p-4 bg-gray-800/50">
+            <p className="text-sm text-gray-400 text-center">
+              💡 提示：如果复制功能无法正常使用，您可以长按选中文本进行复制
+            </p>
+          </PixelCard>
+        </motion.div>
       )}
     </div>
   )
