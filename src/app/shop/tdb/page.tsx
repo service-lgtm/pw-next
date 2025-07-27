@@ -348,15 +348,11 @@ export default function TDBShopPage() {
           <ul className="space-y-2 text-sm text-gray-300">
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>所有商品均为实物商品，购买后需要填写收货地址</span>
+              <span>所有商品均为实物商品。</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>支付成功并确认收货地址后，对应的TDB积分会立即到账</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-gold-500 mt-1">•</span>
-              <span>商品将在3-7个工作日内发货，可在订单中心查看物流信息</span>
+              <span>支付成功并审核过后，对应的TDB通证会立即到账</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
