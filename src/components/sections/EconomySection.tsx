@@ -575,7 +575,7 @@ export function EconomySection() {
                 whileTap={{ scale: 0.95 }}
               >
                 <span className="mr-2">💰</span>
-                立即充值
+                立即交易
               </motion.button>
               <motion.button
                 className="px-6 lg:px-8 py-3 lg:py-4 text-base lg:text-lg font-bold text-gold-500 border-4 border-gold-500 hover:bg-gold-500 hover:text-black transition-all"
