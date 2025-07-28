@@ -112,6 +112,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   
   useEffect(() => {
@@ -145,9 +146,14 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
     
     setLoading(true)
     setError('')
+    setSuccess('')
     
     try {
       await onClick()
+      
+      // 发送成功提示
+      setSuccess('验证码已发送，请注意查收（垃圾箱也要看哦）')
+      setTimeout(() => setSuccess(''), 8000) // 8秒后隐藏成功提示
       
       setCountdown(60)
       
@@ -176,9 +182,19 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const isDisabled = countdown > 0 || disabled || loading || !email || !validateEmail(email)
   
   return (
-    <>
-      {error && (
-        <span className="text-xs text-red-500 animate-pulse mr-2">{error}</span>
+    <div className="flex flex-col items-end">
+      {(error || success) && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -5 }}
+          className={cn(
+            "text-xs mb-1 max-w-[200px] text-right",
+            error ? "text-red-500" : "text-green-500"
+          )}
+        >
+          {error || success}
+        </motion.div>
       )}
       <button
         type="button"
@@ -205,7 +221,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
           '发送验证码'
         )}
       </button>
-    </>
+    </div>
   )
 }
 
@@ -598,7 +614,7 @@ export function RegisterForm() {
             <h2 className="text-2xl font-black text-center mb-6">
               验证邮箱
               <span className="block text-sm text-gray-400 font-normal mt-2">
-                 点击发送验证码到 {formData.email}
+                 验证码将发送到 {formData.email}
               </span>
             </h2>
 
@@ -617,6 +633,16 @@ export function RegisterForm() {
               email={formData.email}
               type="register"
             />
+
+            {/* 邮箱提示 */}
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded text-sm">
+              <p className="text-blue-400 flex items-start gap-2">
+                <span className="text-lg">💡</span>
+                <span>
+                  验证码可能会被误判为垃圾邮件，请同时检查垃圾箱
+                </span>
+              </p>
+            </div>
 
             <PixelInput
               label="邀请码（选填）"
