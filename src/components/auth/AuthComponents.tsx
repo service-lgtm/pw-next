@@ -18,6 +18,7 @@ interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   showPasswordToggle?: boolean
   onShowPasswordChange?: (show: boolean) => void
   hasButton?: boolean // 新增：是否有按钮
+  hint?: string // 新增：输入提示
 }
 
 function PixelInput({ 
@@ -28,6 +29,7 @@ function PixelInput({
   showPasswordToggle,
   onShowPasswordChange,
   hasButton = false,
+  hint,
   ...props 
 }: PixelInputProps) {
   const [showPassword, setShowPassword] = useState(false)
@@ -81,6 +83,9 @@ function PixelInput({
           </button>
         )}
       </div>
+      {hint && !error && (
+        <p className="text-xs text-gray-500">{hint}</p>
+      )}
       {error && (
         <motion.p
           initial={{ opacity: 0, y: -10 }}
@@ -310,7 +315,14 @@ function validateEmail(email: string): string | null {
   return null
 }
 
-// 注册组件
+// 验证登录账号（支持多种格式）
+function validateLoginAccount(account: string): string | null {
+  if (!account) return '请输入登录账号'
+  if (account.length < 2) return '账号长度至少2个字符'
+  return null
+}
+
+// 注册组件（保持不变）
 export function RegisterForm() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -726,17 +738,18 @@ export function RegisterForm() {
   )
 }
 
-// 登录组件
+// 更新后的登录组件
 export function LoginForm() {
   const { login } = useAuth()
   const [formData, setFormData] = useState({
-    email: '',
+    account: '', // 改为 account，支持多种登录方式
     password: '',
     rememberMe: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [showLoginHint, setShowLoginHint] = useState(false)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -759,12 +772,12 @@ export function LoginForm() {
   const handleLogin = async () => {
     if (loading) return
     
-    setTouched({ email: true, password: true })
+    setTouched({ account: true, password: true })
     
     const newErrors: Record<string, string> = {}
     
-    const emailError = validateEmail(formData.email)
-    if (emailError) newErrors.email = emailError
+    const accountError = validateLoginAccount(formData.account)
+    if (accountError) newErrors.account = accountError
     
     if (!formData.password) {
       newErrors.password = '请输入密码'
@@ -781,7 +794,8 @@ export function LoginForm() {
     
     try {
       console.log('[LoginForm] 开始登录...')
-      await login(formData.email.trim(), formData.password)
+      // 传递账号到后端，后端会自动识别是邮箱、用户名还是昵称
+      await login(formData.account.trim(), formData.password)
       console.log('[LoginForm] 登录成功')
     } catch (error) {
       console.error('[LoginForm] 登录失败:', error)
@@ -822,19 +836,49 @@ export function LoginForm() {
           }} 
           className="space-y-4"
         >
-          <PixelInput
-            label="邮箱地址"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleInputChange}
-            placeholder="请输入注册邮箱"
-            icon="📧"
-            error={touched.email ? errors.email : ''}
-            autoComplete="email"
-            autoFocus
-            disabled={loading}
-          />
+          <div>
+            <PixelInput
+              label="登录账号"
+              name="account"
+              type="text"
+              value={formData.account}
+              onChange={handleInputChange}
+              placeholder="邮箱 / 用户名 / 昵称"
+              icon="👤"
+              error={touched.account ? errors.account : ''}
+              autoComplete="username"
+              autoFocus
+              disabled={loading}
+              hint="支持邮箱、用户名（可省略@后缀）或昵称登录"
+            />
+            
+            {/* 登录方式提示 */}
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowLoginHint(!showLoginHint)}
+                className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+              >
+                {showLoginHint ? '收起' : '查看'}支持的登录方式 {showLoginHint ? '▲' : '▼'}
+              </button>
+              
+              <AnimatePresence>
+                {showLoginHint && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-2 p-3 bg-gray-900/50 rounded text-xs text-gray-400 space-y-1"
+                  >
+                    <p>📧 <strong>邮箱</strong>：user@example.com</p>
+                    <p>👤 <strong>用户名</strong>：john 或 john@example.com</p>
+                    <p>✨ <strong>昵称</strong>：我的昵称</p>
+                    <p className="text-gold-500 mt-2">💡 提示：用户名登录时可省略@及后面部分</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
 
           <div>
             <PixelInput
@@ -882,6 +926,11 @@ export function LoginForm() {
               className="p-3 bg-red-500/10 border border-red-500/20 rounded"
             >
               <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+              {errors.submit.includes('用户不存在') && (
+                <p className="text-xs text-gray-400 text-center mt-1">
+                  请检查账号是否正确，支持邮箱、用户名或昵称登录
+                </p>
+              )}
             </motion.div>
           )}
 
@@ -926,7 +975,7 @@ export function LoginForm() {
   )
 }
 
-// 找回密码组件
+// 找回密码组件（保持不变）
 export function ResetPasswordForm() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -1317,7 +1366,7 @@ export function ResetPasswordForm() {
   )
 }
 
-// 认证页面容器
+// 认证页面容器（保持不变）
 interface AuthPageProps {
   type: 'login' | 'register' | 'reset'
 }
