@@ -1,5 +1,5 @@
 // src/components/settings/TeamSection.tsx
-// 团队信息组件
+// 团队信息组件 - 修改后版本
 
 'use client'
 
@@ -10,26 +10,22 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 
-interface TeamSummary {
-  total_members: number
-  total_performance: string
-}
-
 export function TeamSection() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [teamData, setTeamData] = useState<TeamSummary | null>(null)
+  const [profileData, setProfileData] = useState<any>(null)
 
   useEffect(() => {
-    loadTeamData()
+    loadProfileData()
   }, [])
 
-  const loadTeamData = async () => {
+  const loadProfileData = async () => {
     try {
       setLoading(true)
-      const response = await api.accounts.getTeamSummary()
+      // 获取用户最新的个人资料数据
+      const response = await api.accounts.profile()
       if (response.success && response.data) {
-        setTeamData(response.data)
+        setProfileData(response.data)
       }
     } catch (error) {
       console.error('加载团队数据失败:', error)
@@ -37,6 +33,9 @@ export function TeamSection() {
       setLoading(false)
     }
   }
+
+  // 使用最新的资料数据或用户数据
+  const displayData = profileData || user
 
   if (loading) {
     return (
@@ -53,7 +52,7 @@ export function TeamSection() {
     <PixelCard className="p-6">
       <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2">
         <span>👥</span>
-        团队信息
+        公会信息
       </h2>
 
       {/* 推荐信息 */}
@@ -64,12 +63,12 @@ export function TeamSection() {
             <p className="text-sm text-gray-400">我的推荐码</p>
             <div className="flex items-center gap-2 mt-1">
               <p className="font-mono text-lg font-bold text-gold-500">
-                {user?.referral_code || '未设置'}
+                {displayData?.referral_code || '未设置'}
               </p>
               <button
                 onClick={() => {
-                  if (user?.referral_code) {
-                    navigator.clipboard.writeText(user.referral_code)
+                  if (displayData?.referral_code) {
+                    navigator.clipboard.writeText(displayData.referral_code)
                     toast.success('推荐码已复制到剪贴板')
                   }
                 }}
@@ -82,15 +81,15 @@ export function TeamSection() {
           <div>
             <p className="text-sm text-gray-400">我的推荐人</p>
             <p className="font-bold mt-1">
-              {user?.referrer_nickname || '无'}
+              {displayData?.referrer_nickname || '无'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 团队统计 */}
+      {/* 团队统计 - 修改后的显示 */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* 团队规模 */}
+        {/* 雇佣人数 */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -98,17 +97,18 @@ export function TeamSection() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-400 mb-2">团队总人数</p>
+              <p className="text-sm text-gray-400 mb-2">雇佣人数</p>
               <p className="text-3xl font-black text-purple-500">
-                {teamData?.total_members || 0}
+                {displayData?.direct_referrals_count || 0}
                 <span className="text-sm ml-2 text-gray-400">人</span>
               </p>
+              <p className="text-xs text-gray-500 mt-1">直接推荐的用户</p>
             </div>
-            <span className="text-5xl opacity-30">👥</span>
+            <span className="text-5xl opacity-30">👤</span>
           </div>
         </motion.div>
 
-        {/* 团队业绩 */}
+        {/* 公会总人数 */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -117,36 +117,37 @@ export function TeamSection() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-400 mb-2">团队总业绩</p>
+              <p className="text-sm text-gray-400 mb-2">公会总人数</p>
               <p className="text-3xl font-black text-green-500">
-                {parseFloat(teamData?.total_performance || '0').toLocaleString()}
-                <span className="text-sm ml-2 text-gray-400">USDT</span>
+                {displayData?.total_referrals_count || 0}
+                <span className="text-sm ml-2 text-gray-400">人</span>
               </p>
+              <p className="text-xs text-gray-500 mt-1">包含所有层级成员</p>
             </div>
-            <span className="text-5xl opacity-30">💰</span>
+            <span className="text-5xl opacity-30">👥</span>
           </div>
         </motion.div>
       </div>
 
-      {/* 个人贡献 */}
+      {/* 个人贡献统计 */}
       <div className="mt-6 grid md:grid-cols-3 gap-4">
         <div className="text-center p-4 bg-gray-800/50 rounded">
           <p className="text-2xl font-black text-blue-500">
-            {user?.direct_referrals_count || 0}
+            {displayData?.direct_referrals_count || 0}
           </p>
-          <p className="text-sm text-gray-400 mt-1">直接推荐</p>
+          <p className="text-sm text-gray-400 mt-1">雇佣人数</p>
         </div>
         <div className="text-center p-4 bg-gray-800/50 rounded">
           <p className="text-2xl font-black text-orange-500">
-            {user?.total_referrals_count || 0}
+            {displayData?.total_referrals_count || 0}
           </p>
-          <p className="text-sm text-gray-400 mt-1">团队总数</p>
+          <p className="text-sm text-gray-400 mt-1">公会总数</p>
         </div>
         <div className="text-center p-4 bg-gray-800/50 rounded">
           <p className="text-2xl font-black text-gold-500">
-            {parseFloat(user?.community_performance || '0').toLocaleString()}
+            {displayData?.level || 1}
           </p>
-          <p className="text-sm text-gray-400 mt-1">社区业绩</p>
+          <p className="text-sm text-gray-400 mt-1">当前等级</p>
         </div>
       </div>
 
@@ -156,13 +157,13 @@ export function TeamSection() {
         <div className="flex items-center gap-2">
           <input
             type="text"
-            value={`https://www.pxsj.net.cn/register?ref=${user?.referral_code || ''}`}
+            value={`https://www.pxsj.net.cn/register?ref=${displayData?.referral_code || ''}`}
             readOnly
             className="flex-1 px-3 py-2 bg-gray-800 text-sm text-gray-300 rounded border-2 border-gray-700"
           />
           <button
             onClick={() => {
-              const url = `https://www.pxsj.net.cn/register?ref=${user?.referral_code || ''}`
+              const url = `https://www.pxsj.net.cn/register?ref=${displayData?.referral_code || ''}`
               navigator.clipboard.writeText(url)
               toast.success('推荐链接已复制')
             }}
@@ -176,13 +177,25 @@ export function TeamSection() {
         </p>
       </div>
 
+      {/* 刷新按钮 */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={loadProfileData}
+          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded transition-colors inline-flex items-center gap-2"
+        >
+          <span>🔄</span>
+          刷新数据
+        </button>
+      </div>
+
       {/* 提示信息 */}
       <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded">
         <p className="text-sm text-blue-400 flex items-start gap-2">
           <span>💡</span>
           <span>
-            团队人数包含所有层级的推荐用户。团队业绩为整个团队的累计消费金额。
-            发展团队可以获得更多奖励和权益。
+            雇佣人数是指您直接推荐的用户数量。
+            公会总人数包含您的所有下级成员，包括直接推荐和间接推荐的用户。
+            发展更多成员可以获得更多奖励和权益。
           </span>
         </p>
       </div>
