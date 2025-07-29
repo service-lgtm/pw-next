@@ -312,7 +312,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/team')}
+                onClick={() => router.push('/referral')}
                 className="bg-pink-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">🎁</span>
