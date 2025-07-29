@@ -100,7 +100,47 @@ function PixelInput({
   )
 }
 
-// 倒计时按钮组件 - 修复定位问题
+// 提示信息组件
+function MessageTooltip({ type, text }: { type: 'error' | 'success', text: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 5, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className={cn(
+        "absolute -top-10 right-0 z-50",
+        "px-3 py-2 rounded-lg shadow-lg",
+        "text-xs font-medium whitespace-nowrap",
+        "max-w-[280px]",
+        type === 'error' 
+          ? "bg-red-500/90 text-white" 
+          : "bg-green-500/90 text-white"
+      )}
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live="polite"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-base">
+          {type === 'error' ? '❌' : '✅'}
+        </span>
+        <span>{text}</span>
+      </div>
+      {/* 小三角指示器 */}
+      <div 
+        className={cn(
+          "absolute -bottom-1 right-6",
+          "w-2 h-2 rotate-45",
+          type === 'error' 
+            ? "bg-red-500/90" 
+            : "bg-green-500/90"
+        )}
+      />
+    </motion.div>
+  )
+}
+
+// 优化后的倒计时按钮组件
 interface CountdownButtonProps {
   onClick: () => Promise<void>
   disabled?: boolean
@@ -111,15 +151,19 @@ interface CountdownButtonProps {
 function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProps) {
   const [countdown, setCountdown] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
+  const [message, setMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const messageTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
+      }
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current)
+        messageTimeoutRef.current = null
       }
     }
   }, [])
@@ -129,31 +173,38 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
     return emailRegex.test(email)
   }
   
+  const showMessage = (type: 'error' | 'success', text: string, duration: number = 5000) => {
+    setMessage({ type, text })
+    if (messageTimeoutRef.current) {
+      clearTimeout(messageTimeoutRef.current)
+    }
+    messageTimeoutRef.current = setTimeout(() => {
+      setMessage(null)
+      messageTimeoutRef.current = null
+    }, duration)
+  }
+  
   const handleClick = async () => {
     if (countdown > 0 || disabled || loading) return
     
     if (!email || !email.trim()) {
-      setError('请先输入邮箱地址')
-      setTimeout(() => setError(''), 3000)
+      showMessage('error', '请先输入邮箱地址')
       return
     }
     
     if (!validateEmail(email)) {
-      setError('请输入有效的邮箱地址')
-      setTimeout(() => setError(''), 3000)
+      showMessage('error', '请输入有效的邮箱地址')
       return
     }
     
     setLoading(true)
-    setError('')
-    setSuccess('')
+    setMessage(null)
     
     try {
       await onClick()
       
       // 发送成功提示
-      setSuccess('验证码已发送，请注意查收（垃圾箱也要看哦）')
-      setTimeout(() => setSuccess(''), 8000) // 8秒后隐藏成功提示
+      showMessage('success', '验证码已发送，请查收邮箱（含垃圾箱）', 8000)
       
       setCountdown(60)
       
@@ -172,8 +223,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
     } catch (error) {
       console.error('发送验证码失败:', error)
       const errorMessage = getErrorMessage(error)
-      setError(errorMessage)
-      setTimeout(() => setError(''), 5000)
+      showMessage('error', errorMessage)
     } finally {
       setLoading(false)
     }
@@ -182,20 +232,7 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
   const isDisabled = countdown > 0 || disabled || loading || !email || !validateEmail(email)
   
   return (
-    <div className="flex flex-col items-end">
-      {(error || success) && (
-        <motion.div
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -5 }}
-          className={cn(
-            "text-xs mb-1 max-w-[200px] text-right",
-            error ? "text-red-500" : "text-green-500"
-          )}
-        >
-          {error || success}
-        </motion.div>
-      )}
+    <>
       <button
         type="button"
         onClick={handleClick}
@@ -221,7 +258,17 @@ function CountdownButton({ onClick, disabled, email, type }: CountdownButtonProp
           '发送验证码'
         )}
       </button>
-    </div>
+      
+      {/* 提示信息 */}
+      <AnimatePresence>
+        {message && (
+          <MessageTooltip 
+            type={message.type} 
+            text={message.text}
+          />
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
@@ -280,17 +327,19 @@ function VerificationInput({
             'focus:border-gold-500 focus:outline-none transition-all duration-200',
             'text-white placeholder-gray-500',
             'disabled:opacity-50 disabled:cursor-not-allowed',
-            'pl-12 pr-28', // 为按钮留出空间
+            'pl-12 pr-28',
             error && 'border-red-500'
           )}
         />
-        {/* 使用绝对定位放置按钮 */}
+        {/* 按钮容器 - 确保提示信息有足够空间显示 */}
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <CountdownButton 
-            onClick={onSendCode} 
-            email={email}
-            type={type}
-          />
+          <div className="relative">
+            <CountdownButton 
+              onClick={onSendCode} 
+              email={email}
+              type={type}
+            />
+          </div>
         </div>
       </div>
       {error && (
@@ -338,7 +387,7 @@ function validateLoginAccount(account: string): string | null {
   return null
 }
 
-// 注册组件（保持不变）
+// 注册组件
 export function RegisterForm() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -651,6 +700,7 @@ export function RegisterForm() {
               onChange={handleInputChange}
               placeholder="填写邀请码获得额外奖励"
               icon="🎁"
+              disabled={isReferralCodeLocked}
             />
 
             <div className="space-y-2">
@@ -764,7 +814,7 @@ export function RegisterForm() {
   )
 }
 
-// 更新后的登录组件
+// 登录组件
 export function LoginForm() {
   const { login } = useAuth()
   const [formData, setFormData] = useState({
@@ -1001,7 +1051,7 @@ export function LoginForm() {
   )
 }
 
-// 找回密码组件（保持不变）
+// 找回密码组件
 export function ResetPasswordForm() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -1392,7 +1442,7 @@ export function ResetPasswordForm() {
   )
 }
 
-// 认证页面容器（保持不变）
+// 认证页面容器
 interface AuthPageProps {
   type: 'login' | 'register' | 'reset'
 }
