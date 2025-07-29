@@ -1352,29 +1352,18 @@ export function ResetPasswordForm() {
                 <p className="text-gray-400 text-sm">
                   没有收到邮件？
                 </p>
-                <div className="flex gap-3 justify-center">
-                  <motion.button
-                    className="px-4 py-2 text-sm border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setStep(1)
-                      setFormData(prev => ({ ...prev, verification_code: '' }))
-                    }}
-                    type="button"
-                  >
-                    重新验证
-                  </motion.button>
-                  <motion.button
-                    className="px-4 py-2 text-sm text-gold-500 hover:text-gold-400 transition-all"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => window.open('https://www.pxsj.net.cn/support', '_blank')}
-                    type="button"
-                  >
-                    联系客服
-                  </motion.button>
-                </div>
+                <motion.button
+                  className="px-4 py-2 text-sm border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setStep(1)
+                    setFormData(prev => ({ ...prev, verification_code: '' }))
+                  }}
+                  type="button"
+                >
+                  重新验证
+                </motion.button>
               </div>
 
               {/* 返回登录 */}
