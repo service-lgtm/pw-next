@@ -1125,6 +1125,7 @@ export function ResetPasswordForm() {
           email: formData.email.trim(),
           verification_code: formData.verification_code.trim()
         })
+        // 成功后跳转到提示查看邮件的页面
         setStep(2)
       } catch (error) {
         console.error('[ResetForm] 请求重置失败:', error)
@@ -1138,7 +1139,6 @@ export function ResetPasswordForm() {
 
   const handleResetPassword = async () => {
     setTouched({ 
-      token: true, 
       new_password: true, 
       new_password_confirm: true 
     })
@@ -1153,7 +1153,7 @@ export function ResetPasswordForm() {
     }
     
     if (!formData.token) {
-      newErrors.token = '请输入重置链接中的token'
+      newErrors.token = '无效的重置链接'
     }
     
     setErrors(newErrors)
@@ -1166,7 +1166,7 @@ export function ResetPasswordForm() {
           new_password: formData.new_password,
           new_password_confirm: formData.new_password_confirm
         })
-        setStep(3)
+        setStep(4) // 跳转到重置成功页面
       } catch (error) {
         console.error('[ResetForm] 重置密码失败:', error)
         const errorMessage = getErrorMessage(error)
@@ -1184,7 +1184,7 @@ export function ResetPasswordForm() {
       const email = params.get('email')
       if (token && email) {
         setFormData(prev => ({ ...prev, token, email }))
-        setStep(2)
+        setStep(3) // 直接跳转到设置新密码页面
       }
     }
   }, [])
@@ -1194,7 +1194,7 @@ export function ResetPasswordForm() {
       e.preventDefault()
       if (step === 1) {
         handleRequestReset()
-      } else if (step === 2) {
+      } else if (step === 3) {
         handleResetPassword()
       }
     }
@@ -1289,10 +1289,109 @@ export function ResetPasswordForm() {
           </motion.div>
         )}
 
-        {/* 步骤2：设置新密码 */}
+        {/* 步骤2：提示查看邮件 */}
         {step === 2 && (
           <motion.div
             key="step2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-6"
+          >
+            <div className="text-center">
+              <motion.div
+                className="text-6xl mb-4"
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 1 }}
+              >
+                ✉️
+              </motion.div>
+              <h2 className="text-3xl font-black mb-2">
+                请查看您的邮箱
+              </h2>
+              <p className="text-gray-400">
+                重置密码链接已发送至
+              </p>
+              <p className="text-gold-500 font-bold text-lg mt-2">
+                {formData.email}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* 邮件提示框 */}
+              <div className="p-6 bg-gray-900/50 rounded-lg space-y-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">📧</span>
+                  <div className="flex-1 space-y-2">
+                    <h3 className="font-bold text-white">操作步骤：</h3>
+                    <ol className="list-decimal list-inside space-y-1 text-gray-400 text-sm">
+                      <li>打开您的邮箱客户端或网页</li>
+                      <li>查找来自"平行世界的字符"的邮件</li>
+                      <li>点击邮件中的"重置密码"按钮</li>
+                      <li>在新页面中设置您的新密码</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* 重要提示 */}
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                <p className="text-sm text-yellow-500 flex items-start gap-2">
+                  <span>⚠️</span>
+                  <span>
+                    <strong>温馨提示：</strong>邮件可能会被归类到垃圾邮件文件夹，请同时检查垃圾箱。
+                    重置链接有效期为30分钟，请尽快完成操作。
+                  </span>
+                </p>
+              </div>
+
+              {/* 没收到邮件 */}
+              <div className="text-center space-y-3 pt-4">
+                <p className="text-gray-400 text-sm">
+                  没有收到邮件？
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <motion.button
+                    className="px-4 py-2 text-sm border border-gray-700 text-gray-400 hover:text-white hover:border-gray-600 transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setStep(1)
+                      setFormData(prev => ({ ...prev, verification_code: '' }))
+                    }}
+                    type="button"
+                  >
+                    重新验证
+                  </motion.button>
+                  <motion.button
+                    className="px-4 py-2 text-sm text-gold-500 hover:text-gold-400 transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => window.open('https://www.pxsj.net.cn/support', '_blank')}
+                    type="button"
+                  >
+                    联系客服
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* 返回登录 */}
+              <p className="text-center text-sm text-gray-400 pt-4">
+                <Link href="/login" className="text-gold-500 hover:underline">
+                  返回登录页面
+                </Link>
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* 步骤3：设置新密码（通过邮件链接进入）*/}
+        {/* 步骤3：设置新密码（通过邮件链接进入）*/}
+        {step === 3 && (
+          <motion.div
+            key="step3"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -1304,24 +1403,11 @@ export function ResetPasswordForm() {
                 设置新密码
               </h2>
               <p className="text-gray-400">
-                请设置一个安全的新密码
+                请为您的账号设置一个安全的新密码
               </p>
             </div>
 
             <div className="space-y-4">
-              {!formData.token && (
-                <PixelInput
-                  label="重置Token"
-                  name="token"
-                  value={formData.token}
-                  onChange={handleInputChange}
-                  placeholder="请输入邮件中的重置链接token"
-                  icon="🔑"
-                  error={touched.token ? errors.token : ''}
-                  autoFocus
-                />
-              )}
-
               <PixelInput
                 label="新密码"
                 name="new_password"
@@ -1333,7 +1419,7 @@ export function ResetPasswordForm() {
                 error={touched.new_password ? errors.new_password : ''}
                 autoComplete="new-password"
                 showPasswordToggle
-                autoFocus={!!formData.token}
+                autoFocus
               />
 
               <PixelInput
@@ -1398,8 +1484,8 @@ export function ResetPasswordForm() {
           </motion.div>
         )}
 
-        {/* 步骤3：重置成功 */}
-        {step === 3 && (
+        {/* 步骤4：重置成功 */}
+        {step === 4 && (
           <motion.div
             key="step3"
             initial={{ opacity: 0, scale: 0.9 }}
