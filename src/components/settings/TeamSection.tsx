@@ -102,7 +102,6 @@ export function TeamSection() {
                 {displayData?.direct_referrals_count || 0}
                 <span className="text-sm ml-2 text-gray-400">人</span>
               </p>
-              <p className="text-xs text-gray-500 mt-1">直接推荐的用户</p>
             </div>
             <span className="text-5xl opacity-30">👤</span>
           </div>
@@ -122,7 +121,6 @@ export function TeamSection() {
                 {displayData?.total_referrals_count || 0}
                 <span className="text-sm ml-2 text-gray-400">人</span>
               </p>
-              <p className="text-xs text-gray-500 mt-1">包含所有层级成员</p>
             </div>
             <span className="text-5xl opacity-30">👥</span>
           </div>
@@ -194,8 +192,7 @@ export function TeamSection() {
           <span>💡</span>
           <span>
             雇佣人数是指您直接推荐的用户数量。
-            公会总人数包含您的所有下级成员，包括直接推荐和间接推荐的用户。
-            发展更多成员可以获得更多奖励和权益。
+            更多成员可以获得更多奖励和权益。
           </span>
         </p>
       </div>
