@@ -1776,6 +1776,8 @@ export function ResetPasswordForm() {
           </motion.div>
         )}
 
+        // 在 AuthComponents.tsx 文件的末尾，确保正确的结构：
+
         {/* 步骤4：重置成功 */}
         {step === 4 && (
           <motion.div
@@ -1815,3 +1817,48 @@ export function ResetPasswordForm() {
             </motion.button>
           </motion.div>
         )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// 认证页面容器
+interface AuthPageProps {
+  type: 'login' | 'register' | 'reset'
+}
+
+export function AuthPage({ type }: AuthPageProps) {
+  return (
+    <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center p-4">
+      {/* 背景装饰 */}
+      <div className="fixed inset-0 pixel-grid opacity-10" />
+      <div className="fixed top-20 left-20 text-8xl opacity-5 animate-pulse">🔐</div>
+      <div className="fixed bottom-20 right-20 text-8xl opacity-5 animate-pulse" style={{ animationDelay: '1s' }}>🎯</div>
+      
+      {/* Logo */}
+      <div className="fixed top-8 left-8">
+        <Link href="/" className="flex items-center gap-3 group">
+          <motion.div
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            whileTap={{ scale: 0.95 }}
+            className="transition-transform"
+          >
+            <PixelLogo />
+          </motion.div>
+          <span className="text-xl font-black text-gold-500 group-hover:text-gold-400 transition-colors">
+            平行世界
+          </span>
+        </Link>
+      </div>
+
+      {/* 主内容 */}
+      <div className="relative z-10 w-full max-w-md">
+        <div className="pixel-card p-8 bg-[#0A1628]/95 backdrop-blur">
+          {type === 'login' && <LoginForm />}
+          {type === 'register' && <RegisterForm />}
+          {type === 'reset' && <ResetPasswordForm />}
+        </div>
+      </div>
+    </div>
+  )
+}
