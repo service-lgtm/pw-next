@@ -109,6 +109,45 @@ export interface User {
   yldBalance?: number
 }
 
+export interface TokenLoginRequest {
+  username: string  // 邮箱或用户名
+  password: string
+}
+
+export interface TokenLoginResponse {
+  success: boolean
+  message: string
+  data: {
+    access: string
+    refresh: string
+    user: User
+    permissions: {
+      is_staff: boolean
+      is_superuser: boolean
+      permission_level: number
+    }
+  }
+}
+
+export interface TokenRefreshResponse {
+  success: boolean
+  message: string
+  data: {
+    access: string
+  }
+}
+
+export interface TokenVerifyResponse {
+  success: boolean
+  message: string
+  data: {
+    valid: boolean
+    user_id: number
+    username: string
+    exp: number
+  }
+}
+
 export interface EmailCodeRequest {
   email: string
   type: 'register' | 'reset'
@@ -121,6 +160,14 @@ export interface RegisterRequest {
   password_confirm: string
   verification_code?: string  // 邮箱注册使用
   referral_code: string      // 必填
+}
+
+export interface EmailRegisterRequest {
+  email: string
+  password: string
+  password_confirm: string
+  verification_code: string
+  referral_code: string
 }
 
 export interface PasswordResetRequest {
@@ -572,9 +619,9 @@ async function request<T = any>(
           
           const refreshData = await refreshResponse.json()
           
-          if (refreshResponse.ok && refreshData.access) {
+          if (refreshResponse.ok && refreshData.success && refreshData.data) {
             // 保存新的 access token
-            const newAccessToken = refreshData.access
+            const newAccessToken = refreshData.data.access
             const currentRefreshToken = TokenManager.getRefreshToken()
             if (currentRefreshToken) {
               TokenManager.setTokens(newAccessToken, currentRefreshToken)
@@ -669,53 +716,82 @@ async function request<T = any>(
 // ========== API 对象 ==========
 const api = {
   auth: {
-    // JWT 登录 - 使用标准的 JWT 接口
-    login: async (account: string, password: string) => {
+    // JWT 登录 - 适配你的自定义响应格式
+    login: async (account: string, password: string): Promise<TokenLoginResponse> => {
+      const response = await request<TokenLoginResponse>('/auth/token/', {
+        method: 'POST',
+        body: {
+          username: account,  // 你的后端期望 username 字段
+          password: password
+        },
+        skipAuth: true,
+      })
+      
+      // 你的自定义视图返回格式：
+      // {
+      //   "success": true,
+      //   "message": "登录成功",
+      //   "data": {
+      //     "access": "xxx",
+      //     "refresh": "xxx",
+      //     "user": {...},
+      //     "permissions": {...}
+      //   }
+      // }
+      
+      if (response.success && response.data) {
+        // 保存 tokens 和用户信息
+        TokenManager.setTokens(response.data.access, response.data.refresh)
+        if (response.data.user) {
+          TokenManager.setUser(response.data.user)
+        }
+      }
+      
+      return response
+    },
+    
+    // 刷新 Token - 适配你的自定义响应格式
+    refreshToken: async (): Promise<boolean> => {
+      const refreshToken = TokenManager.getRefreshToken()
+      if (!refreshToken) return false
+      
       try {
-        // 首先尝试使用标准的 JWT token 接口
-        const response = await request('/auth/token/', {
+        const response = await request<TokenRefreshResponse>('/auth/token/refresh/', {
           method: 'POST',
-          body: {
-            username: account,  // Django JWT 默认使用 username
-            password: password
-          },
+          body: { refresh: refreshToken },
           skipAuth: true,
         })
         
-        // 处理标准 JWT 响应
-        if (response.access && response.refresh) {
-          // 保存 tokens
-          TokenManager.setTokens(response.access, response.refresh)
-          
-          // 如果响应中包含用户信息，保存它
-          if (response.user) {
-            TokenManager.setUser(response.user)
+        if (response.success && response.data && response.data.access) {
+          const currentRefreshToken = TokenManager.getRefreshToken()
+          if (currentRefreshToken) {
+            TokenManager.setTokens(response.data.access, currentRefreshToken)
           }
-          
-          return {
-            success: true,
-            message: '登录成功',
-            data: {
-              access: response.access,
-              refresh: response.refresh,
-              user: response.user || TokenManager.getUser(),
-              permissions: response.permissions || {
-                is_staff: false,
-                is_superuser: false,
-                permission_level: 0
-              }
-            }
-          }
+          return true
         }
-        
-        throw new ApiError(400, 'INVALID_RESPONSE', '登录响应格式错误')
       } catch (error) {
-        // 如果标准 JWT 接口失败，尝试使用自定义的通用登录接口
-        if (error instanceof ApiError && error.status === 404) {
-          console.log('[API] 尝试使用自定义登录接口...')
-          return api.auth.universalLogin(account, password)
-        }
-        throw error
+        console.error('[API] Token refresh failed:', error)
+      }
+      
+      return false
+    },
+    
+    // 验证 Token - 适配你的自定义响应格式
+    verifyToken: async (token?: string): Promise<TokenVerifyResponse | null> => {
+      const tokenToVerify = token || TokenManager.getAccessToken()
+      if (!tokenToVerify) return null
+      
+      try {
+        const response = await request<TokenVerifyResponse>('/auth/token/verify/', {
+          method: 'POST',
+          body: { token: tokenToVerify },
+          skipAuth: true,
+        })
+        
+        return response
+      } catch (error) {
+        console.error('[API] Token verify failed:', error)
+        return null
       }
     },
     
@@ -754,65 +830,11 @@ const api = {
       throw new ApiError(400, 'INVALID_RESPONSE', response.message || '登录失败')
     },
     
-    // 刷新 Token
-    refreshToken: async (): Promise<boolean> => {
-      const refreshToken = TokenManager.getRefreshToken()
-      if (!refreshToken) return false
-      
-      try {
-        const response = await request('/auth/token/refresh/', {
-          method: 'POST',
-          body: { refresh: refreshToken },
-          skipAuth: true,
-        })
-        
-        if (response.access) {
-          const currentRefreshToken = TokenManager.getRefreshToken()
-          if (currentRefreshToken) {
-            TokenManager.setTokens(response.access, currentRefreshToken)
-          }
-          return true
-        }
-      } catch (error) {
-        console.error('[API] Token refresh failed:', error)
-      }
-      
-      return false
-    },
-    
-    // 验证 Token
-    verifyToken: async (token?: string) => {
-      const tokenToVerify = token || TokenManager.getAccessToken()
-      if (!tokenToVerify) return null
-      
-      try {
-        const response = await request('/auth/token/verify/', {
-          method: 'POST',
-          body: { token: tokenToVerify },
-          skipAuth: true,
-        })
-        
-        return {
-          success: true,
-          message: 'Token is valid',
-          data: {
-            valid: true,
-            user_id: response.user_id,
-            username: response.username,
-            exp: response.exp
-          }
-        }
-      } catch (error) {
-        console.error('[API] Token verify failed:', error)
-        return null
-      }
-    },
-    
     // 登出
     logout: async () => {
       try {
         // 尝试调用服务器登出接口
-        await request('/auth/logout/', {
+        await request('/auth/token/logout/', {
           method: 'POST',
         })
       } catch (error) {
@@ -872,7 +894,7 @@ const api = {
     },
     
     // 邮箱注册
-    registerWithEmail: async (data: RegisterRequest) => {
+    registerWithEmail: async (data: EmailRegisterRequest) => {
       const response = await request('/auth/register-with-code/', {
         method: 'POST',
         body: data,
