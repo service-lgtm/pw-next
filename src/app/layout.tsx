@@ -1,12 +1,11 @@
 // src/app/layout.tsx
-// 根布局文件 - 包含 Toaster
 
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script' // 1. 在这里导入 Script 组件
 import './globals.css'
 import { ClientLayout } from '@/components/layout/ClientLayout'
 import { AuthProvider } from '@/hooks/useAuth'
-import { ToasterProvider } from '@/components/providers/ToasterProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,9 +24,10 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
         <div className="pixel-grid fixed inset-0 pointer-events-none opacity-30" />
         <AuthProvider>
-          <ToasterProvider />
           <ClientLayout>{children}</ClientLayout>
         </AuthProvider>
+        
+        <Script src="https://plugin-code.salesmartly.com/js/project_408373_419884_1753852401.js" strategy="afterInteractive" />
       </body>
     </html>
   )
