@@ -12,7 +12,7 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   error: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (account: string, password: string) => Promise<void>  // 改为 account，支持多种登录方式
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
   clearError: () => void
@@ -95,18 +95,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (account: string, password: string) => {
     setError(null)
     
     try {
-      // 使用 JWT 登录
-      const response = await api.auth.login({ 
-        username: email,  // API 接受 username 字段（可以是邮箱）
-        password 
-      })
+      // 使用新的通用登录接口
+      await api.auth.login(account, password)
       
-      if (response.success && response.data) {
-        setUser(response.data.user)
+      // 登录成功后，从 TokenManager 获取用户信息
+      const storedUser = TokenManager.getUser()
+      if (storedUser) {
+        setUser(storedUser)
         
         // 获取重定向 URL
         const params = new URLSearchParams(window.location.search)
@@ -114,17 +113,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         router.push(redirect)
       } else {
-        throw new Error(response.message || '登录失败')
+        throw new Error('登录成功但无法获取用户信息')
       }
     } catch (error) {
       let errorMessage = getErrorMessage(error)
       
       if (isApiError(error, 401)) {
-        errorMessage = '邮箱或密码错误'
+        errorMessage = '账号或密码错误'
       } else if (isApiError(error, 400)) {
         // 处理具体的字段错误
         if (error.details?.non_field_errors) {
-          errorMessage = '用户名或密码错误'
+          errorMessage = '账号或密码错误'
+        } else if (error.details?.account) {
+          errorMessage = error.details.account[0] || '账号错误'
+        } else if (error.details?.password) {
+          errorMessage = error.details.password[0] || '密码错误'
         }
       }
       
