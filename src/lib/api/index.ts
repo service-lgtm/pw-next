@@ -1,21 +1,5 @@
 // lib/api/index.ts
-// 统一的 API 层 - 更新了字段映射
-
-// ========== 重要说明 ==========
-// 注意：由于某些第三方库或框架可能会修改全局 fetch 函数，
-// 并且在处理 credentials: 'include' 选项时存在 bug，
-// 导致请求失败（错误信息：网络连接失败）。
-// 
-// 问题表现：
-// - 使用 credentials: 'include' 的请求会失败
-// - 错误信息为 "Failed to fetch" 或 "网络连接失败"
-// - 移除 credentials: 'include' 后请求正常
-// 
-// 解决方案：
-// 已从所有 API 请求中移除 credentials: 'include' 选项。
-// 如果未来需要使用 cookie 认证，请先测试确认 fetch 未被篡改。
-// ========== 重要说明结束 ==========
-
+// 统一的 API 层 - 修复版本
 
 // ========== 配置 ==========
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://mg.pxsj.net.cn/api/v1'
@@ -125,56 +109,18 @@ export interface User {
   yldBalance?: number
 }
 
-export interface TokenLoginRequest {
-  username: string  // 邮箱或用户名
-  password: string
-}
-
-export interface TokenLoginResponse {
-  success: boolean
-  message: string
-  data: {
-    access: string
-    refresh: string
-    user: User
-    permissions: {
-      is_staff: boolean
-      is_superuser: boolean
-      permission_level: number
-    }
-  }
-}
-
-export interface TokenRefreshResponse {
-  success: boolean
-  message: string
-  data: {
-    access: string
-  }
-}
-
-export interface TokenVerifyResponse {
-  success: boolean
-  message: string
-  data: {
-    valid: boolean
-    user_id: number
-    username: string
-    exp: number
-  }
-}
-
 export interface EmailCodeRequest {
   email: string
   type: 'register' | 'reset'
 }
 
 export interface RegisterRequest {
-  email: string
+  username?: string  // 快速注册使用
+  email?: string     // 邮箱注册使用
   password: string
   password_confirm: string
-  verification_code: string
-  referral_code?: string
+  verification_code?: string  // 邮箱注册使用
+  referral_code: string      // 必填
 }
 
 export interface PasswordResetRequest {
@@ -626,9 +572,9 @@ async function request<T = any>(
           
           const refreshData = await refreshResponse.json()
           
-          if (refreshResponse.ok && refreshData.success) {
+          if (refreshResponse.ok && refreshData.access) {
             // 保存新的 access token
-            const newAccessToken = refreshData.data.access
+            const newAccessToken = refreshData.access
             const currentRefreshToken = TokenManager.getRefreshToken()
             if (currentRefreshToken) {
               TokenManager.setTokens(newAccessToken, currentRefreshToken)
@@ -723,21 +669,89 @@ async function request<T = any>(
 // ========== API 对象 ==========
 const api = {
   auth: {
-    // JWT 登录
-    login: async (data: TokenLoginRequest): Promise<TokenLoginResponse> => {
-      const response = await request<TokenLoginResponse>('/auth/token/', {
+    // JWT 登录 - 使用标准的 JWT 接口
+    login: async (account: string, password: string) => {
+      try {
+        // 首先尝试使用标准的 JWT token 接口
+        const response = await request('/auth/token/', {
+          method: 'POST',
+          body: {
+            username: account,  // Django JWT 默认使用 username
+            password: password
+          },
+          skipAuth: true,
+        })
+        
+        // 处理标准 JWT 响应
+        if (response.access && response.refresh) {
+          // 保存 tokens
+          TokenManager.setTokens(response.access, response.refresh)
+          
+          // 如果响应中包含用户信息，保存它
+          if (response.user) {
+            TokenManager.setUser(response.user)
+          }
+          
+          return {
+            success: true,
+            message: '登录成功',
+            data: {
+              access: response.access,
+              refresh: response.refresh,
+              user: response.user || TokenManager.getUser(),
+              permissions: response.permissions || {
+                is_staff: false,
+                is_superuser: false,
+                permission_level: 0
+              }
+            }
+          }
+        }
+        
+        throw new ApiError(400, 'INVALID_RESPONSE', '登录响应格式错误')
+      } catch (error) {
+        // 如果标准 JWT 接口失败，尝试使用自定义的通用登录接口
+        if (error instanceof ApiError && error.status === 404) {
+          console.log('[API] 尝试使用自定义登录接口...')
+          return api.auth.universalLogin(account, password)
+        }
+        throw error
+      }
+    },
+    
+    // 通用登录 - 使用自定义的 UniversalLoginView
+    universalLogin: async (account: string, password: string) => {
+      const response = await request('/auth/login/', {
         method: 'POST',
-        body: data as any,
+        body: {
+          account: account,  // UniversalLoginSerializer 期望 account 字段
+          password: password
+        },
         skipAuth: true,
       })
       
-      if (response.success && response.data) {
+      if (response.success && response.user && response.tokens) {
         // 保存 tokens 和用户信息
-        TokenManager.setTokens(response.data.access, response.data.refresh)
-        TokenManager.setUser(response.data.user)
+        TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
+        TokenManager.setUser(response.user)
+        
+        return {
+          success: true,
+          message: response.message || '登录成功',
+          data: {
+            access: response.tokens.access,
+            refresh: response.tokens.refresh,
+            user: response.user,
+            permissions: {
+              is_staff: false,
+              is_superuser: false,
+              permission_level: 0
+            }
+          }
+        }
       }
       
-      return response
+      throw new ApiError(400, 'INVALID_RESPONSE', response.message || '登录失败')
     },
     
     // 刷新 Token
@@ -746,16 +760,16 @@ const api = {
       if (!refreshToken) return false
       
       try {
-        const response = await request<TokenRefreshResponse>('/auth/token/refresh/', {
+        const response = await request('/auth/token/refresh/', {
           method: 'POST',
-          body: { refresh: refreshToken } as any,
+          body: { refresh: refreshToken },
           skipAuth: true,
         })
         
-        if (response.success && response.data) {
+        if (response.access) {
           const currentRefreshToken = TokenManager.getRefreshToken()
           if (currentRefreshToken) {
-            TokenManager.setTokens(response.data.access, currentRefreshToken)
+            TokenManager.setTokens(response.access, currentRefreshToken)
           }
           return true
         }
@@ -767,18 +781,27 @@ const api = {
     },
     
     // 验证 Token
-    verifyToken: async (token?: string): Promise<TokenVerifyResponse | null> => {
+    verifyToken: async (token?: string) => {
       const tokenToVerify = token || TokenManager.getAccessToken()
       if (!tokenToVerify) return null
       
       try {
-        const response = await request<TokenVerifyResponse>('/auth/token/verify/', {
+        const response = await request('/auth/token/verify/', {
           method: 'POST',
-          body: { token: tokenToVerify } as any,
+          body: { token: tokenToVerify },
           skipAuth: true,
         })
         
-        return response
+        return {
+          success: true,
+          message: 'Token is valid',
+          data: {
+            valid: true,
+            user_id: response.user_id,
+            username: response.username,
+            exp: response.exp
+          }
+        }
       } catch (error) {
         console.error('[API] Token verify failed:', error)
         return null
@@ -789,7 +812,7 @@ const api = {
     logout: async () => {
       try {
         // 尝试调用服务器登出接口
-        await request('/auth/token/logout/', {
+        await request('/auth/logout/', {
           method: 'POST',
         })
       } catch (error) {
@@ -828,28 +851,53 @@ const api = {
     sendEmailCode: (data: EmailCodeRequest) => 
       request('/auth/email-code/', {
         method: 'POST',
-        body: data as any,
+        body: data,
         skipAuth: true,
       }),
     
-    register: (data: RegisterRequest) =>
-      request('/auth/register/', {
+    // 快速注册
+    register: async (data: RegisterRequest) => {
+      const response = await request('/auth/register/', {
         method: 'POST',
-        body: data as any,
+        body: data,
         skipAuth: true,
-      }),
+      })
+      
+      if (response.success && response.user && response.tokens) {
+        TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
+        TokenManager.setUser(response.user)
+      }
+      
+      return response
+    },
+    
+    // 邮箱注册
+    registerWithEmail: async (data: RegisterRequest) => {
+      const response = await request('/auth/register-with-code/', {
+        method: 'POST',
+        body: data,
+        skipAuth: true,
+      })
+      
+      if (response.success && response.user && response.tokens) {
+        TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
+        TokenManager.setUser(response.user)
+      }
+      
+      return response
+    },
     
     passwordReset: (data: PasswordResetRequest) =>
       request('/auth/password-reset/', {
         method: 'POST',
-        body: data as any,
+        body: data,
         skipAuth: true,
       }),
     
     passwordResetConfirm: (data: PasswordResetConfirmRequest) =>
       request('/auth/password-reset-confirm/', {
         method: 'POST',
-        body: data as any,
+        body: data,
         skipAuth: true,
       }),
   },
@@ -863,28 +911,28 @@ const api = {
     updateProfile: (data: ProfileUpdateRequest) => 
       request<ProfileResponse>('/auth/profile/', {
         method: 'PATCH',
-        body: data as any,
+        body: data,
       }),
     
     // 修改登录密码
     changePassword: (data: ChangePasswordRequest) => 
       request<{ success: boolean; message: string }>('/auth/password/change/', {
         method: 'POST',
-        body: data as any,
+        body: data,
       }),
     
     // 设置支付密码
     setPaymentPassword: (data: SetPaymentPasswordRequest) => 
       request<{ success: boolean; message: string }>('/auth/payment-password/set/', {
         method: 'POST',
-        body: data as any,
+        body: data,
       }),
     
     // 修改支付密码
     changePaymentPassword: (data: ChangePaymentPasswordRequest) => 
       request<{ success: boolean; message: string }>('/auth/payment-password/change/', {
         method: 'POST',
-        body: data as any,
+        body: data,
       }),
     
     // 发送支付密码重置验证码
@@ -897,14 +945,13 @@ const api = {
     resetPaymentPassword: (data: ResetPaymentPasswordRequest) => 
       request<{ success: boolean; message: string }>('/auth/payment-password/reset/', {
         method: 'POST',
-        body: data as any,
+        body: data,
       }),
     
     // 获取团队概览
     getTeamSummary: () => request<TeamSummaryResponse>('/auth/team/summary/'),
     
     // ========== 地址管理 API ==========
-    // 获取地址列表
     addresses: {
       list: () => request<AddressListResponse>('/auth/addresses/'),
       
@@ -916,14 +963,14 @@ const api = {
       create: (data: AddressCreateRequest) =>
         request<AddressResponse>('/auth/addresses/', {
           method: 'POST',
-          body: data as any,
+          body: data,
         }),
       
       // 更新地址
       update: (addressId: string, data: AddressUpdateRequest) =>
         request<AddressResponse>(`/auth/addresses/${addressId}/`, {
           method: 'PATCH',
-          body: data as any,
+          body: data,
         }),
       
       // 删除地址
@@ -946,7 +993,7 @@ const api = {
       validate: (addressId: string) =>
         request<{ success: boolean; data: { is_valid: boolean; address?: Address } }>('/auth/addresses/validate/', {
           method: 'POST',
-          body: { address_id: addressId } as any,
+          body: { address_id: addressId },
         }),
     },
   },
@@ -980,7 +1027,7 @@ const api = {
       create: (data: CreateTicketRequest) =>
         request<CreateTicketResponse>('/shop/tickets/create/', {
           method: 'POST',
-          body: data as any,
+          body: data,
         }),
       
       // 获取提货单列表
@@ -1027,7 +1074,7 @@ const api = {
           }
         }>('/shop/pickup/create/', {
           method: 'POST',
-          body: data as any,
+          body: data,
         }),
       
       // 获取提货申请列表
@@ -1054,7 +1101,7 @@ const api = {
           }
         }>('/shop/exchange/create/', {
           method: 'POST',
-          body: data as any,
+          body: data,
         }),
       
       // 获取兑换申请列表
@@ -1073,7 +1120,7 @@ const api = {
       create: (data: CreateOrderRequest) =>
         request<CreateOrderResponse>('/shop/orders/create/', {
           method: 'POST',
-          body: data as any,
+          body: data,
         }),
       
       // 获取订单列表
@@ -1111,7 +1158,7 @@ const api = {
           }
         }>(`/shop/orders/${orderId}/address/`, {
           method: 'POST',
-          body: { address_id: addressId } as any,
+          body: { address_id: addressId },
         }),
       
       // 取消订单
