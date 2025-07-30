@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { api, getErrorMessage, type RegisterRequest, type LoginRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
+import { api, getErrorMessage, type RegisterRequest, type EmailRegisterRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 
 // 共享的输入框组件
@@ -380,6 +380,17 @@ function validateEmail(email: string): string | null {
   return null
 }
 
+function validateUsername(username: string): string | null {
+  if (!username) return '请输入用户名'
+  if (username.length < 2) return '用户名长度至少2个字符'
+  if (username.length > 150) return '用户名长度不能超过150个字符'
+  // 支持中文、英文、数字、下划线、@符号、点号
+  if (!/^[\w\u4e00-\u9fa5@.-]+$/.test(username)) {
+    return '用户名只能包含中文、英文、数字、下划线、@符号和点号'
+  }
+  return null
+}
+
 // 验证登录账号（支持多种格式）
 function validateLoginAccount(account: string): string | null {
   if (!account) return '请输入登录账号'
@@ -390,9 +401,21 @@ function validateLoginAccount(account: string): string | null {
 // 注册组件
 export function RegisterForm() {
   const router = useRouter()
-  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const [registrationMethod, setRegistrationMethod] = useState<'quick' | 'email'>('quick') // 默认快速注册
+  const [step, setStep] = useState(1)
+  
+  // 快速注册表单数据
+  const [quickFormData, setQuickFormData] = useState({
+    username: '',
+    password: '',
+    password_confirm: '',
+    referral_code: '',
+    agreement: false,
+  })
+  
+  // 邮箱注册表单数据
+  const [emailFormData, setEmailFormData] = useState({
     email: '',
     password: '',
     password_confirm: '',
@@ -400,6 +423,7 @@ export function RegisterForm() {
     referral_code: '',
     agreement: false,
   })
+  
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [isReferralCodeLocked, setIsReferralCodeLocked] = useState(false)
@@ -409,15 +433,54 @@ export function RegisterForm() {
       const params = new URLSearchParams(window.location.search)
       const refCode = params.get('ref')
       if (refCode) {
-        setFormData(prev => ({ ...prev, referral_code: refCode }))
+        setQuickFormData(prev => ({ ...prev, referral_code: refCode }))
+        setEmailFormData(prev => ({ ...prev, referral_code: refCode }))
         setIsReferralCodeLocked(true)
       }
     }
   }, [])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 快速注册输入处理
+  const handleQuickInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
-    setFormData(prev => ({
+    setQuickFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+    
+    setTouched(prev => ({ ...prev, [name]: true }))
+    
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
+    
+    // 实时验证
+    if (name === 'username' && touched.username) {
+      const error = validateUsername(value)
+      if (error) {
+        setErrors(prev => ({ ...prev, username: error }))
+      }
+    } else if (name === 'password' && touched.password) {
+      const error = validatePassword(value)
+      if (error) {
+        setErrors(prev => ({ ...prev, password: error }))
+      }
+    } else if (name === 'password_confirm' && touched.password_confirm) {
+      const error = value !== quickFormData.password ? '两次密码不一致' : null
+      if (error) {
+        setErrors(prev => ({ ...prev, password_confirm: error }))
+      }
+    }
+  }
+
+  // 邮箱注册输入处理
+  const handleEmailInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
+    setEmailFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
@@ -444,7 +507,7 @@ export function RegisterForm() {
         setErrors(prev => ({ ...prev, password: error }))
       }
     } else if (name === 'password_confirm' && touched.password_confirm) {
-      const error = value !== formData.password ? '两次密码不一致' : null
+      const error = value !== emailFormData.password ? '两次密码不一致' : null
       if (error) {
         setErrors(prev => ({ ...prev, password_confirm: error }))
       }
@@ -456,30 +519,25 @@ export function RegisterForm() {
     }
   }
 
-  const validateStep1 = () => {
+  // 快速注册验证
+  const validateQuickRegistration = () => {
     const newErrors: Record<string, string> = {}
     
-    const emailError = validateEmail(formData.email)
-    if (emailError) newErrors.email = emailError
+    const usernameError = validateUsername(quickFormData.username)
+    if (usernameError) newErrors.username = usernameError
     
-    const passwordError = validatePassword(formData.password)
+    const passwordError = validatePassword(quickFormData.password)
     if (passwordError) newErrors.password = passwordError
     
-    if (formData.password !== formData.password_confirm) {
+    if (quickFormData.password !== quickFormData.password_confirm) {
       newErrors.password_confirm = '两次密码不一致'
     }
     
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const validateStep2 = () => {
-    const newErrors: Record<string, string> = {}
-    
-    if (!formData.verification_code || formData.verification_code.length !== 6) {
-      newErrors.verification_code = '请输入6位验证码'
+    if (!quickFormData.referral_code || !quickFormData.referral_code.trim()) {
+      newErrors.referral_code = '邀请码不能为空'
     }
-    if (!formData.agreement) {
+    
+    if (!quickFormData.agreement) {
       newErrors.agreement = '请同意用户协议'
     }
     
@@ -487,34 +545,114 @@ export function RegisterForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleNext = async () => {
+  // 邮箱注册步骤1验证
+  const validateEmailStep1 = () => {
+    const newErrors: Record<string, string> = {}
+    
+    const emailError = validateEmail(emailFormData.email)
+    if (emailError) newErrors.email = emailError
+    
+    const passwordError = validatePassword(emailFormData.password)
+    if (passwordError) newErrors.password = passwordError
+    
+    if (emailFormData.password !== emailFormData.password_confirm) {
+      newErrors.password_confirm = '两次密码不一致'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  // 邮箱注册步骤2验证
+  const validateEmailStep2 = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!emailFormData.verification_code || emailFormData.verification_code.length !== 6) {
+      newErrors.verification_code = '请输入6位验证码'
+    }
+    
+    if (!emailFormData.referral_code || !emailFormData.referral_code.trim()) {
+      newErrors.referral_code = '邀请码不能为空'
+    }
+    
+    if (!emailFormData.agreement) {
+      newErrors.agreement = '请同意用户协议'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  // 快速注册提交
+  const handleQuickRegister = async () => {
+    setTouched({ 
+      username: true, 
+      password: true, 
+      password_confirm: true, 
+      referral_code: true,
+      agreement: true 
+    })
+    
+    if (!validateQuickRegistration()) {
+      return
+    }
+    
+    setLoading(true)
+    setErrors({})
+    
+    try {
+      const registerData: RegisterRequest = {
+        username: quickFormData.username.trim(),
+        password: quickFormData.password,
+        password_confirm: quickFormData.password_confirm,
+        referral_code: quickFormData.referral_code.trim().toUpperCase(),
+      }
+      
+      console.log('[RegisterForm] 开始快速注册...')
+      const response = await api.auth.register(registerData)
+      console.log('[RegisterForm] 注册成功:', response)
+      
+      setStep(3) // 跳转到成功页面
+    } catch (error) {
+      console.error('[RegisterForm] 注册失败:', error)
+      const errorMessage = getErrorMessage(error)
+      setErrors({ submit: errorMessage })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 邮箱注册下一步
+  const handleEmailNext = async () => {
     if (step === 1) {
       setTouched({ email: true, password: true, password_confirm: true })
       
-      if (validateStep1()) {
+      if (validateEmailStep1()) {
         setStep(2)
       }
     } else if (step === 2) {
-      setTouched(prev => ({ ...prev, verification_code: true, agreement: true }))
+      setTouched(prev => ({ 
+        ...prev, 
+        verification_code: true, 
+        referral_code: true,
+        agreement: true 
+      }))
       
-      if (validateStep2()) {
+      if (validateEmailStep2()) {
         setLoading(true)
         setErrors({})
         
         try {
-          const registerData: RegisterRequest = {
-            email: formData.email.trim(),
-            password: formData.password,
-            password_confirm: formData.password_confirm,
-            verification_code: formData.verification_code.trim(),
+          const registerData: EmailRegisterRequest = {
+            email: emailFormData.email.trim(),
+            password: emailFormData.password,
+            password_confirm: emailFormData.password_confirm,
+            verification_code: emailFormData.verification_code.trim(),
+            referral_code: emailFormData.referral_code.trim().toUpperCase(),
           }
           
-          if (formData.referral_code?.trim()) {
-            registerData.referral_code = formData.referral_code.trim()
-          }
-          
-          console.log('[RegisterForm] 开始注册...')
-          const response = await api.auth.register(registerData)
+          console.log('[RegisterForm] 开始邮箱注册...')
+          const response = await api.auth.registerWithEmail(registerData)
           console.log('[RegisterForm] 注册成功:', response)
           
           setStep(3)
@@ -531,7 +669,7 @@ export function RegisterForm() {
 
   const handleSendVerifyCode = async () => {
     await api.auth.sendEmailCode({
-      email: formData.email.trim(),
+      email: emailFormData.email.trim(),
       type: 'register'
     })
   }
@@ -539,45 +677,66 @@ export function RegisterForm() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       e.preventDefault()
-      handleNext()
+      if (registrationMethod === 'quick') {
+        handleQuickRegister()
+      } else {
+        handleEmailNext()
+      }
     }
+  }
+
+  // 切换注册方式时重置表单
+  const handleMethodChange = (method: 'quick' | 'email') => {
+    setRegistrationMethod(method)
+    setStep(1)
+    setErrors({})
+    setTouched({})
   }
 
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* 进度指示器 */}
-      <div className="flex items-center justify-between mb-8">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center">
-            <div
+      {/* 注册方式切换 */}
+      {step < 3 && (
+        <div className="mb-6">
+          <div className="flex rounded-lg bg-gray-800/50 p-1">
+            <button
+              type="button"
+              onClick={() => handleMethodChange('quick')}
               className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center font-bold',
-                'transition-all duration-300',
-                step >= i
+                'flex-1 py-2 px-4 rounded-md text-sm font-bold transition-all duration-200',
+                registrationMethod === 'quick'
                   ? 'bg-gold-500 text-black'
-                  : 'bg-gray-800 text-gray-500'
+                  : 'text-gray-400 hover:text-white'
               )}
             >
-              {step > i ? '✓' : i}
-            </div>
-            {i < 3 && (
-              <div
-                className={cn(
-                  'w-20 h-1 ml-2',
-                  'transition-all duration-300',
-                  step > i ? 'bg-gold-500' : 'bg-gray-800'
-                )}
-              />
-            )}
+              快速注册
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMethodChange('email')}
+              className={cn(
+                'flex-1 py-2 px-4 rounded-md text-sm font-bold transition-all duration-200',
+                registrationMethod === 'email'
+                  ? 'bg-gold-500 text-black'
+                  : 'text-gray-400 hover:text-white'
+              )}
+            >
+              邮箱验证注册
+            </button>
           </div>
-        ))}
-      </div>
+          <p className="mt-2 text-xs text-center text-gray-500">
+            {registrationMethod === 'quick' 
+              ? '推荐：无需邮箱验证，立即注册' 
+              : '需要邮箱验证码，更安全'}
+          </p>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
-        {/* 步骤1：基本信息 */}
-        {step === 1 && (
+        {/* 快速注册 */}
+        {registrationMethod === 'quick' && step < 3 && (
           <motion.div
-            key="step1"
+            key="quick"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -585,31 +744,32 @@ export function RegisterForm() {
             onKeyPress={handleKeyPress}
           >
             <h2 className="text-2xl font-black text-center mb-6">
-              创建账号
+              快速创建账号
               <span className="block text-sm text-gray-400 font-normal mt-2">
-                加入50,000+数字公民
+                无需邮箱验证，立即开始
               </span>
             </h2>
 
             <PixelInput
-              label="邮箱地址"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              placeholder="example@email.com"
-              icon="📧"
-              error={touched.email ? errors.email : ''}
-              autoComplete="email"
+              label="用户名"
+              name="username"
+              type="text"
+              value={quickFormData.username}
+              onChange={handleQuickInputChange}
+              placeholder="支持中英文、数字、下划线"
+              icon="👤"
+              error={touched.username ? errors.username : ''}
+              autoComplete="username"
               autoFocus
+              hint="可使用邮箱作为用户名，如：user@example.com"
             />
 
             <PixelInput
               label="登录密码"
               name="password"
               type="password"
-              value={formData.password}
-              onChange={handleInputChange}
+              value={quickFormData.password}
+              onChange={handleQuickInputChange}
               placeholder="8-32位字母+数字"
               icon="🔐"
               error={touched.password ? errors.password : ''}
@@ -621,8 +781,149 @@ export function RegisterForm() {
               label="确认密码"
               name="password_confirm"
               type="password"
-              value={formData.password_confirm}
-              onChange={handleInputChange}
+              value={quickFormData.password_confirm}
+              onChange={handleQuickInputChange}
+              placeholder="再次输入密码"
+              icon="🔐"
+              error={touched.password_confirm ? errors.password_confirm : ''}
+              autoComplete="new-password"
+              showPasswordToggle
+            />
+
+            <PixelInput
+              label="邀请码（必填）"
+              name="referral_code"
+              value={quickFormData.referral_code}
+              onChange={handleQuickInputChange}
+              placeholder="请输入邀请码"
+              icon="🎁"
+              error={touched.referral_code ? errors.referral_code : ''}
+              disabled={isReferralCodeLocked}
+              hint="必须填写有效的邀请码才能注册"
+            />
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="quick-agreement"
+                  name="agreement"
+                  checked={quickFormData.agreement}
+                  onChange={handleQuickInputChange}
+                  className="w-4 h-4 mt-1 cursor-pointer"
+                />
+                <label htmlFor="quick-agreement" className="text-sm text-gray-400 cursor-pointer select-none">
+                  我已阅读并同意
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline mx-1">
+                    《用户协议》
+                  </a>
+                  和
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline mx-1">
+                    《隐私政策》
+                  </a>
+                </label>
+              </div>
+              {touched.agreement && errors.agreement && (
+                <p className="text-xs text-red-500 ml-6">{errors.agreement}</p>
+              )}
+            </div>
+
+            {/* 提示信息 */}
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded text-sm">
+              <p className="text-blue-400 flex items-start gap-2">
+                <span className="text-lg">💡</span>
+                <span>
+                  如果收不到邮箱验证码，可以切换到"快速注册"方式
+                </span>
+              </p>
+            </div>
+
+            {errors.submit && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-red-500/10 border border-red-500/20 rounded"
+              >
+                <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+              </motion.div>
+            )}
+
+            <motion.button
+              className="w-full pixel-btn"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleQuickRegister}
+              disabled={loading}
+              type="button"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  注册中...
+                </span>
+              ) : (
+                '立即注册'
+              )}
+            </motion.button>
+
+            <p className="text-center text-sm text-gray-400">
+              已有账号？
+              <Link href="/login" className="text-gold-500 hover:underline ml-1">
+                立即登录
+              </Link>
+            </p>
+          </motion.div>
+        )}
+
+        {/* 邮箱注册 - 步骤1 */}
+        {registrationMethod === 'email' && step === 1 && (
+          <motion.div
+            key="email-step1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-4"
+            onKeyPress={handleKeyPress}
+          >
+            <h2 className="text-2xl font-black text-center mb-6">
+              邮箱验证注册
+              <span className="block text-sm text-gray-400 font-normal mt-2">
+                填写基本信息
+              </span>
+            </h2>
+
+            <PixelInput
+              label="邮箱地址"
+              name="email"
+              type="email"
+              value={emailFormData.email}
+              onChange={handleEmailInputChange}
+              placeholder="example@email.com"
+              icon="📧"
+              error={touched.email ? errors.email : ''}
+              autoComplete="email"
+              autoFocus
+            />
+
+            <PixelInput
+              label="登录密码"
+              name="password"
+              type="password"
+              value={emailFormData.password}
+              onChange={handleEmailInputChange}
+              placeholder="8-32位字母+数字"
+              icon="🔐"
+              error={touched.password ? errors.password : ''}
+              autoComplete="new-password"
+              showPasswordToggle
+            />
+
+            <PixelInput
+              label="确认密码"
+              name="password_confirm"
+              type="password"
+              value={emailFormData.password_confirm}
+              onChange={handleEmailInputChange}
               placeholder="再次输入密码"
               icon="🔐"
               error={touched.password_confirm ? errors.password_confirm : ''}
@@ -634,7 +935,7 @@ export function RegisterForm() {
               className="w-full pixel-btn"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={handleNext}
+              onClick={handleEmailNext}
               disabled={loading}
               type="button"
             >
@@ -650,10 +951,10 @@ export function RegisterForm() {
           </motion.div>
         )}
 
-        {/* 步骤2：验证信息 */}
-        {step === 2 && (
+        {/* 邮箱注册 - 步骤2 */}
+        {registrationMethod === 'email' && step === 2 && (
           <motion.div
-            key="step2"
+            key="email-step2"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
@@ -663,15 +964,15 @@ export function RegisterForm() {
             <h2 className="text-2xl font-black text-center mb-6">
               验证邮箱
               <span className="block text-sm text-gray-400 font-normal mt-2">
-                 验证码将发送到 {formData.email}
+                验证码将发送到 {emailFormData.email}
               </span>
             </h2>
 
             <VerificationInput
               label="邮箱验证码"
               name="verification_code"
-              value={formData.verification_code}
-              onChange={handleInputChange}
+              value={emailFormData.verification_code}
+              onChange={handleEmailInputChange}
               placeholder="请输入6位验证码"
               icon="✉️"
               error={touched.verification_code ? errors.verification_code : ''}
@@ -679,41 +980,44 @@ export function RegisterForm() {
               autoComplete="one-time-code"
               autoFocus
               onSendCode={handleSendVerifyCode}
-              email={formData.email}
+              email={emailFormData.email}
               type="register"
             />
 
             {/* 邮箱提示 */}
-            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded text-sm">
-              <p className="text-blue-400 flex items-start gap-2">
-                <span className="text-lg">💡</span>
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-sm">
+              <p className="text-yellow-400 flex items-start gap-2">
+                <span className="text-lg">⚠️</span>
                 <span>
-                  验证码可能会被误判为垃圾邮件，请同时检查垃圾箱
+                  验证码可能会被误判为垃圾邮件，请同时检查垃圾箱。
+                  如果长时间收不到，请切换到"快速注册"方式。
                 </span>
               </p>
             </div>
 
             <PixelInput
-              label="邀请码（选填）"
+              label="邀请码（必填）"
               name="referral_code"
-              value={formData.referral_code}
-              onChange={handleInputChange}
-              placeholder="填写邀请码获得额外奖励"
+              value={emailFormData.referral_code}
+              onChange={handleEmailInputChange}
+              placeholder="请输入邀请码"
               icon="🎁"
+              error={touched.referral_code ? errors.referral_code : ''}
               disabled={isReferralCodeLocked}
+              hint="必须填写有效的邀请码才能注册"
             />
 
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
-                  id="agreement"
+                  id="email-agreement"
                   name="agreement"
-                  checked={formData.agreement}
-                  onChange={handleInputChange}
+                  checked={emailFormData.agreement}
+                  onChange={handleEmailInputChange}
                   className="w-4 h-4 mt-1 cursor-pointer"
                 />
-                <label htmlFor="agreement" className="text-sm text-gray-400 cursor-pointer select-none">
+                <label htmlFor="email-agreement" className="text-sm text-gray-400 cursor-pointer select-none">
                   我已阅读并同意
                   <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline mx-1">
                     《用户协议》
@@ -754,7 +1058,7 @@ export function RegisterForm() {
                 className="pixel-btn"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={handleNext}
+                onClick={handleEmailNext}
                 disabled={loading}
                 type="button"
               >
@@ -771,10 +1075,10 @@ export function RegisterForm() {
           </motion.div>
         )}
 
-        {/* 步骤3：注册成功 */}
+        {/* 注册成功 */}
         {step === 3 && (
           <motion.div
-            key="step3"
+            key="success"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-6"
@@ -802,10 +1106,10 @@ export function RegisterForm() {
               className="w-full pixel-btn"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/login')}
+              onClick={() => router.push('/dashboard')}
               type="button"
             >
-              立即登录
+              进入平行世界
             </motion.button>
           </motion.div>
         )}
@@ -1377,7 +1681,6 @@ export function ResetPasswordForm() {
         )}
 
         {/* 步骤3：设置新密码（通过邮件链接进入）*/}
-        {/* 步骤3：设置新密码（通过邮件链接进入）*/}
         {step === 3 && (
           <motion.div
             key="step3"
@@ -1476,7 +1779,7 @@ export function ResetPasswordForm() {
         {/* 步骤4：重置成功 */}
         {step === 4 && (
           <motion.div
-            key="step3"
+            key="step4"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="space-y-6 text-center"
@@ -1512,48 +1815,3 @@ export function ResetPasswordForm() {
             </motion.button>
           </motion.div>
         )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-// 认证页面容器
-interface AuthPageProps {
-  type: 'login' | 'register' | 'reset'
-}
-
-export function AuthPage({ type }: AuthPageProps) {
-  return (
-    <div className="min-h-screen bg-[#0F0F1E] flex items-center justify-center p-4">
-      {/* 背景装饰 */}
-      <div className="fixed inset-0 pixel-grid opacity-10" />
-      <div className="fixed top-20 left-20 text-8xl opacity-5 animate-pulse">🔐</div>
-      <div className="fixed bottom-20 right-20 text-8xl opacity-5 animate-pulse" style={{ animationDelay: '1s' }}>🎯</div>
-      
-      {/* Logo */}
-      <div className="fixed top-8 left-8">
-        <Link href="/" className="flex items-center gap-3 group">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.95 }}
-            className="transition-transform"
-          >
-            <PixelLogo />
-          </motion.div>
-          <span className="text-xl font-black text-gold-500 group-hover:text-gold-400 transition-colors">
-            平行世界
-          </span>
-        </Link>
-      </div>
-
-      {/* 主内容 */}
-      <div className="relative z-10 w-full max-w-md">
-        <div className="pixel-card p-8 bg-[#0A1628]/95 backdrop-blur">
-          {type === 'login' && <LoginForm />}
-          {type === 'register' && <RegisterForm />}
-          {type === 'reset' && <ResetPasswordForm />}
-        </div>
-      </div>
-    </div>
-  )
-}
