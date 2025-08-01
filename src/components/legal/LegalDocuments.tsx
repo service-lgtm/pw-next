@@ -1,15 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { PixelLogo } from '@/components/ui/PixelLogo'
+import { usePathname, useRouter } from 'next/navigation'
 
 type DocumentType = 'terms' | 'privacy'
 
 export function LegalDocuments({ initialDoc = 'terms' }: { initialDoc?: DocumentType }) {
+  const pathname = usePathname()
+  const router = useRouter()
   const [activeDoc, setActiveDoc] = useState<DocumentType>(initialDoc)
+
+  // 根据当前路径设置活动文档
+  useEffect(() => {
+    if (pathname === '/privacy') {
+      setActiveDoc('privacy')
+    } else if (pathname === '/terms') {
+      setActiveDoc('terms')
+    }
+  }, [pathname])
+
+  // 处理文档切换
+  const handleDocChange = (doc: DocumentType) => {
+    setActiveDoc(doc)
+    // 使用路由导航到对应页面
+    router.push(`/${doc}`)
+  }
 
   return (
     <div className="min-h-screen bg-[#0F0F1E] text-white">
@@ -49,7 +68,7 @@ export function LegalDocuments({ initialDoc = 'terms' }: { initialDoc?: Document
           <div className="mb-8">
             <div className="flex rounded-lg bg-gray-800/50 p-1 max-w-md mx-auto">
               <button
-                onClick={() => setActiveDoc('terms')}
+                onClick={() => handleDocChange('terms')}
                 className={cn(
                   'flex-1 py-3 px-6 rounded-md text-sm font-bold transition-all duration-200',
                   activeDoc === 'terms'
@@ -60,7 +79,7 @@ export function LegalDocuments({ initialDoc = 'terms' }: { initialDoc?: Document
                 用户协议
               </button>
               <button
-                onClick={() => setActiveDoc('privacy')}
+                onClick={() => handleDocChange('privacy')}
                 className={cn(
                   'flex-1 py-3 px-6 rounded-md text-sm font-bold transition-all duration-200',
                   activeDoc === 'privacy'
@@ -103,7 +122,7 @@ export function LegalDocuments({ initialDoc = 'terms' }: { initialDoc?: Document
   )
 }
 
-// 用户协议内容
+// 用户协议内容（保持不变）
 function TermsContent() {
   return (
     <div className="prose prose-invert max-w-none">
@@ -219,7 +238,7 @@ function TermsContent() {
   )
 }
 
-// 隐私政策内容
+// 隐私政策内容（保持不变）
 function PrivacyContent() {
   return (
     <div className="prose prose-invert max-w-none">
