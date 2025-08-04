@@ -13,7 +13,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     '/mining',
     '/market',
     '/shop',
-    '/wallet'
+    '/wallet',
+    '/vouchers'
   ]
   
   const isDashboardRoute = dashboardRoutes.some(route => 
