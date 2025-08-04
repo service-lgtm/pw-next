@@ -45,13 +45,6 @@ const comparisonData = [
   },
 ]
 
-const goldStats = [
-  { value: '100%', label: '黄金储备率', subtext: '每一分钱都有黄金' },
-  { value: '24/7', label: '银行保函', subtext: '链上透明可查' },
-  { value: '0%', label: '通胀风险', subtext: '黄金保值5000年' },
-  { value: '双区许可/牌照', label: '合规认证', subtext: '中国区网络游戏虚拟货币双许可' },
-]
-
 const goldAdvantages = [
   {
     icon: '🛡️',
@@ -174,42 +167,6 @@ export function GoldStandardSection() {
             </motion.div>
           ))}
         </div>
-
-        {/* 黄金数据展示 */}
-        <motion.div
-          className="mb-16 lg:mb-20 px-4 lg:px-0"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-        >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
-            {goldStats.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                className="pixel-card text-center p-4 lg:p-6 hover:border-gold-500 transition-all duration-300"
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.4 + index * 0.05 }}
-                whileHover={{ 
-                  y: -4,
-                  boxShadow: '0 8px 0 0 rgba(255, 215, 0, 0.3), 0 16px 0 0 rgba(0, 0, 0, 0.2)'
-                }}
-              >
-                <div className="text-2xl md:text-3xl lg:text-4xl font-black text-gold-500 mb-2 pixel-font">
-                  {stat.value}
-                </div>
-                <div className="text-xs lg:text-sm font-bold text-white mb-1">
-                  {stat.label}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {stat.subtext}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
 
         {/* 信任背书 */}
         <motion.div
