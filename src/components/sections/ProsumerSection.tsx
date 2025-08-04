@@ -194,47 +194,7 @@ export function ProsumerSection() {
           </div>
         </motion.div>
 
-        {/* CTA区域 */}
-        <motion.div
-          className="text-center px-4"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <div className="pixel-card inline-block p-6 lg:p-8 max-w-full lg:max-w-2xl">
-            <h3 className="text-xl lg:text-2xl font-black mb-3 lg:mb-4">
-              <span className="text-gold-500">开启你的消费商之路</span>
-            </h3>
-            <p className="text-sm lg:text-base text-gray-400 mb-4 lg:mb-6">
-              不需要囤货，不需要送货，不需要售后<br />
-              只需要分享，就能赚钱
-            </p>
-            
-            <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-4 lg:mb-6">
-              <div className="flex items-center gap-2 text-xs lg:text-sm">
-                <span className="text-green-500">✓</span>
-                <span>零门槛起步</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs lg:text-sm">
-                <span className="text-green-500">✓</span>
-                <span>持续被动收入</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs lg:text-sm">
-                <span className="text-green-500">✓</span>
-                <span>时间自由</span>
-              </div>
-            </div>
-            
-            <motion.button
-              className="pixel-btn text-base lg:text-lg px-6 lg:px-10 py-3 lg:py-5 w-full md:w-auto"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <span className="mr-2">🚀</span>
-              马上成为消费商
-            </motion.button>
-          </div>
-        </motion.div>
+        
       </Container>
     </section>
   )
