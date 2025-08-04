@@ -1,3 +1,4 @@
+//src/components/sections/GoldStandardSection.tsx
 'use client'
 
 import { motion } from 'framer-motion'
