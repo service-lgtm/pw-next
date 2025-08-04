@@ -85,54 +85,6 @@ const voucherFeatures = [
   },
 ]
 
-// 真实商品展示
-const realProducts = [
-  {
-    id: 1,
-    name: '贵州茅台',
-    category: '白酒',
-    price: 2499,
-    vouchers: 1000,
-    monthlyDividend: '8%',
-    image: '🍾',
-    merchant: '茅台官方店',
-    sold: 856,
-  },
-  {
-    id: 2,
-    name: '五常大米',
-    category: '粮油',
-    price: 168,
-    vouchers: 5000,
-    monthlyDividend: '5%',
-    image: '🌾',
-    merchant: '东北粮仓',
-    sold: 3421,
-  },
-  {
-    id: 3,
-    name: '新疆和田玉',
-    category: '珠宝',
-    price: 8888,
-    vouchers: 200,
-    monthlyDividend: '10%',
-    image: '💎',
-    merchant: '玉石世家',
-    sold: 187,
-  },
-  {
-    id: 4,
-    name: '普洱茶饼',
-    category: '茶叶',
-    price: 999,
-    vouchers: 2000,
-    monthlyDividend: '6%',
-    image: '🍵',
-    merchant: '云南茶庄',
-    sold: 1654,
-  },
-]
-
 // 商家入驻案例
 const merchantCases = [
   {
@@ -189,7 +141,6 @@ const marketplaceAdvantages = [
 
 export function MarketplaceSection() {
   const [activeStep, setActiveStep] = useState(0)
-  const [selectedProduct, setSelectedProduct] = useState(0)
   const [showVoucherDemo, setShowVoucherDemo] = useState(false)
 
   return (
@@ -382,7 +333,7 @@ export function MarketplaceSection() {
                   </span>
                 </div>
                 
-                <h5 className="text-lg font-bold mb-2">贵州茅台提货单</h5>
+                <h5 className="text-lg font-bold mb-2">酒水提货单</h5>
                 <p className="text-sm text-gray-400 mb-4">编号：#TH20240301001</p>
                 
                 <div className="space-y-2 text-sm">
@@ -438,71 +389,6 @@ export function MarketplaceSection() {
                 )}
               </AnimatePresence>
             </motion.div>
-          </div>
-        </motion.div>
-
-        {/* 真实商品展示 */}
-        <motion.div
-          className="mb-20"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <h3 className="text-2xl font-black text-center mb-12">
-            <span className="text-gold-500">热销商品</span>
-            <span className="text-sm block mt-2 text-gray-400 font-normal">
-              真实商品，真实交易
-            </span>
-          </h3>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {realProducts.map((product, index) => (
-              <motion.div
-                key={product.id}
-                className={cn(
-                  'pixel-card p-6 cursor-pointer transition-all duration-300',
-                  selectedProduct === index ? 'border-gold-500 scale-105' : 'border-gray-700'
-                )}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => setSelectedProduct(index)}
-                whileHover={{ y: -4 }}
-              >
-                <div className="text-center mb-4">
-                  <div className="text-6xl mb-3">{product.image}</div>
-                  <span className="text-xs px-2 py-1 bg-gray-800 text-gray-400">
-                    {product.category}
-                  </span>
-                </div>
-                
-                <h4 className="font-bold mb-2">{product.name}</h4>
-                <p className="text-xs text-gray-500 mb-3">{product.merchant}</p>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">价格</span>
-                    <span className="font-bold text-gold-500">¥{product.price}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">提货单</span>
-                    <span>{product.vouchers}张</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">月分红</span>
-                    <span className="text-green-500 font-bold">{product.monthlyDividend}</span>
-                  </div>
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-gray-800">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">已售 {product.sold}</span>
-                    <span className="text-gold-500 font-bold">立即抢购</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </motion.div>
 
