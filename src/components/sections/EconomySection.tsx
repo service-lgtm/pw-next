@@ -490,19 +490,6 @@ export function EconomySection() {
                 </tbody>
               </table>
             </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              <div className="pixel-card p-4 text-center">
-                <div className="text-2xl mb-2">⚡</div>
-                <h5 className="font-bold mb-1 text-sm">快速到账</h5>
-                <p className="text-xs text-gray-500">链上提现秒到</p>
-              </div>
-              <div className="pixel-card p-4 text-center">
-                <div className="text-2xl mb-2">🔒</div>
-                <h5 className="font-bold mb-1 text-sm">安全保障</h5>
-                <p className="text-xs text-gray-500">多重签名保护</p>
-              </div>
-            </div>
           </motion.div>
         </div>
 
