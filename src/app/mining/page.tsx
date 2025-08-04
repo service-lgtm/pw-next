@@ -337,12 +337,13 @@ export default function MiningPage() {
       <PixelModal
         isOpen={showMiningModal}
         onClose={() => setShowMiningModal(false)}
-        title={selectedMine?.type === 'meteor' ? '💎 开始开采陨石矿' : '开始开采'}
+        title={selectedMine?.type === 'meteor' ? '开始开采陨石矿' : '开始开采'}
       >
         {selectedMine && (
           <div className="space-y-4">
             {selectedMine.type === 'meteor' && (
               <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                <div className="text-3xl mb-2">💎</div>
                 <p className="text-purple-400 font-bold">
                   你正在开采珍稀的治理通证 YLD
                 </p>
