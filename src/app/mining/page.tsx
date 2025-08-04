@@ -338,7 +338,7 @@ export default function MiningPage() {
         isOpen={showMiningModal}
         onClose={() => setShowMiningModal(false)}
         title={selectedMine?.type === 'meteor' ? '开始开采陨石矿' : '开始开采'}
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        size="medium"
       >
         {selectedMine && (
           <div className="space-y-4">
