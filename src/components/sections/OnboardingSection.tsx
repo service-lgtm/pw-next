@@ -488,18 +488,26 @@ export function OnboardingSection() {
               </div>
             </div>
             
-            <motion.button
-              className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5 w-full md:w-auto"
+            <motion.a
+              href="https://www.pxsj.net.cn/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pixel-btn text-base lg:text-lg px-8 lg:px-10 py-4 lg:py-5 w-full md:w-auto inline-block"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="mr-2">🚀</span>
               立即注册领礼包
-            </motion.button>
+            </motion.a>
             
             <p className="text-xs text-gray-500 mt-4">
               已有账号？
-              <a href="#" className="text-gold-500 hover:underline ml-1">
+              <a 
+                href="https://www.pxsj.net.cn/login" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gold-500 hover:underline ml-1"
+              >
                 直接登录
               </a>
             </p>
