@@ -5,63 +5,6 @@ import { Container } from '@/components/ui/Container'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
-// 注册流程数据
-const registrationSteps = [
-  {
-    step: 1,
-    title: '访问平台',
-    icon: '🌐',
-    time: '30秒',
-    description: '扫码或输入网址',
-    details: [
-      '扫描推荐人二维码',
-      '或访问官方网站',
-      '游客模式先体验',
-    ],
-    tips: '推荐人邀请码自动填写，更多福利',
-  },
-  {
-    step: 2,
-    title: '快速注册',
-    icon: '✍️',
-    time: '2分钟',
-    description: '填写基本信息',
-    details: [
-      '设置用户名密码',
-      '邮箱验证',
-      '填写邀请码(选填)',
-    ],
-    tips: '牢记12个助记词，这是找回账号唯一凭证',
-  },
-  {
-    step: 3,
-    title: '领取礼包',
-    icon: '🎁',
-    time: '即时',
-    description: '新手大礼包到账',
-    details: [
-      '100 TDB通证',
-      '10 YLD通证',
-      '新手专属任务',
-    ],
-    tips: '完成新手任务，额外赚取500积分',
-  },
-]
-
-// 新手礼包内容
-const starterPack = {
-  instant: [
-    { icon: '🪙', name: 'TDB通证', amount: '100', value: '¥100', desc: '相当于1克黄金' },
-    { icon: '💎', name: 'YLD通证', amount: '10', value: '¥50', desc: '用于支付手续费' },
-  ],
-  tasks: [
-    { icon: '🏃', name: '首次登录', reward: '50 TDB', status: 'completed' },
-    { icon: '🛒', name: '首次购买', reward: '100 TDB', status: 'pending' },
-    { icon: '⛏️', name: '首次挖矿', reward: '200 TDB', status: 'pending' },
-    { icon: '👥', name: '邀请好友', reward: '150 TDB', status: 'pending' },
-  ],
-}
-
 // 常见问题 - 删除了"多久能赚回本金"
 const faqData = [
   {
@@ -117,16 +60,7 @@ const faqData = [
 ]
 
 export function OnboardingSection() {
-  const [activeStep, setActiveStep] = useState(0)
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
-  const [showGiftAnimation, setShowGiftAnimation] = useState(false)
-
-  // 计算礼包总价值
-  const totalGiftValue = starterPack.instant.reduce((sum, item) => 
-    sum + parseInt(item.value.replace('¥', '')), 0
-  ) + starterPack.tasks.reduce((sum, task) => 
-    sum + parseInt(task.reward.split(' ')[0]), 0
-  )
 
   return (
     <section className="py-16 lg:py-24 bg-[#0F0F1E] relative overflow-hidden">
@@ -157,226 +91,10 @@ export function OnboardingSection() {
           </h2>
           
           <p className="text-base lg:text-xl text-gray-400">
-            零基础也能玩转平行世界，新手礼包价值超过
-            <span className="text-gold-500 font-bold text-xl lg:text-2xl mx-2">¥650</span>
+            零基础也能玩转平行世界
             <br />
             <span className="text-sm lg:text-base mt-2 block">加入我们，开启数字财富之旅</span>
           </p>
-        </motion.div>
-
-        {/* 注册流程 */}
-        <motion.div
-          className="mb-16 lg:mb-20"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
-            <span className="text-gold-500">极速注册流程</span>
-            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
-              比装个APP还简单
-            </span>
-          </h3>
-
-          <div className="relative">
-            {/* 进度条 */}
-            <div className="absolute top-24 left-0 right-0 h-2 bg-gray-800 rounded-full hidden lg:block">
-              <motion.div
-                className="h-full bg-gradient-to-r from-green-500 to-gold-500 rounded-full"
-                initial={{ width: '0%' }}
-                animate={{ width: `${((activeStep + 1) / 3) * 100}%` }}
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-
-            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 px-4 lg:px-0">
-              {registrationSteps.map((step, index) => (
-                <motion.div
-                  key={step.step}
-                  className={cn(
-                    'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300 relative',
-                    activeStep === index ? 'border-gold-500 scale-105' : 'border-gray-700'
-                  )}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => setActiveStep(index)}
-                  whileHover={{ y: -4 }}
-                >
-                  <div className="text-center mb-4">
-                    <motion.div
-                      className="text-5xl lg:text-6xl mb-3 inline-block"
-                      animate={activeStep === index ? { scale: [1, 1.2, 1] } : {}}
-                      transition={{ duration: 0.5 }}
-                    >
-                      {step.icon}
-                    </motion.div>
-                    <h4 className="text-lg lg:text-xl font-black mb-1">
-                      第{step.step}步
-                    </h4>
-                    <p className="text-gold-500 font-bold">{step.title}</p>
-                    <span className="text-xs text-gray-500">{step.time}</span>
-                  </div>
-                  
-                  <p className="text-xs lg:text-sm text-gray-400 mb-4 text-center">
-                    {step.description}
-                  </p>
-                  
-                  <ul className="space-y-2 mb-4">
-                    {step.details.map((detail) => (
-                      <li key={detail} className="text-xs text-gray-500 flex items-center gap-2">
-                        <span className="text-green-500">✓</span>
-                        {detail}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="p-3 bg-gold-500/10 rounded text-xs text-gold-500">
-                    💡 {step.tips}
-                  </div>
-
-                  {step.step === 3 && (
-                    <motion.button
-                      className="w-full mt-4 pixel-btn text-sm"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setShowGiftAnimation(true)
-                        setTimeout(() => setShowGiftAnimation(false), 3000)
-                      }}
-                    >
-                      查看礼包
-                    </motion.button>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* 新手礼包展示 */}
-        <motion.div
-          className="mb-16 lg:mb-20"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
-            <span className="text-gold-500">新手专属礼包</span>
-            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
-              注册即送，错过不再有
-            </span>
-          </h3>
-
-          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto px-4 lg:px-0">
-            {/* 即时奖励 */}
-            <motion.div
-              className="pixel-card p-6 lg:p-8"
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h4 className="text-lg lg:text-xl font-black mb-6 text-center">
-                <span className="text-gold-500">即时到账</span>
-              </h4>
-
-              <div className="space-y-4">
-                {starterPack.instant.map((item, index) => (
-                  <motion.div
-                    key={item.name}
-                    className="flex items-center justify-between p-4 bg-gradient-to-r from-gold-500/10 to-transparent rounded"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: showGiftAnimation ? 1 : 0.8, x: 0 }}
-                    transition={{ delay: showGiftAnimation ? index * 0.3 : 0 }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className="text-3xl lg:text-4xl">{item.icon}</span>
-                      <div>
-                        <h5 className="font-bold">{item.name}</h5>
-                        <p className="text-xs text-gray-500">{item.desc}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xl lg:text-2xl font-black text-gold-500">{item.amount}</div>
-                      <div className="text-xs text-gray-500">价值 {item.value}</div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <AnimatePresence>
-                {showGiftAnimation && (
-                  <motion.div
-                    className="text-center mt-6"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                  >
-                    <div className="text-5xl lg:text-6xl mb-2">🎉</div>
-                    <p className="text-gold-500 font-bold">礼包已到账！</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* 任务奖励 */}
-            <motion.div
-              className="pixel-card p-6 lg:p-8"
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <h4 className="text-lg lg:text-xl font-black mb-6 text-center">
-                <span className="text-gold-500">新手任务</span>
-              </h4>
-
-              <div className="space-y-3">
-                {starterPack.tasks.map((task, index) => (
-                  <motion.div
-                    key={task.name}
-                    className={cn(
-                      'flex items-center justify-between p-3 rounded transition-all',
-                      task.status === 'completed' 
-                        ? 'bg-green-500/10 border border-green-500/30' 
-                        : 'bg-gray-800 border border-gray-700'
-                    )}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl lg:text-2xl">{task.icon}</span>
-                      <div>
-                        <h5 className="font-bold text-sm">{task.name}</h5>
-                        <p className="text-xs text-gray-500">奖励: {task.reward}</p>
-                      </div>
-                    </div>
-                    <div>
-                      {task.status === 'completed' ? (
-                        <span className="text-green-500 text-sm font-bold">已完成</span>
-                      ) : (
-                        <motion.button
-                          className="text-xs px-3 py-1 bg-gold-500/20 text-gold-500 font-bold rounded hover:bg-gold-500/30 transition-all"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          去完成
-                        </motion.button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 bg-gold-500/10 rounded text-center">
-                <p className="text-sm text-gold-500 font-bold">
-                  完成所有任务额外获得 <span className="text-lg lg:text-xl">500 TDB</span>
-                </p>
-              </div>
-            </motion.div>
-          </div>
         </motion.div>
 
         {/* 常见问题 */}
@@ -480,7 +198,7 @@ export function OnboardingSection() {
               </div>
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
-                <span>新手礼包¥650</span>
+                <span>新手礼包</span>
               </div>
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
