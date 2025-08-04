@@ -62,44 +62,7 @@ const starterPack = {
   ],
 }
 
-// 快速赚钱攻略
-const earningStrategies = [
-  {
-    level: '新手级',
-    icon: '🌱',
-    title: '零成本起步',
-    daily: '50-100',
-    strategies: [
-      { action: '每日签到', income: '10 TDB/天', time: '1分钟' },
-      { action: '浏览商城', income: '5 TDB/次', time: '5分钟' },
-      { action: '分享推广', income: '20 TDB/人', time: '10分钟' },
-    ],
-  },
-  {
-    level: '进阶级',
-    icon: '🚀',
-    title: '小投入大回报',
-    daily: '300-500',
-    strategies: [
-      { action: '租地挖矿', income: '100 TDB/天', time: '5小时' },
-      { action: '工具制作', income: '200 TDB/件', time: '即时' },
-      { action: '商品转售', income: '10-20%利润', time: '1-3天' },
-    ],
-  },
-  {
-    level: '专业级',
-    icon: '👑',
-    title: '规模化经营',
-    daily: '1000+',
-    strategies: [
-      { action: '土地购买', income: '8-15%/月', time: '长期' },
-      { action: '开店经营', income: '视销量而定', time: '持续' },
-      { action: 'VIP发展', income: '10-18%提成', time: '被动' },
-    ],
-  },
-]
-
-// 常见问题
+// 常见问题 - 删除了"多久能赚回本金"
 const faqData = [
   {
     category: '入门必读',
@@ -112,10 +75,6 @@ const faqData = [
       {
         q: '需要投入多少钱？',
         a: '0元即可开始！新手礼包提供100 TDB启动资金，您可以通过完成任务、推荐好友等方式赚取更多积分。',
-      },
-      {
-        q: '多久能赚回本金？',
-        a: '根据不同玩法，回本周期3-12个月不等。挖矿类3-6个月，商城类6-12个月，具体取决于您的经营策略。',
       },
     ],
   },
@@ -159,7 +118,6 @@ const faqData = [
 
 export function OnboardingSection() {
   const [activeStep, setActiveStep] = useState(0)
-  const [selectedStrategy, setSelectedStrategy] = useState(0)
   const [expandedFaq, setExpandedFaq] = useState<string | null>(null)
   const [showGiftAnimation, setShowGiftAnimation] = useState(false)
 
@@ -180,7 +138,7 @@ export function OnboardingSection() {
       </div>
 
       <Container className="relative z-10">
-        {/* 标题 */}
+        {/* 标题 - 修改了主标题 */}
         <motion.div
           className="text-center max-w-4xl mx-auto mb-12 lg:mb-16 px-4"
           initial={{ opacity: 0, y: 20 }}
@@ -194,15 +152,15 @@ export function OnboardingSection() {
           </div>
           
           <h2 className="text-3xl md:text-4xl lg:text-6xl font-black leading-tight mb-4 lg:mb-6">
-            <span className="block mb-2">3分钟快速上手</span>
-            <span className="text-gold-500 pixel-text-shadow">小白变大神 就这么简单</span>
+            <span className="block mb-2">快速开始</span>
+            <span className="text-gold-500 pixel-text-shadow">简单几步 轻松上手</span>
           </h2>
           
           <p className="text-base lg:text-xl text-gray-400">
             零基础也能玩转平行世界，新手礼包价值超过
             <span className="text-gold-500 font-bold text-xl lg:text-2xl mx-2">¥650</span>
             <br />
-            <span className="text-sm lg:text-base mt-2 block">跟着教程走，日入过百不是梦</span>
+            <span className="text-sm lg:text-base mt-2 block">加入我们，开启数字财富之旅</span>
           </p>
         </motion.div>
 
@@ -421,68 +379,6 @@ export function OnboardingSection() {
           </div>
         </motion.div>
 
-        {/* 快速赚钱攻略 */}
-        <motion.div
-          className="mb-16 lg:mb-20"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-        >
-          <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">
-            <span className="text-gold-500">赚钱攻略</span>
-            <span className="text-xs lg:text-sm block mt-2 text-gray-400 font-normal">
-              从0到月入过万的进阶之路
-            </span>
-          </h3>
-
-          <div className="grid lg:grid-cols-3 gap-6 px-4 lg:px-0">
-            {earningStrategies.map((strategy, index) => (
-              <motion.div
-                key={strategy.level}
-                className={cn(
-                  'pixel-card p-5 lg:p-6 cursor-pointer transition-all duration-300',
-                  selectedStrategy === index ? 'border-gold-500 scale-105' : 'border-gray-700'
-                )}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                onClick={() => setSelectedStrategy(index)}
-                whileHover={{ y: -4 }}
-              >
-                <div className="text-center mb-4">
-                  <div className="text-4xl lg:text-5xl mb-2">{strategy.icon}</div>
-                  <h4 className="text-lg lg:text-xl font-black mb-1">{strategy.level}</h4>
-                  <p className="text-gold-500 font-bold">{strategy.title}</p>
-                  <div className="text-xl lg:text-2xl font-black text-green-500 mt-2">
-                    ¥{strategy.daily}/天
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {strategy.strategies.map((item) => (
-                    <div key={item.action} className="text-xs lg:text-sm">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-bold">{item.action}</span>
-                        <span className="text-green-500 text-xs">{item.income}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">用时: {item.time}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {index === 0 && (
-                  <div className="mt-4 text-center">
-                    <span className="text-xs px-3 py-1 bg-green-500/20 text-green-500 font-bold rounded">
-                      推荐新手
-                    </span>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
         {/* 常见问题 */}
         <motion.div
           className="mb-16 lg:mb-20"
@@ -580,7 +476,7 @@ export function OnboardingSection() {
             <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-6">
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
-                <span>3分钟快速注册</span>
+                <span>极速注册</span>
               </div>
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
