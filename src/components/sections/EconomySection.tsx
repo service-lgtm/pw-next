@@ -16,15 +16,14 @@ const tokenTypes = [
     value: '1 TDB = 0.01克黄金',
     features: [
       { label: '价值锚定', value: '100%黄金储备' },
-      { label: '价格稳定', value: '与金价挂钩' },
+      { label: '价格稳定', value: '关联上海金价格' },
       { label: '用途广泛', value: '购买/交易/支付' },
-      { label: '随时提现', value: '实时到账' },
     ],
     obtainWays: [
       '充值购买',
       '销售收入',
       '任务奖励',
-      '推荐返佣',
+      '平台分红',
     ],
   },
   {
