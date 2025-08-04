@@ -14,14 +14,15 @@ import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 // NFT 资产类型
-type AssetType = 'all' | 'land' | 'tool' | 'building' | 'mine'
+type AssetType = 'all' | 'land' | 'tool' | 'building' | 'mine' | 'resource'
 type ViewMode = 'grid' | 'list'
 type SortOption = 'latest' | 'price_asc' | 'price_desc'
 
 interface NFTAsset {
   id: string
   name: string
-  type: 'land' | 'tool' | 'building' | 'mine'
+  type: 'land' | 'tool' | 'building' | 'mine' | 'resource'
+  resourceType?: 'stone' | 'iron' | 'wood' | 'food' | 'seed' | 'yld'
   icon: string
   price: number
   owner: string
@@ -67,11 +68,12 @@ export default function MarketPage() {
 
   // 资产类型配置
   const assetTypes = [
-    { value: 'all', label: '全部', count: 156 },
+    { value: 'all', label: '全部', count: 256 },
     { value: 'land', label: '土地', count: 45, icon: '🏞️' },
     { value: 'mine', label: '矿山', count: 38, icon: '⛏️' },
     { value: 'tool', label: '工具', count: 52, icon: '🔨' },
     { value: 'building', label: '房产', count: 21, icon: '🏠' },
+    { value: 'resource', label: '资源', count: 100, icon: '📦' },
   ]
 
   // 价格区间选项
@@ -92,6 +94,7 @@ export default function MarketPage() {
     // 模拟 API 调用
     setTimeout(() => {
       const mockAssets: NFTAsset[] = [
+        // 陨石矿山 - 最高价值
         {
           id: '1',
           name: '陨石矿山 #YLD-007',
@@ -111,6 +114,7 @@ export default function MarketPage() {
           createdAt: '2025-01-20',
           updatedAt: '2025-01-22',
         },
+        // 其他矿山
         {
           id: '2',
           name: '铁矿山 #12345',
@@ -131,12 +135,49 @@ export default function MarketPage() {
         },
         {
           id: '3',
+          name: '石矿山 #67890',
+          type: 'mine',
+          icon: '🪨',
+          price: 12000,
+          owner: '张*三',
+          ownerId: '34567',
+          status: 'selling',
+          attributes: {
+            '类型': '石矿',
+            '储量': '100,000',
+            '日产量': '200',
+            '坐标': '(120.456, 31.789)',
+          },
+          createdAt: '2025-01-18',
+          updatedAt: '2025-01-20',
+        },
+        {
+          id: '4',
+          name: '森林 #34567',
+          type: 'mine',
+          icon: '🌲',
+          price: 8000,
+          owner: '赵*六',
+          ownerId: '45678',
+          status: 'selling',
+          attributes: {
+            '类型': '森林',
+            '储量': '再生资源',
+            '日产量': '50 木头',
+            '坐标': '(119.123, 30.456)',
+          },
+          createdAt: '2025-01-17',
+          updatedAt: '2025-01-19',
+        },
+        // 土地
+        {
+          id: '5',
           name: '商业地块 #CBD-001',
           type: 'land',
           icon: '🏞️',
           price: 35000,
-          owner: '张*三',
-          ownerId: '34567',
+          owner: '孙*七',
+          ownerId: '56789',
           status: 'selling',
           attributes: {
             '面积': '300 m²',
@@ -144,17 +185,36 @@ export default function MarketPage() {
             '建设状态': '可建设',
             '溢价': '300%',
           },
-          createdAt: '2025-01-18',
-          updatedAt: '2025-01-20',
+          createdAt: '2025-01-16',
+          updatedAt: '2025-01-18',
         },
         {
-          id: '4',
+          id: '6',
+          name: '农业用地 #FARM-123',
+          type: 'land',
+          icon: '🌾',
+          price: 5000,
+          owner: '周*八',
+          ownerId: '67890',
+          status: 'selling',
+          attributes: {
+            '面积': '1000 m²',
+            '区域': '崇明农业区',
+            '土壤肥力': '优良',
+            '适合作物': '水稻、小麦',
+          },
+          createdAt: '2025-01-15',
+          updatedAt: '2025-01-17',
+        },
+        // 工具
+        {
+          id: '7',
           name: '锄头 #HOE-888',
           type: 'tool',
           icon: '🔨',
           price: 2500,
-          owner: '赵*六',
-          ownerId: '45678',
+          owner: '吴*九',
+          ownerId: '78901',
           status: 'selling',
           attributes: {
             '类型': '锄头',
@@ -162,8 +222,178 @@ export default function MarketPage() {
             '用途': '开采陨石矿',
             '品质': '精良',
           },
-          createdAt: '2025-01-17',
-          updatedAt: '2025-01-19',
+          createdAt: '2025-01-14',
+          updatedAt: '2025-01-16',
+        },
+        {
+          id: '8',
+          name: '镐头 #PICK-999',
+          type: 'tool',
+          icon: '⛏️',
+          price: 2000,
+          owner: '郑*十',
+          ownerId: '89012',
+          status: 'selling',
+          attributes: {
+            '类型': '镐头',
+            '耐久度': '1480/1500',
+            '用途': '开采石矿/铁矿',
+            '品质': '普通',
+          },
+          createdAt: '2025-01-13',
+          updatedAt: '2025-01-15',
+        },
+        {
+          id: '9',
+          name: '斧头 #AXE-777',
+          type: 'tool',
+          icon: '🪓',
+          price: 1800,
+          owner: '钱*一',
+          ownerId: '90123',
+          status: 'selling',
+          attributes: {
+            '类型': '斧头',
+            '耐久度': '1350/1500',
+            '用途': '砍伐森林',
+            '品质': '普通',
+          },
+          createdAt: '2025-01-12',
+          updatedAt: '2025-01-14',
+        },
+        // 资源
+        {
+          id: '10',
+          name: '石矿 x1000',
+          type: 'resource',
+          resourceType: 'stone',
+          icon: '🪨',
+          price: 500,
+          owner: '蒋*二',
+          ownerId: '01234',
+          status: 'selling',
+          attributes: {
+            '类型': '原材料',
+            '数量': '1000',
+            '用途': '合成砖头',
+            '品质': '标准',
+          },
+          createdAt: '2025-01-11',
+          updatedAt: '2025-01-13',
+        },
+        {
+          id: '11',
+          name: '铁矿 x500',
+          type: 'resource',
+          resourceType: 'iron',
+          icon: '⚙️',
+          price: 800,
+          owner: '沈*三',
+          ownerId: '12345',
+          status: 'selling',
+          attributes: {
+            '类型': '原材料',
+            '数量': '500',
+            '用途': '合成工具',
+            '品质': '优质',
+          },
+          createdAt: '2025-01-10',
+          updatedAt: '2025-01-12',
+        },
+        {
+          id: '12',
+          name: '木头 x200',
+          type: 'resource',
+          resourceType: 'wood',
+          icon: '🪵',
+          price: 300,
+          owner: '韩*四',
+          ownerId: '23456',
+          status: 'selling',
+          attributes: {
+            '类型': '原材料',
+            '数量': '200',
+            '用途': '合成工具/建设加速',
+            '品质': '标准',
+          },
+          createdAt: '2025-01-09',
+          updatedAt: '2025-01-11',
+        },
+        {
+          id: '13',
+          name: '粮食 x100',
+          type: 'resource',
+          resourceType: 'food',
+          icon: '🌾',
+          price: 200,
+          owner: '杨*五',
+          ownerId: '34567',
+          status: 'selling',
+          attributes: {
+            '类型': '消耗品',
+            '数量': '100',
+            '用途': '补充能量',
+            '效果': '每个恢复10%能量',
+          },
+          createdAt: '2025-01-08',
+          updatedAt: '2025-01-10',
+        },
+        {
+          id: '14',
+          name: '种子包 x50',
+          type: 'resource',
+          resourceType: 'seed',
+          icon: '🌱',
+          price: 150,
+          owner: '朱*六',
+          ownerId: '45678',
+          status: 'selling',
+          attributes: {
+            '类型': '种植材料',
+            '数量': '50',
+            '用途': '种植粮食',
+            '产出预期': '5倍收成',
+          },
+          createdAt: '2025-01-07',
+          updatedAt: '2025-01-09',
+        },
+        {
+          id: '15',
+          name: 'YLD x10',
+          type: 'resource',
+          resourceType: 'yld',
+          icon: '💎',
+          price: 5000,
+          owner: '秦*七',
+          ownerId: '56789',
+          status: 'selling',
+          attributes: {
+            '类型': '治理代币',
+            '数量': '10',
+            '用途': '合成/Gas费',
+            '稀有度': '极其稀有',
+          },
+          createdAt: '2025-01-06',
+          updatedAt: '2025-01-08',
+        },
+        {
+          id: '16',
+          name: '砖头 x300',
+          type: 'resource',
+          resourceType: 'stone',
+          icon: '🧱',
+          price: 1500,
+          owner: '尤*八',
+          ownerId: '67890',
+          status: 'selling',
+          attributes: {
+            '类型': '建筑材料',
+            '数量': '300',
+            '用途': '建设房产',
+            '说明': '刚好可建一层',
+          },
+          createdAt: '2025-01-05',
+          updatedAt: '2025-01-07',
         },
       ]
 
@@ -500,6 +730,7 @@ export default function MarketPage() {
             onClose={() => setSelectedAsset(null)}
             title="资产详情"
             size="large"
+            className="!max-w-3xl"
           >
             <div className="grid md:grid-cols-2 gap-6">
               {/* 左侧 - 视觉展示 */}
