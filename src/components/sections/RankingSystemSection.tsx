@@ -56,7 +56,7 @@ const rankingLevels = [
     benefits: {
       referralBonus: '18%',
       teamBonus: '3%',
-      miningSlots: '40个',
+      miningSlots: '30个',
       specialPrivileges: ['团队分红', 'VIP通道', '内部消息'],
     },
     badge: '🌍',
@@ -74,7 +74,7 @@ const rankingLevels = [
     benefits: {
       referralBonus: '18%',
       teamBonus: '7%',
-      miningSlots: '80个',
+      miningSlots: '40个',
       specialPrivileges: ['更高团队分红', '决策参与权', '线下聚会'],
     },
     badge: '🚀',
@@ -92,7 +92,7 @@ const rankingLevels = [
     benefits: {
       referralBonus: '18%',
       teamBonus: '10%',
-      miningSlots: '160个',
+      miningSlots: '50个',
       specialPrivileges: ['共享全球3%分红','战略合作', '专属投资机会'],
     },
     badge: '👑',
@@ -110,7 +110,7 @@ const rankingLevels = [
     benefits: {
       referralBonus: '18%',
       teamBonus: '12%',
-      miningSlots: '320个',
+      miningSlots: '60个',
       specialPrivileges: ['平台2%分红', '董事会席位', '全球峰会'],
     },
     badge: '💎',
@@ -128,7 +128,7 @@ const rankingLevels = [
     benefits: {
       referralBonus: '18%',
       teamBonus: '14%',
-      miningSlots: '无限制',
+      miningSlots: '70',
       specialPrivileges: ['平台1%分红', '最高决策权', '永久荣誉', '专属服务器'],
     },
     badge: '🌌',
