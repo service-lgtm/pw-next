@@ -35,7 +35,7 @@ export default function AssetsPage() {
   // 弹窗状态
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [exchangeAmount, setExchangeAmount] = useState('')
-  const [exchangeType, setExchangeType] = useState<'tdb-to-cash' | 'cash-to-tdb'>('tdb-to-cash')
+  const [paymentMethod, setPaymentMethod] = useState<'alipay' | 'bank'>('bank')
   
   const [assetSummary, setAssetSummary] = useState<AssetSummary>({
     totalValue: 0,
@@ -595,7 +595,7 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {/* 兑换弹窗 */}
+      {/* 兑换弹窗 - 只能出金 */}
       <AnimatePresence>
         {showExchangeModal && (
           <motion.div
@@ -612,8 +612,8 @@ export default function AssetsPage() {
               className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6 max-w-md w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">兑换</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">选择收款方式</h3>
                 <button
                   onClick={() => setShowExchangeModal(false)}
                   className="text-gray-400 hover:text-white text-2xl"
@@ -623,69 +623,106 @@ export default function AssetsPage() {
               </div>
               
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="flex items-center p-3 border-2 border-gray-700 rounded cursor-pointer hover:border-gray-600">
-                    <input
-                      type="radio"
-                      value="tdb-to-cash"
-                      checked={exchangeType === 'tdb-to-cash'}
-                      onChange={(e) => setExchangeType(e.target.value as any)}
-                      className="mr-3"
-                    />
-                    <span>TDB → 现金</span>
-                  </label>
-                  <label className="flex items-center p-3 border-2 border-gray-700 rounded cursor-pointer hover:border-gray-600">
-                    <input
-                      type="radio"
-                      value="cash-to-tdb"
-                      checked={exchangeType === 'cash-to-tdb'}
-                      onChange={(e) => setExchangeType(e.target.value as any)}
-                      className="mr-3"
-                    />
-                    <span>现金 → TDB</span>
-                  </label>
+                {/* 收款方式选择 */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('alipay')}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded border-2 transition-all",
+                      paymentMethod === 'alipay'
+                        ? "bg-green-500/20 border-green-500 text-white"
+                        : "bg-gray-800 border-gray-700 text-gray-400"
+                    )}
+                  >
+                    支付宝
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('bank')}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded border-2 transition-all",
+                      paymentMethod === 'bank'
+                        ? "bg-green-500/20 border-green-500 text-white"
+                        : "bg-gray-800 border-gray-700 text-gray-400"
+                    )}
+                  >
+                    银行卡
+                  </button>
                 </div>
                 
+                {/* 收款人信息 */}
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">
-                    兑换金额
-                  </label>
-                  <input
-                    type="number"
-                    value={exchangeAmount}
-                    onChange={(e) => setExchangeAmount(e.target.value)}
-                    placeholder={exchangeType === 'tdb-to-cash' ? "输入TDB数量" : "输入人民币金额"}
-                    className="w-full px-4 py-2 bg-gray-800 text-white border-2 border-gray-700 focus:border-gold-500 rounded outline-none"
-                  />
+                  <p className="text-sm text-gray-400 mb-3">收款人</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-1">户名</label>
+                      <input
+                        type="text"
+                        placeholder="请输入"
+                        className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-1">账户</label>
+                      <input
+                        type="text"
+                        placeholder="请输入"
+                        className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                      />
+                    </div>
+                    {paymentMethod === 'bank' && (
+                      <div>
+                        <label className="block text-sm text-gray-500 mb-1">银行</label>
+                        <input
+                          type="text"
+                          placeholder="请输入"
+                          className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
-                {exchangeAmount && (
-                  <div className="p-3 bg-gray-800/50 rounded">
-                    <p className="text-sm text-gray-400">预估到账：</p>
-                    <p className="text-lg font-bold text-gold-500">
-                      {exchangeType === 'tdb-to-cash' 
-                        ? `¥${(parseFloat(exchangeAmount) * 6.5 * 0.95).toFixed(2)}`
-                        : `${(parseFloat(exchangeAmount) / 6.5 * 0.95).toFixed(2)} TDB`
-                      }
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">手续费：5%</p>
+                {/* 兑换金额 */}
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">兑换金额</span>
+                    <span className="text-gray-400">可用余额：{assetSummary.tdbBalance.toLocaleString()} TDB</span>
+                  </div>
+                  <div className="flex">
+                    <input
+                      type="number"
+                      value={exchangeAmount}
+                      onChange={(e) => setExchangeAmount(e.target.value)}
+                      placeholder="最小兑换数量 100.00"
+                      className="flex-1 px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded-l outline-none"
+                    />
+                    <span className="px-4 py-2 bg-gray-700 text-white rounded-r border border-gray-700 border-l-0">
+                      TDB
+                    </span>
+                  </div>
+                </div>
+                
+                {/* 兑换信息 */}
+                {exchangeAmount && parseFloat(exchangeAmount) >= 100 && (
+                  <div className="p-3 bg-gray-800/50 rounded space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">兑换税率：</span>
+                      <span>5%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">预估到账：</span>
+                      <span className="font-bold text-lg">{(parseFloat(exchangeAmount) * 6.5 * 0.95).toFixed(2)}元</span>
+                    </div>
                   </div>
                 )}
                 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowExchangeModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded"
-                  >
-                    取消
-                  </button>
-                  <button
-                    disabled
-                    className="flex-1 px-4 py-2 bg-gray-600 text-gray-400 rounded cursor-not-allowed"
-                  >
-                    待开放
-                  </button>
-                </div>
+                {/* 提交按钮 */}
+                <button
+                  disabled
+                  className="w-full py-3 bg-gray-600 text-gray-400 rounded cursor-not-allowed font-bold"
+                >
+                  提交（待开放）
+                </button>
               </div>
             </motion.div>
           </motion.div>
