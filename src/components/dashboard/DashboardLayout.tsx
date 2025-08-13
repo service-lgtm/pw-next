@@ -1,6 +1,5 @@
-// 文件路径: src/components/dashboard/DashboardLayout.tsx
-// 文件名: DashboardLayout.tsx
-// 功能: 主布局组件，包含侧边栏和顶部导航
+// src/components/dashboard/DashboardLayout.tsx
+// 主布局组件 - 移除能量显示
 
 'use client'
 
@@ -29,7 +28,7 @@ const sidebarItems = [
     title: '我的业务',
     icon: '💼',
     items: [
-      { label: '挖矿中心', href: '/mining', icon: '⛏️', isActive: false },
+      { label: '挖矿中心', href: 'https://www.pxsj.net.cn/mining', icon: '⛏️', isActive: true, isExternal: true },
       { label: '交易市场', href: '/market', icon: '🛒', isActive: false },
       { label: '我的商店', href: '/shop', icon: '🏪', isActive: false },
     ]
@@ -114,6 +113,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
 
   const handleMenuClick = (item: any, e: React.MouseEvent) => {
+    // 处理外部链接
+    if (item.isExternal) {
+      e.preventDefault()
+      window.open(item.href, '_blank')
+      return
+    }
+    
     if (!item.isActive) {
       e.preventDefault()
       setToastMessage(`${item.label} 功能即将开放，敬请期待！`)
@@ -164,18 +170,33 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <div className="space-y-1">
                       {section.items.map((item) => (
                         item.isActive ? (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded transition-all",
-                              "hover:bg-gold-500/10 hover:text-gold-500",
-                              pathname === item.href && "bg-gold-500/20 text-gold-500 font-bold"
-                            )}
-                          >
-                            <span className="text-lg">{item.icon}</span>
-                            <span className="text-sm">{item.label}</span>
-                          </Link>
+                          item.isExternal ? (
+                            <button
+                              key={item.href}
+                              onClick={(e) => handleMenuClick(item, e)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2 rounded transition-all text-left",
+                                "hover:bg-gold-500/10 hover:text-gold-500"
+                              )}
+                            >
+                              <span className="text-lg">{item.icon}</span>
+                              <span className="text-sm">{item.label}</span>
+                              <span className="ml-auto text-xs">🔗</span>
+                            </button>
+                          ) : (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2 rounded transition-all",
+                                "hover:bg-gold-500/10 hover:text-gold-500",
+                                pathname === item.href && "bg-gold-500/20 text-gold-500 font-bold"
+                              )}
+                            >
+                              <span className="text-lg">{item.icon}</span>
+                              <span className="text-sm">{item.label}</span>
+                            </Link>
+                          )
                         ) : (
                           <button
                             key={item.href}
@@ -318,22 +339,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* 右侧用户信息 */}
+            {/* 右侧用户信息 - 移除能量条 */}
             <div className="flex items-center gap-3">
-              {/* 能量条 - 未开放但显示 */}
-              <div className="hidden md:flex items-center gap-2">
-                <span className="text-sm text-gray-400">能量</span>
-                <div className="w-24 h-4 bg-gray-800 rounded-full overflow-hidden opacity-50">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-green-500 to-gold-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${displayUser?.energy || 100}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-gray-500">{displayUser?.energy || 100}%</span>
-              </div>
-
               {/* 用户下拉菜单 */}
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -402,6 +409,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                           <span className="mr-2">💰</span>
                           我的资产
                         </Link>
+                        <button
+                          onClick={() => {
+                            window.open('https://www.pxsj.net.cn/mining', '_blank')
+                            setShowUserDropdown(false)
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
+                        >
+                          <span className="mr-2">⛏️</span>
+                          挖矿中心
+                          <span className="ml-1 text-xs">🔗</span>
+                        </button>
                         <div className="border-t-2 border-gray-800 mt-2 pt-2">
                           <button
                             onClick={() => {
