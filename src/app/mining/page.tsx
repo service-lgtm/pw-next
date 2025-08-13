@@ -1,11 +1,12 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 生产版本（移除能量UI，清零模拟数据）
+// 挖矿中心页面 - 生产版本（移除能量UI，清零模拟数据，优化移动端）
 // 
 // 文件说明：
 // 1. 本文件是挖矿中心的主页面组件
 // 2. 已移除所有能量相关的UI元素
 // 3. 所有数据已清零或标记为待开放状态
 // 4. 保留了完整的功能结构，便于后续开发
+// 5. 优化了移动端响应式布局
 //
 // 关联文件：
 // - @/components/shared/PixelCard: 像素风格卡片组件
@@ -17,6 +18,7 @@
 // - 所有数据当前为静态展示，实际功能待后端API接入
 // - 保留了完整的类型定义和功能结构
 // - UI交互逻辑已完整实现，可直接对接真实数据
+// - 已优化移动端显示效果
 
 'use client'
 
@@ -110,6 +112,8 @@ export default function MiningPage() {
   const [showMarketModal, setShowMarketModal] = useState(false)
   const [showSynthesisModal, setShowSynthesisModal] = useState(false)
   const [miningStep, setMiningStep] = useState<'select-tool' | 'confirm'>('select-tool')
+  const [isMobile, setIsMobile] = useState(false)
+  const [showMobilePanel, setShowMobilePanel] = useState(false)
   
   // 用户状态 - 数据已清零
   const [userStats, setUserStats] = useState<UserStats>({
@@ -129,8 +133,8 @@ export default function MiningPage() {
     { type: 'wood', amount: 0, icon: '🪵', name: '木材', dailyChange: 0 },
     { type: 'stone', amount: 0, icon: '🪨', name: '石材', dailyChange: 0 },
     { type: 'yld', amount: 0, icon: '💎', name: 'YLD', description: '治理代币' },
-    { type: 'grain', amount: 0, icon: '🌾', name: '粮食', description: '能量补充（功能待开放）' },
-    { type: 'seed', amount: 0, icon: '🌱', name: '种子', description: '农业种植（功能待开放）' },
+    { type: 'grain', amount: 0, icon: '🌾', name: '粮食', description: '待开放' },
+    { type: 'seed', amount: 0, icon: '🌱', name: '种子', description: '待开放' },
   ])
 
   // 我的矿山数据 - 清空
@@ -138,6 +142,18 @@ export default function MiningPage() {
 
   // 招聘市场数据 - 清空
   const [hiringMines, setHiringMines] = useState<Mine[]>([])
+
+  // ========== 副作用 ==========
+  
+  // 检测移动端
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // ========== 功能函数 ==========
   
@@ -186,29 +202,27 @@ export default function MiningPage() {
   // ==================== 渲染 ====================
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* 顶部状态栏 - 已移除能量相关显示 */}
+      {/* 顶部状态栏 - 已移除能量相关显示，优化移动端 */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              {/* 系统状态提示 */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-yellow-400">⚠️ 系统维护中</span>
-                <span className="text-xs text-gray-400">数据同步功能即将开放</span>
-              </div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* 系统状态提示 - 移动端优化 */}
+            <div className="flex items-center gap-2 text-center sm:text-left">
+              <span className="text-sm text-yellow-400">⚠️ 系统维护中</span>
+              <span className="text-xs text-gray-400 hidden sm:inline">数据同步功能即将开放</span>
             </div>
             
-            {/* 快速统计 - 数据已清零 */}
-            <div className="flex items-center gap-4">
-              <div className="text-center">
+            {/* 快速统计 - 移动端横向滚动 */}
+            <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto">
+              <div className="text-center min-w-[60px]">
                 <div className="text-xs text-gray-400">日收益</div>
                 <div className="text-sm font-bold text-gray-500">0.00</div>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-[60px]">
                 <div className="text-xs text-gray-400">总算力</div>
                 <div className="text-sm font-bold text-gray-500">0</div>
               </div>
-              <div className="text-center">
+              <div className="text-center min-w-[60px]">
                 <div className="text-xs text-gray-400">总资产</div>
                 <div className="text-sm font-bold text-gray-500">0.00</div>
               </div>
@@ -218,13 +232,13 @@ export default function MiningPage() {
       </div>
 
       {/* 主内容区 */}
-      <div className="container mx-auto px-4 py-6">
-        {/* 标签切换 */}
-        <div className="flex gap-2 mb-6">
+      <div className="container mx-auto px-4 py-4 sm:py-6">
+        {/* 标签切换 - 移动端优化 */}
+        <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('myMines')}
             className={cn(
-              "px-6 py-2 rounded-lg font-bold transition-all",
+              "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
               activeTab === 'myMines' 
                 ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
@@ -235,7 +249,7 @@ export default function MiningPage() {
           <button
             onClick={() => setActiveTab('market')}
             className={cn(
-              "px-6 py-2 rounded-lg font-bold transition-all",
+              "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
               activeTab === 'market' 
                 ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
@@ -246,7 +260,7 @@ export default function MiningPage() {
           <button
             onClick={() => setActiveTab('hiring')}
             className={cn(
-              "px-6 py-2 rounded-lg font-bold transition-all",
+              "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
               activeTab === 'hiring' 
                 ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
@@ -256,58 +270,123 @@ export default function MiningPage() {
           </button>
         </div>
 
-        {/* 内容区域 */}
-        <div className="grid grid-cols-12 gap-6">
-          {/* 左侧 - 工具和材料 */}
-          <div className="col-span-4 space-y-6">
-            {/* 我的工具 */}
-            <PixelCard>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">我的工具</h3>
+        {/* 移动端：材料面板按钮 */}
+        {isMobile && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowMobilePanel(!showMobilePanel)}
+              className="w-full px-4 py-3 bg-gray-800 rounded-lg flex items-center justify-between text-white"
+            >
+              <span className="font-bold">我的材料与工具</span>
+              <span className="text-xl">{showMobilePanel ? '📦' : '📂'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* 移动端：可折叠的材料面板 */}
+        {isMobile && showMobilePanel && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 space-y-4"
+          >
+            {/* 我的工具 - 移动端 */}
+            <PixelCard className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm">我的工具</h3>
                 <PixelButton 
                   size="xs" 
                   onClick={() => alert('合成功能即将开放！')}
+                  className="text-xs"
                 >
-                  合成工具
+                  合成
                 </PixelButton>
               </div>
-              <div className="space-y-3">
-                {/* 无工具提示 */}
-                <div className="text-center py-8 text-gray-500">
-                  <span className="text-4xl block mb-2">🔨</span>
-                  <p className="text-sm">暂无工具</p>
-                  <p className="text-xs text-gray-600 mt-1">工具系统即将开放</p>
-                </div>
+              <div className="text-center py-6 text-gray-500">
+                <span className="text-3xl block mb-2">🔨</span>
+                <p className="text-sm">暂无工具</p>
+                <p className="text-xs text-gray-600 mt-1">即将开放</p>
               </div>
             </PixelCard>
 
-            {/* 我的材料 */}
-            <PixelCard>
-              <h3 className="font-bold mb-4">我的材料</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {materials.map((material) => (
-                  <div key={material.type} className="p-3 bg-gray-800 rounded-lg">
+            {/* 我的材料 - 移动端 */}
+            <PixelCard className="p-4">
+              <h3 className="font-bold mb-3 text-sm">我的材料</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {materials.slice(0, 6).map((material) => (
+                  <div key={material.type} className="p-2 bg-gray-800 rounded-lg">
                     <div className="text-center">
-                      <span className="text-3xl block mb-1">{material.icon}</span>
-                      <p className="font-bold text-lg text-gray-500">0.00</p>
+                      <span className="text-2xl block mb-1">{material.icon}</span>
+                      <p className="font-bold text-sm text-gray-500">0</p>
                       <p className="text-xs text-gray-400">{material.name}</p>
-                      {material.description && (
-                        <p className="text-xs text-gray-600 mt-1">{material.description}</p>
-                      )}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 p-3 bg-yellow-900/20 rounded-lg">
-                <p className="text-xs text-yellow-500 text-center">
-                  💡 材料系统正在维护中
-                </p>
-              </div>
             </PixelCard>
-          </div>
+          </motion.div>
+        )}
 
-          {/* 右侧 - 矿山列表 */}
-          <div className="col-span-8">
+        {/* 内容区域 - 响应式网格 */}
+        <div className={cn(
+          "grid gap-4 sm:gap-6",
+          !isMobile && "lg:grid-cols-12"
+        )}>
+          {/* 左侧 - 工具和材料（桌面端显示） */}
+          {!isMobile && (
+            <div className="lg:col-span-4 space-y-6">
+              {/* 我的工具 */}
+              <PixelCard>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold">我的工具</h3>
+                  <PixelButton 
+                    size="xs" 
+                    onClick={() => alert('合成功能即将开放！')}
+                  >
+                    合成工具
+                  </PixelButton>
+                </div>
+                <div className="space-y-3">
+                  {/* 无工具提示 */}
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="text-4xl block mb-2">🔨</span>
+                    <p className="text-sm">暂无工具</p>
+                    <p className="text-xs text-gray-600 mt-1">工具系统即将开放</p>
+                  </div>
+                </div>
+              </PixelCard>
+
+              {/* 我的材料 */}
+              <PixelCard>
+                <h3 className="font-bold mb-4">我的材料</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {materials.map((material) => (
+                    <div key={material.type} className="p-3 bg-gray-800 rounded-lg">
+                      <div className="text-center">
+                        <span className="text-3xl block mb-1">{material.icon}</span>
+                        <p className="font-bold text-lg text-gray-500">0.00</p>
+                        <p className="text-xs text-gray-400">{material.name}</p>
+                        {material.description && (
+                          <p className="text-xs text-gray-600 mt-1">{material.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 bg-yellow-900/20 rounded-lg">
+                  <p className="text-xs text-yellow-500 text-center">
+                    💡 材料系统正在维护中
+                  </p>
+                </div>
+              </PixelCard>
+            </div>
+          )}
+
+          {/* 右侧 - 矿山列表（移动端全宽） */}
+          <div className={cn(
+            !isMobile && "lg:col-span-8"
+          )}>
             <AnimatePresence mode="wait">
               {/* 我的矿山 */}
               {activeTab === 'myMines' && (
@@ -317,14 +396,15 @@ export default function MiningPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  <PixelCard className="text-center py-12">
-                    <span className="text-6xl block mb-4">🏔️</span>
+                  <PixelCard className="text-center py-8 sm:py-12">
+                    <span className="text-5xl sm:text-6xl block mb-4">🏔️</span>
                     <p className="text-gray-400 mb-4">您还没有矿山</p>
-                    <p className="text-sm text-gray-500 mb-4">矿山系统即将开放</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-4 px-4">矿山系统即将开放</p>
                     <PixelButton 
                       onClick={() => setActiveTab('market')}
                       disabled
-                      className="opacity-50 cursor-not-allowed"
+                      className="opacity-50 cursor-not-allowed text-sm"
+                      size={isMobile ? "sm" : "md"}
                     >
                       前往矿山市场（待开放）
                     </PixelButton>
@@ -339,22 +419,22 @@ export default function MiningPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                 >
-                  <div className="mb-4 flex justify-between items-center">
-                    <h3 className="text-lg font-bold">可购买矿山</h3>
+                  <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold">可购买矿山</h3>
                     <PixelButton 
-                      size="sm" 
+                      size="xs"
                       onClick={() => alert('地图功能即将开放！')}
                       disabled
-                      className="opacity-50 cursor-not-allowed"
+                      className="opacity-50 cursor-not-allowed text-xs"
                     >
                       查看地图（待开放）
                     </PixelButton>
                   </div>
                   
-                  <PixelCard className="text-center py-12">
-                    <span className="text-6xl block mb-4">🗺️</span>
+                  <PixelCard className="text-center py-8 sm:py-12">
+                    <span className="text-5xl sm:text-6xl block mb-4">🗺️</span>
                     <p className="text-gray-400 mb-2">矿山市场即将开放</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500 px-4">
                       届时您可以在这里购买和交易矿山NFT
                     </p>
                   </PixelCard>
@@ -369,10 +449,10 @@ export default function MiningPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  <PixelCard className="text-center py-12">
-                    <span className="text-6xl block mb-4">👷</span>
+                  <PixelCard className="text-center py-8 sm:py-12">
+                    <span className="text-5xl sm:text-6xl block mb-4">👷</span>
                     <p className="text-gray-400 mb-2">招聘市场即将开放</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500 px-4">
                       届时您可以雇佣矿工或成为矿工赚取收益
                     </p>
                   </PixelCard>
@@ -382,19 +462,21 @@ export default function MiningPage() {
           </div>
         </div>
 
-        {/* 底部提示 */}
-        <div className="mt-8">
-          <PixelCard className="p-6 bg-blue-900/20 border-blue-500/30">
-            <div className="flex items-start gap-3">
+        {/* 底部提示 - 移动端优化 */}
+        <div className="mt-6 sm:mt-8">
+          <PixelCard className="p-4 sm:p-6 bg-blue-900/20 border-blue-500/30">
+            <div className="flex flex-col sm:flex-row items-start gap-3">
               <span className="text-2xl">ℹ️</span>
-              <div>
-                <h3 className="font-bold text-blue-400 mb-2">系统公告</h3>
-                <p className="text-sm text-gray-300">
+              <div className="flex-1">
+                <h3 className="font-bold text-blue-400 mb-2 text-sm sm:text-base">系统公告</h3>
+                <p className="text-xs sm:text-sm text-gray-300">
                   挖矿系统正在进行重大升级，预计将在近期开放。升级后将支持：
                 </p>
-                <ul className="mt-2 space-y-1 text-sm text-gray-400">
-                  <li>• 矿山所有权认证</li>
-                  <li>• 自动分配收益</li>
+                <ul className="mt-2 space-y-1 text-xs sm:text-sm text-gray-400">
+                  <li>• NFT矿山所有权认证</li>
+                  <li>• 智能合约自动分配收益</li>
+                  <li>• 跨链资产转移</li>
+                  <li>• 去中心化矿工市场</li>
                 </ul>
               </div>
             </div>
@@ -414,12 +496,12 @@ export default function MiningPage() {
           setMiningStep('select-tool')
         }}
         title="挖矿功能"
-        size="medium"
+        size={isMobile ? "small" : "medium"}
       >
-        <div className="text-center py-8">
-          <span className="text-6xl block mb-4">🚧</span>
+        <div className="text-center py-6 sm:py-8">
+          <span className="text-5xl sm:text-6xl block mb-4">🚧</span>
           <p className="text-gray-400 mb-2">功能升级中</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             挖矿功能正在优化，即将开放
           </p>
         </div>
@@ -430,12 +512,12 @@ export default function MiningPage() {
         isOpen={showSynthesisModal}
         onClose={() => setShowSynthesisModal(false)}
         title="工具合成"
-        size="large"
+        size={isMobile ? "small" : "large"}
       >
-        <div className="text-center py-8">
-          <span className="text-6xl block mb-4">🔧</span>
+        <div className="text-center py-6 sm:py-8">
+          <span className="text-5xl sm:text-6xl block mb-4">🔧</span>
           <p className="text-gray-400 mb-2">合成系统维护中</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-xs sm:text-sm text-gray-500">
             工具合成功能即将开放，敬请期待
           </p>
         </div>
