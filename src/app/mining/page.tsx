@@ -393,10 +393,8 @@ export default function MiningPage() {
                   挖矿系统正在进行重大升级，预计将在近期开放。升级后将支持：
                 </p>
                 <ul className="mt-2 space-y-1 text-sm text-gray-400">
-                  <li>• NFT矿山所有权认证</li>
-                  <li>• 智能合约自动分配收益</li>
-                  <li>• 跨链资产转移</li>
-                  <li>• 去中心化矿工市场</li>
+                  <li>• 矿山所有权认证</li>
+                  <li>• 自动分配收益</li>
                 </ul>
               </div>
             </div>
