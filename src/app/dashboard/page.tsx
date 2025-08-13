@@ -1,5 +1,5 @@
 // src/app/dashboard/page.tsx
-// 仪表盘页面 - 基于正确版本
+// 仪表盘页面 - 移除能量UI，添加矿山入口
 
 'use client'
 
@@ -24,7 +24,6 @@ interface UserProfile {
   yld_balance?: string
   tdbBalance?: number
   yldBalance?: number
-  energy?: number
   direct_referrals_count: number
   total_referrals_count: number
   community_performance: string
@@ -146,6 +145,11 @@ export default function DashboardPage() {
     totalAssets: tdbBalance,
   }
 
+  // 处理挖矿中心跳转
+  const handleMiningClick = () => {
+    window.open('https://www.pxsj.net.cn/mining', '_blank')
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* 欢迎区域 */}
@@ -221,21 +225,8 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* 账户状态卡片 */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <PixelCard className="p-4 text-center">
-            <p className="text-2xl font-black text-green-500">
-              {displayData?.energy || 100}%
-            </p>
-            <p className="text-sm text-gray-400 mt-1">能量值</p>
-          </PixelCard>
-        </motion.div>
-
+      {/* 账户状态卡片 - 移除能量值，只保留雇佣人数 */}
+      <div className="grid md:grid-cols-1 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -261,6 +252,31 @@ export default function DashboardPage() {
             </h3>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {/* 挖矿中心 - 外链 */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleMiningClick}
+                className="bg-orange-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all relative"
+              >
+                <span className="text-3xl block mb-2">⛏️</span>
+                <span className="text-sm font-bold">挖矿中心</span>
+                <span className="absolute top-1 right-1 text-xs">
+                  🔗
+                </span>
+              </motion.button>
+
+              {/* 我的矿山 - 新增 */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.open('https://www.pxsj.net.cn/mining', '_blank')}
+                className="bg-amber-600 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
+              >
+                <span className="text-3xl block mb-2">⛰️</span>
+                <span className="text-sm font-bold">我的矿山</span>
+              </motion.button>
+
               {/* 购买土地 */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -324,7 +340,7 @@ export default function DashboardPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.push('/assets')}
-                className="bg-orange-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
+                className="bg-cyan-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">💰</span>
                 <span className="text-sm font-bold">我的资产</span>
