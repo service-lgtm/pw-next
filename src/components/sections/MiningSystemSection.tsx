@@ -14,7 +14,7 @@ const miningTools = [
     material: '70%铁矿 + 30%木头+0.008YLD',
     efficiency: 100,
     suitable: ['铁矿山', '石矿山'],
-    price: '500 TDB',
+    price: '敬请期待',
     color: '#708090',
   },
   {
@@ -24,7 +24,7 @@ const miningTools = [
     material: '60%铁矿 + 40%木头+0.008YLD',
     efficiency: 90,
     suitable: ['森林'],
-    price: '400 TDB',
+    price: '敬请期待',
     color: '#8B4513',
   },
   {
@@ -34,7 +34,7 @@ const miningTools = [
     material: '50%铁矿 + 50%木头+0.008YLD',
     efficiency: 85,
     suitable: ['陨石矿'],
-    price: '800 TDB',
+    price: '敬请期待',
     color: '#9370DB',
   },
 ]
