@@ -21,6 +21,7 @@ interface MiningStatsProps {
   resources: any
   grainStatus: any
   hasMiningAccess: boolean
+  sessions?: any[]  // 添加挖矿会话数据
   onRefresh: () => void
   onOpenMining: () => void
 }
@@ -51,9 +52,19 @@ export function MiningStats({
   resources,
   grainStatus,
   hasMiningAccess,
+  sessions,
   onRefresh,
   onOpenMining
 }: MiningStatsProps) {
+  // 计算挖矿会话的累计产出
+  const sessionsTotalOutput = sessions?.reduce((sum, session) => {
+    const output = parseFloat(session.total_output || session.accumulated_output || '0')
+    return sum + output
+  }, 0) || 0
+  
+  // 计算总累计产出（YLD矿山 + 挖矿会话）
+  const totalAccumulatedOutput = (parseFloat(yldStats?.total_accumulated_output || '0') + sessionsTotalOutput)
+  
   return (
     <div className="space-y-6">
       {/* YLD 矿山统计 */}
@@ -81,12 +92,24 @@ export function MiningStats({
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">累计产出</p>
                 <p className="text-xl font-bold text-green-500">
-                  {formatYLD(yldStats.total_accumulated_output)}
+                  {formatYLD(totalAccumulatedOutput)}
                 </p>
+                {hasMiningAccess && sessionsTotalOutput > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    挖矿: {formatYLD(sessionsTotalOutput)}
+                  </p>
+                )}
               </div>
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">生产中</p>
-                <p className="text-xl font-bold text-blue-500">{yldStats.producing_count}</p>
+                <p className="text-xl font-bold text-blue-500">
+                  {yldStats.producing_count + (hasMiningAccess && sessions ? sessions.length : 0)}
+                </p>
+                {hasMiningAccess && sessions && sessions.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    会话: {sessions.length}
+                  </p>
+                )}
               </div>
             </div>
           </div>
