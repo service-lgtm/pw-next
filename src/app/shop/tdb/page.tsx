@@ -1,5 +1,6 @@
 // src/app/shop/tdb/page.tsx
-// TDB商品浏览页面
+// TDB商品浏览页面 - 完整生产版本
+// 功能：商品列表展示、搜索筛选、购买入口、提货单管理入口
 
 'use client'
 
@@ -14,6 +15,25 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Product } from '@/lib/api'
 
+/**
+ * TDB商城主页面组件
+ * 
+ * 主要功能：
+ * 1. 商品列表展示 - 支持分页加载
+ * 2. 商品搜索和分类筛选
+ * 3. 快速入口 - 我的提货单、提货申请、兑换记录
+ * 4. 购买跳转 - 跳转到支付页面
+ * 
+ * API接口：
+ * - GET /api/v1/shop/products/ - 获取商品列表
+ * 
+ * 相关页面：
+ * - /shop/tickets - 我的提货单列表
+ * - /shop/pickup - 提货申请列表
+ * - /shop/exchange - 兑换记录列表
+ * - /shop/tdb/payment - 支付页面
+ */
+
 export default function TDBShopPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
@@ -25,6 +45,13 @@ export default function TDBShopPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
+  
+  // 用户提货单统计（可选，需要额外API）
+  const [userStats, setUserStats] = useState({
+    pendingCount: 0,
+    activeCount: 0,
+    totalTdb: 0
+  })
 
   // 检查认证状态
   useEffect(() => {
@@ -82,10 +109,22 @@ export default function TDBShopPage() {
     }
   }
 
+  // 加载用户提货单统计（可选功能）
+  const loadUserStats = async () => {
+    try {
+      // 如果有统计接口，可以调用
+      // const stats = await api.shop.tickets.stats()
+      // setUserStats(stats)
+    } catch (error) {
+      console.error('加载统计失败:', error)
+    }
+  }
+
   // 初始加载
   useEffect(() => {
     if (isAuthenticated) {
       loadProducts(true)
+      loadUserStats()
     }
   }, [isAuthenticated])
 
@@ -131,26 +170,96 @@ export default function TDBShopPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      {/* 页面标题 */}
+      {/* 页面标题和快速入口 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <div className="flex items-center gap-4 mb-4">
+        {/* 顶部导航栏 */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <button
             onClick={() => router.push('/dashboard')}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white self-start"
           >
             ← 返回
           </button>
+          
+          {/* 快速入口按钮组 - 桌面端 */}
+          <div className="hidden md:flex gap-2">
+            <button
+              onClick={() => router.push('/shop/tickets')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group"
+            >
+              <span className="text-lg">📦</span>
+              <span className="text-sm font-bold">我的提货单</span>
+              {userStats.pendingCount > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {userStats.pendingCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => router.push('/shop/pickup')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <span className="text-lg">🚚</span>
+              <span className="text-sm font-bold">提货申请</span>
+            </button>
+            <button
+              onClick={() => router.push('/shop/exchange')}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              <span className="text-lg">💱</span>
+              <span className="text-sm font-bold">兑换记录</span>
+            </button>
+          </div>
         </div>
+
+        {/* 页面标题 */}
         <h1 className="text-2xl md:text-3xl font-black text-white">
           TDB 积分商城
         </h1>
         <p className="text-gray-400 mt-2">
           购买实物商品，获得对应TDB积分
         </p>
+      </motion.div>
+
+      {/* 移动端快速入口卡片 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="md:hidden mb-6"
+      >
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            onClick={() => router.push('/shop/tickets')}
+            className="relative bg-gray-800 hover:bg-gray-700 rounded-lg p-3 transition-colors"
+          >
+            <div className="text-2xl mb-1">📦</div>
+            <div className="text-xs font-bold">我的提货单</div>
+            {userStats.pendingCount > 0 && (
+              <span className="absolute top-2 right-2 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                {userStats.pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => router.push('/shop/pickup')}
+            className="bg-gray-800 hover:bg-gray-700 rounded-lg p-3 transition-colors"
+          >
+            <div className="text-2xl mb-1">🚚</div>
+            <div className="text-xs font-bold">提货申请</div>
+          </button>
+          <button
+            onClick={() => router.push('/shop/exchange')}
+            className="bg-gray-800 hover:bg-gray-700 rounded-lg p-3 transition-colors"
+          >
+            <div className="text-2xl mb-1">💱</div>
+            <div className="text-xs font-bold">兑换记录</div>
+          </button>
+        </div>
       </motion.div>
 
       {/* 搜索和筛选 */}
@@ -348,11 +457,11 @@ export default function TDBShopPage() {
           <ul className="space-y-2 text-sm text-gray-300">
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>所有商品均为实物商品。</span>
+              <span>所有商品均为实物商品</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
-              <span>支付成功并审核过后，对应的TDB通证会立即到账</span>
+              <span>支付成功并审核通过后，对应的TDB通证会立即到账</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-gold-500 mt-1">•</span>
