@@ -44,21 +44,21 @@ export const productionApi = {
   mining: {
     // 开始自主挖矿
     startSelfMining: (data: StartSelfMiningRequest) =>
-      request<StartMiningResponse>('/api/production/mining/self/start/', {
+      request<StartMiningResponse>('/production/mining/self/start/', {
         method: 'POST',
         body: data,
       }),
 
     // 添加工具到挖矿
     addTools: (data: AddToolToMiningRequest) =>
-      request<AddToolResponse>('/api/production/mining/self/add-tools/', {
+      request<AddToolResponse>('/production/mining/self/add-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 从挖矿移除工具
     removeTools: (data: RemoveToolFromMiningRequest) =>
-      request<RemoveToolResponse>('/api/production/mining/self/remove-tools/', {
+      request<RemoveToolResponse>('/production/mining/self/remove-tools/', {
         method: 'POST',
         body: data,
       }),
@@ -69,11 +69,11 @@ export const productionApi = {
       page?: number
       page_size?: number
     }) =>
-      request<MiningSessionListResponse>('/api/production/sessions/', { params }),
+      request<MiningSessionListResponse>('/production/sessions/', { params }),
 
     // 收取产出
     collectOutput: (data: CollectOutputRequest) =>
-      request<CollectOutputResponse>('/api/production/collect/', {
+      request<CollectOutputResponse>('/production/collect/', {
         method: 'POST',
         body: data,
       }),
@@ -90,7 +90,7 @@ export const productionApi = {
           total_hours?: number
           auto_collected?: number
         }
-      }>('/api/production/stop/', {
+      }>('/production/stop/', {
         method: 'POST',
         body: data,
       }),
@@ -107,21 +107,21 @@ export const productionApi = {
           deposited_tools: number
           land_id: string
         }
-      }>('/api/production/mining/recruit/deposit-tools/', {
+      }>('/production/mining/recruit/deposit-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 带工具打工
     startWithTools: (data: StartHiredMiningWithToolRequest) =>
-      request<StartMiningResponse>('/api/production/mining/work/with-tools/', {
+      request<StartMiningResponse>('/production/mining/work/with-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 无工具打工（借用工具）
     startWithoutTools: (data: StartHiredMiningWithoutToolRequest) =>
-      request<StartMiningResponse>('/api/production/mining/work/without-tools/', {
+      request<StartMiningResponse>('/production/mining/work/without-tools/', {
         method: 'POST',
         body: data,
       }),
@@ -131,14 +131,14 @@ export const productionApi = {
   synthesis: {
     // 合成工具
     synthesizeTool: (data: SynthesizeToolRequest) =>
-      request<SynthesisResponse>('/api/production/synthesis/tool/', {
+      request<SynthesisResponse>('/production/synthesis/tool/', {
         method: 'POST',
         body: data,
       }),
 
     // 合成砖头
     synthesizeBricks: (data: SynthesizeBrickRequest) =>
-      request<SynthesisResponse>('/api/production/synthesis/bricks/', {
+      request<SynthesisResponse>('/production/synthesis/bricks/', {
         method: 'POST',
         body: data,
       }),
@@ -153,7 +153,7 @@ export const productionApi = {
           hoe?: { name: string; materials: any; yld_cost: number; durability: number }
           brick?: { name: string; materials: any; yld_cost: number; output: number }
         }
-      }>('/api/production/synthesis/recipes/'),
+      }>('/production/synthesis/recipes/'),
   },
 
   // ==================== 工具管理 ====================
@@ -161,12 +161,12 @@ export const productionApi = {
     // 获取我的工具列表
     getMyTools: (params?: {
       tool_type?: 'pickaxe' | 'axe' | 'hoe'
-      status?: 'normal' | 'damaged' | 'repairing'  // 修正：使用后端定义的状态值
+      status?: 'normal' | 'damaged' | 'repairing'
       is_in_use?: boolean
       page?: number
       page_size?: number
     }) =>
-      request<ToolListResponse>('/api/production/tools/', { params }),
+      request<ToolListResponse>('/production/tools/', { params }),
   },
 
   // ==================== 资源管理 ====================
@@ -180,14 +180,14 @@ export const productionApi = {
           total_value: number
           total_amount: { [key: string]: number }
         }
-      }>('/api/production/resources/'),
+      }>('/production/resources/'),
   },
 
   // ==================== 统计与分析 ====================
   stats: {
     // 获取生产统计
     getProductionStats: () =>
-      request<ProductionStatsResponse>('/api/production/stats/'),
+      request<ProductionStatsResponse>('/production/stats/'),
 
     // 获取生产记录
     getProductionRecords: (params?: {
@@ -211,7 +211,7 @@ export const productionApi = {
           total_hours: number
           total_energy: number
         }
-      }>('/api/production/records/', { params }),
+      }>('/production/records/', { params }),
 
     // 检查粮食状态
     checkFoodStatus: () =>
@@ -219,13 +219,13 @@ export const productionApi = {
         success: boolean
         data: {
           current_food: number
-          consumption_rate: number  // 每小时消耗
+          consumption_rate: number
           hours_sustainable: number
           warning: boolean
           warning_message?: string
           active_sessions_count: number
         }
-      }>('/api/production/food-status/'),
+      }>('/production/food-status/'),
   },
 
   // ==================== 土地相关 ====================
@@ -284,7 +284,7 @@ export const productionApi = {
             created_at: string | null
           }>
         }
-      }>('/api/production/lands/available/', { params }),
+      }>('/production/lands/available/', { params }),
 
     // 获取土地挖矿详情
     getLandMiningInfo: (landId: number) =>
@@ -372,7 +372,7 @@ export const productionApi = {
             enabled: boolean
           }>
         }
-      }>(`/api/production/lands/${landId}/mining-info/`),
+      }>(`/production/lands/${landId}/mining-info/`),
 
     // 获取用户的土地列表
     getUserLands: () =>
@@ -403,7 +403,7 @@ export const productionApi = {
             } | null
           }>
         }
-      }>('/api/production/lands/mine/'),
+      }>('/production/lands/mine/'),
   },
 }
 
