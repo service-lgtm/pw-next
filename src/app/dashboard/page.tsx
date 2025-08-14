@@ -1,5 +1,5 @@
 // src/app/dashboard/page.tsx
-// 仪表盘页面 - 移除能量UI，添加矿山入口
+// 仪表盘页面 - 添加土地碎片领取功能
 
 'use client'
 
@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { api, ApiError } from '@/lib/api'
+import { LandFragmentModal } from '@/components/dashboard/LandFragmentModal'
 import toast from 'react-hot-toast'
 
 // 用户数据接口
@@ -36,6 +37,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState<UserProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showFragmentModal, setShowFragmentModal] = useState(false)
 
   // 检查认证状态
   useEffect(() => {
@@ -169,13 +171,24 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* 快速操作按钮 - 暂时隐藏 */}
+        {/* 快速操作按钮 - 添加土地碎片领取 */}
         <div className="flex gap-2">
           <motion.button
             className="px-4 py-2 bg-gray-700 text-gray-400 font-bold rounded cursor-not-allowed opacity-50"
             disabled
           >
             每日签到（即将开放）
+          </motion.button>
+          
+          {/* 新增：土地碎片领取按钮 */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowFragmentModal(true)}
+            className="px-4 py-2 bg-gradient-to-r from-gold-500 to-yellow-600 text-white font-bold rounded hover:opacity-90 transition-all flex items-center gap-2"
+          >
+            <span>🎁</span>
+            领取土地碎片
           </motion.button>
         </div>
       </motion.div>
@@ -288,11 +301,11 @@ export default function DashboardPage() {
                 <span className="text-sm font-bold">购买土地</span>
               </motion.button>
 
-              {/* 生产管理 */}
+              {/* 生产管理 - 修改跳转到 /mining */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/production')}
+                onClick={() => router.push('/mining')}
                 className="bg-blue-500 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all"
               >
                 <span className="text-3xl block mb-2">⚙️</span>
@@ -345,6 +358,20 @@ export default function DashboardPage() {
                 <span className="text-3xl block mb-2">💰</span>
                 <span className="text-sm font-bold">我的资产</span>
               </motion.button>
+
+              {/* 新增：土地碎片 */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowFragmentModal(true)}
+                className="bg-gradient-to-r from-gold-500 to-yellow-600 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all relative"
+              >
+                <span className="text-3xl block mb-2">🧩</span>
+                <span className="text-sm font-bold">土地碎片</span>
+                <span className="absolute top-1 right-1 text-xs bg-green-500 text-white px-2 py-0.5 rounded">
+                  新
+                </span>
+              </motion.button>
             </div>
           </PixelCard>
 
@@ -390,13 +417,19 @@ export default function DashboardPage() {
             </h3>
             <div className="space-y-3">
               <div className="p-3 bg-gray-800 rounded">
-                <p className="text-sm text-gold-500 font-bold">TDB商城提货单系统上线</p>
+                <p className="text-sm text-gold-500 font-bold">🎁 土地碎片活动上线</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  每批次限领1个，可合成土地！
+                </p>
+              </div>
+              <div className="p-3 bg-gray-800 rounded">
+                <p className="text-sm text-purple-500 font-bold">TDB商城提货单系统</p>
                 <p className="text-xs text-gray-400 mt-1">
                   购买商品获得提货单，可提货或兑换现金！
                 </p>
               </div>
               <div className="p-3 bg-gray-800 rounded">
-                <p className="text-sm text-purple-500 font-bold">土地资产系统</p>
+                <p className="text-sm text-blue-500 font-bold">土地资产系统</p>
                 <p className="text-xs text-gray-400 mt-1">
                   虚拟地产投资，创造无限价值
                 </p>
@@ -415,6 +448,12 @@ export default function DashboardPage() {
           </PixelCard>
         </div>
       </div>
+
+      {/* 土地碎片领取弹窗 */}
+      <LandFragmentModal 
+        isOpen={showFragmentModal}
+        onClose={() => setShowFragmentModal(false)}
+      />
     </div>
   )
 }
