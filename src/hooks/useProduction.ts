@@ -254,8 +254,10 @@ export function useMyResources(options?: UseMyResourcesOptions) {
             // 处理资源数据
             if (statsResponse.data.resources) {
               Object.entries(statsResponse.data.resources).forEach(([key, resource]: [string, any]) => {
-                if (key in balance) {
-                  balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
+                // 映射 food 到 grain
+                const resourceKey = key === 'food' ? 'grain' : key
+                if (resourceKey in balance) {
+                  balance[resourceKey as keyof ResourceBalance] = resource.available || resource.amount || 0
                 }
               })
             }
