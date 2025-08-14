@@ -37,7 +37,6 @@ import { BetaPasswordModal, hasBetaAccess } from '@/components/mining/BetaPasswo
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { useMyYLDMines, useYLDMineDetail } from '@/hooks/useYLDMines'
-import { useMyLands } from '@/hooks/useLands'
 import {
   useMiningSessions,
   useMyTools,
@@ -48,7 +47,8 @@ import {
   useStopProduction,
   useCollectOutput,
   useGrainStatus,
-  useProductionStats
+  useProductionStats,
+  useUserLands  // 添加获取用户土地的 Hook
 } from '@/hooks/useProduction'
 import type { YLDMine, YLDMineDetail, Land } from '@/types/assets'
 import type { MiningSession, Tool } from '@/types/production'
@@ -112,13 +112,15 @@ export default function MiningPage() {
     error: detailError = null
   } = useYLDMineDetail(shouldFetchData ? selectedMineId : null) || {}
   
-  // 用户土地数据
+  // 用户土地数据 - 使用新的 Hook
   const { 
-    lands: userLands = [], 
-    loading: landsLoading = false, 
-    error: landsError = null,
-    refetch: refetchLands = () => {}
-  } = useMyLands() || {}
+    lands: userLands, 
+    loading: landsLoading, 
+    error: landsError,
+    refetch: refetchLands
+  } = useUserLands({
+    enabled: shouldFetchData
+  })
   
   // 挖矿生产数据 - 使用修复后的 hooks，传递 enabled 参数控制是否获取数据
   const { 
@@ -1147,7 +1149,7 @@ export default function MiningPage() {
                 <option value="">请选择土地</option>
                 {userLands.map(land => (
                   <option key={land.id} value={land.id}>
-                    {land.land_id} - {land.land_type_display}
+                    {land.land_id} - {land.blueprint?.land_type_display || '未知类型'}
                   </option>
                 ))}
               </select>
@@ -1160,7 +1162,7 @@ export default function MiningPage() {
           <div>
             <label className="text-sm font-bold text-gray-300">选择工具</label>
             <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-              {tools?.filter(t => t.status === 'idle').map(tool => (
+              {tools?.filter(t => t.status === 'normal' && !t.is_in_use).map(tool => (
                 <label key={tool.id} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1174,7 +1176,7 @@ export default function MiningPage() {
                     }}
                   />
                   <span className="text-sm">
-                    {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability})
+                    {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability || tool.current_durability})
                   </span>
                 </label>
               ))}
