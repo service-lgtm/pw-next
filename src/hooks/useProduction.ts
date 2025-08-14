@@ -1,21 +1,23 @@
 // src/hooks/useProduction.ts
-// 挖矿生产系统 Hook - 修复版本
+// 挖矿生产系统 Hook - 完整版本
 //
 // 文件说明：
 // 1. 本文件提供挖矿生产相关的数据获取和操作 Hook
 // 2. 包括挖矿会话、工具、资源、合成等
 // 3. 自动处理加载状态、错误处理和数据缓存
-// 4. 修复了条件调用 Hook 的问题，确保 Hook 始终返回一致的结构
+// 4. 支持新的资源统计接口 /production/resources/stats/
 //
 // 关联文件：
 // - src/lib/api/production.ts: 生产系统 API 接口
 // - src/types/production.ts: 生产系统类型定义
 // - src/app/mining/page.tsx: 挖矿页面使用这些 Hook
+// - src/app/mining/MiningSessions.tsx: 挖矿会话管理组件
+// - backend/production/views.py: 后端 ResourceStatsView
 //
-// 修复说明：
-// - 移除了条件参数传递，改为在 Hook 内部处理条件逻辑
-// - 确保所有 Hook 始终返回相同的数据结构
-// - 添加了 enabled 参数来控制是否执行数据获取
+// 更新历史：
+// - 2024-01: 添加 useResourceStats Hook 支持新的统计接口
+// - 2024-01: 修复条件调用 Hook 的问题
+// - 2024-01: 优化资源获取逻辑，优先使用统计接口
 
 import { useState, useEffect, useCallback } from 'react'
 import { productionApi } from '@/lib/api/production'
@@ -85,165 +87,6 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
   }
 }
 
-// ==================== 获取资源统计（增强版） ====================
-interface UseResourceStatsOptions {
-  enabled?: boolean
-  autoRefresh?: boolean
-  refreshInterval?: number
-}
-
-export function useResourceStats(options?: UseResourceStatsOptions) {
-  const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const { 
-    enabled = true,
-    autoRefresh = false,
-    refreshInterval = 30000 // 30秒
-  } = options || {}
-
-  const fetchStats = useCallback(async () => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await productionApi.resources.getResourceStats()
-      
-      if (response.success && response.data) {
-        setStats(response.data)
-      }
-    } catch (err) {
-      console.error('[useResourceStats] Error:', err)
-      setError(err instanceof Error ? err.message : '加载失败')
-      setStats(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [enabled])
-
-  useEffect(() => {
-    fetchStats()
-    
-    // 设置自动刷新
-    if (autoRefresh && enabled) {
-      const interval = setInterval(fetchStats, refreshInterval)
-      return () => clearInterval(interval)
-    }
-  }, [fetchStats, autoRefresh, enabled, refreshInterval])
-
-  return { 
-    stats, 
-    loading, 
-    error, 
-    refetch: fetchStats 
-  }
-}
-
-
-// ==================== 获取我的资源（兼容旧版） ====================
-export function useMyResources(options?: UseMyResourcesOptions) {
-  const [resources, setResources] = useState<ResourceBalance | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const { enabled = true } = options || {}
-
-  const fetchResources = useCallback(async () => {
-    if (!enabled) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // 优先尝试使用新的统计接口
-      try {
-        const statsResponse = await productionApi.resources.getResourceStats()
-        
-        if (statsResponse.success && statsResponse.data) {
-          // 从统计数据中提取资源余额
-          const balance: ResourceBalance = {
-            wood: 0,
-            iron: 0,
-            stone: 0,
-            yld: 0,
-            grain: 0,
-            seed: 0,
-            brick: 0
-          }
-          
-          // 处理资源数据
-          Object.entries(statsResponse.data.resources).forEach(([key, resource]) => {
-            if (key in balance) {
-              balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
-            }
-          })
-          
-          // 处理钱包中的 YLD
-          if (statsResponse.data.wallet?.yld_balance) {
-            balance.yld += statsResponse.data.wallet.yld_balance
-          }
-          
-          setResources(balance)
-          return
-        }
-      } catch (statsError) {
-        console.log('[useMyResources] 统计接口失败，尝试旧接口')
-      }
-      
-      // 如果新接口失败，回退到旧接口
-      const response = await productionApi.resources.getMyResources()
-      
-      if (response.results) {
-        const balance: ResourceBalance = {
-          wood: 0,
-          iron: 0,
-          stone: 0,
-          yld: 0,
-          grain: 0,
-          seed: 0,
-          brick: 0
-        }
-        
-        response.results.forEach(resource => {
-          const key = resource.resource_type as keyof ResourceBalance
-          if (key in balance) {
-            balance[key] = parseFloat(resource.available_amount || resource.amount)
-          }
-        })
-        
-        setResources(balance)
-      }
-    } catch (err) {
-      console.error('[useMyResources] Error:', err)
-      setError(err instanceof Error ? err.message : '加载失败')
-      setResources(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [enabled])
-
-  useEffect(() => {
-    fetchResources()
-  }, [fetchResources])
-
-  return { 
-    resources, 
-    loading, 
-    error, 
-    refetch: fetchResources 
-  }
-}
-
-
 // ==================== 获取我的工具 ====================
 interface UseMyToolsOptions {
   tool_type?: 'pickaxe' | 'axe' | 'hoe'
@@ -302,9 +145,75 @@ export function useMyTools(options?: UseMyToolsOptions) {
   }
 }
 
+// ==================== 获取资源统计（增强版） ====================
+// 使用新的 /production/resources/stats/ 接口
+// 返回详细的资源统计信息，包括价值、分布等
+interface UseResourceStatsOptions {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+export function useResourceStats(options?: UseResourceStatsOptions) {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { 
+    enabled = true,
+    autoRefresh = false,
+    refreshInterval = 30000 // 30秒
+  } = options || {}
+
+  const fetchStats = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useResourceStats] 开始获取资源统计')
+      const response = await productionApi.resources.getResourceStats()
+      
+      if (response.success && response.data) {
+        console.log('[useResourceStats] 获取成功:', response.data)
+        setStats(response.data)
+      }
+    } catch (err) {
+      console.error('[useResourceStats] Error:', err)
+      setError(err instanceof Error ? err.message : '加载失败')
+      setStats(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    fetchStats()
+    
+    // 设置自动刷新
+    if (autoRefresh && enabled) {
+      const interval = setInterval(fetchStats, refreshInterval)
+      return () => clearInterval(interval)
+    }
+  }, [fetchStats, autoRefresh, enabled, refreshInterval])
+
+  return { 
+    stats, 
+    loading, 
+    error, 
+    refetch: fetchStats 
+  }
+}
+
 // ==================== 获取我的资源 ====================
+// 兼容旧版接口，同时尝试使用新的统计接口
 interface UseMyResourcesOptions {
   enabled?: boolean
+  useStats?: boolean  // 是否优先使用统计接口
 }
 
 export function useMyResources(options?: UseMyResourcesOptions) {
@@ -312,7 +221,7 @@ export function useMyResources(options?: UseMyResourcesOptions) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { enabled = true } = options || {}
+  const { enabled = true, useStats = true } = options || {}
 
   const fetchResources = useCallback(async () => {
     if (!enabled) {
@@ -324,6 +233,50 @@ export function useMyResources(options?: UseMyResourcesOptions) {
       setLoading(true)
       setError(null)
       
+      // 优先尝试使用新的统计接口
+      if (useStats) {
+        try {
+          console.log('[useMyResources] 尝试使用统计接口')
+          const statsResponse = await productionApi.resources.getResourceStats()
+          
+          if (statsResponse.success && statsResponse.data) {
+            // 从统计数据中提取资源余额
+            const balance: ResourceBalance = {
+              wood: 0,
+              iron: 0,
+              stone: 0,
+              yld: 0,
+              grain: 0,
+              seed: 0,
+              brick: 0
+            }
+            
+            // 处理资源数据
+            if (statsResponse.data.resources) {
+              Object.entries(statsResponse.data.resources).forEach(([key, resource]: [string, any]) => {
+                if (key in balance) {
+                  balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
+                }
+              })
+            }
+            
+            // 处理钱包中的 YLD（如果需要合并）
+            // 注意：这里暂不合并钱包中的 YLD，因为它们通常分开管理
+            // if (statsResponse.data.wallet?.yld_balance) {
+            //   balance.yld += statsResponse.data.wallet.yld_balance
+            // }
+            
+            console.log('[useMyResources] 从统计接口获取成功:', balance)
+            setResources(balance)
+            return
+          }
+        } catch (statsError) {
+          console.log('[useMyResources] 统计接口失败，尝试旧接口:', statsError)
+        }
+      }
+      
+      // 如果新接口失败或不使用，回退到旧接口
+      console.log('[useMyResources] 使用旧接口')
       const response = await productionApi.resources.getMyResources()
       
       // 处理后端实际返回的格式
@@ -345,6 +298,7 @@ export function useMyResources(options?: UseMyResourcesOptions) {
           }
         })
         
+        console.log('[useMyResources] 从旧接口获取成功:', balance)
         setResources(balance)
       }
     } catch (err) {
@@ -354,7 +308,7 @@ export function useMyResources(options?: UseMyResourcesOptions) {
     } finally {
       setLoading(false)
     }
-  }, [enabled])
+  }, [enabled, useStats])
 
   useEffect(() => {
     fetchResources()
@@ -533,6 +487,7 @@ export function useLandMiningInfo(landId: number | null, options?: { enabled?: b
 }
 
 // ==================== 开始自主挖矿 ====================
+// 优化版：添加更多的验证和提示
 export function useStartSelfMining() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -542,13 +497,32 @@ export function useStartSelfMining() {
       setLoading(true)
       setError(null)
       
+      // 前端验证
+      if (!data.land_id) {
+        throw new Error('请选择土地')
+      }
+      
+      if (!data.tool_ids || data.tool_ids.length === 0) {
+        throw new Error('请至少选择一个工具')
+      }
+      
+      // 调用 API
       const response = await productionApi.mining.startSelfMining(data)
       
       if (response.success) {
-        toast.success(response.message || '开始挖矿成功')
+        // 成功提示
+        toast.success(response.message || '开始挖矿成功！')
+        
+        // 如果有警告信息（如粮食不足），显示警告
         if (response.data.warning) {
-          toast(response.data.warning, { icon: '⚠️' })
+          setTimeout(() => {
+            toast(response.data.warning, { 
+              icon: '⚠️',
+              duration: 5000 
+            })
+          }, 1000)
         }
+        
         return response.data.session
       } else {
         throw new Error(response.message || '开始挖矿失败')
@@ -639,10 +613,23 @@ export function useSynthesizeTool() {
       setLoading(true)
       setError(null)
       
+      // 验证
+      if (!data.tool_type) {
+        throw new Error('请选择工具类型')
+      }
+      
+      if (!data.quantity || data.quantity < 1) {
+        throw new Error('请输入正确的数量')
+      }
+      
+      if (data.quantity > 10) {
+        throw new Error('一次最多合成10个')
+      }
+      
       const response = await productionApi.synthesis.synthesizeTool(data)
       
       if (response.success) {
-        toast.success(`成功合成 ${data.quantity} 个工具`)
+        toast.success(`成功合成 ${data.quantity} 个工具！`)
         return response.data
       } else {
         throw new Error(response.message || '合成失败')
@@ -678,6 +665,14 @@ export function useStopProduction() {
       
       if (response.success) {
         toast.success('已停止生产')
+        
+        // 如果有额外信息，显示
+        if (response.data?.total_output) {
+          toast.success(`本次共产出: ${response.data.total_output}`, {
+            duration: 4000
+          })
+        }
+        
         return response.data
       } else {
         throw new Error(response.message || '停止失败')
@@ -710,7 +705,10 @@ export function useCollectOutput() {
       })
       
       if (response.success) {
-        toast.success(`收取了 ${response.data.collected_amount} ${response.data.resource_type}`)
+        const amount = response.data.collected_amount
+        const resourceType = response.data.resource_type
+        
+        toast.success(`成功收取 ${amount} ${resourceType}！`)
         return response.data
       } else {
         throw new Error(response.message || '收取失败')
@@ -765,7 +763,10 @@ export function useGrainStatus(options?: UseGrainStatusOptions) {
         
         // 如果粮食不足，显示警告
         if (response.data.warning) {
-          toast(response.data.message || '粮食储备不足', { icon: '⚠️' })
+          toast(response.data.message || '粮食储备不足', { 
+            icon: '⚠️',
+            duration: 5000
+          })
         }
       }
     } catch (err) {
