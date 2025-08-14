@@ -624,7 +624,6 @@ export default function MiningPage() {
                         </PixelButton>
                       </PixelCard>
                     ) : yldMines && yldMines.length > 0 ? (
-                      {yldMines && yldMines.length > 0 ? (
                       <div className="grid gap-4">
                         {yldMines.map((mine) => (
                           <PixelCard 
@@ -753,7 +752,6 @@ export default function MiningPage() {
                           <p className="text-gray-400 mt-2">加载中...</p>
                         </PixelCard>
                       ) : sessions && sessions.length > 0 ? (
-                      {sessions && sessions.length > 0 ? (
                         <div className="space-y-3">
                           {sessions.map((session) => (
                             <PixelCard key={session.id} className="p-4">
@@ -818,7 +816,6 @@ export default function MiningPage() {
                           <p className="text-gray-400 mt-2">加载中...</p>
                         </PixelCard>
                       ) : tools && tools.length > 0 ? (
-                      {tools && tools.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {tools.map((tool) => (
                             <PixelCard key={tool.id} className="p-3">
