@@ -85,6 +85,165 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
   }
 }
 
+// ==================== 获取资源统计（增强版） ====================
+interface UseResourceStatsOptions {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+export function useResourceStats(options?: UseResourceStatsOptions) {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { 
+    enabled = true,
+    autoRefresh = false,
+    refreshInterval = 30000 // 30秒
+  } = options || {}
+
+  const fetchStats = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await productionApi.resources.getResourceStats()
+      
+      if (response.success && response.data) {
+        setStats(response.data)
+      }
+    } catch (err) {
+      console.error('[useResourceStats] Error:', err)
+      setError(err instanceof Error ? err.message : '加载失败')
+      setStats(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    fetchStats()
+    
+    // 设置自动刷新
+    if (autoRefresh && enabled) {
+      const interval = setInterval(fetchStats, refreshInterval)
+      return () => clearInterval(interval)
+    }
+  }, [fetchStats, autoRefresh, enabled, refreshInterval])
+
+  return { 
+    stats, 
+    loading, 
+    error, 
+    refetch: fetchStats 
+  }
+}
+
+
+// ==================== 获取我的资源（兼容旧版） ====================
+export function useMyResources(options?: UseMyResourcesOptions) {
+  const [resources, setResources] = useState<ResourceBalance | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enabled = true } = options || {}
+
+  const fetchResources = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // 优先尝试使用新的统计接口
+      try {
+        const statsResponse = await productionApi.resources.getResourceStats()
+        
+        if (statsResponse.success && statsResponse.data) {
+          // 从统计数据中提取资源余额
+          const balance: ResourceBalance = {
+            wood: 0,
+            iron: 0,
+            stone: 0,
+            yld: 0,
+            grain: 0,
+            seed: 0,
+            brick: 0
+          }
+          
+          // 处理资源数据
+          Object.entries(statsResponse.data.resources).forEach(([key, resource]) => {
+            if (key in balance) {
+              balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
+            }
+          })
+          
+          // 处理钱包中的 YLD
+          if (statsResponse.data.wallet?.yld_balance) {
+            balance.yld += statsResponse.data.wallet.yld_balance
+          }
+          
+          setResources(balance)
+          return
+        }
+      } catch (statsError) {
+        console.log('[useMyResources] 统计接口失败，尝试旧接口')
+      }
+      
+      // 如果新接口失败，回退到旧接口
+      const response = await productionApi.resources.getMyResources()
+      
+      if (response.results) {
+        const balance: ResourceBalance = {
+          wood: 0,
+          iron: 0,
+          stone: 0,
+          yld: 0,
+          grain: 0,
+          seed: 0,
+          brick: 0
+        }
+        
+        response.results.forEach(resource => {
+          const key = resource.resource_type as keyof ResourceBalance
+          if (key in balance) {
+            balance[key] = parseFloat(resource.available_amount || resource.amount)
+          }
+        })
+        
+        setResources(balance)
+      }
+    } catch (err) {
+      console.error('[useMyResources] Error:', err)
+      setError(err instanceof Error ? err.message : '加载失败')
+      setResources(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    fetchResources()
+  }, [fetchResources])
+
+  return { 
+    resources, 
+    loading, 
+    error, 
+    refetch: fetchResources 
+  }
+}
+
+
 // ==================== 获取我的工具 ====================
 interface UseMyToolsOptions {
   tool_type?: 'pickaxe' | 'axe' | 'hoe'
