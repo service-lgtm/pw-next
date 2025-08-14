@@ -12,11 +12,13 @@
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/types/production 中的 MiningSession 类型
 // - 使用 @/hooks/useProduction 中的相关 hooks
+// - 后端 FOOD_CONSUMPTION_RATE = 2（每工具每小时消耗2单位粮食）
 //
 // 更新历史：
 // - 2024-01: 添加挖矿规则提示
 // - 2024-01: 优化开始挖矿的交互流程
 // - 2024-01: 添加确认对话框
+// - 2024-01: 修正粮食消耗为2单位/工具/小时
 
 'use client'
 
@@ -39,6 +41,10 @@ interface MiningSessionsProps {
   onCollectOutput: (sessionId: number) => Promise<void>
   startMiningLoading?: boolean
 }
+
+// 常量定义 - 匹配后端设置
+const FOOD_CONSUMPTION_RATE = 2  // 每工具每小时消耗粮食
+const DURABILITY_CONSUMPTION_RATE = 1  // 每工具每小时消耗耐久
 
 /**
  * 格式化时间差
@@ -164,9 +170,12 @@ export function MiningSessions({
     const myRatio = metadata.my_ratio ?? 1
     const toolCount = metadata.tool_count || metadata.my_tools || 0
     const taxRate = metadata.tax_rate ?? 0.05
+    
+    // 粮食消耗率 - 使用常量计算或从后端获取
     const foodConsumption = metadata.food_consumption_rate || 
                             metadata.grain_consumption_rate || 
-                            session?.grain_consumption_rate || 0
+                            session?.grain_consumption_rate || 
+                            (toolCount * FOOD_CONSUMPTION_RATE)
     
     // 安全地计算挖矿时长
     const miningDuration = session?.started_at ? formatDuration(session.started_at) : '未知'
@@ -383,6 +392,7 @@ export function MiningSessions({
                   <li>• 工具耐久度会持续消耗，耐久度为0时工具损坏</li>
                   <li>• 粮食不足时生产会自动暂停</li>
                   <li>• 请确保有足够的粮食储备再开始挖矿</li>
+                  <li>• 每个工具每小时消耗 {FOOD_CONSUMPTION_RATE} 单位粮食</li>
                 </ul>
               </div>
             </div>
@@ -456,11 +466,11 @@ export function MiningSessions({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-gray-400">工具耐久:</span>
-                  <span className="text-yellow-400">{selectedTools.length} 点/工具</span>
+                  <span className="text-yellow-400">{selectedTools.length * DURABILITY_CONSUMPTION_RATE} 点/工具</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">粮食消耗:</span>
-                  <span className="text-yellow-400">{selectedTools.length * 10} 单位</span>
+                  <span className="text-yellow-400">{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位</span>
                 </div>
               </div>
               <p className="text-xs text-gray-400 mt-2">
@@ -515,7 +525,7 @@ export function MiningSessions({
                 <p className="text-gray-400 mb-1">挖矿信息：</p>
                 <p>土地：{selectedLand?.land_id}</p>
                 <p>工具数量：{selectedTools.length} 个</p>
-                <p>预计粮食消耗：{selectedTools.length * 10} 单位/小时</p>
+                <p>预计粮食消耗：{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位/小时</p>
                 <p className="text-yellow-400 mt-1">
                   注：实际消耗根据土地类型可能不同
                 </p>
