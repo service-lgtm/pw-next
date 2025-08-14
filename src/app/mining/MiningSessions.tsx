@@ -1,16 +1,22 @@
-// src/components/mining/MiningSessions.tsx
-// 挖矿会话管理组件
+// src/app/mining/MiningSessions.tsx
+// 挖矿会话管理组件 - 优化版
 // 
 // 功能说明：
 // 1. 显示活跃的挖矿会话列表
-// 2. 支持开始新的挖矿会话
+// 2. 支持开始新的挖矿会话（带重要提示）
 // 3. 支持停止会话和收取产出
 // 4. 显示详细的挖矿数据（累计产出、挖矿时间等）
+// 5. 优化的用户交互体验和提示
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/types/production 中的 MiningSession 类型
 // - 使用 @/hooks/useProduction 中的相关 hooks
+//
+// 更新历史：
+// - 2024-01: 添加挖矿规则提示
+// - 2024-01: 优化开始挖矿的交互流程
+// - 2024-01: 添加确认对话框
 
 'use client'
 
@@ -75,8 +81,11 @@ export function MiningSessions({
   startMiningLoading = false
 }: MiningSessionsProps) {
   const [showStartModal, setShowStartModal] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [selectedTools, setSelectedTools] = useState<number[]>([])
+  const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | null>(null)
+  const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
   
   // 可用工具（正常状态且未使用）
   const availableTools = tools?.filter(t => t.status === 'normal' && !t.is_in_use) || []
@@ -93,21 +102,58 @@ export function MiningSessions({
     return sum + rate
   }, 0) || 0
   
-  // 开始挖矿
-  const handleStartMining = async () => {
+  // 打开开始挖矿模态框
+  const handleOpenStartModal = () => {
+    setShowStartModal(true)
+    setSelectedLand(null)
+    setSelectedTools([])
+  }
+  
+  // 确认开始挖矿
+  const handleConfirmStart = () => {
     if (!selectedLand || selectedTools.length === 0) {
       toast.error('请选择土地和工具')
       return
     }
     
+    setConfirmAction('start')
+    setShowConfirmModal(true)
+  }
+  
+  // 执行开始挖矿
+  const handleExecuteStart = async () => {
+    if (!selectedLand || selectedTools.length === 0) return
+    
     try {
       await onStartMining(selectedLand.id, selectedTools)
-      toast.success('开始挖矿成功！')
       setShowStartModal(false)
+      setShowConfirmModal(false)
       setSelectedLand(null)
       setSelectedTools([])
+      setConfirmAction(null)
     } catch (err) {
       console.error('开始挖矿失败:', err)
+    }
+  }
+  
+  // 确认停止会话
+  const handleConfirmStop = (sessionId: number) => {
+    setTargetSessionId(sessionId)
+    setConfirmAction('stop')
+    setShowConfirmModal(true)
+  }
+  
+  // 执行停止会话
+  const handleExecuteStop = async () => {
+    if (!targetSessionId) return
+    
+    try {
+      await onStopSession(targetSessionId)
+      setShowConfirmModal(false)
+      setTargetSessionId(null)
+      setConfirmAction(null)
+    } catch (err) {
+      console.error('停止生产失败:', err)
     }
   }
   
@@ -210,25 +256,6 @@ export function MiningSessions({
             </div>
           )}
           
-          {/* 最近结算信息 */}
-          {lastSettlement && (
-            <div className="p-2 bg-gray-800 rounded space-y-1">
-              <p className="text-xs text-gray-400">最近结算</p>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">产出:</span>
-                <span className="text-green-400">{formatNumber(lastSettlement.output, 2)} YLD</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">税收:</span>
-                <span className="text-red-400">-{formatNumber(lastSettlement.tax, 2)} YLD</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">净收入:</span>
-                <span className="text-gold-400">{formatNumber(lastSettlement.net, 2)} YLD</span>
-              </div>
-            </div>
-          )}
-          
           {/* 当前可收取产出 */}
           {session?.current_output && session.current_output > 0 && (
             <div className="flex items-center justify-between p-2 bg-gold-500/10 rounded">
@@ -255,7 +282,7 @@ export function MiningSessions({
             <PixelButton
               size="sm"
               variant="secondary"
-              onClick={() => onStopSession(session.id)}
+              onClick={() => handleConfirmStop(session.id)}
               className="w-full"
             >
               <span className="flex items-center justify-center gap-1">
@@ -290,7 +317,7 @@ export function MiningSessions({
           )}
         </div>
         <PixelButton
-          onClick={() => setShowStartModal(true)}
+          onClick={handleOpenStartModal}
           disabled={!userLands || userLands.length === 0}
           size="sm"
         >
@@ -324,7 +351,7 @@ export function MiningSessions({
           </p>
           {userLands && userLands.length > 0 && (
             <PixelButton 
-              onClick={() => setShowStartModal(true)}
+              onClick={handleOpenStartModal}
               size="sm"
             >
               开始挖矿
@@ -345,6 +372,22 @@ export function MiningSessions({
         size="medium"
       >
         <div className="space-y-4">
+          {/* 重要提示 */}
+          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
+            <div className="flex items-start gap-2">
+              <span className="text-red-500 text-xl">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm text-red-400 font-bold mb-1">重要提示</p>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li>• 挖矿开始后，<span className="text-red-400 font-bold">1小时内停止将按完整1小时扣除耐久和粮食</span></li>
+                  <li>• 工具耐久度会持续消耗，耐久度为0时工具损坏</li>
+                  <li>• 粮食不足时生产会自动暂停</li>
+                  <li>• 请确保有足够的粮食储备再开始挖矿</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
           {/* 选择土地 */}
           <div>
             <label className="text-sm font-bold text-gray-300">选择土地</label>
@@ -374,10 +417,10 @@ export function MiningSessions({
             <label className="text-sm font-bold text-gray-300">
               选择工具 {selectedTools.length > 0 && `(已选 ${selectedTools.length})`}
             </label>
-            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto bg-gray-800/50 rounded p-2">
               {availableTools.length > 0 ? (
                 availableTools.map(tool => (
-                  <label key={tool.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded">
+                  <label key={tool.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-700 p-2 rounded">
                     <input
                       type="checkbox"
                       checked={selectedTools.includes(tool.id)}
@@ -388,28 +431,38 @@ export function MiningSessions({
                           setSelectedTools(selectedTools.filter(id => id !== tool.id))
                         }
                       }}
-                      className="rounded"
+                      className="rounded text-gold-500"
                     />
                     <span className="text-sm flex-1">
                       {tool.tool_id} - {tool.tool_type_display}
                     </span>
                     <span className="text-xs text-gray-400">
-                      耐久: {tool.current_durability || 0}/{tool.max_durability || 1500}
+                      耐久: {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
                     </span>
                   </label>
                 ))
               ) : (
-                <p className="text-sm text-gray-400">暂无可用工具，请先合成工具</p>
+                <p className="text-sm text-gray-400 text-center py-4">
+                  暂无可用工具，请先合成工具
+                </p>
               )}
             </div>
           </div>
           
-          {/* 提示信息 */}
+          {/* 预计消耗 */}
           {selectedLand && selectedTools.length > 0 && (
             <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-              <p className="text-xs text-blue-400">
-                💡 即将在 {selectedLand.land_id} 使用 {selectedTools.length} 个工具开始挖矿
-              </p>
+              <p className="text-xs text-blue-400 font-bold mb-2">预计消耗（每小时）</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">工具耐久:</span>
+                  <span className="text-yellow-400">{selectedTools.length} 点/工具</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">粮食消耗:</span>
+                  <span className="text-yellow-400">{selectedTools.length * 10} 单位</span>
+                </div>
+              </div>
             </div>
           )}
           
@@ -417,14 +470,85 @@ export function MiningSessions({
           <div className="flex gap-3">
             <PixelButton
               className="flex-1"
-              onClick={handleStartMining}
+              onClick={handleConfirmStart}
               disabled={!selectedLand || selectedTools.length === 0 || startMiningLoading}
             >
-              {startMiningLoading ? '开始中...' : '开始挖矿'}
+              {startMiningLoading ? '开始中...' : '确认开始'}
             </PixelButton>
             <PixelButton
               variant="secondary"
               onClick={() => setShowStartModal(false)}
+            >
+              取消
+            </PixelButton>
+          </div>
+        </div>
+      </PixelModal>
+      
+      {/* 确认对话框 */}
+      <PixelModal
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false)
+          setConfirmAction(null)
+          setTargetSessionId(null)
+        }}
+        title={confirmAction === 'start' ? '确认开始挖矿' : '确认停止生产'}
+        size="small"
+      >
+        <div className="space-y-4">
+          {confirmAction === 'start' ? (
+            <>
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">⚠️</div>
+                <p className="text-sm text-gray-300 mb-2">
+                  您确定要开始挖矿吗？
+                </p>
+                <p className="text-xs text-red-400 font-bold">
+                  开始后1小时内停止将扣除完整1小时的资源消耗
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded p-3 text-xs">
+                <p className="text-gray-400 mb-1">挖矿信息：</p>
+                <p>土地：{selectedLand?.land_id}</p>
+                <p>工具数量：{selectedTools.length} 个</p>
+                <p>预计粮食消耗：{selectedTools.length * 10} 单位/小时</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">🛑</div>
+                <p className="text-sm text-gray-300 mb-2">
+                  您确定要停止这个生产会话吗？
+                </p>
+                <p className="text-xs text-yellow-400">
+                  停止后可以收取累计的产出
+                </p>
+              </div>
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+                <p className="text-xs text-yellow-400">
+                  ⚠️ 如果挖矿时间不足1小时，仍会扣除1小时的耐久和粮食
+                </p>
+              </div>
+            </>
+          )}
+          
+          <div className="flex gap-3">
+            <PixelButton
+              className="flex-1"
+              variant={confirmAction === 'stop' ? 'secondary' : 'primary'}
+              onClick={confirmAction === 'start' ? handleExecuteStart : handleExecuteStop}
+            >
+              确认{confirmAction === 'start' ? '开始' : '停止'}
+            </PixelButton>
+            <PixelButton
+              variant="secondary"
+              onClick={() => {
+                setShowConfirmModal(false)
+                setConfirmAction(null)
+                setTargetSessionId(null)
+              }}
             >
               取消
             </PixelButton>
