@@ -629,7 +629,7 @@ export default function MiningPage() {
                 <div>
                   <p className="text-gray-400">日产量</p>
                   <p className="font-bold text-yellow-400">
-                    {selectedMine.metadata?.daily_output || '100'} YLD/天
+                    待开放
                   </p>
                 </div>
                 <div>
