@@ -119,7 +119,15 @@ export function ToolManagement({
     
     for (const [material, amount] of Object.entries(recipe.materials)) {
       const required = amount * quantity
-      const available = resources[material] || 0
+      // 处理资源字段映射
+      let available = 0
+      if (material === 'grain' || material === 'food') {
+        // 粮食可能是 grain 或 food
+        available = resources.grain || resources.food || resources?.food || 0
+      } else {
+        available = resources[material] || 0
+      }
+      
       if (available < required) return false
     }
     return true
