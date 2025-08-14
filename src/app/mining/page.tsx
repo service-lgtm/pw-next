@@ -91,28 +91,28 @@ export default function MiningPage() {
   // ========== 数据获取 ==========
   const shouldFetchData = !authLoading && isAuthenticated
   
-  // YLD 矿山数据 - 提供默认值避免解构 undefined
+  // YLD 矿山数据
   const { 
-    mines: yldMines = [], 
-    loading: yldMinesLoading = false, 
-    error: yldMinesError = null, 
-    stats: yldStats = null,
-    totalCount: yldTotalCount = 0,
-    refetch: refetchYLDMines = () => {}
+    mines: yldMines, 
+    loading: yldMinesLoading, 
+    error: yldMinesError, 
+    stats: yldStats,
+    totalCount: yldTotalCount,
+    refetch: refetchYLDMines
   } = useMyYLDMines(shouldFetchData ? {
     page: 1,
     page_size: 50,
     ordering: '-created_at'
-  } : null) || {}
+  } : null)
   
-  // YLD 矿山详情 - 提供默认值
+  // YLD 矿山详情
   const { 
-    mine: selectedMine = null, 
-    loading: detailLoading = false, 
-    error: detailError = null
-  } = useYLDMineDetail(shouldFetchData ? selectedMineId : null) || {}
+    mine: selectedMine, 
+    loading: detailLoading, 
+    error: detailError
+  } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
   
-  // 用户土地数据 - 使用新的 Hook
+  // 用户土地数据
   const { 
     lands: userLands, 
     loading: landsLoading, 
@@ -122,7 +122,7 @@ export default function MiningPage() {
     enabled: shouldFetchData
   })
   
-  // 挖矿生产数据 - 使用修复后的 hooks，传递 enabled 参数控制是否获取数据
+  // 挖矿生产数据
   const { 
     sessions, 
     loading: sessionsLoading, 
@@ -138,8 +138,8 @@ export default function MiningPage() {
     stats: toolStats, 
     refetch: refetchTools
   } = useMyTools({
-    status: 'normal',  // 使用后端定义的状态值
-    is_in_use: false,  // 只获取未使用的工具
+    status: 'normal',
+    is_in_use: false,
     enabled: hasMiningAccess && shouldFetchData
   })
   
@@ -386,13 +386,13 @@ export default function MiningPage() {
                   <div className="text-center min-w-[100px]">
                     <div className="text-xs text-gray-400">YLD 总量</div>
                     <div className="text-sm font-bold text-purple-500">
-                      {formatYLD(yldStats.total_yld_capacity || 0)}
+                      {formatYLD(yldStats.total_yld_capacity)}
                     </div>
                   </div>
                   <div className="text-center min-w-[80px]">
                     <div className="text-xs text-gray-400">生产中</div>
                     <div className="text-sm font-bold text-green-500">
-                      {yldStats.producing_count || 0}
+                      {yldStats.producing_count}
                     </div>
                   </div>
                 </>
@@ -772,10 +772,10 @@ export default function MiningPage() {
                               <div className="flex justify-between items-start">
                                 <div>
                                   <h4 className="font-bold text-gold-500">
-                                    {session.land_info.land_id}
+                                    {session.land_info?.land_id || '未知土地'}
                                   </h4>
                                   <p className="text-sm text-gray-400">
-                                    {session.land_info.land_type} · {session.land_info.region_name}
+                                    {session.land_info?.land_type || '未知'} · {session.land_info?.region_name || '未知'}
                                   </p>
                                   <div className="mt-2 text-sm">
                                     <p>产出速率: <span className="text-green-400">{session.output_rate}/小时</span></p>
@@ -817,7 +817,7 @@ export default function MiningPage() {
                         <h3 className="text-lg font-bold">工具列表</h3>
                         {toolStats && (
                           <div className="text-sm text-gray-400">
-                            总计: {toolStats.total_count || toolStats.total_tools} | 
+                            总计: {toolStats.total_count || toolStats.total_tools || 0} | 
                             正常: {toolStats.by_status?.normal || 0} | 
                             损坏: {toolStats.by_status?.damaged || 0} | 
                             维修中: {toolStats.by_status?.repairing || 0}
@@ -845,13 +845,13 @@ export default function MiningPage() {
                                         <div
                                           className={cn(
                                             "h-full rounded-full",
-                                            tool.durability > 750 ? "bg-green-500" :
-                                            tool.durability > 300 ? "bg-yellow-500" : "bg-red-500"
+                                            (tool.durability || tool.current_durability || 0) > 750 ? "bg-green-500" :
+                                            (tool.durability || tool.current_durability || 0) > 300 ? "bg-yellow-500" : "bg-red-500"
                                           )}
-                                          style={{ width: `${(tool.durability / tool.max_durability) * 100}%` }}
+                                          style={{ width: `${((tool.durability || tool.current_durability || 0) / (tool.max_durability || 1500)) * 100}%` }}
                                         />
                                       </div>
-                                      <span className="text-xs">{tool.durability}/{tool.max_durability}</span>
+                                      <span className="text-xs">{tool.durability || tool.current_durability || 0}/{tool.max_durability || 1500}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1140,7 +1140,7 @@ export default function MiningPage() {
           {/* 选择土地 */}
           <div>
             <label className="text-sm font-bold text-gray-300">选择土地</label>
-            {userLands.length > 0 ? (
+            {userLands && userLands.length > 0 ? (
               <select
                 className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
                 value={selectedLand?.id || ''}
@@ -1165,24 +1165,28 @@ export default function MiningPage() {
           <div>
             <label className="text-sm font-bold text-gray-300">选择工具</label>
             <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-              {tools?.filter(t => t.status === 'normal' && !t.is_in_use).map(tool => (
-                <label key={tool.id} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedTools.includes(tool.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedTools([...selectedTools, tool.id])
-                      } else {
-                        setSelectedTools(selectedTools.filter(id => id !== tool.id))
-                      }
-                    }}
-                  />
-                  <span className="text-sm">
-                    {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability || tool.current_durability})
-                  </span>
-                </label>
-              ))}
+              {tools && tools.length > 0 ? (
+                tools.filter(t => t.status === 'normal' && !t.is_in_use).map(tool => (
+                  <label key={tool.id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedTools.includes(tool.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedTools([...selectedTools, tool.id])
+                        } else {
+                          setSelectedTools(selectedTools.filter(id => id !== tool.id))
+                        }
+                      }}
+                    />
+                    <span className="text-sm">
+                      {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability || tool.current_durability || 0})
+                    </span>
+                  </label>
+                ))
+              ) : (
+                <p className="text-sm text-gray-400">暂无可用工具</p>
+              )}
             </div>
           </div>
           
