@@ -42,21 +42,21 @@ export const productionApi = {
   mining: {
     // 开始自主挖矿
     startSelfMining: (data: StartSelfMiningRequest) =>
-      request<StartMiningResponse>('/production/mining/start-self/', {
+      request<StartMiningResponse>('/production/mining/self/start/', {
         method: 'POST',
         body: data,
       }),
 
     // 添加工具到挖矿
-    addTool: (data: AddToolToMiningRequest) =>
-      request<AddToolResponse>('/production/mining/add-tool/', {
+    addTools: (data: AddToolToMiningRequest) =>
+      request<AddToolResponse>('/production/mining/self/add-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 从挖矿移除工具
-    removeTool: (data: RemoveToolFromMiningRequest) =>
-      request<RemoveToolResponse>('/production/mining/remove-tool/', {
+    removeTools: (data: RemoveToolFromMiningRequest) =>
+      request<RemoveToolResponse>('/production/mining/self/remove-tools/', {
         method: 'POST',
         body: data,
       }),
@@ -67,15 +67,11 @@ export const productionApi = {
       page?: number
       page_size?: number
     }) =>
-      request<MiningSessionListResponse>('/production/mining/sessions/', { params }),
-
-    // 获取挖矿会话详情
-    getSessionDetail: (sessionId: number) =>
-      request<MiningSession>(`/production/mining/sessions/${sessionId}/`),
+      request<MiningSessionListResponse>('/production/sessions/', { params }),
 
     // 收取产出
     collectOutput: (data: CollectOutputRequest) =>
-      request<CollectOutputResponse>('/production/mining/collect/', {
+      request<CollectOutputResponse>('/production/collect/', {
         method: 'POST',
         body: data,
       }),
@@ -89,7 +85,7 @@ export const productionApi = {
           final_output: number
           tools_released: number
         }
-      }>('/production/mining/stop/', {
+      }>('/production/stop/', {
         method: 'POST',
         body: data,
       }),
@@ -106,44 +102,24 @@ export const productionApi = {
           deposited_tools: number
           land_id: string
         }
-      }>('/production/hiring/deposit-tools/', {
+      }>('/production/mining/recruit/deposit-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 带工具打工
-    startWithTool: (data: StartHiredMiningWithToolRequest) =>
-      request<StartMiningResponse>('/production/hiring/start-with-tool/', {
+    startWithTools: (data: StartHiredMiningWithToolRequest) =>
+      request<StartMiningResponse>('/production/mining/work/with-tools/', {
         method: 'POST',
         body: data,
       }),
 
     // 无工具打工（借用工具）
-    startWithoutTool: (data: StartHiredMiningWithoutToolRequest) =>
-      request<StartMiningResponse>('/production/hiring/start-without-tool/', {
+    startWithoutTools: (data: StartHiredMiningWithoutToolRequest) =>
+      request<StartMiningResponse>('/production/mining/work/without-tools/', {
         method: 'POST',
         body: data,
       }),
-
-    // 获取可打工的土地列表
-    getAvailableLands: (params?: {
-      has_tools?: boolean  // 是否有存放工具
-      land_type?: string
-      page?: number
-      page_size?: number
-    }) =>
-      request<{
-        count: number
-        results: Array<{
-          land_id: number
-          land_id_str: string
-          land_type: string
-          owner_username: string
-          deposited_tools: number
-          daily_output: number
-          worker_share_rate: number  // 打工者分成比例
-        }>
-      }>('/production/hiring/available-lands/', { params }),
   },
 
   // ==================== 合成系统 ====================
@@ -156,8 +132,8 @@ export const productionApi = {
       }),
 
     // 合成砖头
-    synthesizeBrick: (data: SynthesizeBrickRequest) =>
-      request<SynthesisResponse>('/production/synthesis/brick/', {
+    synthesizeBricks: (data: SynthesizeBrickRequest) =>
+      request<SynthesisResponse>('/production/synthesis/bricks/', {
         method: 'POST',
         body: data,
       }),
@@ -189,27 +165,6 @@ export const productionApi = {
       page_size?: number
     }) =>
       request<ToolListResponse>('/production/tools/', { params }),
-
-    // 获取工具详情
-    getToolDetail: (toolId: number) =>
-      request<Tool>(`/production/tools/${toolId}/`),
-
-    // 修复工具
-    repairTool: (toolId: number) =>
-      request<{
-        success: boolean
-        message: string
-        data: {
-          tool_id: string
-          new_durability: number
-          repair_cost: {
-            iron?: number
-            wood?: number
-          }
-        }
-      }>(`/production/tools/${toolId}/repair/`, {
-        method: 'POST',
-      }),
   },
 
   // ==================== 资源管理 ====================
@@ -223,13 +178,16 @@ export const productionApi = {
           balance: ResourceBalance
         }
       }>('/production/resources/'),
+  },
 
-    // 获取资源历史记录
-    getResourceHistory: (params?: {
-      resource_type?: string
-      transaction_type?: string
-      start_date?: string
-      end_date?: string
+  // ==================== 统计与分析 ====================
+  stats: {
+    // 获取生产统计
+    getProductionStats: () =>
+      request<ProductionStatsResponse>('/production/stats/'),
+
+    // 获取生产记录
+    getProductionRecords: (params?: {
       page?: number
       page_size?: number
     }) =>
@@ -237,16 +195,15 @@ export const productionApi = {
         count: number
         results: Array<{
           id: number
+          session_id: string
           resource_type: string
           amount: string
-          transaction_type: string
-          description: string
           created_at: string
         }>
-      }>('/production/resources/history/', { params }),
+      }>('/production/records/', { params }),
 
     // 检查粮食状态
-    checkGrainStatus: () =>
+    checkFoodStatus: () =>
       request<{
         success: boolean
         data: {
@@ -257,51 +214,7 @@ export const productionApi = {
           warning: boolean
           message?: string
         }
-      }>('/production/resources/grain-status/'),
-  },
-
-  // ==================== 统计与分析 ====================
-  stats: {
-    // 获取生产统计
-    getProductionStats: () =>
-      request<ProductionStatsResponse>('/production/stats/'),
-
-    // 获取历史产出统计
-    getOutputHistory: (params?: {
-      days?: number  // 最近N天
-      group_by?: 'day' | 'hour'
-    }) =>
-      request<{
-        success: boolean
-        data: Array<{
-          date: string
-          wood: number
-          iron: number
-          stone: number
-          yld: number
-          grain: number
-        }>
-      }>('/production/stats/output-history/', { params }),
-
-    // 获取工具使用统计
-    getToolUsageStats: () =>
-      request<{
-        success: boolean
-        data: {
-          most_used_tools: Array<{
-            tool_id: string
-            tool_type: string
-            total_hours: number
-            total_output: number
-          }>
-          efficiency_by_type: {
-            pickaxe: number
-            axe: number
-            hoe: number
-          }
-          average_durability: number
-        }
-      }>('/production/stats/tool-usage/'),
+      }>('/production/food-status/'),
   },
 
   // ==================== 可用土地查询 ====================
