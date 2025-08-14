@@ -1,5 +1,17 @@
 // src/lib/api/assets.ts
-// 资产 API - 使用 JWT 认证
+// 资产 API - 包含 YLD 矿山接口
+// 
+// 文件说明：
+// 1. 本文件包含所有资产相关的 API 接口
+// 2. 包括区域、土地蓝图、土地、YLD矿山等
+// 3. 使用 JWT 认证，自动处理 token
+// 4. 支持公开和需要认证的端点
+//
+// 关联文件：
+// - src/lib/api/index.ts: 基础请求函数和认证管理
+// - src/types/assets.ts: 资产相关类型定义
+// - src/hooks/useLands.ts: 土地相关的 Hook
+// - src/hooks/useYLDMines.ts: YLD矿山相关的 Hook（需创建）
 
 import { API_BASE_URL, request, ApiError } from './index'
 import type { 
@@ -8,8 +20,80 @@ import type {
   LandDetail, 
   LandBlueprint, 
   LandTransaction,
-  PaginatedResponse 
+  PaginatedResponse
 } from '@/types/assets'
+
+// YLD 矿山类型定义（临时定义，应该移到 types/assets.ts）
+export interface YLDMine {
+  id: number
+  land_id: string
+  blueprint_name: string
+  land_type: string
+  land_type_display: string
+  size_sqm: number
+  region_name: string
+  coordinate_x: number
+  coordinate_y: number
+  owner: number
+  owner_username: string
+  status: string
+  status_display: string
+  current_price: string
+  initial_price: string
+  is_special: boolean
+  special_type: string
+  is_producing: boolean
+  production_started_at: string | null
+  accumulated_output: string
+  metadata: {
+    batch_id?: string
+    conversion_date?: string
+    yld_amount?: string
+    daily_output?: string
+    [key: string]: any
+  }
+  created_at: string
+  owned_at: string
+}
+
+export interface YLDMineDetail extends YLDMine {
+  blueprint: LandBlueprint
+  region: Region
+  transaction_count: number
+  last_transaction_price: string
+  total_transaction_volume: string
+  last_transaction_at: string | null
+  construction_level: number
+  is_under_construction: boolean
+  construction_started_at: string | null
+  is_rented: boolean
+  tenant: number | null
+  tenant_info: any
+  rental_price: string | null
+  recent_transactions: LandTransaction[]
+}
+
+export interface YLDMineStats {
+  total_stats: {
+    total_mines: number
+    total_yld_capacity: number
+    total_users: number
+    producing_count: number
+  }
+  batch_stats: Array<{
+    batch_id: string
+    created_at: string
+    mines_count: number
+    yld_converted: number
+    users_processed: number
+  }>
+  top_users: Array<{
+    user_id: number
+    username: string
+    mines_count: number
+    total_yld: number
+  }>
+}
 
 // 定义公开访问的端点模式
 const PUBLIC_ENDPOINTS = [
@@ -99,7 +183,7 @@ async function assetsRequest<T>(
 }
 
 export const assetsApi = {
-  // 区域相关
+  // ==================== 区域相关 ====================
   regions: {
     list: (params?: {
       region_type?: string
@@ -130,7 +214,7 @@ export const assetsApi = {
     }>(`/assets/regions/${id}/stats/`),
   },
   
-  // 蓝图相关
+  // ==================== 蓝图相关 ====================
   blueprints: {
     list: (params?: {
       land_type?: string
@@ -141,8 +225,9 @@ export const assetsApi = {
     get: (id: number) => assetsRequest<LandBlueprint>(`/assets/blueprints/${id}/`),
   },
   
-  // 土地相关
+  // ==================== 土地相关 ====================
   lands: {
+    // 可购买的土地列表
     available: (params?: {
       blueprint__land_type?: string
       region_id?: number
@@ -153,6 +238,7 @@ export const assetsApi = {
       page_size?: number
     }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/available/', { params }),
     
+    // 我的土地列表
     myLands: (params?: {
       blueprint__land_type?: string
       status?: string
@@ -163,8 +249,10 @@ export const assetsApi = {
       page_size?: number
     }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/my-lands/', { params }),
     
+    // 获取土地详情
     get: (id: number) => assetsRequest<LandDetail>(`/assets/lands/${id}/`),
     
+    // 购买土地
     buy: (data: {
       land_id: number
       payment_password: string
@@ -177,6 +265,7 @@ export const assetsApi = {
       body: JSON.stringify(data),
     }),
     
+    // 转让土地
     transfer: (data: {
       land_id: number
       to_user_id: number
@@ -190,6 +279,7 @@ export const assetsApi = {
       body: JSON.stringify(data),
     }),
     
+    // 土地交易历史
     transactions: (landId: number, params?: {
       transaction_type?: string
       ordering?: string
@@ -197,5 +287,74 @@ export const assetsApi = {
       `/assets/lands/${landId}/transactions/`,
       { params }
     ),
+  },
+  
+  // ==================== YLD 矿山相关 ====================
+  // 对应后端的 YLD 矿山接口
+  yldMines: {
+    // 获取我的 YLD 矿山列表
+    // 对应后端: /assets/yld-mines/
+    list: (params?: {
+      search?: string
+      ordering?: string
+      page?: number
+      page_size?: number
+    }) => assetsRequest<{
+      count: number
+      next: string | null
+      previous: string | null
+      results: YLDMine[]
+      stats?: {
+        total_mines: number
+        total_yld_capacity: number
+        total_accumulated_output: number
+        producing_count: number
+        by_batch: Array<{
+          batch_id: string
+          count: number
+          total_yld: number
+        }>
+      }
+    }>('/assets/yld-mines/', { params }),
+    
+    // 获取 YLD 矿山详情
+    // 对应后端: /assets/yld-mines/<id>/
+    get: (id: number) => assetsRequest<YLDMineDetail>(`/assets/yld-mines/${id}/`),
+    
+    // 开始生产（需要后续实现）
+    // 对应后端: /assets/yld-mines/<id>/start-production/
+    startProduction: (id: number) => assetsRequest<{
+      success: boolean
+      message: string
+      data: {
+        land_id: string
+        is_producing: boolean
+        production_started_at: string
+      }
+    }>(`/assets/yld-mines/${id}/start-production/`, {
+      method: 'POST',
+    }),
+    
+    // 收取产出（需要后续实现）
+    // 对应后端: /assets/yld-mines/<id>/collect/
+    collectOutput: (id: number) => assetsRequest<{
+      success: boolean
+      message: string
+      data: {
+        land_id: string
+        output_amount: number
+        accumulated_output: number
+        new_balance: number
+      }
+    }>(`/assets/yld-mines/${id}/collect/`, {
+      method: 'POST',
+    }),
+    
+    // 获取全平台统计（需要管理员权限）
+    // 对应后端: /assets/yld-mines/stats/
+    getAllStats: () => assetsRequest<{
+      success: boolean
+      data: YLDMineStats
+    }>('/assets/yld-mines/stats/'),
   },
 }
