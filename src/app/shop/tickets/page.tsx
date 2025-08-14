@@ -1,5 +1,6 @@
 // src/app/shop/tickets/page.tsx
-// 我的提货单列表页面 - 使用真实API
+// 我的提货单列表页面 - 完整生产版本
+// 修复：过期状态判断、图片URL处理、移除无用入口
 
 'use client'
 
@@ -14,6 +15,32 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { Ticket } from '@/lib/api'
 
+/**
+ * 提货单列表页面
+ * 
+ * 主要功能：
+ * 1. 展示用户的所有提货单
+ * 2. 状态筛选和搜索
+ * 3. 根据状态显示不同操作
+ * 4. 自动判断过期状态
+ * 
+ * API接口：
+ * - GET /api/v1/shop/tickets/ - 获取提货单列表
+ * - POST /api/v1/shop/tickets/{id}/cancel/ - 取消提货单
+ * 
+ * 相关页面：
+ * - /shop/tickets/{id} - 提货单详情
+ * - /shop/tdb/payment - 支付页面
+ * - /shop/tdb/ticket - 提货单操作页面
+ */
+
+// 扩展 Ticket 类型，添加后端返回的新字段
+interface ExtendedTicket extends Ticket {
+  is_expired?: boolean
+  actual_status?: string
+  actual_status_display?: string
+}
+
 // 状态筛选选项
 const statusOptions = [
   { value: '', label: '全部' },
@@ -25,10 +52,79 @@ const statusOptions = [
   { value: 'expired', label: '已过期' },
 ]
 
+/**
+ * 修复图片URL，确保使用正确的域名
+ */
+function fixImageUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined
+  
+  // 如果URL包含错误的域名，替换为正确的
+  if (url.includes('www.pxsj.net.cn') || (url.includes('pxsj.net.cn') && !url.includes('mg.pxsj.net.cn'))) {
+    if (url.includes('/media/')) {
+      const mediaPath = '/media/' + url.split('/media/')[1]
+      return `https://mg.pxsj.net.cn${mediaPath}`
+    }
+  }
+  
+  // 如果是相对路径，添加完整域名
+  if (url.startsWith('/media/')) {
+    return `https://mg.pxsj.net.cn${url}`
+  }
+  
+  return url
+}
+
+/**
+ * 判断提货单是否过期
+ * 优先使用后端返回的 is_expired 字段
+ */
+function isTicketExpired(ticket: ExtendedTicket): boolean {
+  // 如果后端返回了 is_expired 字段，直接使用
+  if (typeof ticket.is_expired === 'boolean') {
+    return ticket.is_expired
+  }
+  
+  // 兼容旧版本：如果后端没有返回 is_expired，则前端判断
+  if (ticket.status === 'expired') return true
+  if (ticket.status !== 'pending') return false
+  if (!ticket.expire_at) return false
+  
+  // 处理时间格式："2025-08-15 01:50:35" -> "2025-08-15T01:50:35+08:00"
+  let expireTimeStr = ticket.expire_at
+  if (!expireTimeStr.includes('T')) {
+    // 如果是 "YYYY-MM-DD HH:mm:ss" 格式，转换为ISO格式并加上时区
+    expireTimeStr = expireTimeStr.replace(' ', 'T') + '+08:00'
+  }
+  
+  const expireTime = new Date(expireTimeStr).getTime()
+  const now = new Date().getTime()
+  return now > expireTime
+}
+
+/**
+ * 获取实际显示状态
+ * 优先使用后端返回的 actual_status 和 actual_status_display
+ */
+function getActualStatus(ticket: ExtendedTicket): { status: string; display: string } {
+  // 如果后端返回了 actual_status，直接使用
+  if (ticket.actual_status && ticket.actual_status_display) {
+    return { 
+      status: ticket.actual_status, 
+      display: ticket.actual_status_display 
+    }
+  }
+  
+  // 兼容旧版本：前端判断
+  if (isTicketExpired(ticket)) {
+    return { status: 'expired', display: '已过期' }
+  }
+  return { status: ticket.status, display: ticket.status_display }
+}
+
 export default function MyTicketsPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [tickets, setTickets] = useState<ExtendedTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [availableOnly, setAvailableOnly] = useState(false)
@@ -70,11 +166,21 @@ export default function MyTicketsPage() {
       
       const response = await api.shop.tickets.list(params)
       
+      // 修复图片URL
+      const fixedResults = response.results.map((ticket: ExtendedTicket) => {
+        if (ticket.product_snapshot?.images) {
+          ticket.product_snapshot.images = ticket.product_snapshot.images
+            .map(fixImageUrl)
+            .filter(Boolean) as string[]
+        }
+        return ticket
+      })
+      
       if (reset) {
-        setTickets(response.results)
+        setTickets(fixedResults)
         setPage(1)
       } else {
-        setTickets(prev => [...prev, ...response.results])
+        setTickets(prev => [...prev, ...fixedResults])
       }
       
       setHasMore(!!response.next)
@@ -128,28 +234,32 @@ export default function MyTicketsPage() {
   }
 
   // 处理提货单操作
-  const handleTicketAction = (ticket: Ticket, action: string) => {
+  const handleTicketAction = (ticket: ExtendedTicket, action: string) => {
     switch (action) {
       case 'view':
-        router.push(`/shop/tickets/${ticket.id}`)
+        router.push(`/shop/tdb/ticket?id=${ticket.id}`)
         break
       case 'pay':
-        router.push(`/shop/tdb/payment?ticketId=${ticket.id}`)
+        // 检查是否过期
+        if (isTicketExpired(ticket)) {
+          toast.error('提货单已过期，无法支付')
+          return
+        }
+        router.push(`/shop/tdb/ticket?id=${ticket.id}`)
         break
       case 'cancel':
         handleCancelTicket(ticket)
-        break
-      case 'pickup':
-        router.push(`/shop/pickup/create?ticketId=${ticket.id}`)
-        break
-      case 'exchange':
-        router.push(`/shop/exchange/create?ticketId=${ticket.id}`)
         break
     }
   }
 
   // 取消提货单
-  const handleCancelTicket = async (ticket: Ticket) => {
+  const handleCancelTicket = async (ticket: ExtendedTicket) => {
+    if (isTicketExpired(ticket)) {
+      toast.error('提货单已过期')
+      return
+    }
+    
     if (!confirm('确定要取消该提货单吗？')) return
     
     try {
@@ -187,6 +297,13 @@ export default function MyTicketsPage() {
     return null
   }
 
+  // 统计各状态数量（考虑过期）
+  const statusCounts = tickets.reduce((acc, ticket) => {
+    const actualStatus = getActualStatus(ticket)
+    acc[actualStatus.status] = (acc[actualStatus.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       {/* 页面标题 */}
@@ -197,10 +314,10 @@ export default function MyTicketsPage() {
       >
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/shop/tdb')}
             className="text-gray-400 hover:text-white"
           >
-            ← 返回
+            ← 返回商城
           </button>
         </div>
         <h1 className="text-2xl md:text-3xl font-black text-white">
@@ -220,19 +337,19 @@ export default function MyTicketsPage() {
       >
         <PixelCard className="p-4 text-center">
           <p className="text-2xl font-bold text-green-500">
-            {tickets.filter(t => t.status === 'active').length}
+            {statusCounts.active || 0}
           </p>
           <p className="text-sm text-gray-400 mt-1">可使用</p>
         </PixelCard>
         <PixelCard className="p-4 text-center">
           <p className="text-2xl font-bold text-yellow-500">
-            {tickets.filter(t => t.status === 'pending').length}
+            {statusCounts.pending || 0}
           </p>
           <p className="text-sm text-gray-400 mt-1">待支付</p>
         </PixelCard>
         <PixelCard className="p-4 text-center">
           <p className="text-2xl font-bold text-blue-500">
-            {tickets.filter(t => t.status === 'paid').length}
+            {statusCounts.paid || 0}
           </p>
           <p className="text-sm text-gray-400 mt-1">待审核</p>
         </PixelCard>
@@ -317,137 +434,166 @@ export default function MyTicketsPage() {
       ) : (
         <>
           <div className="space-y-4">
-            {tickets.map((ticket, index) => (
-              <motion.div
-                key={ticket.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index * 0.05, 0.3) }}
-              >
-                <PixelCard className="p-4 md:p-6 hover:border-gold-500/50 transition-all">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    {/* 商品信息 */}
-                    <div className="flex gap-4 flex-1">
-                      {ticket.product_snapshot.images?.[0] && (
+            {tickets.map((ticket, index) => {
+              const actualStatus = getActualStatus(ticket)
+              const isExpired = actualStatus.status === 'expired'
+              
+              return (
+                <motion.div
+                  key={ticket.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.05, 0.3) }}
+                >
+                  <PixelCard className={cn(
+                    "p-4 md:p-6 transition-all",
+                    isExpired ? "opacity-60" : "hover:border-gold-500/50"
+                  )}>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {/* 商品信息 */}
+                      <div className="flex gap-4 flex-1">
+                        {/* 商品图片 */}
                         <div className="w-20 h-20 bg-gray-800 rounded overflow-hidden flex-shrink-0">
-                          <img 
-                            src={ticket.product_snapshot.images[0]} 
-                            alt={ticket.product_name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.currentTarget as HTMLImageElement
-                              const placeholder = document.createElement('div')
-                              placeholder.className = 'w-full h-full flex items-center justify-center text-3xl opacity-20'
-                              placeholder.textContent = '📦'
-                              target.parentElement?.replaceChild(placeholder, target)
-                            }}
-                          />
+                          {ticket.product_snapshot?.images?.[0] ? (
+                            <img 
+                              src={ticket.product_snapshot.images[0]}
+                              alt={ticket.product_name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement
+                                target.style.display = 'none'
+                                const placeholder = document.createElement('div')
+                                placeholder.className = 'w-full h-full flex items-center justify-center text-3xl opacity-20'
+                                placeholder.textContent = '📦'
+                                if (target.parentElement && !target.parentElement.querySelector('div')) {
+                                  target.parentElement.appendChild(placeholder)
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl opacity-20">
+                              📦
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg mb-1">{ticket.product_name}</h3>
-                        <div className="flex items-center gap-2 mb-1">
+                        
+                        {/* 商品详情 */}
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-1">{ticket.product_name}</h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm text-gray-400">
+                              单号：{ticket.id}
+                            </p>
+                            <button
+                              onClick={() => copyToClipboard(ticket.id, '提货单号')}
+                              className="text-xs text-gold-500 hover:text-gold-400"
+                            >
+                              复制
+                            </button>
+                          </div>
                           <p className="text-sm text-gray-400">
-                            单号：{ticket.id}
+                            创建时间：{new Date(ticket.created_at).toLocaleString()}
                           </p>
-                          <button
-                            onClick={() => copyToClipboard(ticket.id, '提货单号')}
-                            className="text-xs text-gold-500 hover:text-gold-400"
-                          >
-                            复制
-                          </button>
+                          {ticket.expire_at && actualStatus.status === 'pending' && (
+                            <p className={cn(
+                              "text-sm",
+                              isExpired ? "text-red-500 font-bold" : "text-yellow-500"
+                            )}>
+                              {isExpired ? (
+                                <>已过期 (过期时间: {new Date(ticket.expire_at.includes('T') ? ticket.expire_at : ticket.expire_at.replace(' ', 'T') + '+08:00').toLocaleString('zh-CN')})</>
+                              ) : (
+                                <>将于 {new Date(ticket.expire_at.includes('T') ? ticket.expire_at : ticket.expire_at.replace(' ', 'T') + '+08:00').toLocaleString('zh-CN')} 过期</>
+                              )}
+                            </p>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-400">
-                          创建时间：{new Date(ticket.created_at).toLocaleString()}
-                        </p>
+                      </div>
+                      
+                      {/* 状态和价值 */}
+                      <div className="flex flex-col md:items-end gap-2">
+                        <span className={cn("font-bold", getStatusColor(actualStatus.status))}>
+                          {actualStatus.display}
+                        </span>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-400">
+                            数量: {ticket.quantity} | TDB: {ticket.tdb_amount}
+                          </p>
+                          <p className="text-lg font-bold text-gold-500">
+                            ¥{ticket.total_price}
+                          </p>
+                          {ticket.status === 'active' && (
+                            <p className="text-sm text-green-500">
+                              剩余价值: ¥{ticket.remaining_value}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
-                    {/* 状态和价值 */}
-                    <div className="flex flex-col md:items-end gap-2">
-                      <span className={cn("font-bold", getStatusColor(ticket.status))}>
-                        {ticket.status_display}
-                      </span>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">
-                          数量: {ticket.quantity} | TDB: {ticket.tdb_amount}
-                        </p>
-                        <p className="text-lg font-bold text-gold-500">
-                          ¥{ticket.total_price}
-                        </p>
-                        {ticket.status === 'active' && (
-                          <p className="text-sm text-green-500">
-                            剩余价值: ¥{ticket.remaining_value}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* 操作按钮 */}
-                  <div className="mt-4 pt-4 border-t border-gray-700">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap gap-2">
-                        {ticket.can_use && (
-                          <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded">
-                            可使用
-                          </span>
-                        )}
-                        {ticket.tdb_credited && (
-                          <span className="text-xs bg-gold-500/20 text-gold-500 px-2 py-1 rounded">
-                            TDB已到账
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        {ticket.status === 'pending' && (
-                          <>
+                    {/* 操作按钮 */}
+                    <div className="mt-4 pt-4 border-t border-gray-700">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          {ticket.can_use && !isExpired && (
+                            <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded">
+                              可使用
+                            </span>
+                          )}
+                          {ticket.tdb_credited && (
+                            <span className="text-xs bg-gold-500/20 text-gold-500 px-2 py-1 rounded">
+                              TDB已到账
+                            </span>
+                          )}
+                          {isExpired && (
+                            <span className="text-xs bg-red-500/20 text-red-500 px-2 py-1 rounded">
+                              已过期
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          {actualStatus.status === 'pending' && !isExpired && (
+                            <>
+                              <PixelButton
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleTicketAction(ticket, 'cancel')}
+                              >
+                                取消
+                              </PixelButton>
+                              <PixelButton
+                                size="sm"
+                                onClick={() => handleTicketAction(ticket, 'pay')}
+                              >
+                                去支付
+                              </PixelButton>
+                            </>
+                          )}
+                          {actualStatus.status === 'active' && ticket.can_use && (
+                            <PixelButton
+                              size="sm"
+                              onClick={() => handleTicketAction(ticket, 'view')}
+                            >
+                              使用
+                            </PixelButton>
+                          )}
+                          {/* 只有非过期状态才显示详情按钮 */}
+                          {(actualStatus.status === 'paid' || actualStatus.status === 'active' || actualStatus.status === 'used') && (
                             <PixelButton
                               size="sm"
                               variant="secondary"
-                              onClick={() => handleTicketAction(ticket, 'cancel')}
+                              onClick={() => handleTicketAction(ticket, 'view')}
                             >
-                              取消
+                              详情
                             </PixelButton>
-                            <PixelButton
-                              size="sm"
-                              onClick={() => handleTicketAction(ticket, 'pay')}
-                            >
-                              去支付
-                            </PixelButton>
-                          </>
-                        )}
-                        {ticket.status === 'active' && ticket.can_use && (
-                          <>
-                            <PixelButton
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleTicketAction(ticket, 'exchange')}
-                            >
-                              兑换
-                            </PixelButton>
-                            <PixelButton
-                              size="sm"
-                              onClick={() => handleTicketAction(ticket, 'pickup')}
-                            >
-                              提货
-                            </PixelButton>
-                          </>
-                        )}
-                        <PixelButton
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleTicketAction(ticket, 'view')}
-                        >
-                          详情
-                        </PixelButton>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </PixelCard>
-              </motion.div>
-            ))}
+                  </PixelCard>
+                </motion.div>
+              )
+            })}
           </div>
           
           {/* 加载更多 */}
