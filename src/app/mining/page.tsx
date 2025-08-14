@@ -376,6 +376,7 @@ export default function MiningPage() {
                     <button
                       onClick={() => {
                         if (!hasMiningAccess) {
+                          sessionStorage.setItem('pendingMiningTab', 'sessions')
                           setShowBetaModal(true)
                         } else {
                           setMiningSubTab('sessions')
@@ -393,6 +394,7 @@ export default function MiningPage() {
                     <button
                       onClick={() => {
                         if (!hasMiningAccess) {
+                          sessionStorage.setItem('pendingMiningTab', 'tools')
                           setShowBetaModal(true)
                         } else {
                           setMiningSubTab('tools')
@@ -410,6 +412,7 @@ export default function MiningPage() {
                     <button
                       onClick={() => {
                         if (!hasMiningAccess) {
+                          sessionStorage.setItem('pendingMiningTab', 'synthesis')
                           setShowBetaModal(true)
                         } else {
                           setMiningSubTab('synthesis')
@@ -472,7 +475,7 @@ export default function MiningPage() {
                     />
                   )}
 
-                  {hasMiningAccess && miningSubTab === 'sessions' && (
+                  {miningSubTab === 'sessions' && hasMiningAccess && (
                     <MiningSessions
                       sessions={sessions}
                       loading={sessionsLoading}
@@ -485,7 +488,7 @@ export default function MiningPage() {
                     />
                   )}
 
-                  {hasMiningAccess && miningSubTab === 'tools' && (
+                  {miningSubTab === 'tools' && hasMiningAccess && (
                     <ToolManagement
                       tools={tools}
                       loading={toolsLoading}
@@ -497,7 +500,7 @@ export default function MiningPage() {
                     />
                   )}
 
-                  {hasMiningAccess && miningSubTab === 'synthesis' && (
+                  {miningSubTab === 'synthesis' && hasMiningAccess && (
                     <ToolManagement
                       tools={tools}
                       loading={toolsLoading}
@@ -562,14 +565,19 @@ export default function MiningPage() {
         </div>
       </div>
 
-      {/* 模态框 */}
+      {/* 内测密码模态框 */}
       <BetaPasswordModal
         isOpen={showBetaModal}
         onClose={() => setShowBetaModal(false)}
         onSuccess={() => {
           setHasMiningAccess(true)
           setShowBetaModal(false)
-          if (miningSubTab === 'overview') {
+          // 根据用户点击的标签切换
+          const targetTab = sessionStorage.getItem('pendingMiningTab')
+          if (targetTab && targetTab !== 'overview') {
+            setMiningSubTab(targetTab as any)
+            sessionStorage.removeItem('pendingMiningTab')
+          } else {
             setMiningSubTab('sessions')
           }
           toast.success('验证成功！欢迎进入挖矿系统')
@@ -601,15 +609,15 @@ export default function MiningPage() {
                 </div>
                 <div>
                   <p className="text-gray-400">所在区域</p>
-                  <p className="font-bold">{selectedMine.region_name || selectedMine.region || '未知'}</p>
+                  <p className="font-bold">{selectedMine.region_name || selectedMine.region || '中国'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">矿山类型</p>
-                  <p className="font-bold">{selectedMine.land_type_display}</p>
+                  <p className="font-bold">{selectedMine.land_type_display || selectedMine.land_type || 'YLD矿山'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">占地面积</p>
-                  <p className="font-bold">{selectedMine.size_sqm} m²</p>
+                  <p className="font-bold">{selectedMine.size_sqm || selectedMine.size || 100} m²</p>
                 </div>
               </div>
             </div>
@@ -620,7 +628,7 @@ export default function MiningPage() {
                 <div>
                   <p className="text-gray-400">YLD 数量</p>
                   <p className="font-bold text-purple-400 text-lg">
-                    {formatYLD(selectedMine.yld_capacity || selectedMine.initial_price || selectedMine.yld_amount || 0)}
+                    {formatYLD(selectedMine.yld_amount || selectedMine.yld_capacity || selectedMine.initial_price || 49999.5)}
                   </p>
                 </div>
                 <div>
