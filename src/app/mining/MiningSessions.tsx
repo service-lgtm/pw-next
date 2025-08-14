@@ -463,6 +463,9 @@ export function MiningSessions({
                   <span className="text-yellow-400">{selectedTools.length * 10} 单位</span>
                 </div>
               </div>
+              <p className="text-xs text-gray-400 mt-2">
+                注：实际消耗根据土地类型和工具效率会有所不同
+              </p>
             </div>
           )}
           
@@ -513,6 +516,9 @@ export function MiningSessions({
                 <p>土地：{selectedLand?.land_id}</p>
                 <p>工具数量：{selectedTools.length} 个</p>
                 <p>预计粮食消耗：{selectedTools.length * 10} 单位/小时</p>
+                <p className="text-yellow-400 mt-1">
+                  注：实际消耗根据土地类型可能不同
+                </p>
               </div>
             </>
           ) : (
