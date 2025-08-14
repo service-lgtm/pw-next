@@ -38,13 +38,16 @@ import toast from 'react-hot-toast'
 // ==================== 主组件 ====================
 export default function MiningPage() {
   // ========== 状态管理 ==========
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring'>('myMines')
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showMobilePanel, setShowMobilePanel] = useState(false)
+  
+  // 只在认证完成后才获取 YLD 矿山数据
+  const shouldFetchData = !authLoading && isAuthenticated
   
   // 获取 YLD 矿山数据
   const { 
@@ -54,18 +57,18 @@ export default function MiningPage() {
     stats,
     totalCount,
     refetch: refetchMines
-  } = useMyYLDMines({
+  } = useMyYLDMines(shouldFetchData ? {
     page: 1,
     page_size: 50, // 获取更多数据
     ordering: '-created_at'
-  })
+  } : null)
   
   // 获取选中矿山的详情
   const { 
     mine: selectedMine, 
     loading: detailLoading, 
     error: detailError 
-  } = useYLDMineDetail(selectedMineId)
+  } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
   
   // ========== 副作用 ==========
   
@@ -79,13 +82,20 @@ export default function MiningPage() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 检查登录状态
+  // 检查登录状态 - 修复：只在认证加载完成后才进行跳转
   useEffect(() => {
+    // 如果还在加载认证状态，不做任何操作
+    if (authLoading) {
+      return
+    }
+    
+    // 认证加载完成后，如果未登录则跳转
     if (!isAuthenticated) {
+      console.log('[MiningPage] 未登录，跳转到登录页')
       toast.error('请先登录查看矿山数据')
       router.push('/login?redirect=/mining')
     }
-  }, [isAuthenticated, router])
+  }, [authLoading, isAuthenticated, router])
   
   // ========== 功能函数 ==========
   
@@ -120,6 +130,18 @@ export default function MiningPage() {
   }
   
   // ========== 渲染 ==========
+  
+  // 如果正在加载认证状态，显示加载中
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-6xl mb-4">⏳</div>
+          <p className="text-gray-400">验证登录状态...</p>
+        </div>
+      </div>
+    )
+  }
   
   // 如果未登录，显示提示
   if (!isAuthenticated) {
@@ -490,6 +512,9 @@ export default function MiningPage() {
                     <PixelCard className="text-center py-12">
                       <span className="text-6xl block mb-4">🏔️</span>
                       <p className="text-gray-400 mb-4">您还没有 YLD 矿山</p>
+                      <p className="text-sm text-gray-500">
+                        YLD 矿山由 YLD 代币转换而来
+                      </p>
                     </PixelCard>
                   )}
                 </motion.div>
@@ -542,7 +567,6 @@ export default function MiningPage() {
                 <h3 className="font-bold text-gold-400 mb-2 text-sm sm:text-base">系统提示</h3>
                 <p className="text-xs sm:text-sm text-gray-300">
                   YLD 矿山系统正在优化中，生产和收取功能即将开放。
-                  请耐心等待系统升级完成。
                 </p>
               </div>
             </div>
