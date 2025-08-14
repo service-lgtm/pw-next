@@ -71,12 +71,29 @@ function fixImageUrl(url: string | undefined | null): string | undefined {
  * 判断提货单是否过期
  */
 function isTicketExpired(ticket: Ticket): boolean {
+  // 如果状态已经是expired，直接返回true
   if (ticket.status === 'expired') return true
+  
+  // 只有pending状态的订单才可能过期
   if (ticket.status !== 'pending') return false
+  
+  // 没有过期时间的订单不会过期
   if (!ticket.expire_at) return false
   
-  const expireTime = new Date(ticket.expire_at).getTime()
-  const now = new Date().getTime()
+  // 解析时间，处理可能的时区问题
+  // 假设后端返回的是本地时间格式 "YYYY-MM-DD HH:mm:ss"
+  let expireTime: number
+  if (ticket.expire_at.includes('T')) {
+    // ISO格式，直接解析
+    expireTime = new Date(ticket.expire_at).getTime()
+  } else {
+    // 本地时间格式，需要替换空格为T并添加时区
+    const isoTime = ticket.expire_at.replace(' ', 'T')
+    // 假设是中国时区 UTC+8
+    expireTime = new Date(isoTime + '+08:00').getTime()
+  }
+  
+  const now = Date.now()
   return now > expireTime
 }
 
