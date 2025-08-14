@@ -199,29 +199,16 @@ export default function TDBShopPage() {
                 </span>
               )}
             </button>
-            <button
-              onClick={() => router.push('/shop/pickup')}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <span className="text-lg">🚚</span>
-              <span className="text-sm font-bold">提货申请</span>
-            </button>
-            <button
-              onClick={() => router.push('/shop/exchange')}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <span className="text-lg">💱</span>
-              <span className="text-sm font-bold">兑换记录</span>
-            </button>
+        
           </div>
         </div>
 
         {/* 页面标题 */}
         <h1 className="text-2xl md:text-3xl font-black text-white">
-          TDB 积分商城
+          TDB 通证商城
         </h1>
         <p className="text-gray-400 mt-2">
-          购买实物商品，获得对应TDB积分
+          购买实物商品，获得对应TDB通证
         </p>
       </motion.div>
 
