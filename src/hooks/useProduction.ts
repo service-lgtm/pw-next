@@ -91,7 +91,8 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
 // ==================== 获取我的工具 ====================
 interface UseMyToolsOptions {
   tool_type?: 'pickaxe' | 'axe' | 'hoe'
-  status?: 'idle' | 'working' | 'damaged'
+  status?: 'normal' | 'damaged' | 'repairing'  // 使用后端的状态值
+  is_in_use?: boolean
   enabled?: boolean
 }
 
@@ -101,7 +102,7 @@ export function useMyTools(options?: UseMyToolsOptions) {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
 
-  const { tool_type, status, enabled = true } = options || {}
+  const { tool_type, status, is_in_use, enabled = true } = options || {}
 
   const fetchTools = useCallback(async () => {
     if (!enabled) {
@@ -114,18 +115,10 @@ export function useMyTools(options?: UseMyToolsOptions) {
       setLoading(true)
       setError(null)
       
-      // 映射前端状态到后端状态
-      let backendStatus = status
-      if (status === 'idle') {
-        backendStatus = 'normal'  // 前端的 idle 对应后端的 normal
-      } else if (status === 'working') {
-        backendStatus = undefined  // 通过 is_in_use 参数查询
-      }
-      
       const response = await productionApi.tools.getMyTools({
         tool_type,
-        status: backendStatus as any,
-        is_in_use: status === 'working' ? true : undefined,
+        status,
+        is_in_use,
         page_size: 100
       })
       
@@ -138,7 +131,7 @@ export function useMyTools(options?: UseMyToolsOptions) {
     } finally {
       setLoading(false)
     }
-  }, [tool_type, status, enabled])
+  }, [tool_type, status, is_in_use, enabled])
 
   useEffect(() => {
     fetchTools()
