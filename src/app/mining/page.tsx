@@ -74,8 +74,8 @@ export default function MiningPage() {
   // 主标签页状态
   const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring'>('myMines')
   
-  // 我的矿山子标签
-  const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools'>('overview')
+  // 我的矿山子标签 - 保持原有的4个标签
+  const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools' | 'synthesis'>('overview')
   
   // 内测权限
   const [showBetaModal, setShowBetaModal] = useState(false)
@@ -415,7 +415,7 @@ export default function MiningPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  {/* 子标签切换 */}
+                  {/* 子标签切换 - 4个标签 */}
                   {hasMiningAccess && (
                     <div className="flex gap-2 mb-4 overflow-x-auto">
                       <button
@@ -449,7 +449,18 @@ export default function MiningPage() {
                             : "bg-gray-800 text-gray-400"
                         )}
                       >
-                        工具系统
+                        我的工具
+                      </button>
+                      <button
+                        onClick={() => setMiningSubTab('synthesis')}
+                        className={cn(
+                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                          miningSubTab === 'synthesis' 
+                            ? "bg-gray-700 text-white" 
+                            : "bg-gray-800 text-gray-400"
+                        )}
+                      >
+                        合成系统
                       </button>
                     </div>
                   )}
@@ -521,6 +532,20 @@ export default function MiningPage() {
                       resources={resources}
                       onSynthesize={handleSynthesize}
                       synthesizeLoading={synthesizeLoading}
+                      showOnlyTools={true}  // 只显示工具列表
+                    />
+                  )}
+
+                  {/* 合成系统 - 独立的标签页 */}
+                  {hasMiningAccess && miningSubTab === 'synthesis' && (
+                    <ToolManagement
+                      tools={tools}
+                      loading={toolsLoading}
+                      toolStats={toolStats}
+                      resources={resources}
+                      onSynthesize={handleSynthesize}
+                      synthesizeLoading={synthesizeLoading}
+                      showOnlySynthesis={true}  // 只显示合成系统
                     />
                   )}
                 </motion.div>
