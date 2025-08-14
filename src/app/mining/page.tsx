@@ -228,11 +228,28 @@ export default function MiningPage() {
     setShowDetailModal(true)
   }
   
-  // 开启挖矿功能
+  // 开启挖矿功能 - 点击"开启挖矿"按钮触发
   const handleOpenMiningFeature = () => {
+    console.log('[Debug] 开启挖矿功能被调用, hasMiningAccess:', hasMiningAccess)
     if (!hasMiningAccess) {
+      console.log('[Debug] 没有权限，显示密码框')
       setShowBetaModal(true)
     } else {
+      console.log('[Debug] 已有权限，切换到挖矿会话')
+      setMiningSubTab('sessions')
+    }
+  }
+  
+  // 点击任何挖矿相关子标签时检查权限
+  const handleMiningTabClick = (tab: 'overview' | 'sessions' | 'tools' | 'synthesis') => {
+    console.log('[Debug] 切换标签:', tab, 'hasMiningAccess:', hasMiningAccess)
+    if (tab !== 'overview' && !hasMiningAccess) {
+      // 如果点击非概览标签且没有权限，弹出密码框
+      setShowBetaModal(true)
+    } else {
+      setMiningSubTab(tab)
+    }
+  }
       setMiningSubTab('sessions')
     }
   }
@@ -415,55 +432,71 @@ export default function MiningPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  {/* 子标签切换 - 4个标签 */}
-                  {hasMiningAccess && (
-                    <div className="flex gap-2 mb-4 overflow-x-auto">
-                      <button
-                        onClick={() => setMiningSubTab('overview')}
-                        className={cn(
-                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
-                          miningSubTab === 'overview' 
-                            ? "bg-gray-700 text-white" 
-                            : "bg-gray-800 text-gray-400"
-                        )}
-                      >
-                        YLD矿山
-                      </button>
-                      <button
-                        onClick={() => setMiningSubTab('sessions')}
-                        className={cn(
-                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
-                          miningSubTab === 'sessions' 
-                            ? "bg-gray-700 text-white" 
-                            : "bg-gray-800 text-gray-400"
-                        )}
-                      >
-                        挖矿会话
-                      </button>
-                      <button
-                        onClick={() => setMiningSubTab('tools')}
-                        className={cn(
-                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
-                          miningSubTab === 'tools' 
-                            ? "bg-gray-700 text-white" 
-                            : "bg-gray-800 text-gray-400"
-                        )}
-                      >
-                        我的工具
-                      </button>
-                      <button
-                        onClick={() => setMiningSubTab('synthesis')}
-                        className={cn(
-                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
-                          miningSubTab === 'synthesis' 
-                            ? "bg-gray-700 text-white" 
-                            : "bg-gray-800 text-gray-400"
-                        )}
-                      >
-                        合成系统
-                      </button>
-                    </div>
-                  )}
+                  {/* 子标签切换 - 4个标签（始终显示） */}
+                  <div className="flex gap-2 mb-4 overflow-x-auto">
+                    <button
+                      onClick={() => setMiningSubTab('overview')}
+                      className={cn(
+                        "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                        miningSubTab === 'overview' 
+                          ? "bg-gray-700 text-white" 
+                          : "bg-gray-800 text-gray-400"
+                      )}
+                    >
+                      YLD矿山
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!hasMiningAccess) {
+                          setShowBetaModal(true)
+                        } else {
+                          setMiningSubTab('sessions')
+                        }
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                        miningSubTab === 'sessions' 
+                          ? "bg-gray-700 text-white" 
+                          : "bg-gray-800 text-gray-400"
+                      )}
+                    >
+                      挖矿会话
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!hasMiningAccess) {
+                          setShowBetaModal(true)
+                        } else {
+                          setMiningSubTab('tools')
+                        }
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                        miningSubTab === 'tools' 
+                          ? "bg-gray-700 text-white" 
+                          : "bg-gray-800 text-gray-400"
+                      )}
+                    >
+                      我的工具
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!hasMiningAccess) {
+                          setShowBetaModal(true)
+                        } else {
+                          setMiningSubTab('synthesis')
+                        }
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                        miningSubTab === 'synthesis' 
+                          ? "bg-gray-700 text-white" 
+                          : "bg-gray-800 text-gray-400"
+                      )}
+                    >
+                      合成系统
+                    </button>
+                  </div>
 
                   {/* 资源显示栏 */}
                   {hasMiningAccess && resources && miningSubTab !== 'overview' && (
@@ -501,7 +534,7 @@ export default function MiningPage() {
                   )}
 
                   {/* 子标签内容 */}
-                  {(!hasMiningAccess || miningSubTab === 'overview') && (
+                  {miningSubTab === 'overview' && (
                     <YLDMineList
                       mines={yldMines}
                       loading={yldMinesLoading}
@@ -614,7 +647,13 @@ export default function MiningPage() {
         onSuccess={() => {
           setHasMiningAccess(true)
           setShowBetaModal(false)
-          setMiningSubTab('sessions')
+          // 验证成功后自动切换到挖矿会话标签
+          if (miningSubTab !== 'overview') {
+            // 如果当前不是概览，保持当前标签
+          } else {
+            // 如果当前是概览，切换到挖矿会话
+            setMiningSubTab('sessions')
+          }
           toast.success('验证成功！欢迎进入挖矿系统')
         }}
       />
