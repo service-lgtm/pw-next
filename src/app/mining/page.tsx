@@ -138,7 +138,8 @@ export default function MiningPage() {
     stats: toolStats, 
     refetch: refetchTools
   } = useMyTools({
-    status: 'idle',
+    status: 'normal',  // 使用后端定义的状态值
+    is_in_use: false,  // 只获取未使用的工具
     enabled: hasMiningAccess && shouldFetchData
   })
   
@@ -816,9 +817,10 @@ export default function MiningPage() {
                         <h3 className="text-lg font-bold">工具列表</h3>
                         {toolStats && (
                           <div className="text-sm text-gray-400">
-                            总计: {toolStats.total_tools} | 
-                            闲置: {toolStats.by_status?.idle || 0} | 
-                            工作中: {toolStats.by_status?.working || 0}
+                            总计: {toolStats.total_count || toolStats.total_tools} | 
+                            正常: {toolStats.by_status?.normal || 0} | 
+                            损坏: {toolStats.by_status?.damaged || 0} | 
+                            维修中: {toolStats.by_status?.repairing || 0}
                           </div>
                         )}
                       </div>
@@ -855,9 +857,10 @@ export default function MiningPage() {
                                 </div>
                                 <span className={cn(
                                   "px-2 py-1 rounded text-xs",
-                                  tool.status === 'idle' ? "bg-green-500/20 text-green-400" :
-                                  tool.status === 'working' ? "bg-blue-500/20 text-blue-400" :
-                                  "bg-red-500/20 text-red-400"
+                                  tool.status === 'normal' ? "bg-green-500/20 text-green-400" :
+                                  tool.status === 'damaged' ? "bg-red-500/20 text-red-400" :
+                                  tool.status === 'repairing' ? "bg-yellow-500/20 text-yellow-400" :
+                                  "bg-gray-500/20 text-gray-400"
                                 )}>
                                   {tool.status_display}
                                 </span>
