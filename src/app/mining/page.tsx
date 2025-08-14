@@ -518,6 +518,18 @@ export default function MiningPage() {
                       error={yldMinesError}
                       onViewDetail={handleViewDetail}
                       onRefresh={refetchYLDMines}
+                      onSwitchToSessions={() => {
+                        // 切换到挖矿会话标签
+                        if (!hasMiningAccess) {
+                          // 如果没有权限，会在 YLDMineList 内部处理
+                          return
+                        }
+                        setMiningSubTab('sessions')
+                      }}
+                      onStartProduction={(mineId) => {
+                        console.log('开始生产矿山:', mineId)
+                        // 这里可以添加开始生产的逻辑
+                      }}
                     />
                   )}
 
