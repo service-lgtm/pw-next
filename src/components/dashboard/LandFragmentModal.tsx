@@ -149,7 +149,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                       土地碎片领取
                     </h2>
                     <p className="text-sm text-gray-400 mt-1">
-                      每个批次限领1个碎片，300个可合成土地
+                      每个批次限领1个碎片，可合成土地
                     </p>
                   </div>
                   <button
@@ -257,11 +257,11 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                             type="text"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="请输入密码 666"
+                            placeholder="请输入密码"
                             className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-gold-500 focus:outline-none transition-colors"
                             disabled={claiming}
                           />
-                          <p className="text-xs text-gray-400 mt-1">提示：密码是 666</p>
+                         
                         </div>
 
                         <button
