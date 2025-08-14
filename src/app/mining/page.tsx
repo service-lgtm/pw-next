@@ -475,41 +475,71 @@ export default function MiningPage() {
                     />
                   )}
 
-                  {miningSubTab === 'sessions' && hasMiningAccess && (
-                    <MiningSessions
-                      sessions={sessions}
-                      loading={sessionsLoading}
-                      userLands={userLands}
-                      tools={tools}
-                      onStartMining={handleStartSelfMining}
-                      onStopSession={handleStopSession}
-                      onCollectOutput={handleCollectSessionOutput}
-                      startMiningLoading={startMiningLoading}
-                    />
+                  {miningSubTab === 'sessions' && (
+                    hasMiningAccess ? (
+                      <MiningSessions
+                        sessions={sessions}
+                        loading={sessionsLoading}
+                        userLands={userLands}
+                        tools={tools}
+                        onStartMining={handleStartSelfMining}
+                        onStopSession={handleStopSession}
+                        onCollectOutput={handleCollectSessionOutput}
+                        startMiningLoading={startMiningLoading}
+                      />
+                    ) : (
+                      <PixelCard className="text-center py-12">
+                        <div className="text-6xl mb-4">🔒</div>
+                        <p className="text-gray-400 mb-4">需要内测权限访问此功能</p>
+                        <PixelButton onClick={() => setShowBetaModal(true)}>
+                          输入内测密码
+                        </PixelButton>
+                      </PixelCard>
+                    )
                   )}
 
-                  {miningSubTab === 'tools' && hasMiningAccess && (
-                    <ToolManagement
-                      tools={tools}
-                      loading={toolsLoading}
-                      toolStats={toolStats}
-                      resources={resources}
-                      onSynthesize={handleSynthesize}
-                      synthesizeLoading={synthesizeLoading}
-                      showOnlyTools={true}
-                    />
+                  {miningSubTab === 'tools' && (
+                    hasMiningAccess ? (
+                      <ToolManagement
+                        tools={tools}
+                        loading={toolsLoading}
+                        toolStats={toolStats}
+                        resources={resources}
+                        onSynthesize={handleSynthesize}
+                        synthesizeLoading={synthesizeLoading}
+                        showOnlyTools={true}
+                      />
+                    ) : (
+                      <PixelCard className="text-center py-12">
+                        <div className="text-6xl mb-4">🔒</div>
+                        <p className="text-gray-400 mb-4">需要内测权限访问此功能</p>
+                        <PixelButton onClick={() => setShowBetaModal(true)}>
+                          输入内测密码
+                        </PixelButton>
+                      </PixelCard>
+                    )
                   )}
 
-                  {miningSubTab === 'synthesis' && hasMiningAccess && (
-                    <ToolManagement
-                      tools={tools}
-                      loading={toolsLoading}
-                      toolStats={toolStats}
-                      resources={resources}
-                      onSynthesize={handleSynthesize}
-                      synthesizeLoading={synthesizeLoading}
-                      showOnlySynthesis={true}
-                    />
+                  {miningSubTab === 'synthesis' && (
+                    hasMiningAccess ? (
+                      <ToolManagement
+                        tools={tools}
+                        loading={toolsLoading}
+                        toolStats={toolStats}
+                        resources={resources}
+                        onSynthesize={handleSynthesize}
+                        synthesizeLoading={synthesizeLoading}
+                        showOnlySynthesis={true}
+                      />
+                    ) : (
+                      <PixelCard className="text-center py-12">
+                        <div className="text-6xl mb-4">🔒</div>
+                        <p className="text-gray-400 mb-4">需要内测权限访问此功能</p>
+                        <PixelButton onClick={() => setShowBetaModal(true)}>
+                          输入内测密码
+                        </PixelButton>
+                      </PixelCard>
+                    )
                   )}
                 </motion.div>
               )}
@@ -605,19 +635,19 @@ export default function MiningPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-400">矿山编号</p>
-                  <p className="font-bold">{selectedMine.land_id}</p>
+                  <p className="font-bold">{selectedMine.land_id || `矿山#${selectedMine.id}`}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">所在区域</p>
-                  <p className="font-bold">{selectedMine.region_name || selectedMine.region || '中国'}</p>
+                  <p className="font-bold">{selectedMine.region_info?.name || selectedMine.region_name || '中国'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">矿山类型</p>
-                  <p className="font-bold">{selectedMine.land_type_display || selectedMine.land_type || 'YLD矿山'}</p>
+                  <p className="font-bold">{selectedMine.blueprint_info?.name || selectedMine.land_type_display || 'YLD矿山'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">占地面积</p>
-                  <p className="font-bold">{selectedMine.size_sqm || selectedMine.size || 100} m²</p>
+                  <p className="text-gray-400">坐标</p>
+                  <p className="font-bold text-xs">({selectedMine.coordinate_x || 0}, {selectedMine.coordinate_y || 0})</p>
                 </div>
               </div>
             </div>
@@ -628,13 +658,25 @@ export default function MiningPage() {
                 <div>
                   <p className="text-gray-400">YLD 数量</p>
                   <p className="font-bold text-purple-400 text-lg">
-                    {formatYLD(selectedMine.yld_amount || selectedMine.yld_capacity || selectedMine.initial_price || 49999.5)}
+                    {formatYLD(selectedMine.yld_capacity || selectedMine.current_price || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-400">累计产出</p>
                   <p className="font-bold text-green-400 text-lg">
-                    {formatYLD(selectedMine.accumulated_output || selectedMine.total_output || 0)}
+                    {formatYLD(selectedMine.accumulated_output || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">日产出</p>
+                  <p className="font-bold text-yellow-400 text-lg">
+                    {formatYLD(selectedMine.daily_output || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">批次</p>
+                  <p className="font-bold text-blue-400 text-xs truncate" title={selectedMine.batch_id}>
+                    {selectedMine.batch_id || '未知'}
                   </p>
                 </div>
               </div>
