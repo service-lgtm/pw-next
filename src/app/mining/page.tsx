@@ -98,7 +98,7 @@ export default function MiningPage() {
     refetch: refetchSessions
   } = useMiningSessions({
     status: 'active',
-    enabled: hasMiningAccess && shouldFetchData
+    enabled: shouldFetchData  // 修改：始终获取会话数据，不依赖hasMiningAccess
   })
   
   const { 
@@ -340,6 +340,7 @@ export default function MiningPage() {
                 resources={resources}
                 grainStatus={grainStatus}
                 hasMiningAccess={hasMiningAccess}
+                sessions={sessions}  // 传递挖矿会话数据
                 onRefresh={refetchYLDMines}
                 onOpenMining={handleOpenMiningFeature}
               />
