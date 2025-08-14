@@ -181,9 +181,12 @@ export function MiningStats({
               </div>
               <p className="text-lg font-bold text-yellow-400 mt-1">
                 {formatResource(
+                  resourceStats?.resources?.food?.available || 
+                  resourceStats?.resources?.food?.amount || 
                   resourceStats?.resources?.grain?.available || 
                   resourceStats?.resources?.grain?.amount || 
-                  resources?.grain || 0
+                  resources?.grain || 
+                  resources?.food || 0
                 )}
               </p>
               {grainStatus && grainStatus.warning && (
