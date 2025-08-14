@@ -1,5 +1,5 @@
 // src/app/shop/tickets/page.tsx
-// 提货单列表页面
+// 我的提货单列表页面 - 使用真实API
 
 'use client'
 
@@ -25,13 +25,14 @@ const statusOptions = [
   { value: 'expired', label: '已过期' },
 ]
 
-export default function TicketsListPage() {
+export default function MyTicketsPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [availableOnly, setAvailableOnly] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [totalCount, setTotalCount] = useState(0)
@@ -60,7 +61,11 @@ export default function TicketsListPage() {
       }
       
       if (availableOnly) {
-        params.available = true
+        params.available = 'true'
+      }
+      
+      if (searchTerm) {
+        params.search = searchTerm
       }
       
       const response = await api.shop.tickets.list(params)
@@ -90,12 +95,16 @@ export default function TicketsListPage() {
     }
   }, [isAuthenticated])
 
-  // 状态筛选变化时重新加载
+  // 筛选条件变化时重新加载
   useEffect(() => {
     if (isAuthenticated) {
-      loadTickets(true)
+      const timer = setTimeout(() => {
+        loadTickets(true)
+      }, 500)
+      
+      return () => clearTimeout(timer)
     }
-  }, [statusFilter, availableOnly])
+  }, [statusFilter, availableOnly, searchTerm])
 
   // 加载更多
   const loadMore = () => {
@@ -119,8 +128,48 @@ export default function TicketsListPage() {
   }
 
   // 处理提货单操作
-  const handleTicketAction = (ticket: Ticket) => {
-    router.push(`/shop/tdb/ticket?id=${ticket.id}`)
+  const handleTicketAction = (ticket: Ticket, action: string) => {
+    switch (action) {
+      case 'view':
+        router.push(`/shop/tickets/${ticket.id}`)
+        break
+      case 'pay':
+        router.push(`/shop/tdb/payment?ticketId=${ticket.id}`)
+        break
+      case 'cancel':
+        handleCancelTicket(ticket)
+        break
+      case 'pickup':
+        router.push(`/shop/pickup/create?ticketId=${ticket.id}`)
+        break
+      case 'exchange':
+        router.push(`/shop/exchange/create?ticketId=${ticket.id}`)
+        break
+    }
+  }
+
+  // 取消提货单
+  const handleCancelTicket = async (ticket: Ticket) => {
+    if (!confirm('确定要取消该提货单吗？')) return
+    
+    try {
+      const response = await api.shop.tickets.cancel(ticket.id)
+      if (response.success) {
+        toast.success('提货单已取消')
+        loadTickets(true)
+      }
+    } catch (error) {
+      toast.error('取消失败，请重试')
+    }
+  }
+
+  // 复制文本
+  const copyToClipboard = (text: string, itemName?: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success(itemName ? `${itemName}已复制` : '已复制到剪贴板')
+    }).catch(() => {
+      toast.error('复制失败，请手动复制')
+    })
   }
 
   if (authLoading) {
@@ -170,22 +219,22 @@ export default function TicketsListPage() {
         className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
       >
         <PixelCard className="p-4 text-center">
-          <p className="text-2xl font-bold text-gold-500">
+          <p className="text-2xl font-bold text-green-500">
             {tickets.filter(t => t.status === 'active').length}
           </p>
           <p className="text-sm text-gray-400 mt-1">可使用</p>
         </PixelCard>
         <PixelCard className="p-4 text-center">
-          <p className="text-2xl font-bold text-blue-500">
-            {tickets.filter(t => t.status === 'pending' || t.status === 'paid').length}
+          <p className="text-2xl font-bold text-yellow-500">
+            {tickets.filter(t => t.status === 'pending').length}
           </p>
-          <p className="text-sm text-gray-400 mt-1">处理中</p>
+          <p className="text-sm text-gray-400 mt-1">待支付</p>
         </PixelCard>
         <PixelCard className="p-4 text-center">
-          <p className="text-2xl font-bold text-gray-500">
-            {tickets.filter(t => t.status === 'used').length}
+          <p className="text-2xl font-bold text-blue-500">
+            {tickets.filter(t => t.status === 'paid').length}
           </p>
-          <p className="text-sm text-gray-400 mt-1">已使用</p>
+          <p className="text-sm text-gray-400 mt-1">待审核</p>
         </PixelCard>
         <PixelCard className="p-4 text-center">
           <p className="text-2xl font-bold text-white">
@@ -195,7 +244,7 @@ export default function TicketsListPage() {
         </PixelCard>
       </motion.div>
 
-      {/* 状态筛选 */}
+      {/* 筛选条件 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -203,7 +252,8 @@ export default function TicketsListPage() {
         className="mb-6"
       >
         <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex gap-2 flex-wrap">
+          {/* 状态筛选 */}
+          <div className="flex gap-2 flex-wrap flex-1">
             {statusOptions.map((option) => (
               <button
                 key={option.value}
@@ -220,14 +270,24 @@ export default function TicketsListPage() {
             ))}
           </div>
           
-          <label className="flex items-center gap-2 ml-auto">
+          {/* 搜索框 */}
+          <input
+            type="text"
+            placeholder="搜索提货单..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-4 py-2 bg-gray-800 border-2 border-gray-700 rounded focus:border-gold-500 outline-none"
+          />
+          
+          {/* 只显示可用 */}
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={availableOnly}
               onChange={(e) => setAvailableOnly(e.target.checked)}
               className="w-4 h-4"
             />
-            <span className="text-sm text-gray-400">只显示可用提货单</span>
+            <span className="text-sm text-gray-400 whitespace-nowrap">只显示可用</span>
           </label>
         </div>
       </motion.div>
@@ -245,7 +305,7 @@ export default function TicketsListPage() {
           className="text-center py-20"
         >
           <p className="text-gray-400 text-lg">
-            {statusFilter || availableOnly ? '没有找到相关提货单' : '暂无提货单'}
+            {statusFilter || availableOnly || searchTerm ? '没有找到相关提货单' : '暂无提货单'}
           </p>
           <PixelButton
             className="mt-4"
@@ -264,9 +324,7 @@ export default function TicketsListPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.05, 0.3) }}
               >
-                <PixelCard className="p-4 md:p-6 hover:border-gold-500/50 transition-all cursor-pointer"
-                  onClick={() => handleTicketAction(ticket)}
-                >
+                <PixelCard className="p-4 md:p-6 hover:border-gold-500/50 transition-all">
                   <div className="flex flex-col md:flex-row gap-4">
                     {/* 商品信息 */}
                     <div className="flex gap-4 flex-1">
@@ -288,9 +346,17 @@ export default function TicketsListPage() {
                       )}
                       <div className="flex-1">
                         <h3 className="font-bold text-lg mb-1">{ticket.product_name}</h3>
-                        <p className="text-sm text-gray-400">
-                          单号：{ticket.id}
-                        </p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm text-gray-400">
+                            单号：{ticket.id}
+                          </p>
+                          <button
+                            onClick={() => copyToClipboard(ticket.id, '提货单号')}
+                            className="text-xs text-gold-500 hover:text-gold-400"
+                          >
+                            复制
+                          </button>
+                        </div>
                         <p className="text-sm text-gray-400">
                           创建时间：{new Date(ticket.created_at).toLocaleString()}
                         </p>
@@ -318,7 +384,7 @@ export default function TicketsListPage() {
                     </div>
                   </div>
                   
-                  {/* 操作按钮和历史记录 */}
+                  {/* 操作按钮 */}
                   <div className="mt-4 pt-4 border-t border-gray-700">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap gap-2">
@@ -332,28 +398,51 @@ export default function TicketsListPage() {
                             TDB已到账
                           </span>
                         )}
-                        {ticket.pickup_requests && ticket.pickup_requests.length > 0 && (
-                          <span className="text-xs bg-blue-500/20 text-blue-500 px-2 py-1 rounded">
-                            已申请提货
-                          </span>
-                        )}
-                        {ticket.exchange_requests && ticket.exchange_requests.length > 0 && (
-                          <span className="text-xs bg-purple-500/20 text-purple-500 px-2 py-1 rounded">
-                            已兑换 {ticket.exchange_requests.length} 次
-                          </span>
-                        )}
                       </div>
                       
-                      <PixelButton
-                        size="sm"
-                        variant="secondary"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/shop/tdb/ticket?id=${ticket.id}`)
-                        }}
-                      >
-                        查看详情
-                      </PixelButton>
+                      <div className="flex gap-2">
+                        {ticket.status === 'pending' && (
+                          <>
+                            <PixelButton
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleTicketAction(ticket, 'cancel')}
+                            >
+                              取消
+                            </PixelButton>
+                            <PixelButton
+                              size="sm"
+                              onClick={() => handleTicketAction(ticket, 'pay')}
+                            >
+                              去支付
+                            </PixelButton>
+                          </>
+                        )}
+                        {ticket.status === 'active' && ticket.can_use && (
+                          <>
+                            <PixelButton
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleTicketAction(ticket, 'exchange')}
+                            >
+                              兑换
+                            </PixelButton>
+                            <PixelButton
+                              size="sm"
+                              onClick={() => handleTicketAction(ticket, 'pickup')}
+                            >
+                              提货
+                            </PixelButton>
+                          </>
+                        )}
+                        <PixelButton
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleTicketAction(ticket, 'view')}
+                        >
+                          详情
+                        </PixelButton>
+                      </div>
                     </div>
                   </div>
                 </PixelCard>
