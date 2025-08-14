@@ -31,7 +31,8 @@ function PaymentContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderInfo, setOrderInfo] = useState<any>(null)
   const [countdown, setCountdown] = useState(30 * 60) // 30分钟倒计时
-  const [quantity, setQuantity] = useState(1)
+  // 提货单系统固定数量为1
+  const quantity = 1
   
   // 获取商品ID
   const productId = searchParams.get('productId')
@@ -160,7 +161,7 @@ function PaymentContent() {
     try {
       const response = await api.shop.tickets.create({
         product_id: product.id,
-        quantity: quantity,
+        quantity: 1, // 固定数量为1
         payment_method: selectedMethod as 'alipay' | 'bank' | 'wechat',
       })
       
@@ -225,11 +226,8 @@ function PaymentContent() {
   const enabledPaymentMethods = product.payment_methods.filter(m => m.is_enabled)
   const currentPaymentMethod = enabledPaymentMethods.find(m => m.method === selectedMethod)
   const finalPrice = product.final_price ? parseFloat(product.final_price) : parseFloat(product.price)
-  const totalPrice = finalPrice * quantity
-  const totalTdb = parseFloat(product.tdb_amount) * quantity
-  
-  // 获取库存数量，默认为999（如果API没有返回stock字段）
-  const stockQuantity = product.stock ?? 999
+  const totalPrice = finalPrice // 固定数量为1，总价等于单价
+  const totalTdb = parseFloat(product.tdb_amount) // 固定数量为1
   
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
@@ -277,31 +275,6 @@ function PaymentContent() {
             <div className="flex-1 space-y-2">
               <h4 className="font-bold">{product.name}</h4>
               <p className="text-sm text-gray-400">{product.category}</p>
-              {!orderInfo && (
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-400">数量：</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-                      disabled={quantity <= 1}
-                    >
-                      -
-                    </button>
-                    <span className="w-12 text-center">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity(Math.min(stockQuantity, quantity + 1))}
-                      className="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-                      disabled={quantity >= stockQuantity}
-                    >
-                      +
-                    </button>
-                  </div>
-                  {stockQuantity < 999 && (
-                    <span className="text-xs text-gray-500">库存: {stockQuantity}</span>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           
@@ -312,7 +285,7 @@ function PaymentContent() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">数量</span>
-              <span>{orderInfo ? orderInfo.quantity || quantity : quantity}</span>
+              <span>1</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">获得TDB</span>
