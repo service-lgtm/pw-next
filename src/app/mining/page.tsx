@@ -38,6 +38,7 @@ import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
 import { MiningStats } from './MiningStats'
+import { RecruitmentMiningGuide } from './RecruitmentMiningGuide'
 
 // Hooks 导入
 import { useAuth } from '@/hooks/useAuth'
@@ -612,12 +613,17 @@ export default function MiningPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
+                  className="space-y-4"
                 >
+                  {/* 招募挖矿说明 */}
+                  <RecruitmentMiningGuide />
+                  
+                  {/* 即将开放提示 */}
                   <PixelCard className="text-center py-12">
                     <span className="text-6xl block mb-4">👷</span>
-                    <p className="text-gray-400 mb-2">招聘市场即将开放</p>
+                    <p className="text-gray-400 mb-2">招募挖矿功能即将开放</p>
                     <p className="text-sm text-gray-500">
-                      届时您可以雇佣矿工或成为矿工赚取收益
+                      届时您可以招募矿工或成为矿工赚取收益
                     </p>
                   </PixelCard>
                 </motion.div>
