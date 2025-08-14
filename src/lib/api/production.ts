@@ -228,32 +228,182 @@ export const productionApi = {
       }>('/api/production/food-status/'),
   },
 
-  // ==================== 土地相关（目前后端暂未实现，预留接口） ====================
+  // ==================== 土地相关 ====================
   lands: {
-    // 获取可用于挖矿的土地（需要后端实现）
+    // 获取可用于挖矿的土地
     getAvailableLands: (params?: {
       ownership?: 'mine' | 'others' | 'all'
       land_type?: string
       has_tools?: boolean
       page?: number
       page_size?: number
-    }) => {
-      // 暂时返回空数据，等待后端实现
-      console.warn('[productionApi.lands.getAvailableLands] 该 API 尚未在后端实现')
-      return Promise.resolve({
-        count: 0,
-        results: []
-      })
-    },
+    }) =>
+      request<{
+        success: boolean
+        data: {
+          count: number
+          total_pages: number
+          current_page: number
+          page_size: number
+          results: Array<{
+            id: number
+            land_id: string
+            owner: {
+              id: number
+              username: string
+              nickname: string
+            }
+            is_mine: boolean
+            blueprint: {
+              id: number | null
+              land_type: string | null
+              land_type_display: string
+              output_resource: string | null
+              daily_output: number
+              size_sqm: number
+              remaining_reserves: number | null
+            }
+            region: {
+              id: number | null
+              name: string
+              display_name: string
+            }
+            is_producing: boolean
+            is_recruiting: boolean
+            deposited_tools: {
+              count: number
+              available: number
+              types: string[]
+            }
+            active_sessions: number
+            mining_options: Array<{
+              type: string
+              name: string
+              description: string
+            }>
+            created_at: string | null
+          }>
+        }
+      }>('/api/production/lands/available/', { params }),
 
-    // 获取土地挖矿详情（需要后端实现）
-    getLandMiningInfo: (landId: number) => {
-      console.warn('[productionApi.lands.getLandMiningInfo] 该 API 尚未在后端实现')
-      return Promise.resolve({
-        success: false,
-        data: null
-      })
-    },
+    // 获取土地挖矿详情
+    getLandMiningInfo: (landId: number) =>
+      request<{
+        success: boolean
+        data: {
+          land: {
+            id: number
+            land_id: string
+            owner: {
+              id: number
+              username: string
+              is_me: boolean
+            }
+            blueprint: {
+              land_type: string | null
+              land_type_display: string
+              output_resource: string | null
+              daily_output: number
+              size_sqm: number
+              energy_consumption_rate: number
+            }
+            region: {
+              name: string
+            }
+            is_producing: boolean
+            production_started_at: string | null
+          }
+          tools: {
+            total: number
+            available: number
+            in_use: number
+            details: Array<{
+              id: number
+              tool_id: string
+              owner_id: number
+              owner_username: string
+              is_mine: boolean
+              tool_type: string
+              tool_type_display: string
+              status: string
+              is_in_use: boolean
+              current_durability: number
+              max_durability: number
+              durability_percentage: number
+            }>
+          }
+          active_sessions: {
+            count: number
+            total_output_rate: number
+            total_food_consumption: number
+            sessions: Array<{
+              id: number
+              session_id: string
+              user: {
+                id: number
+                username: string
+                is_me: boolean
+              }
+              mining_type: string
+              resource_type: string
+              output_rate: number
+              started_at: string
+              total_output: number
+              tool_count: number
+              food_consumption_rate: number
+            }>
+          }
+          history: {
+            total_output: number
+            total_hours: number
+            total_sessions: number
+            total_workers: number
+            recent_records: Array<{
+              resource_type: string
+              amount: number
+              net_amount: number
+              tax_amount: number
+              created_at: string
+            }>
+          }
+          available_actions: Array<{
+            action: string
+            name: string
+            enabled: boolean
+          }>
+        }
+      }>(`/api/production/lands/${landId}/mining-info/`),
+
+    // 获取用户的土地列表
+    getUserLands: () =>
+      request<{
+        success: boolean
+        data: {
+          count: number
+          results: Array<{
+            id: number
+            land_id: string
+            blueprint: {
+              land_type: string | null
+              land_type_display: string
+              output_resource: string | null
+              daily_output: number
+            }
+            region: {
+              name: string
+            }
+            is_producing: boolean
+            deposited_tools_count: number
+            active_session: {
+              session_id: string
+              resource_type: string
+              output_rate: number
+              started_at: string
+              total_output: number
+            } | null
+          }>
+        }
+      }>('/api/production/lands/mine/'),
   },
 }
 
