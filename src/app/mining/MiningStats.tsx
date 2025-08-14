@@ -63,6 +63,10 @@ export function MiningStats({
   onRefresh,
   onOpenMining
 }: MiningStatsProps) {
+  // 调试：打印资源数据
+  console.log('[MiningStats] resourceStats:', resourceStats)
+  console.log('[MiningStats] resources:', resources)
+  
   // 计算挖矿会话的累计产出
   const sessionsTotalOutput = sessions?.reduce((sum, session) => {
     const output = parseFloat(session.total_output || session.accumulated_output || '0')
