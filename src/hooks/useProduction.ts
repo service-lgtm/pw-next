@@ -222,6 +222,8 @@ export function useMyResources(options?: UseMyResourcesOptions) {
 // ==================== 获取可用土地 ====================
 interface UseAvailableLandsOptions {
   ownership?: 'mine' | 'others' | 'all'
+  land_type?: string
+  has_tools?: boolean
   enabled?: boolean
 }
 
@@ -229,8 +231,9 @@ export function useAvailableLands(options?: UseAvailableLandsOptions) {
   const [lands, setLands] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<any>(null)
 
-  const { ownership = 'all', enabled = true } = options || {}
+  const { ownership = 'all', land_type, has_tools, enabled = true } = options || {}
 
   const fetchLands = useCallback(async () => {
     if (!enabled) {
@@ -245,10 +248,22 @@ export function useAvailableLands(options?: UseAvailableLandsOptions) {
       
       const response = await productionApi.lands.getAvailableLands({
         ownership,
+        land_type,
+        has_tools,
         page_size: 100
       })
       
-      setLands(response.results || [])
+      if (response.success && response.data) {
+        setLands(response.data.results || [])
+        setPagination({
+          count: response.data.count,
+          total_pages: response.data.total_pages,
+          current_page: response.data.current_page,
+          page_size: response.data.page_size
+        })
+      } else {
+        setLands([])
+      }
     } catch (err) {
       console.error('[useAvailableLands] Error:', err)
       setError(err instanceof Error ? err.message : '加载失败')
@@ -256,7 +271,59 @@ export function useAvailableLands(options?: UseAvailableLandsOptions) {
     } finally {
       setLoading(false)
     }
-  }, [ownership, enabled])
+  }, [ownership, land_type, has_tools, enabled])
+
+  useEffect(() => {
+    fetchLands()
+  }, [fetchLands])
+
+  return { 
+    lands, 
+    loading, 
+    error, 
+    pagination,
+    refetch: fetchLands 
+  }
+}
+
+// ==================== 获取用户土地 ====================
+interface UseUserLandsOptions {
+  enabled?: boolean
+}
+
+export function useUserLands(options?: UseUserLandsOptions) {
+  const [lands, setLands] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enabled = true } = options || {}
+
+  const fetchLands = useCallback(async () => {
+    if (!enabled) {
+      setLands([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await productionApi.lands.getUserLands()
+      
+      if (response.success && response.data) {
+        setLands(response.data.results || [])
+      } else {
+        setLands([])
+      }
+    } catch (err) {
+      console.error('[useUserLands] Error:', err)
+      setError(err instanceof Error ? err.message : '加载失败')
+      setLands([])
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
 
   useEffect(() => {
     fetchLands()
@@ -267,6 +334,52 @@ export function useAvailableLands(options?: UseAvailableLandsOptions) {
     loading, 
     error, 
     refetch: fetchLands 
+  }
+}
+
+// ==================== 获取土地挖矿详情 ====================
+export function useLandMiningInfo(landId: number | null, options?: { enabled?: boolean }) {
+  const [landInfo, setLandInfo] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enabled = true } = options || {}
+
+  const fetchLandInfo = useCallback(async () => {
+    if (!enabled || !landId) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await productionApi.lands.getLandMiningInfo(landId)
+      
+      if (response.success && response.data) {
+        setLandInfo(response.data)
+      } else {
+        setLandInfo(null)
+      }
+    } catch (err) {
+      console.error('[useLandMiningInfo] Error:', err)
+      setError(err instanceof Error ? err.message : '加载失败')
+      setLandInfo(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [landId, enabled])
+
+  useEffect(() => {
+    fetchLandInfo()
+  }, [fetchLandInfo])
+
+  return { 
+    landInfo, 
+    loading, 
+    error, 
+    refetch: fetchLandInfo 
   }
 }
 
