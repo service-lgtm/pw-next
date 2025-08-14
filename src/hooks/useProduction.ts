@@ -43,11 +43,9 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
 
-  // 解构选项，提供默认值
   const { status, enabled = true } = options || {}
 
   const fetchSessions = useCallback(async () => {
-    // 如果未启用，直接返回
     if (!enabled) {
       setSessions([])
       setLoading(false)
@@ -78,9 +76,8 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
     fetchSessions()
   }, [fetchSessions])
 
-  // 始终返回一致的结构
   return { 
-    sessions, 
+    sessions: sessions || [], 
     loading, 
     error, 
     stats, 
@@ -138,7 +135,7 @@ export function useMyTools(options?: UseMyToolsOptions) {
   }, [fetchTools])
 
   return { 
-    tools, 
+    tools: tools || [], 
     loading, 
     error, 
     stats, 
@@ -323,7 +320,7 @@ export function useUserLands(options?: UseUserLandsOptions) {
   }, [fetchLands])
 
   return { 
-    lands, 
+    lands: lands || [], 
     loading, 
     error, 
     refetch: fetchLands 
