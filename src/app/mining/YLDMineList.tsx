@@ -191,8 +191,8 @@ export function YLDMineList({
                 </div>
               </div>
               
-              {/* 添加日产出信息 */}
-              {mine.daily_output && (
+              {/* 添加日产出信息 - 只在有真实数据时显示 */}
+              {mine.daily_output && parseFloat(mine.daily_output) > 0 && (
                 <div className="mt-3 p-2 bg-yellow-500/10 rounded flex justify-between items-center">
                   <span className="text-xs text-yellow-400">日产出</span>
                   <span className="text-sm font-bold text-yellow-400">
