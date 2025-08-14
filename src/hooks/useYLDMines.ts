@@ -22,7 +22,7 @@ export function useMyYLDMines(params?: {
   ordering?: string
   page?: number
   page_size?: number
-}) {
+} | null) {
   const [mines, setMines] = useState<YLDMine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +31,13 @@ export function useMyYLDMines(params?: {
   const [hasMore, setHasMore] = useState(false)
   
   const fetchMines = useCallback(async () => {
+    // 如果 params 为 null，说明不应该获取数据（比如未登录）
+    if (params === null) {
+      setMines([])
+      setLoading(false)
+      return
+    }
+    
     try {
       setLoading(true)
       setError(null)
