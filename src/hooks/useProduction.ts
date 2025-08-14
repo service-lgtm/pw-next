@@ -114,9 +114,18 @@ export function useMyTools(options?: UseMyToolsOptions) {
       setLoading(true)
       setError(null)
       
+      // 映射前端状态到后端状态
+      let backendStatus = status
+      if (status === 'idle') {
+        backendStatus = 'normal'  // 前端的 idle 对应后端的 normal
+      } else if (status === 'working') {
+        backendStatus = undefined  // 通过 is_in_use 参数查询
+      }
+      
       const response = await productionApi.tools.getMyTools({
         tool_type,
-        status,
+        status: backendStatus as any,
+        is_in_use: status === 'working' ? true : undefined,
         page_size: 100
       })
       
