@@ -124,6 +124,9 @@ export function MiningSessions({
     // 计算挖矿时长
     const miningDuration = formatDuration(session.started_at)
     
+    // 获取最近一次结算信息
+    const lastSettlement = metadata.last_settlement
+    
     return (
       <PixelCard className="overflow-hidden">
         {/* 会话头部 */}
@@ -189,7 +192,7 @@ export function MiningSessions({
             </div>
           </div>
           
-          {/* 资源消耗 */}
+          {/* 粮食消耗 */}
           {foodConsumption > 0 && (
             <div className="flex items-center justify-between p-2 bg-yellow-500/10 rounded">
               <span className="text-xs text-yellow-400">🌾 粮食消耗</span>
@@ -199,24 +202,21 @@ export function MiningSessions({
             </div>
           )}
           
-          {/* 能量状态（如果有） */}
-          {session.remaining_energy !== undefined && session.remaining_energy !== null && (
-            <div className="flex items-center justify-between p-2 bg-blue-500/10 rounded">
-              <span className="text-xs text-blue-400">⚡ 剩余能量</span>
-              <div className="flex items-center gap-2">
-                <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      session.remaining_energy > 50 ? "bg-blue-500" :
-                      session.remaining_energy > 20 ? "bg-yellow-500" : "bg-red-500"
-                    )}
-                    style={{ width: `${session.remaining_energy}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-blue-400">
-                  {session.remaining_energy}%
-                </span>
+          {/* 最近结算信息 */}
+          {lastSettlement && (
+            <div className="p-2 bg-gray-800 rounded space-y-1">
+              <p className="text-xs text-gray-400">最近结算</p>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">产出:</span>
+                <span className="text-green-400">{formatNumber(lastSettlement.output, 2)} YLD</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">税收:</span>
+                <span className="text-red-400">-{formatNumber(lastSettlement.tax, 2)} YLD</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">净收入:</span>
+                <span className="text-gold-400">{formatNumber(lastSettlement.net, 2)} YLD</span>
               </div>
             </div>
           )}
