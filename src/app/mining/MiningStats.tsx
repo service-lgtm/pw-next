@@ -1,15 +1,20 @@
-// src/components/mining/MiningStats.tsx
+// src/app/mining/MiningStats.tsx
 // 矿山统计信息组件
 // 
 // 功能说明：
 // 1. 显示 YLD 矿山统计数据
-// 2. 显示资源统计信息
+// 2. 显示资源统计信息（使用新的 ResourceStatsView 接口）
 // 3. 提供快捷操作入口
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/components/shared/PixelCard
 // - 使用 @/components/shared/PixelButton
+// - 从 @/hooks/useProduction 获取资源数据
+// - 调用后端 /production/resources/stats/ 接口
+//
+// 更新历史：
+// - 2024-01: 添加 resourceStats 参数支持新的资源统计接口
 
 'use client'
 
@@ -19,6 +24,7 @@ import { PixelButton } from '@/components/shared/PixelButton'
 interface MiningStatsProps {
   yldStats: any
   resources: any
+  resourceStats?: any  // 新增：资源统计数据（来自 /production/resources/stats/）
   grainStatus: any
   hasMiningAccess: boolean
   sessions?: any[]  // 添加挖矿会话数据
@@ -50,6 +56,7 @@ function formatResource(value: string | number): string {
 export function MiningStats({
   yldStats,
   resources,
+  resourceStats,  // 新增参数
   grainStatus,
   hasMiningAccess,
   sessions,
@@ -121,7 +128,7 @@ export function MiningStats({
       </PixelCard>
 
       {/* 资源统计 - 仅在有挖矿权限时显示 */}
-      {hasMiningAccess && resources && (
+      {hasMiningAccess && (resources || resourceStats) && (
         <PixelCard>
           <h3 className="font-bold mb-4">资源库存</h3>
           <div className="grid grid-cols-2 gap-3">
@@ -131,7 +138,11 @@ export function MiningStats({
                 <span className="text-2xl">🪵</span>
               </div>
               <p className="text-lg font-bold text-green-400 mt-1">
-                {formatResource(resources.wood)}
+                {formatResource(
+                  resourceStats?.resources?.wood?.available || 
+                  resourceStats?.resources?.wood?.amount || 
+                  resources?.wood || 0
+                )}
               </p>
             </div>
             
@@ -141,7 +152,11 @@ export function MiningStats({
                 <span className="text-2xl">⛏️</span>
               </div>
               <p className="text-lg font-bold text-gray-400 mt-1">
-                {formatResource(resources.iron)}
+                {formatResource(
+                  resourceStats?.resources?.iron?.available || 
+                  resourceStats?.resources?.iron?.amount || 
+                  resources?.iron || 0
+                )}
               </p>
             </div>
             
@@ -151,7 +166,11 @@ export function MiningStats({
                 <span className="text-2xl">🪨</span>
               </div>
               <p className="text-lg font-bold text-blue-400 mt-1">
-                {formatResource(resources.stone)}
+                {formatResource(
+                  resourceStats?.resources?.stone?.available || 
+                  resourceStats?.resources?.stone?.amount || 
+                  resources?.stone || 0
+                )}
               </p>
             </div>
             
@@ -161,7 +180,11 @@ export function MiningStats({
                 <span className="text-2xl">🌾</span>
               </div>
               <p className="text-lg font-bold text-yellow-400 mt-1">
-                {formatResource(resources.grain)}
+                {formatResource(
+                  resourceStats?.resources?.grain?.available || 
+                  resourceStats?.resources?.grain?.amount || 
+                  resources?.grain || 0
+                )}
               </p>
               {grainStatus && grainStatus.warning && (
                 <p className="text-xs text-red-400 mt-1">
@@ -170,6 +193,40 @@ export function MiningStats({
               )}
             </div>
           </div>
+          
+          {/* 显示总价值（如果有） */}
+          {resourceStats?.total_value && (
+            <div className="mt-3 p-2 bg-purple-900/20 rounded">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-purple-400">资源总价值</span>
+                <span className="text-sm font-bold text-purple-400">
+                  {resourceStats.total_value.toFixed(2)} YLD
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* 显示钱包余额（如果有） */}
+          {resourceStats?.wallet && (
+            <div className="mt-3 space-y-2">
+              {resourceStats.wallet.yld_balance > 0 && (
+                <div className="p-2 bg-purple-900/20 rounded flex justify-between items-center">
+                  <span className="text-xs text-purple-400">YLD 钱包</span>
+                  <span className="text-sm font-bold text-purple-400">
+                    {formatYLD(resourceStats.wallet.yld_balance)}
+                  </span>
+                </div>
+              )}
+              {resourceStats.wallet.tdb_balance > 0 && (
+                <div className="p-2 bg-gold-900/20 rounded flex justify-between items-center">
+                  <span className="text-xs text-gold-400">TDB 余额</span>
+                  <span className="text-sm font-bold text-gold-400">
+                    {formatResource(resourceStats.wallet.tdb_balance)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </PixelCard>
       )}
 
