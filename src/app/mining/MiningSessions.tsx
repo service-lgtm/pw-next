@@ -381,36 +381,54 @@ export function MiningSessions({
         size="medium"
       >
         <div className="space-y-4">
-          {/* 重要提示 */}
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
+          {/* 重要提示 - 优化样式 */}
+          <div className="p-3 bg-red-900/20 border border-red-500/40 rounded-lg">
             <div className="flex items-start gap-2">
-              <span className="text-red-500 text-xl">⚠️</span>
+              <span className="text-red-400 text-xl mt-0.5">⚠️</span>
               <div className="flex-1">
-                <p className="text-sm text-red-400 font-bold mb-1">重要提示</p>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• 挖矿开始后，<span className="text-red-400 font-bold">1小时内停止将按完整1小时扣除耐久和粮食</span></li>
-                  <li>• 工具耐久度会持续消耗，耐久度为0时工具损坏</li>
-                  <li>• 粮食不足时生产会自动暂停</li>
-                  <li>• 请确保有足够的粮食储备再开始挖矿</li>
-                  <li>• 每个工具每小时消耗 {FOOD_CONSUMPTION_RATE} 单位粮食</li>
+                <p className="text-sm text-red-400 font-bold mb-2">重要提示</p>
+                <ul className="text-xs text-gray-300 space-y-1.5">
+                  <li className="flex items-start gap-1">
+                    <span className="text-red-400">•</span>
+                    <span>挖矿开始后，<span className="text-red-400 font-bold">1小时内停止将按完整1小时扣除耐久和粮食</span></span>
+                  </li>
+                  <li className="flex items-start gap-1">
+                    <span className="text-yellow-400">•</span>
+                    <span>工具耐久度会持续消耗，耐久度为0时工具损坏</span>
+                  </li>
+                  <li className="flex items-start gap-1">
+                    <span className="text-yellow-400">•</span>
+                    <span>粮食不足时生产会自动暂停</span>
+                  </li>
+                  <li className="flex items-start gap-1">
+                    <span className="text-blue-400">•</span>
+                    <span>请确保有足够的粮食储备再开始挖矿</span>
+                  </li>
+                  <li className="flex items-start gap-1">
+                    <span className="text-green-400">•</span>
+                    <span>每个工具每小时消耗 <span className="font-bold">{FOOD_CONSUMPTION_RATE}</span> 单位粮食</span>
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
           
-          {/* 选择土地 */}
+          {/* 选择土地 - 优化样式 */}
           <div>
-            <label className="text-sm font-bold text-gray-300">选择土地</label>
+            <label className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
+              <span>📍</span>
+              <span>选择土地</span>
+            </label>
             {userLands && userLands.length > 0 ? (
               <select
-                className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
+                className="w-full px-3 py-2.5 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 transition-colors"
                 value={selectedLand?.id || ''}
                 onChange={(e) => {
                   const land = userLands.find(l => l.id === parseInt(e.target.value))
                   setSelectedLand(land || null)
                 }}
               >
-                <option value="">请选择土地</option>
+                <option value="">-- 请选择土地 --</option>
                 {userLands.map(land => (
                   <option key={land.id} value={land.id}>
                     {land.land_id} - {land.blueprint?.land_type_display || '未知类型'}
@@ -418,79 +436,172 @@ export function MiningSessions({
                 ))}
               </select>
             ) : (
-              <p className="text-sm text-gray-400 mt-2">您还没有土地</p>
+              <p className="text-sm text-gray-400 p-3 bg-gray-800/50 rounded-lg text-center">
+                您还没有土地，请先购买土地
+              </p>
             )}
           </div>
           
-          {/* 选择工具 */}
+          {/* 选择工具 - 重新设计 */}
           <div>
-            <label className="text-sm font-bold text-gray-300">
-              选择工具 {selectedTools.length > 0 && `(已选 ${selectedTools.length})`}
-            </label>
-            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto bg-gray-800/50 rounded p-2">
-              {availableTools.length > 0 ? (
-                availableTools.map(tool => (
-                  <label key={tool.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-700 p-2 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedTools.includes(tool.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedTools([...selectedTools, tool.id])
-                        } else {
-                          setSelectedTools(selectedTools.filter(id => id !== tool.id))
-                        }
-                      }}
-                      className="rounded text-gold-500"
-                    />
-                    <span className="text-sm flex-1">
-                      {tool.tool_id} - {tool.tool_type_display}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      耐久: {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
-                    </span>
-                  </label>
-                ))
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  暂无可用工具，请先合成工具
-                </p>
+            <label className="text-sm font-bold text-gray-300 flex items-center justify-between mb-2">
+              <span className="flex items-center gap-2">
+                <span>🔧</span>
+                <span>选择工具</span>
+              </span>
+              {selectedTools.length > 0 && (
+                <span className="text-xs bg-gold-500/20 text-gold-400 px-2 py-1 rounded">
+                  已选 {selectedTools.length} 个
+                </span>
               )}
-            </div>
-          </div>
-          
-          {/* 预计消耗 */}
-          {selectedLand && selectedTools.length > 0 && (
-            <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-              <p className="text-xs text-blue-400 font-bold mb-2">预计消耗（每小时）</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">工具耐久:</span>
-                  <span className="text-yellow-400">{selectedTools.length * DURABILITY_CONSUMPTION_RATE} 点/工具</span>
+            </label>
+            
+            {availableTools.length > 0 ? (
+              <div className="border border-gray-600 rounded-lg overflow-hidden">
+                <div className="max-h-48 overflow-y-auto bg-gray-800/30">
+                  {availableTools.map((tool, index) => (
+                    <label 
+                      key={tool.id} 
+                      className={cn(
+                        "flex items-center gap-3 p-3 cursor-pointer transition-all",
+                        "hover:bg-gray-700/50",
+                        selectedTools.includes(tool.id) ? "bg-gray-700/70" : "",
+                        index !== 0 && "border-t border-gray-700"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTools.includes(tool.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTools([...selectedTools, tool.id])
+                          } else {
+                            setSelectedTools(selectedTools.filter(id => id !== tool.id))
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-600 text-gold-500 focus:ring-gold-500 focus:ring-offset-0"
+                      />
+                      <div className="flex-1 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {tool.tool_id}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {tool.tool_type_display}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-gray-400">耐久度</div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  (tool.current_durability || tool.durability || 0) > 1000 ? "bg-green-500" :
+                                  (tool.current_durability || tool.durability || 0) > 500 ? "bg-yellow-500" : 
+                                  "bg-red-500"
+                                )}
+                                style={{ 
+                                  width: `${((tool.current_durability || tool.durability || 0) / (tool.max_durability || 1500)) * 100}%` 
+                                }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">粮食消耗:</span>
-                  <span className="text-yellow-400">{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位</span>
+                
+                {/* 全选/取消全选按钮 */}
+                <div className="p-2 bg-gray-800/50 border-t border-gray-700">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTools(availableTools.map(t => t.id))}
+                      className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                    >
+                      全选
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTools([])}
+                      className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                    >
+                      清空
+                    </button>
+                  </div>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
-                注：实际消耗根据土地类型和工具效率会有所不同
+            ) : (
+              <div className="p-4 bg-gray-800/50 rounded-lg text-center">
+                <p className="text-sm text-gray-400">
+                  暂无可用工具
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  请先在"合成系统"中制作工具
+                </p>
+              </div>
+            )}
+          </div>
+          
+          {/* 预计消耗 - 美化样式 */}
+          {selectedLand && selectedTools.length > 0 && (
+            <div className="p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg">
+              <p className="text-xs text-blue-400 font-bold mb-3 flex items-center gap-2">
+                <span>📊</span>
+                <span>预计消耗（每小时）</span>
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-800/50 rounded p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">⚙️ 工具耐久</span>
+                    <span className="text-sm font-bold text-yellow-400">
+                      {selectedTools.length * DURABILITY_CONSUMPTION_RATE} 点/工具
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-gray-800/50 rounded p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">🌾 粮食消耗</span>
+                    <span className="text-sm font-bold text-yellow-400">
+                      {selectedTools.length * FOOD_CONSUMPTION_RATE} 单位
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                💡 实际消耗根据土地类型和工具效率会有所不同
               </p>
             </div>
           )}
           
-          {/* 按钮 */}
-          <div className="flex gap-3">
+          {/* 按钮 - 优化样式 */}
+          <div className="flex gap-3 pt-2">
             <PixelButton
               className="flex-1"
               onClick={handleConfirmStart}
               disabled={!selectedLand || selectedTools.length === 0 || startMiningLoading}
             >
-              {startMiningLoading ? '开始中...' : '确认开始'}
+              {startMiningLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                  <span>开始中...</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <span>✅</span>
+                  <span>确认开始</span>
+                </span>
+              )}
             </PixelButton>
             <PixelButton
               variant="secondary"
               onClick={() => setShowStartModal(false)}
+              className="px-8"
             >
               取消
             </PixelButton>
