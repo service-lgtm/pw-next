@@ -91,72 +91,75 @@ export default function MiningPage() {
   // ========== 数据获取 ==========
   const shouldFetchData = !authLoading && isAuthenticated
   
-  // YLD 矿山数据
-  const { 
-    mines: yldMines, 
-    loading: yldMinesLoading, 
-    error: yldMinesError, 
-    stats: yldStats,
-    totalCount: yldTotalCount,
-    refetch: refetchYLDMines
-  } = useMyYLDMines(shouldFetchData ? {
+  // YLD 矿山数据 - 安全调用，避免解构 undefined
+  const yldMinesResult = useMyYLDMines(shouldFetchData ? {
     page: 1,
     page_size: 50,
     ordering: '-created_at'
   } : null)
+  const yldMines = yldMinesResult?.mines || []
+  const yldMinesLoading = yldMinesResult?.loading || false
+  const yldMinesError = yldMinesResult?.error || null
+  const yldStats = yldMinesResult?.stats || null
+  const yldTotalCount = yldMinesResult?.totalCount || 0
+  const refetchYLDMines = yldMinesResult?.refetch || (() => {})
   
-  // YLD 矿山详情
-  const { 
-    mine: selectedMine, 
-    loading: detailLoading, 
-    error: detailError 
-  } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
+  // YLD 矿山详情 - 安全调用
+  const yldDetailResult = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
+  const selectedMine = yldDetailResult?.mine || null
+  const detailLoading = yldDetailResult?.loading || false
+  const detailError = yldDetailResult?.error || null
   
   // 用户土地数据
-  const { 
-    lands: userLands, 
-    loading: landsLoading, 
-    error: landsError,
-    refetch: refetchLands
-  } = useMyLands()
+  const userLandsData = useMyLands()
+  const userLands = userLandsData?.lands || []
+  const landsLoading = userLandsData?.loading || false
+  const landsError = userLandsData?.error || null
+  const refetchLands = userLandsData?.refetch || (() => {})
   
-  // 挖矿生产数据 - 仅在有权限时获取
-  const shouldFetchMining = hasMiningAccess && shouldFetchData
+  // 挖矿生产数据 - 必须无条件调用所有 hooks（React 规则）
+  // 注意：这些 hooks 内部会根据参数判断是否真正获取数据
+  const miningSessionsResult = useMiningSessions(hasMiningAccess ? 'active' : undefined)
+  const sessions = miningSessionsResult?.sessions || []
+  const sessionsLoading = miningSessionsResult?.loading || false
+  const refetchSessions = miningSessionsResult?.refetch || (() => {})
   
-  // 修复：确保在没有权限时不调用这些 hooks
-  const { 
-    sessions = [], 
-    loading: sessionsLoading = false, 
-    refetch: refetchSessions = () => {} 
-  } = shouldFetchMining ? useMiningSessions('active') : {}
+  const toolsResult = useMyTools(hasMiningAccess ? { status: 'idle' } : undefined)
+  const tools = toolsResult?.tools || []
+  const toolsLoading = toolsResult?.loading || false
+  const toolStats = toolsResult?.stats || null
+  const refetchTools = toolsResult?.refetch || (() => {})
   
-  const { 
-    tools = [], 
-    loading: toolsLoading = false, 
-    stats: toolStats = null, 
-    refetch: refetchTools = () => {} 
-  } = shouldFetchMining ? useMyTools({ status: 'idle' }) : {}
+  const resourcesResult = useMyResources()
+  const resources = hasMiningAccess ? (resourcesResult?.resources || null) : null
+  const resourcesLoading = resourcesResult?.loading || false
+  const refetchResources = resourcesResult?.refetch || (() => {})
   
-  const { 
-    resources = null, 
-    loading: resourcesLoading = false, 
-    refetch: refetchResources = () => {} 
-  } = shouldFetchMining ? useMyResources() : {}
+  const grainStatusResult = useGrainStatus()
+  const grainStatus = hasMiningAccess ? (grainStatusResult?.status || null) : null
   
-  const { 
-    status: grainStatus = null 
-  } = shouldFetchMining ? useGrainStatus() : {}
+  const productionStatsResult = useProductionStats()
+  const productionStats = hasMiningAccess ? (productionStatsResult?.stats || null) : null
   
-  const { 
-    stats: productionStats = null 
-  } = shouldFetchMining ? useProductionStats() : {}
+  // 生产操作 Hooks - 始终调用，避免条件调用
+  const startMiningResult = useStartSelfMining()
+  const startMining = startMiningResult?.startMining || (async () => {})
+  const startMiningLoading = startMiningResult?.loading || false
   
-  // 生产操作 Hooks - 仅在有权限时使用
-  const { startMining, loading: startMiningLoading } = useStartSelfMining()
-  const { startWithTools, startWithoutTools, loading: hiredMiningLoading } = useStartHiredMining()
-  const { synthesize, loading: synthesizeLoading } = useSynthesizeTool()
-  const { stopProduction } = useStopProduction()
-  const { collectOutput } = useCollectOutput()
+  const hiredMiningResult = useStartHiredMining()
+  const startWithTools = hiredMiningResult?.startWithTools || (async () => {})
+  const startWithoutTools = hiredMiningResult?.startWithoutTools || (async () => {})
+  const hiredMiningLoading = hiredMiningResult?.loading || false
+  
+  const synthesizeResult = useSynthesizeTool()
+  const synthesize = synthesizeResult?.synthesize || (async () => {})
+  const synthesizeLoading = synthesizeResult?.loading || false
+  
+  const stopProductionResult = useStopProduction()
+  const stopProduction = stopProductionResult?.stopProduction || (async () => {})
+  
+  const collectOutputResult = useCollectOutput()
+  const collectOutput = collectOutputResult?.collectOutput || (async () => {})
   
   // ========== 副作用 ==========
   
@@ -608,6 +611,7 @@ export default function MiningPage() {
                         </PixelButton>
                       </PixelCard>
                     ) : yldMines && yldMines.length > 0 ? (
+                      {yldMines && yldMines.length > 0 ? (
                       <div className="grid gap-4">
                         {yldMines.map((mine) => (
                           <PixelCard 
@@ -736,6 +740,7 @@ export default function MiningPage() {
                           <p className="text-gray-400 mt-2">加载中...</p>
                         </PixelCard>
                       ) : sessions && sessions.length > 0 ? (
+                      {sessions && sessions.length > 0 ? (
                         <div className="space-y-3">
                           {sessions.map((session) => (
                             <PixelCard key={session.id} className="p-4">
@@ -800,6 +805,7 @@ export default function MiningPage() {
                           <p className="text-gray-400 mt-2">加载中...</p>
                         </PixelCard>
                       ) : tools && tools.length > 0 ? (
+                      {tools && tools.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {tools.map((tool) => (
                             <PixelCard key={tool.id} className="p-3">
