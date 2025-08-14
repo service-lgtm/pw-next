@@ -5,13 +5,17 @@
 // 1. 本文件包含所有挖矿生产相关的 API 接口
 // 2. 包括自主挖矿、招募挖矿、打工挖矿、合成系统等
 // 3. 使用 JWT 认证，自动处理 token
-// 4. 修复了 API 路径以匹配后端 urls.py 定义
+// 4. 修复了资源统计接口，新增 getResourceStats 方法
 //
 // 关联文件：
 // - src/lib/api/index.ts: 基础请求函数和认证管理
 // - src/types/production.ts: 生产系统类型定义
 // - src/hooks/useProduction.ts: 生产系统 Hook
 // - backend/production/urls.py: 后端路由定义
+// - backend/production/views.py: 后端视图，包含 ResourceStatsView
+//
+// 更新历史：
+// - 2024-01: 添加 getResourceStats 接口，对应后端 /production/resources/stats/
 
 import { request } from './index'
 import type {
@@ -171,7 +175,7 @@ export const productionApi = {
 
   // ==================== 资源管理 ====================
   resources: {
-    // 获取用户资源
+    // 获取用户资源（旧接口，保留兼容性）
     getMyResources: () =>
       request<{
         results: UserResource[]
@@ -181,6 +185,57 @@ export const productionApi = {
           total_amount: { [key: string]: number }
         }
       }>('/production/resources/'),
+
+    // 获取资源统计（增强版）- 新增
+    // 对应后端 ResourceStatsView: /production/resources/stats/
+    // 返回用户所有资源的当前库存、价值和统计信息
+    getResourceStats: () =>
+      request<{
+        success: boolean
+        data: {
+          // 资源库存信息
+          resources: {
+            [key: string]: {
+              display_name: string      // 显示名称
+              amount: number            // 总数量
+              frozen: number            // 冻结数量
+              available: number         // 可用数量
+              total_produced: number    // 累计生产
+              total_consumed: number    // 累计消耗
+              value?: number           // 总价值
+              unit_price?: number      // 单价
+            }
+          }
+          // 钱包信息（YLD 和 TDB）
+          wallet: {
+            yld_balance: number         // YLD 余额
+            tdb_balance: number         // TDB 余额
+            yld_value?: number         // YLD 价值
+            yld_unit_price?: number    // YLD 单价
+            tdb_value?: number         // TDB 价值
+          }
+          // 价格信息
+          prices: {
+            [key: string]: number       // 各资源的当前价格
+          }
+          // 总价值
+          total_value: number
+          // 摘要信息
+          summary: {
+            total_resources: number     // 资源总量
+            total_in_wallet: number    // 钱包总额
+            total_value: number        // 总价值
+            resource_types: number     // 资源种类数
+          }
+          // 资源分布
+          distribution: Array<{
+            type: string               // 资源类型
+            name: string               // 资源名称
+            value: number              // 价值
+            percentage: number         // 占比
+          }>
+        }
+      }>('/production/resources/stats/'),
   },
 
   // ==================== 统计与分析 ====================
@@ -411,6 +466,7 @@ export const productionApi = {
 
 /**
  * 格式化资源返回数据为 ResourceBalance
+ * 用于将后端返回的资源数组转换为前端使用的对象格式
  */
 export function formatResourceBalance(resources: UserResource[]): ResourceBalance {
   const balance: ResourceBalance = {
@@ -429,6 +485,37 @@ export function formatResourceBalance(resources: UserResource[]): ResourceBalanc
       balance[key] = parseFloat(resource.available_amount || resource.amount)
     }
   })
+
+  return balance
+}
+
+/**
+ * 从资源统计数据中提取 ResourceBalance
+ * 用于新的统计接口返回数据的转换
+ */
+export function formatResourceStatsToBalance(stats: any): ResourceBalance {
+  const balance: ResourceBalance = {
+    wood: 0,
+    iron: 0,
+    stone: 0,
+    yld: 0,
+    grain: 0,
+    seed: 0,
+    brick: 0
+  }
+
+  if (stats?.resources) {
+    Object.entries(stats.resources).forEach(([key, resource]: [string, any]) => {
+      if (key in balance) {
+        balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
+      }
+    })
+  }
+
+  // 加上钱包中的 YLD
+  if (stats?.wallet?.yld_balance) {
+    balance.yld += stats.wallet.yld_balance
+  }
 
   return balance
 }
