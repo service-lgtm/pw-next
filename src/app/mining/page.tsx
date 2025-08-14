@@ -107,7 +107,7 @@ export default function MiningPage() {
     stats: toolStats, 
     refetch: refetchTools
   } = useMyTools({
-    enabled: hasMiningAccess && shouldFetchData
+    enabled: shouldFetchData  // 修改：始终获取工具数据
   })
   
   const { 
@@ -548,18 +548,15 @@ export default function MiningPage() {
           </div>
         </div>
 
-        {/* 底部提示 */}
+        {/* 底部提示 - 简化版本 */}
         <div className="mt-6 sm:mt-8">
           <PixelCard className="p-4 sm:p-6 bg-gold-500/10 border-gold-500/30">
-            <div className="flex flex-col sm:flex-row items-start gap-3">
+            <div className="flex items-center gap-3">
               <span className="text-2xl">💡</span>
-              <div className="flex-1">
-                <h3 className="font-bold text-gold-400 mb-2 text-sm sm:text-base">系统提示</h3>
-                <p className="text-xs sm:text-sm text-gray-300">
-                  YLD 矿山系统和挖矿生产系统正在优化中，部分功能即将开放。
-                  挖矿功能需要内测密码验证（密码：888888）。
-                </p>
-              </div>
+              <p className="text-xs sm:text-sm text-gray-300">
+                YLD 矿山系统和挖矿生产系统正在优化中，部分功能即将开放。
+                挖矿功能需要内测密码验证（密码：888888）。
+              </p>
             </div>
           </PixelCard>
         </div>
@@ -604,7 +601,7 @@ export default function MiningPage() {
                 </div>
                 <div>
                   <p className="text-gray-400">所在区域</p>
-                  <p className="font-bold">{selectedMine.region_name}</p>
+                  <p className="font-bold">{selectedMine.region_name || selectedMine.region || '未知'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">矿山类型</p>
@@ -623,13 +620,13 @@ export default function MiningPage() {
                 <div>
                   <p className="text-gray-400">YLD 数量</p>
                   <p className="font-bold text-purple-400 text-lg">
-                    {formatYLD(selectedMine.initial_price)}
+                    {formatYLD(selectedMine.yld_capacity || selectedMine.initial_price || selectedMine.yld_amount || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-400">累计产出</p>
                   <p className="font-bold text-green-400 text-lg">
-                    {formatYLD(selectedMine.accumulated_output)}
+                    {formatYLD(selectedMine.accumulated_output || selectedMine.total_output || 0)}
                   </p>
                 </div>
               </div>
