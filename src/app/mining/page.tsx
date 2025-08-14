@@ -7,23 +7,12 @@
 // 3. 集成内测密码验证功能（密码：888888）
 // 4. 保留原有功能的同时优化了代码结构
 // 
-// 关联组件：
-// - @/components/mining/BetaPasswordModal: 内测密码验证
-// - @/components/mining/YLDMineList: YLD矿山列表
-// - @/components/mining/MiningSessions: 挖矿会话管理
-// - @/components/mining/ToolManagement: 工具管理
-// - @/components/mining/MiningStats: 统计信息
-// 
-// 关联 Hooks：
-// - @/hooks/useYLDMines: YLD 矿山数据
-// - @/hooks/useProduction: 生产系统数据
-// - @/hooks/useLands: 土地数据
-// - @/hooks/useAuth: 认证状态
-// 
-// 注意事项：
-// - 需要用户登录才能访问
-// - 挖矿功能需要内测密码（888888）
-// - 移动端自适应布局
+// 关联组件（同目录下）：
+// - ./BetaPasswordModal: 内测密码验证
+// - ./YLDMineList: YLD矿山列表
+// - ./MiningSessions: 挖矿会话管理
+// - ./ToolManagement: 工具管理
+// - ./MiningStats: 统计信息
 
 'use client'
 
@@ -33,7 +22,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
-// 组件导入
+// 组件导入 - 从同目录导入
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -62,36 +51,23 @@ import {
 // 类型导入
 import type { YLDMine } from '@/types/assets'
 
-/**
- * 挖矿中心主页面组件
- */
 export default function MiningPage() {
   // ========== 认证状态 ==========
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   
   // ========== 状态管理 ==========
-  // 主标签页状态
   const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring'>('myMines')
-  
-  // 我的矿山子标签 - 保持原有的4个标签
   const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools' | 'synthesis'>('overview')
-  
-  // 内测权限
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
-  
-  // YLD矿山详情
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  
-  // 响应式状态
   const [isMobile, setIsMobile] = useState(false)
   
   // ========== 数据获取 ==========
   const shouldFetchData = !authLoading && isAuthenticated
   
-  // YLD 矿山数据
   const { 
     mines: yldMines, 
     loading: yldMinesLoading, 
@@ -105,21 +81,17 @@ export default function MiningPage() {
     ordering: '-created_at'
   } : null)
   
-  // YLD 矿山详情
   const { 
     mine: selectedMine, 
     loading: detailLoading
   } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
   
-  // 用户土地数据
   const { 
-    lands: userLands, 
-    loading: landsLoading
+    lands: userLands
   } = useUserLands({
     enabled: shouldFetchData
   })
   
-  // 挖矿生产数据
   const { 
     sessions, 
     loading: sessionsLoading, 
@@ -140,7 +112,6 @@ export default function MiningPage() {
   
   const { 
     resources, 
-    loading: resourcesLoading, 
     refetch: refetchResources
   } = useMyResources({
     enabled: shouldFetchData
@@ -152,13 +123,6 @@ export default function MiningPage() {
     enabled: hasMiningAccess && shouldFetchData
   })
   
-  const { 
-    stats: productionStats 
-  } = useProductionStats({
-    enabled: hasMiningAccess && shouldFetchData
-  })
-  
-  // 生产操作 Hooks
   const { 
     startMining, 
     loading: startMiningLoading
@@ -178,8 +142,6 @@ export default function MiningPage() {
   } = useCollectOutput()
   
   // ========== 副作用 ==========
-  
-  // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -189,72 +151,45 @@ export default function MiningPage() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 检查登录状态
   useEffect(() => {
     if (authLoading) return
-    
     if (!isAuthenticated) {
-      console.log('[MiningPage] 未登录，跳转到登录页')
       toast.error('请先登录查看矿山数据')
       router.push('/login?redirect=/mining')
     }
   }, [authLoading, isAuthenticated, router])
   
-  // 检查挖矿权限
   useEffect(() => {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
   }, [])
   
   // ========== 事件处理函数 ==========
-  
-  // 格式化 YLD 数量
   const formatYLD = (value: string | number): string => {
     const num = typeof value === 'string' ? parseFloat(value) : value
     if (isNaN(num)) return '0.00'
     return num.toFixed(4)
   }
   
-  // 格式化资源数量
   const formatResource = (value: string | number): string => {
     const num = typeof value === 'string' ? parseFloat(value) : value
     if (isNaN(num)) return '0.00'
     return num.toFixed(2)
   }
   
-  // 查看矿山详情
   const handleViewDetail = (mine: YLDMine) => {
     setSelectedMineId(mine.id)
     setShowDetailModal(true)
   }
   
-  // 开启挖矿功能 - 点击"开启挖矿"按钮触发
   const handleOpenMiningFeature = () => {
-    console.log('[Debug] 开启挖矿功能被调用, hasMiningAccess:', hasMiningAccess)
     if (!hasMiningAccess) {
-      console.log('[Debug] 没有权限，显示密码框')
       setShowBetaModal(true)
     } else {
-      console.log('[Debug] 已有权限，切换到挖矿会话')
       setMiningSubTab('sessions')
     }
   }
   
-  // 点击任何挖矿相关子标签时检查权限
-  const handleMiningTabClick = (tab: 'overview' | 'sessions' | 'tools' | 'synthesis') => {
-    console.log('[Debug] 切换标签:', tab, 'hasMiningAccess:', hasMiningAccess)
-    if (tab !== 'overview' && !hasMiningAccess) {
-      // 如果点击非概览标签且没有权限，弹出密码框
-      setShowBetaModal(true)
-    } else {
-      setMiningSubTab(tab)
-    }
-  }
-      setMiningSubTab('sessions')
-    }
-  }
-  
-  // 开始自主挖矿
   const handleStartSelfMining = async (landId: number, toolIds: number[]) => {
     await startMining({
       land_id: landId,
@@ -264,7 +199,6 @@ export default function MiningPage() {
     refetchTools()
   }
   
-  // 停止挖矿会话
   const handleStopSession = async (sessionId: number) => {
     await stopProduction(sessionId)
     toast.success('已停止生产')
@@ -273,7 +207,6 @@ export default function MiningPage() {
     refetchResources()
   }
   
-  // 收取产出
   const handleCollectSessionOutput = async (sessionId: number) => {
     await collectOutput(sessionId)
     toast.success('收取成功！')
@@ -281,7 +214,6 @@ export default function MiningPage() {
     refetchResources()
   }
   
-  // 合成工具
   const handleSynthesize = async (toolType: string, quantity: number) => {
     await synthesize({
       tool_type: toolType,
@@ -292,8 +224,6 @@ export default function MiningPage() {
   }
   
   // ========== 渲染逻辑 ==========
-  
-  // 加载中状态
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -305,7 +235,6 @@ export default function MiningPage() {
     )
   }
   
-  // 未登录状态
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -326,7 +255,6 @@ export default function MiningPage() {
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            {/* 用户信息 */}
             <div className="flex items-center gap-2 text-center sm:text-left">
               <span className="text-sm text-gray-400">矿主：</span>
               <span className="text-sm text-gold-500 font-bold">
@@ -334,7 +262,6 @@ export default function MiningPage() {
               </span>
             </div>
             
-            {/* 统计信息 */}
             <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto">
               <div className="text-center min-w-[80px]">
                 <div className="text-xs text-gray-400">矿山数量</div>
@@ -363,7 +290,7 @@ export default function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-4 py-4 sm:py-6">
-        {/* 标签切换 */}
+        {/* 主标签切换 */}
         <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('myMines')}
@@ -405,7 +332,7 @@ export default function MiningPage() {
           "grid gap-4 sm:gap-6",
           !isMobile && "lg:grid-cols-12"
         )}>
-          {/* 左侧 - 统计信息（桌面端显示） */}
+          {/* 左侧统计信息 */}
           {!isMobile && activeTab === 'myMines' && (
             <div className="lg:col-span-4 space-y-6">
               <MiningStats
@@ -419,12 +346,12 @@ export default function MiningPage() {
             </div>
           )}
 
-          {/* 右侧 - 主内容 */}
+          {/* 右侧主内容 */}
           <div className={cn(
             !isMobile && activeTab === 'myMines' && "lg:col-span-8"
           )}>
             <AnimatePresence mode="wait">
-              {/* 我的矿山 */}
+              {/* 我的矿山内容 */}
               {activeTab === 'myMines' && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -432,7 +359,7 @@ export default function MiningPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  {/* 子标签切换 - 4个标签（始终显示） */}
+                  {/* 子标签切换 - 始终显示4个标签 */}
                   <div className="flex gap-2 mb-4 overflow-x-auto">
                     <button
                       onClick={() => setMiningSubTab('overview')}
@@ -565,11 +492,10 @@ export default function MiningPage() {
                       resources={resources}
                       onSynthesize={handleSynthesize}
                       synthesizeLoading={synthesizeLoading}
-                      showOnlyTools={true}  // 只显示工具列表
+                      showOnlyTools={true}
                     />
                   )}
 
-                  {/* 合成系统 - 独立的标签页 */}
                   {hasMiningAccess && miningSubTab === 'synthesis' && (
                     <ToolManagement
                       tools={tools}
@@ -578,7 +504,7 @@ export default function MiningPage() {
                       resources={resources}
                       onSynthesize={handleSynthesize}
                       synthesizeLoading={synthesizeLoading}
-                      showOnlySynthesis={true}  // 只显示合成系统
+                      showOnlySynthesis={true}
                     />
                   )}
                 </motion.div>
@@ -638,27 +564,20 @@ export default function MiningPage() {
         </div>
       </div>
 
-      {/* ==================== 模态框 ==================== */}
-      
-      {/* 内测密码模态框 */}
+      {/* 模态框 */}
       <BetaPasswordModal
         isOpen={showBetaModal}
         onClose={() => setShowBetaModal(false)}
         onSuccess={() => {
           setHasMiningAccess(true)
           setShowBetaModal(false)
-          // 验证成功后自动切换到挖矿会话标签
-          if (miningSubTab !== 'overview') {
-            // 如果当前不是概览，保持当前标签
-          } else {
-            // 如果当前是概览，切换到挖矿会话
+          if (miningSubTab === 'overview') {
             setMiningSubTab('sessions')
           }
           toast.success('验证成功！欢迎进入挖矿系统')
         }}
       />
       
-      {/* YLD矿山详情模态框 */}
       <PixelModal
         isOpen={showDetailModal}
         onClose={() => {
@@ -675,7 +594,6 @@ export default function MiningPage() {
           </div>
         ) : selectedMine ? (
           <div className="space-y-4">
-            {/* 基本信息 */}
             <div className="bg-gray-800 rounded-lg p-4">
               <h3 className="font-bold mb-3 text-gold-500">基本信息</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -698,7 +616,6 @@ export default function MiningPage() {
               </div>
             </div>
             
-            {/* YLD 信息 */}
             <div className="bg-purple-900/20 rounded-lg p-4">
               <h3 className="font-bold mb-3 text-purple-400">YLD 信息</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -717,12 +634,8 @@ export default function MiningPage() {
               </div>
             </div>
             
-            {/* 操作按钮 */}
             <div className="flex gap-3 pt-4">
-              <PixelButton 
-                className="flex-1"
-                disabled
-              >
+              <PixelButton className="flex-1" disabled>
                 生产功能待开放
               </PixelButton>
               <PixelButton 
