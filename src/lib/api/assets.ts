@@ -20,80 +20,12 @@ import type {
   LandDetail, 
   LandBlueprint, 
   LandTransaction,
-  PaginatedResponse
+  PaginatedResponse,
+  YLDMine,
+  YLDMineDetail,
+  YLDMineStats,
+  YLDMineListResponse
 } from '@/types/assets'
-
-// YLD 矿山类型定义（临时定义，应该移到 types/assets.ts）
-export interface YLDMine {
-  id: number
-  land_id: string
-  blueprint_name: string
-  land_type: string
-  land_type_display: string
-  size_sqm: number
-  region_name: string
-  coordinate_x: number
-  coordinate_y: number
-  owner: number
-  owner_username: string
-  status: string
-  status_display: string
-  current_price: string
-  initial_price: string
-  is_special: boolean
-  special_type: string
-  is_producing: boolean
-  production_started_at: string | null
-  accumulated_output: string
-  metadata: {
-    batch_id?: string
-    conversion_date?: string
-    yld_amount?: string
-    daily_output?: string
-    [key: string]: any
-  }
-  created_at: string
-  owned_at: string
-}
-
-export interface YLDMineDetail extends YLDMine {
-  blueprint: LandBlueprint
-  region: Region
-  transaction_count: number
-  last_transaction_price: string
-  total_transaction_volume: string
-  last_transaction_at: string | null
-  construction_level: number
-  is_under_construction: boolean
-  construction_started_at: string | null
-  is_rented: boolean
-  tenant: number | null
-  tenant_info: any
-  rental_price: string | null
-  recent_transactions: LandTransaction[]
-}
-
-export interface YLDMineStats {
-  total_stats: {
-    total_mines: number
-    total_yld_capacity: number
-    total_users: number
-    producing_count: number
-  }
-  batch_stats: Array<{
-    batch_id: string
-    created_at: string
-    mines_count: number
-    yld_converted: number
-    users_processed: number
-  }>
-  top_users: Array<{
-    user_id: number
-    username: string
-    mines_count: number
-    total_yld: number
-  }>
-}
 
 // 定义公开访问的端点模式
 const PUBLIC_ENDPOINTS = [
@@ -299,23 +231,7 @@ export const assetsApi = {
       ordering?: string
       page?: number
       page_size?: number
-    }) => assetsRequest<{
-      count: number
-      next: string | null
-      previous: string | null
-      results: YLDMine[]
-      stats?: {
-        total_mines: number
-        total_yld_capacity: number
-        total_accumulated_output: number
-        producing_count: number
-        by_batch: Array<{
-          batch_id: string
-          count: number
-          total_yld: number
-        }>
-      }
-    }>('/assets/yld-mines/', { params }),
+    }) => assetsRequest<YLDMineListResponse>('/assets/yld-mines/', { params }),
     
     // 获取 YLD 矿山详情
     // 对应后端: /assets/yld-mines/<id>/
