@@ -5,7 +5,7 @@
 // 1. 本文件是挖矿中心的主页面组件
 // 2. 已拆分为多个子组件，提高可维护性
 // 3. 集成内测密码验证功能（密码：888888）
-// 4. 保留原有功能的同时优化了代码结构
+// 4. 修复资源统计接口，使用新的 ResourceStatsView
 // 
 // 关联组件（同目录下）：
 // - ./BetaPasswordModal: 内测密码验证
@@ -13,6 +13,13 @@
 // - ./MiningSessions: 挖矿会话管理
 // - ./ToolManagement: 工具管理
 // - ./MiningStats: 统计信息
+//
+// API 接口：
+// - /production/resources/stats/: 新的资源统计接口（ResourceStatsView）
+// - /production/resources/: 旧的资源接口（保留兼容）
+//
+// 更新历史：
+// - 2024-01: 添加 useResourceStats Hook 调用新的统计接口
 
 'use client'
 
@@ -39,6 +46,7 @@ import {
   useMiningSessions,
   useMyTools,
   useMyResources,
+  useResourceStats,  // 新增导入：资源统计 Hook
   useStartSelfMining,
   useSynthesizeTool,
   useStopProduction,
@@ -114,7 +122,17 @@ export default function MiningPage() {
     resources, 
     refetch: refetchResources
   } = useMyResources({
-    enabled: shouldFetchData
+    enabled: shouldFetchData,
+    useStats: true  // 优先使用统计接口
+  })
+  
+  // 新增：获取详细的资源统计
+  const {
+    stats: resourceStats,
+    refetch: refetchResourceStats
+  } = useResourceStats({
+    enabled: shouldFetchData && hasMiningAccess,
+    autoRefresh: false  // 可以设置为 true 以自动刷新
   })
   
   const { 
@@ -197,6 +215,7 @@ export default function MiningPage() {
     })
     refetchSessions()
     refetchTools()
+    refetchResourceStats()  // 刷新资源统计
   }
   
   const handleStopSession = async (sessionId: number) => {
@@ -205,6 +224,7 @@ export default function MiningPage() {
     refetchSessions()
     refetchTools()
     refetchResources()
+    refetchResourceStats()  // 刷新资源统计
   }
   
   const handleCollectSessionOutput = async (sessionId: number) => {
@@ -212,6 +232,7 @@ export default function MiningPage() {
     toast.success('收取成功！')
     refetchSessions()
     refetchResources()
+    refetchResourceStats()  // 刷新资源统计
   }
   
   const handleSynthesize = async (toolType: string, quantity: number) => {
@@ -221,6 +242,7 @@ export default function MiningPage() {
     })
     refetchTools()
     refetchResources()
+    refetchResourceStats()  // 刷新资源统计
   }
   
   // ========== 渲染逻辑 ==========
@@ -338,10 +360,14 @@ export default function MiningPage() {
               <MiningStats
                 yldStats={yldStats}
                 resources={resources}
+                resourceStats={resourceStats?.data}  // 传递资源统计数据
                 grainStatus={grainStatus}
                 hasMiningAccess={hasMiningAccess}
                 sessions={sessions}  // 传递挖矿会话数据
-                onRefresh={refetchYLDMines}
+                onRefresh={() => {
+                  refetchYLDMines()
+                  refetchResourceStats()  // 刷新资源统计
+                }}
                 onOpenMining={handleOpenMiningFeature}
               />
             </div>
@@ -430,30 +456,49 @@ export default function MiningPage() {
                   </div>
 
                   {/* 资源显示栏 */}
-                  {hasMiningAccess && resources && miningSubTab !== 'overview' && (
+                  {hasMiningAccess && (resources || resourceStats) && miningSubTab !== 'overview' && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                       <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">木头</p>
                         <p className="text-sm font-bold text-green-400">
-                          {formatResource(resources.wood)}
+                          {formatResource(
+                            resourceStats?.data?.resources?.wood?.available || 
+                            resourceStats?.data?.resources?.wood?.amount || 
+                            resources?.wood || 0
+                          )}
                         </p>
                       </PixelCard>
                       <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">铁矿</p>
                         <p className="text-sm font-bold text-gray-400">
-                          {formatResource(resources.iron)}
+                          {formatResource(
+                            resourceStats?.data?.resources?.iron?.available || 
+                            resourceStats?.data?.resources?.iron?.amount || 
+                            resources?.iron || 0
+                          )}
                         </p>
                       </PixelCard>
                       <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">石头</p>
                         <p className="text-sm font-bold text-blue-400">
-                          {formatResource(resources.stone)}
+                          {formatResource(
+                            resourceStats?.data?.resources?.stone?.available || 
+                            resourceStats?.data?.resources?.stone?.amount || 
+                            resources?.stone || 0
+                          )}
                         </p>
                       </PixelCard>
                       <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">粮食</p>
                         <p className="text-sm font-bold text-yellow-400">
-                          {formatResource(resources.grain)}
+                          {formatResource(
+                            resourceStats?.data?.resources?.food?.available || 
+                            resourceStats?.data?.resources?.food?.amount || 
+                            resourceStats?.data?.resources?.grain?.available || 
+                            resourceStats?.data?.resources?.grain?.amount || 
+                            resources?.grain || 
+                            resources?.food || 0
+                          )}
                         </p>
                         {grainStatus && grainStatus.warning && (
                           <p className="text-xs text-red-400">
@@ -504,7 +549,7 @@ export default function MiningPage() {
                         tools={tools}
                         loading={toolsLoading}
                         toolStats={toolStats}
-                        resources={resources}
+                        resources={resources || resourceStats?.data?.resources}
                         onSynthesize={handleSynthesize}
                         synthesizeLoading={synthesizeLoading}
                         showOnlyTools={true}
@@ -526,7 +571,7 @@ export default function MiningPage() {
                         tools={tools}
                         loading={toolsLoading}
                         toolStats={toolStats}
-                        resources={resources}
+                        resources={resources || resourceStats?.data?.resources}
                         onSynthesize={handleSynthesize}
                         synthesizeLoading={synthesizeLoading}
                         showOnlySynthesis={true}
@@ -581,14 +626,13 @@ export default function MiningPage() {
           </div>
         </div>
 
-        {/* 底部提示 - 简化版本 */}
+        {/* 底部提示 - 移除密码信息 */}
         <div className="mt-6 sm:mt-8">
           <PixelCard className="p-4 sm:p-6 bg-gold-500/10 border-gold-500/30">
             <div className="flex items-center gap-3">
               <span className="text-2xl">💡</span>
               <p className="text-xs sm:text-sm text-gray-300">
-                YLD 矿山系统和挖矿生产系统正在优化中，部分功能即将开放。
-                挖矿功能需要内测密码验证（密码：888888）。
+                YLD 矿山系统和挖矿生产系统正在持续优化中，更多功能即将开放。
               </p>
             </div>
           </PixelCard>
@@ -611,9 +655,12 @@ export default function MiningPage() {
             setMiningSubTab('sessions')
           }
           toast.success('验证成功！欢迎进入挖矿系统')
+          // 验证成功后立即获取资源统计
+          refetchResourceStats()
         }}
       />
       
+      {/* 矿山详情模态框 */}
       <PixelModal
         isOpen={showDetailModal}
         onClose={() => {
