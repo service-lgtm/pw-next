@@ -667,18 +667,30 @@ export default function MiningPage() {
                     {formatYLD(selectedMine.accumulated_output || 0)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-400">日产出</p>
-                  <p className="font-bold text-yellow-400 text-lg">
-                    {formatYLD(selectedMine.daily_output || 0)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">批次</p>
-                  <p className="font-bold text-blue-400 text-xs truncate" title={selectedMine.batch_id}>
-                    {selectedMine.batch_id || '未知'}
-                  </p>
-                </div>
+                {selectedMine.daily_output && parseFloat(selectedMine.daily_output) > 0 && (
+                  <>
+                    <div>
+                      <p className="text-gray-400">日产出</p>
+                      <p className="font-bold text-yellow-400 text-lg">
+                        {formatYLD(selectedMine.daily_output)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">批次</p>
+                      <p className="font-bold text-blue-400 text-xs truncate" title={selectedMine.batch_id}>
+                        {selectedMine.batch_id || '未知'}
+                      </p>
+                    </div>
+                  </>
+                )}
+                {!selectedMine.daily_output && (
+                  <div>
+                    <p className="text-gray-400">批次</p>
+                    <p className="font-bold text-blue-400 text-xs truncate" title={selectedMine.batch_id}>
+                      {selectedMine.batch_id || '未知'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             
