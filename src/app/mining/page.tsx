@@ -120,58 +120,69 @@ export default function MiningPage() {
     refetch: refetchLands = () => {}
   } = useMyLands() || {}
   
-  // 挖矿生产数据 - 必须无条件调用所有 hooks（React 规则）
-  // 这些 hooks 始终返回对象，可以安全解构
+  // 挖矿生产数据 - 使用修复后的 hooks，传递 enabled 参数控制是否获取数据
   const { 
-    sessions = [], 
-    loading: sessionsLoading = false, 
-    refetch: refetchSessions = () => {}
-  } = useMiningSessions(hasMiningAccess && shouldFetchData ? 'active' : undefined)
+    sessions, 
+    loading: sessionsLoading, 
+    refetch: refetchSessions
+  } = useMiningSessions({
+    status: 'active',
+    enabled: hasMiningAccess && shouldFetchData
+  })
   
   const { 
-    tools = [], 
-    loading: toolsLoading = false, 
-    stats: toolStats = null, 
-    refetch: refetchTools = () => {}
-  } = useMyTools(hasMiningAccess && shouldFetchData ? { status: 'idle' } : undefined)
+    tools, 
+    loading: toolsLoading, 
+    stats: toolStats, 
+    refetch: refetchTools
+  } = useMyTools({
+    status: 'idle',
+    enabled: hasMiningAccess && shouldFetchData
+  })
   
   const { 
-    resources = null, 
-    loading: resourcesLoading = false, 
-    refetch: refetchResources = () => {}
-  } = useMyResources()
+    resources, 
+    loading: resourcesLoading, 
+    refetch: refetchResources
+  } = useMyResources({
+    enabled: shouldFetchData
+  })
   
   const { 
-    status: grainStatus = null 
-  } = useGrainStatus()
+    status: grainStatus 
+  } = useGrainStatus({
+    enabled: hasMiningAccess && shouldFetchData
+  })
   
   const { 
-    stats: productionStats = null 
-  } = useProductionStats()
+    stats: productionStats 
+  } = useProductionStats({
+    enabled: hasMiningAccess && shouldFetchData
+  })
   
-  // 生产操作 Hooks - 提供默认值
+  // 生产操作 Hooks
   const { 
-    startMining = async () => {}, 
-    loading: startMiningLoading = false 
+    startMining, 
+    loading: startMiningLoading
   } = useStartSelfMining()
   
   const { 
-    startWithTools = async () => {}, 
-    startWithoutTools = async () => {}, 
-    loading: hiredMiningLoading = false 
+    startWithTools, 
+    startWithoutTools, 
+    loading: hiredMiningLoading
   } = useStartHiredMining()
   
   const { 
-    synthesize = async () => {}, 
-    loading: synthesizeLoading = false 
+    synthesize, 
+    loading: synthesizeLoading
   } = useSynthesizeTool()
   
   const { 
-    stopProduction = async () => {} 
+    stopProduction
   } = useStopProduction()
   
   const { 
-    collectOutput = async () => {} 
+    collectOutput
   } = useCollectOutput()
   
   // ========== 副作用 ==========
