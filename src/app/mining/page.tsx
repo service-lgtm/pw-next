@@ -91,75 +91,88 @@ export default function MiningPage() {
   // ========== 数据获取 ==========
   const shouldFetchData = !authLoading && isAuthenticated
   
-  // YLD 矿山数据 - 安全调用，避免解构 undefined
-  const yldMinesResult = useMyYLDMines(shouldFetchData ? {
+  // YLD 矿山数据 - 提供默认值避免解构 undefined
+  const { 
+    mines: yldMines = [], 
+    loading: yldMinesLoading = false, 
+    error: yldMinesError = null, 
+    stats: yldStats = null,
+    totalCount: yldTotalCount = 0,
+    refetch: refetchYLDMines = () => {}
+  } = useMyYLDMines(shouldFetchData ? {
     page: 1,
     page_size: 50,
     ordering: '-created_at'
-  } : null)
-  const yldMines = yldMinesResult?.mines || []
-  const yldMinesLoading = yldMinesResult?.loading || false
-  const yldMinesError = yldMinesResult?.error || null
-  const yldStats = yldMinesResult?.stats || null
-  const yldTotalCount = yldMinesResult?.totalCount || 0
-  const refetchYLDMines = yldMinesResult?.refetch || (() => {})
+  } : null) || {}
   
-  // YLD 矿山详情 - 安全调用
-  const yldDetailResult = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
-  const selectedMine = yldDetailResult?.mine || null
-  const detailLoading = yldDetailResult?.loading || false
-  const detailError = yldDetailResult?.error || null
+  // YLD 矿山详情 - 提供默认值
+  const { 
+    mine: selectedMine = null, 
+    loading: detailLoading = false, 
+    error: detailError = null
+  } = useYLDMineDetail(shouldFetchData ? selectedMineId : null) || {}
   
   // 用户土地数据
-  const userLandsData = useMyLands()
-  const userLands = userLandsData?.lands || []
-  const landsLoading = userLandsData?.loading || false
-  const landsError = userLandsData?.error || null
-  const refetchLands = userLandsData?.refetch || (() => {})
+  const { 
+    lands: userLands = [], 
+    loading: landsLoading = false, 
+    error: landsError = null,
+    refetch: refetchLands = () => {}
+  } = useMyLands() || {}
   
   // 挖矿生产数据 - 必须无条件调用所有 hooks（React 规则）
-  // 注意：这些 hooks 内部会根据参数判断是否真正获取数据
-  const miningSessionsResult = useMiningSessions(hasMiningAccess ? 'active' : undefined)
-  const sessions = miningSessionsResult?.sessions || []
-  const sessionsLoading = miningSessionsResult?.loading || false
-  const refetchSessions = miningSessionsResult?.refetch || (() => {})
+  // 这些 hooks 始终返回对象，可以安全解构
+  const { 
+    sessions = [], 
+    loading: sessionsLoading = false, 
+    refetch: refetchSessions = () => {}
+  } = useMiningSessions(hasMiningAccess && shouldFetchData ? 'active' : undefined)
   
-  const toolsResult = useMyTools(hasMiningAccess ? { status: 'idle' } : undefined)
-  const tools = toolsResult?.tools || []
-  const toolsLoading = toolsResult?.loading || false
-  const toolStats = toolsResult?.stats || null
-  const refetchTools = toolsResult?.refetch || (() => {})
+  const { 
+    tools = [], 
+    loading: toolsLoading = false, 
+    stats: toolStats = null, 
+    refetch: refetchTools = () => {}
+  } = useMyTools(hasMiningAccess && shouldFetchData ? { status: 'idle' } : undefined)
   
-  const resourcesResult = useMyResources()
-  const resources = hasMiningAccess ? (resourcesResult?.resources || null) : null
-  const resourcesLoading = resourcesResult?.loading || false
-  const refetchResources = resourcesResult?.refetch || (() => {})
+  const { 
+    resources = null, 
+    loading: resourcesLoading = false, 
+    refetch: refetchResources = () => {}
+  } = useMyResources()
   
-  const grainStatusResult = useGrainStatus()
-  const grainStatus = hasMiningAccess ? (grainStatusResult?.status || null) : null
+  const { 
+    status: grainStatus = null 
+  } = useGrainStatus()
   
-  const productionStatsResult = useProductionStats()
-  const productionStats = hasMiningAccess ? (productionStatsResult?.stats || null) : null
+  const { 
+    stats: productionStats = null 
+  } = useProductionStats()
   
-  // 生产操作 Hooks - 始终调用，避免条件调用
-  const startMiningResult = useStartSelfMining()
-  const startMining = startMiningResult?.startMining || (async () => {})
-  const startMiningLoading = startMiningResult?.loading || false
+  // 生产操作 Hooks - 提供默认值
+  const { 
+    startMining = async () => {}, 
+    loading: startMiningLoading = false 
+  } = useStartSelfMining()
   
-  const hiredMiningResult = useStartHiredMining()
-  const startWithTools = hiredMiningResult?.startWithTools || (async () => {})
-  const startWithoutTools = hiredMiningResult?.startWithoutTools || (async () => {})
-  const hiredMiningLoading = hiredMiningResult?.loading || false
+  const { 
+    startWithTools = async () => {}, 
+    startWithoutTools = async () => {}, 
+    loading: hiredMiningLoading = false 
+  } = useStartHiredMining()
   
-  const synthesizeResult = useSynthesizeTool()
-  const synthesize = synthesizeResult?.synthesize || (async () => {})
-  const synthesizeLoading = synthesizeResult?.loading || false
+  const { 
+    synthesize = async () => {}, 
+    loading: synthesizeLoading = false 
+  } = useSynthesizeTool()
   
-  const stopProductionResult = useStopProduction()
-  const stopProduction = stopProductionResult?.stopProduction || (async () => {})
+  const { 
+    stopProduction = async () => {} 
+  } = useStopProduction()
   
-  const collectOutputResult = useCollectOutput()
-  const collectOutput = collectOutputResult?.collectOutput || (async () => {})
+  const { 
+    collectOutput = async () => {} 
+  } = useCollectOutput()
   
   // ========== 副作用 ==========
   
@@ -1114,21 +1127,25 @@ export default function MiningPage() {
           {/* 选择土地 */}
           <div>
             <label className="text-sm font-bold text-gray-300">选择土地</label>
-            <select
-              className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
-              value={selectedLand?.id || ''}
-              onChange={(e) => {
-                const land = userLands?.find(l => l.id === parseInt(e.target.value))
-                setSelectedLand(land || null)
-              }}
-            >
-              <option value="">请选择土地</option>
-              {userLands?.map(land => (
-                <option key={land.id} value={land.id}>
-                  {land.land_id} - {land.land_type_display}
-                </option>
-              ))}
-            </select>
+            {userLands.length > 0 ? (
+              <select
+                className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
+                value={selectedLand?.id || ''}
+                onChange={(e) => {
+                  const land = userLands.find(l => l.id === parseInt(e.target.value))
+                  setSelectedLand(land || null)
+                }}
+              >
+                <option value="">请选择土地</option>
+                {userLands.map(land => (
+                  <option key={land.id} value={land.id}>
+                    {land.land_id} - {land.land_type_display}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-gray-400 mt-2">您还没有土地</p>
+            )}
           </div>
           
           {/* 选择工具 */}
