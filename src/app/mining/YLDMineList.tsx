@@ -14,6 +14,7 @@
 
 'use client'
 
+import { useEffect } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,13 @@ export function YLDMineList({
   onViewDetail,
   onRefresh
 }: YLDMineListProps) {
+  
+  // 调试：打印矿山数据结构
+  useEffect(() => {
+    if (mines && mines.length > 0) {
+      console.log('[YLDMineList] 矿山数据:', mines[0])
+    }
+  }, [mines])
   
   // 开始生产（功能待开放）
   const handleStartProduction = (e: React.MouseEvent, mineId: number) => {
