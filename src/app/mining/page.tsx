@@ -1,12 +1,12 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 生产系统集成版
+// 挖矿中心页面 - 集成生产系统版本
 // 
 // 文件说明：
 // 1. 本文件是挖矿中心的主页面组件
-// 2. 集成了完整的挖矿生产系统（自主挖矿、打工、合成等）
-// 3. 同时保留了 YLD 矿山展示功能
-// 4. 优化了移动端响应式布局
-// 5. 使用内测密码验证（888888）保护生产功能
+// 2. 整合了完整的挖矿生产系统（自主挖矿、打工、合成等）
+// 3. 保留了原有的页面结构和交互方式
+// 4. 挖矿即生产，生产即挖矿，是同一个系统
+// 5. 优化了移动端响应式布局
 //
 // 关联文件：
 // - @/hooks/useYLDMines: YLD 矿山数据 Hook
@@ -23,9 +23,8 @@
 //
 // 注意事项：
 // - 需要用户登录才能访问
-// - 生产系统需要内测密码（888888）
+// - 挖矿功能需要内测密码（888888）
 // - 移动端自适应布局，支持触摸操作
-// - 自动每5分钟刷新数据
 
 'use client'
 
@@ -63,19 +62,21 @@ export default function MiningPage() {
   const router = useRouter()
   
   // ========== 状态管理 ==========
-  // 标签页状态
-  const [activeTab, setActiveTab] = useState<'yldMines' | 'production' | 'market' | 'hiring'>('yldMines')
+  // 主标签页状态 - 保持原有的标签结构
+  const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring'>('myMines')
   
-  // 生产系统子标签
-  const [productionTab, setProductionTab] = useState<'mining' | 'tools' | 'synthesis'>('mining')
+  // 我的矿山子标签 - 新增挖矿、工具、合成
+  const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools' | 'synthesis'>('overview')
+  
+  // 内测权限
+  const [showBetaModal, setShowBetaModal] = useState(false)
+  const [hasMiningAccess, setHasMiningAccess] = useState(false)
   
   // YLD矿山相关
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
-  const [showYLDDetailModal, setShowYLDDetailModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   
-  // 生产系统相关
-  const [showBetaModal, setShowBetaModal] = useState(false)
-  const [hasProductionAccess, setHasProductionAccess] = useState(false)
+  // 挖矿生产相关
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [selectedTools, setSelectedTools] = useState<number[]>([])
   const [showStartMiningModal, setShowStartMiningModal] = useState(false)
@@ -85,7 +86,7 @@ export default function MiningPage() {
   
   // 响应式状态
   const [isMobile, setIsMobile] = useState(false)
-  const [showMobileStats, setShowMobileStats] = useState(false)
+  const [showMobilePanel, setShowMobilePanel] = useState(false)
   
   // ========== 数据获取 ==========
   const shouldFetchData = !authLoading && isAuthenticated
@@ -106,9 +107,9 @@ export default function MiningPage() {
   
   // YLD 矿山详情
   const { 
-    mine: selectedYLDMine, 
-    loading: yldDetailLoading, 
-    error: yldDetailError 
+    mine: selectedMine, 
+    loading: detailLoading, 
+    error: detailError 
   } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
   
   // 用户土地数据
@@ -119,22 +120,38 @@ export default function MiningPage() {
     refetch: refetchLands
   } = useMyLands()
   
-  // 生产系统数据（仅在有权限时获取）
-  const shouldFetchProduction = hasProductionAccess && shouldFetchData
+  // 挖矿生产数据 - 仅在有权限时获取
+  const shouldFetchMining = hasMiningAccess && shouldFetchData
   
-  const { sessions, loading: sessionsLoading, refetch: refetchSessions } = useMiningSessions(
-    shouldFetchProduction ? 'active' : undefined
-  )
+  // 修复：确保在没有权限时不调用这些 hooks
+  const { 
+    sessions = [], 
+    loading: sessionsLoading = false, 
+    refetch: refetchSessions = () => {} 
+  } = shouldFetchMining ? useMiningSessions('active') : {}
   
-  const { tools, loading: toolsLoading, stats: toolStats, refetch: refetchTools } = useMyTools(
-    shouldFetchProduction ? { status: 'idle' } : undefined
-  )
+  const { 
+    tools = [], 
+    loading: toolsLoading = false, 
+    stats: toolStats = null, 
+    refetch: refetchTools = () => {} 
+  } = shouldFetchMining ? useMyTools({ status: 'idle' }) : {}
   
-  const { resources, loading: resourcesLoading, refetch: refetchResources } = useMyResources()
-  const { status: grainStatus } = useGrainStatus()
-  const { stats: productionStats } = useProductionStats()
+  const { 
+    resources = null, 
+    loading: resourcesLoading = false, 
+    refetch: refetchResources = () => {} 
+  } = shouldFetchMining ? useMyResources() : {}
   
-  // 生产操作 Hooks
+  const { 
+    status: grainStatus = null 
+  } = shouldFetchMining ? useGrainStatus() : {}
+  
+  const { 
+    stats: productionStats = null 
+  } = shouldFetchMining ? useProductionStats() : {}
+  
+  // 生产操作 Hooks - 仅在有权限时使用
   const { startMining, loading: startMiningLoading } = useStartSelfMining()
   const { startWithTools, startWithoutTools, loading: hiredMiningLoading } = useStartHiredMining()
   const { synthesize, loading: synthesizeLoading } = useSynthesizeTool()
@@ -159,47 +176,31 @@ export default function MiningPage() {
     
     if (!isAuthenticated) {
       console.log('[MiningPage] 未登录，跳转到登录页')
-      toast.error('请先登录查看挖矿数据')
+      toast.error('请先登录查看矿山数据')
       router.push('/login?redirect=/mining')
     }
   }, [authLoading, isAuthenticated, router])
   
-  // 检查生产系统内测权限
+  // 检查挖矿权限 - 初始化时检查
   useEffect(() => {
-    if (activeTab === 'production') {
-      const access = hasBetaAccess()
-      setHasProductionAccess(access)
-      if (!access) {
-        setShowBetaModal(true)
-      }
-    }
-  }, [activeTab])
-  
-  // 自动刷新数据（每5分钟）
-  useEffect(() => {
-    if (!shouldFetchData) return
-    
-    const interval = setInterval(() => {
-      console.log('[MiningPage] 自动刷新数据')
-      refetchYLDMines()
-      refetchLands()
-      if (hasProductionAccess) {
-        refetchSessions()
-        refetchTools()
-        refetchResources()
-      }
-    }, 5 * 60 * 1000)
-    
-    return () => clearInterval(interval)
-  }, [shouldFetchData, hasProductionAccess])
+    const access = hasBetaAccess()
+    setHasMiningAccess(access)
+  }, [])
   
   // ========== 工具函数 ==========
   
-  // 格式化数量
-  const formatAmount = (value: string | number, decimals = 2): string => {
+  // 格式化 YLD 数量
+  const formatYLD = (value: string | number): string => {
     const num = typeof value === 'string' ? parseFloat(value) : value
     if (isNaN(num)) return '0.00'
-    return num.toFixed(decimals)
+    return num.toFixed(4)
+  }
+  
+  // 格式化资源数量
+  const formatResource = (value: string | number): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : value
+    if (isNaN(num)) return '0.00'
+    return num.toFixed(2)
   }
   
   // 格式化日期
@@ -209,22 +210,32 @@ export default function MiningPage() {
     return date.toLocaleDateString('zh-CN')
   }
   
-  // ========== YLD矿山操作 ==========
+  // ========== 挖矿操作函数 ==========
   
-  const handleViewYLDDetail = (mine: YLDMine) => {
+  // 查看矿山详情
+  const handleViewDetail = (mine: YLDMine) => {
     setSelectedMineId(mine.id)
-    setShowYLDDetailModal(true)
+    setShowDetailModal(true)
   }
   
-  const handleStartYLDProduction = (mineId: number) => {
-    toast('YLD矿山生产功能即将开放', { icon: '🚧' })
+  // 开始YLD生产（功能待开放）
+  const handleStartProduction = (mineId: number) => {
+    toast('生产功能即将开放', { icon: '🚧' })
   }
   
+  // 收取YLD产出（功能待开放）
   const handleCollectYLDOutput = (mineId: number) => {
-    toast('YLD收取功能即将开放', { icon: '🚧' })
+    toast('收取功能即将开放', { icon: '🚧' })
   }
   
-  // ========== 生产系统操作 ==========
+  // 开启挖矿功能 - 需要内测密码
+  const handleOpenMiningFeature = () => {
+    if (!hasMiningAccess) {
+      setShowBetaModal(true)
+    } else {
+      setMiningSubTab('sessions')
+    }
+  }
   
   // 开始自主挖矿
   const handleStartSelfMining = async () => {
@@ -293,8 +304,9 @@ export default function MiningPage() {
     }
   }
   
-  // ========== 渲染：加载状态 ==========
+  // ========== 渲染 ==========
   
+  // 如果正在加载认证状态，显示加载中
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -306,12 +318,13 @@ export default function MiningPage() {
     )
   }
   
+  // 如果未登录，显示提示
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <p className="text-gray-400 mb-4">请登录后查看挖矿数据</p>
+          <p className="text-gray-400 mb-4">请登录后查看矿山数据</p>
           <PixelButton onClick={() => router.push('/login?redirect=/mining')}>
             立即登录
           </PixelButton>
@@ -320,11 +333,9 @@ export default function MiningPage() {
     )
   }
   
-  // ========== 主渲染 ==========
-  
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* 顶部状态栏 - 移动端优化 */}
+      {/* 顶部状态栏 */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-4 py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -334,47 +345,24 @@ export default function MiningPage() {
               <span className="text-sm text-gold-500 font-bold">{user?.nickname || user?.username}</span>
             </div>
             
-            {/* 快速统计 - 根据当前标签显示不同内容 */}
+            {/* 统计信息 */}
             <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto">
-              {activeTab === 'yldMines' && yldStats && (
+              <div className="text-center min-w-[80px]">
+                <div className="text-xs text-gray-400">矿山数量</div>
+                <div className="text-sm font-bold text-gold-500">{yldTotalCount || 0}</div>
+              </div>
+              {yldStats && (
                 <>
-                  <div className="text-center min-w-[80px]">
-                    <div className="text-xs text-gray-400">YLD矿山</div>
-                    <div className="text-sm font-bold text-gold-500">{yldTotalCount || 0}</div>
-                  </div>
                   <div className="text-center min-w-[100px]">
-                    <div className="text-xs text-gray-400">YLD总量</div>
+                    <div className="text-xs text-gray-400">YLD 总量</div>
                     <div className="text-sm font-bold text-purple-500">
-                      {formatAmount(yldStats.total_yld_capacity || 0, 4)}
+                      {formatYLD(yldStats.total_yld_capacity || 0)}
                     </div>
                   </div>
-                </>
-              )}
-              
-              {activeTab === 'production' && resources && (
-                <>
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-400">木头</div>
-                    <div className="text-sm font-bold text-green-400">
-                      {formatAmount(resources.wood)}
-                    </div>
-                  </div>
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-400">铁矿</div>
-                    <div className="text-sm font-bold text-gray-400">
-                      {formatAmount(resources.iron)}
-                    </div>
-                  </div>
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-400">石头</div>
-                    <div className="text-sm font-bold text-blue-400">
-                      {formatAmount(resources.stone)}
-                    </div>
-                  </div>
-                  <div className="text-center min-w-[60px]">
-                    <div className="text-xs text-gray-400">粮食</div>
-                    <div className="text-sm font-bold text-yellow-400">
-                      {formatAmount(resources.grain)}
+                  <div className="text-center min-w-[80px]">
+                    <div className="text-xs text-gray-400">生产中</div>
+                    <div className="text-sm font-bold text-green-500">
+                      {yldStats.producing_count || 0}
                     </div>
                   </div>
                 </>
@@ -386,36 +374,25 @@ export default function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-4 py-4 sm:py-6">
-        {/* 主标签切换 - 移动端优化，支持滑动 */}
-        <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2">
+        {/* 标签切换 - 保持原有的三个标签 */}
+        <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('yldMines')}
+            onClick={() => setActiveTab('myMines')}
             className={cn(
               "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
-              activeTab === 'yldMines' 
-                ? "bg-purple-500 text-white shadow-lg" 
+              activeTab === 'myMines' 
+                ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             )}
           >
-            YLD矿山
-          </button>
-          <button
-            onClick={() => setActiveTab('production')}
-            className={cn(
-              "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
-              activeTab === 'production' 
-                ? "bg-green-500 text-white shadow-lg" 
-                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-            )}
-          >
-            挖矿生产
+            我的矿山
           </button>
           <button
             onClick={() => setActiveTab('market')}
             className={cn(
               "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
               activeTab === 'market' 
-                ? "bg-blue-500 text-white shadow-lg" 
+                ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             )}
           >
@@ -426,7 +403,7 @@ export default function MiningPage() {
             className={cn(
               "px-3 sm:px-6 py-2 rounded-lg font-bold transition-all whitespace-nowrap text-sm sm:text-base",
               activeTab === 'hiring' 
-                ? "bg-orange-500 text-white shadow-lg" 
+                ? "bg-green-500 text-white" 
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             )}
           >
@@ -434,497 +411,531 @@ export default function MiningPage() {
           </button>
         </div>
 
-        {/* 内容区域 - 根据标签显示不同内容 */}
-        <AnimatePresence mode="wait">
-          {/* ==================== YLD矿山标签 ==================== */}
-          {activeTab === 'yldMines' && (
-            <motion.div
-              key="yldMines"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
-            >
-              {/* 移动端：可折叠的统计面板 */}
-              {isMobile && (
-                <div className="mb-4">
-                  <button
-                    onClick={() => setShowMobileStats(!showMobileStats)}
-                    className="w-full px-4 py-3 bg-purple-900/20 rounded-lg flex items-center justify-between text-white border border-purple-500/30"
+        {/* 内容区域 - 响应式网格 */}
+        <div className={cn(
+          "grid gap-4 sm:gap-6",
+          !isMobile && "lg:grid-cols-12"
+        )}>
+          {/* 左侧 - 统计信息（桌面端显示） */}
+          {!isMobile && activeTab === 'myMines' && (
+            <div className="lg:col-span-4 space-y-6">
+              {/* 矿山统计 */}
+              <PixelCard>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold">矿山统计</h3>
+                  <PixelButton 
+                    size="xs" 
+                    onClick={refetchYLDMines}
                   >
-                    <span className="font-bold">YLD矿山统计</span>
-                    <span className="text-xl">{showMobileStats ? '📊' : '📈'}</span>
-                  </button>
-                  
-                  {showMobileStats && yldStats && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-2"
-                    >
-                      <PixelCard className="p-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="text-center p-2 bg-gray-800 rounded">
-                            <p className="text-xs text-gray-400">总矿山</p>
-                            <p className="text-lg font-bold text-gold-500">{yldStats.total_mines}</p>
-                          </div>
-                          <div className="text-center p-2 bg-gray-800 rounded">
-                            <p className="text-xs text-gray-400">YLD总量</p>
-                            <p className="text-lg font-bold text-purple-500">
-                              {formatAmount(yldStats.total_yld_capacity, 4)}
-                            </p>
-                          </div>
-                          <div className="text-center p-2 bg-gray-800 rounded">
-                            <p className="text-xs text-gray-400">累计产出</p>
-                            <p className="text-lg font-bold text-green-500">
-                              {formatAmount(yldStats.total_accumulated_output, 4)}
-                            </p>
-                          </div>
-                          <div className="text-center p-2 bg-gray-800 rounded">
-                            <p className="text-xs text-gray-400">生产中</p>
-                            <p className="text-lg font-bold text-blue-500">{yldStats.producing_count}</p>
-                          </div>
-                        </div>
-                      </PixelCard>
-                    </motion.div>
-                  )}
+                    刷新
+                  </PixelButton>
                 </div>
-              )}
-              
-              {/* YLD矿山列表 */}
-              {yldMinesLoading ? (
-                <PixelCard className="text-center py-12">
-                  <div className="animate-spin text-6xl mb-4">⏳</div>
-                  <p className="text-gray-400">加载YLD矿山数据...</p>
-                </PixelCard>
-              ) : yldMinesError ? (
-                <PixelCard className="text-center py-12">
-                  <span className="text-6xl block mb-4">❌</span>
-                  <p className="text-red-400 mb-4">{yldMinesError}</p>
-                  <PixelButton onClick={refetchYLDMines}>重新加载</PixelButton>
-                </PixelCard>
-              ) : yldMines && yldMines.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {yldMines.map((mine) => (
-                    <PixelCard 
-                      key={mine.id} 
-                      className="cursor-pointer hover:border-purple-500 transition-all"
-                      onClick={() => handleViewYLDDetail(mine)}
-                    >
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-bold text-lg text-purple-500">
-                              {mine.land_id}
-                            </h4>
-                            <p className="text-sm text-gray-400">
-                              {mine.region_name}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <span className={cn(
-                              "px-2 py-1 rounded-full text-xs font-bold",
-                              mine.is_producing 
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-gray-700 text-gray-400"
-                            )}>
-                              {mine.is_producing ? '生产中' : '闲置'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-gray-400 text-xs">YLD数量</p>
-                            <p className="font-bold text-purple-400">
-                              {formatAmount(mine.initial_price, 4)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400 text-xs">累计产出</p>
-                            <p className="font-bold text-green-400">
-                              {formatAmount(mine.accumulated_output, 4)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-4 flex gap-2">
-                          <PixelButton 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleStartYLDProduction(mine.id)
-                            }}
-                            disabled
-                          >
-                            {mine.is_producing ? '收取' : '生产'}
-                          </PixelButton>
-                        </div>
+                
+                {yldStats ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-center p-3 bg-gray-800 rounded">
+                        <p className="text-xs text-gray-400">总矿山</p>
+                        <p className="text-xl font-bold text-gold-500">{yldStats.total_mines}</p>
                       </div>
-                    </PixelCard>
-                  ))}
+                      <div className="text-center p-3 bg-gray-800 rounded">
+                        <p className="text-xs text-gray-400">YLD 总量</p>
+                        <p className="text-xl font-bold text-purple-500">
+                          {formatYLD(yldStats.total_yld_capacity)}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-gray-800 rounded">
+                        <p className="text-xs text-gray-400">累计产出</p>
+                        <p className="text-xl font-bold text-green-500">
+                          {formatYLD(yldStats.total_accumulated_output)}
+                        </p>
+                      </div>
+                      <div className="text-center p-3 bg-gray-800 rounded">
+                        <p className="text-xs text-gray-400">生产中</p>
+                        <p className="text-xl font-bold text-blue-500">{yldStats.producing_count}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">暂无统计数据</p>
+                  </div>
+                )}
+              </PixelCard>
+
+              {/* 挖矿功能入口 */}
+              <PixelCard className="p-4 bg-green-900/20">
+                <h3 className="font-bold mb-2 text-green-400">挖矿生产</h3>
+                <div className="space-y-2 text-xs text-gray-400 mb-3">
+                  <p>• 使用工具在土地上挖矿</p>
+                  <p>• 消耗粮食获得资源产出</p>
+                  <p>• 合成工具提高效率</p>
                 </div>
-              ) : (
-                <PixelCard className="text-center py-12">
-                  <span className="text-6xl block mb-4">🏔️</span>
-                  <p className="text-gray-400 mb-4">您还没有YLD矿山</p>
-                  <p className="text-sm text-gray-500">YLD矿山由YLD代币转换而来</p>
-                </PixelCard>
-              )}
-            </motion.div>
+                <PixelButton 
+                  size="sm" 
+                  className="w-full"
+                  onClick={handleOpenMiningFeature}
+                >
+                  {hasMiningAccess ? '进入挖矿' : '开启挖矿'}
+                </PixelButton>
+              </PixelCard>
+
+              {/* 操作说明 */}
+              <PixelCard className="p-4 bg-blue-900/20">
+                <h3 className="font-bold mb-2 text-blue-400">操作说明</h3>
+                <div className="space-y-2 text-xs text-gray-400">
+                  <p>• YLD 矿山可产出 YLD 代币</p>
+                  <p>• 点击矿山卡片查看详情</p>
+                  <p>• 挖矿功能需要内测密码</p>
+                  <p>• 生产功能即将全面开放</p>
+                </div>
+              </PixelCard>
+            </div>
           )}
 
-          {/* ==================== 挖矿生产标签 ==================== */}
-          {activeTab === 'production' && (
-            <motion.div
-              key="production"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
-            >
-              {/* 内测验证 */}
-              {!hasProductionAccess ? (
-                <>
-                  <BetaPasswordModal
-                    isOpen={showBetaModal}
-                    onClose={() => setShowBetaModal(false)}
-                    onSuccess={() => {
-                      setHasProductionAccess(true)
-                      setShowBetaModal(false)
-                      toast.success('验证成功！欢迎进入生产系统')
-                    }}
-                  />
-                  <PixelCard className="text-center py-12">
-                    <div className="text-6xl mb-4">🔒</div>
-                    <p className="text-gray-400 mb-4">生产系统需要内测权限</p>
-                    <PixelButton onClick={() => setShowBetaModal(true)}>
-                      输入内测密码
-                    </PixelButton>
-                  </PixelCard>
-                </>
-              ) : (
-                <>
-                  {/* 生产系统子标签 */}
-                  <div className="flex gap-2 overflow-x-auto">
-                    <button
-                      onClick={() => setProductionTab('mining')}
-                      className={cn(
-                        "px-4 py-2 rounded font-bold transition-all text-sm",
-                        productionTab === 'mining' 
-                          ? "bg-green-600 text-white" 
-                          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                      )}
-                    >
-                      挖矿会话
-                    </button>
-                    <button
-                      onClick={() => setProductionTab('tools')}
-                      className={cn(
-                        "px-4 py-2 rounded font-bold transition-all text-sm",
-                        productionTab === 'tools' 
-                          ? "bg-blue-600 text-white" 
-                          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                      )}
-                    >
-                      我的工具
-                    </button>
-                    <button
-                      onClick={() => setProductionTab('synthesis')}
-                      className={cn(
-                        "px-4 py-2 rounded font-bold transition-all text-sm",
-                        productionTab === 'synthesis' 
-                          ? "bg-yellow-600 text-white" 
-                          : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                      )}
-                    >
-                      合成系统
-                    </button>
-                  </div>
-                  
-                  {/* 资源显示栏 - 移动端优化 */}
-                  {resources && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-                      <PixelCard className="p-3 text-center">
+          {/* 右侧 - 主内容（移动端全宽） */}
+          <div className={cn(
+            !isMobile && activeTab === 'myMines' && "lg:col-span-8"
+          )}>
+            <AnimatePresence mode="wait">
+              {/* 我的矿山 */}
+              {activeTab === 'myMines' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-4"
+                >
+                  {/* 如果有挖矿权限，显示子标签 */}
+                  {hasMiningAccess && (
+                    <div className="flex gap-2 mb-4 overflow-x-auto">
+                      <button
+                        onClick={() => setMiningSubTab('overview')}
+                        className={cn(
+                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                          miningSubTab === 'overview' 
+                            ? "bg-gray-700 text-white" 
+                            : "bg-gray-800 text-gray-400"
+                        )}
+                      >
+                        YLD矿山
+                      </button>
+                      <button
+                        onClick={() => setMiningSubTab('sessions')}
+                        className={cn(
+                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                          miningSubTab === 'sessions' 
+                            ? "bg-gray-700 text-white" 
+                            : "bg-gray-800 text-gray-400"
+                        )}
+                      >
+                        挖矿会话
+                      </button>
+                      <button
+                        onClick={() => setMiningSubTab('tools')}
+                        className={cn(
+                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                          miningSubTab === 'tools' 
+                            ? "bg-gray-700 text-white" 
+                            : "bg-gray-800 text-gray-400"
+                        )}
+                      >
+                        我的工具
+                      </button>
+                      <button
+                        onClick={() => setMiningSubTab('synthesis')}
+                        className={cn(
+                          "px-3 py-1.5 rounded text-sm font-bold transition-all",
+                          miningSubTab === 'synthesis' 
+                            ? "bg-gray-700 text-white" 
+                            : "bg-gray-800 text-gray-400"
+                        )}
+                      >
+                        合成系统
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 资源显示栏 - 仅在挖矿功能开启后显示 */}
+                  {hasMiningAccess && resources && miningSubTab !== 'overview' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                      <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">木头</p>
-                        <p className="text-lg font-bold text-green-400">
-                          {formatAmount(resources.wood)}
+                        <p className="text-sm font-bold text-green-400">
+                          {formatResource(resources.wood)}
                         </p>
                       </PixelCard>
-                      <PixelCard className="p-3 text-center">
+                      <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">铁矿</p>
-                        <p className="text-lg font-bold text-gray-400">
-                          {formatAmount(resources.iron)}
+                        <p className="text-sm font-bold text-gray-400">
+                          {formatResource(resources.iron)}
                         </p>
                       </PixelCard>
-                      <PixelCard className="p-3 text-center">
+                      <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">石头</p>
-                        <p className="text-lg font-bold text-blue-400">
-                          {formatAmount(resources.stone)}
+                        <p className="text-sm font-bold text-blue-400">
+                          {formatResource(resources.stone)}
                         </p>
                       </PixelCard>
-                      <PixelCard className="p-3 text-center">
+                      <PixelCard className="p-2 text-center">
                         <p className="text-xs text-gray-400">粮食</p>
-                        <p className="text-lg font-bold text-yellow-400">
-                          {formatAmount(resources.grain)}
+                        <p className="text-sm font-bold text-yellow-400">
+                          {formatResource(resources.grain)}
                         </p>
                         {grainStatus && grainStatus.warning && (
-                          <p className="text-xs text-red-400 mt-1">
-                            剩余{grainStatus.hours_remaining.toFixed(1)}小时
+                          <p className="text-xs text-red-400">
+                            剩{grainStatus.hours_remaining.toFixed(1)}h
                           </p>
                         )}
                       </PixelCard>
                     </div>
                   )}
-                  
-                  {/* 生产系统内容 */}
-                  <AnimatePresence mode="wait">
-                    {/* 挖矿会话 */}
-                    {productionTab === 'mining' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-bold">活跃挖矿</h3>
-                          <PixelButton
-                            onClick={() => setShowStartMiningModal(true)}
-                            disabled={!userLands || userLands.length === 0}
+
+                  {/* 子标签内容 */}
+                  {(!hasMiningAccess || miningSubTab === 'overview') && (
+                    // YLD矿山列表 - 默认显示
+                    yldMinesLoading ? (
+                      <PixelCard className="text-center py-12">
+                        <div className="animate-spin text-6xl mb-4">⏳</div>
+                        <p className="text-gray-400">加载矿山数据...</p>
+                      </PixelCard>
+                    ) : yldMinesError ? (
+                      <PixelCard className="text-center py-12">
+                        <span className="text-6xl block mb-4">❌</span>
+                        <p className="text-red-400 mb-4">{yldMinesError}</p>
+                        <PixelButton onClick={refetchYLDMines}>
+                          重新加载
+                        </PixelButton>
+                      </PixelCard>
+                    ) : yldMines && yldMines.length > 0 ? (
+                      <div className="grid gap-4">
+                        {yldMines.map((mine) => (
+                          <PixelCard 
+                            key={mine.id} 
+                            className="cursor-pointer hover:border-gold-500 transition-all"
+                            onClick={() => handleViewDetail(mine)}
                           >
-                            开始挖矿
-                          </PixelButton>
-                        </div>
-                        
-                        {sessionsLoading ? (
-                          <PixelCard className="text-center py-8">
-                            <div className="animate-spin text-4xl">⏳</div>
-                            <p className="text-gray-400 mt-2">加载中...</p>
-                          </PixelCard>
-                        ) : sessions && sessions.length > 0 ? (
-                          <div className="space-y-3">
-                            {sessions.map((session) => (
-                              <PixelCard key={session.id} className="p-4">
-                                <div className="flex flex-col sm:flex-row justify-between gap-3">
-                                  <div className="flex-1">
-                                    <h4 className="font-bold text-gold-500">
-                                      {session.land_info.land_id}
-                                    </h4>
-                                    <p className="text-sm text-gray-400">
-                                      {session.land_info.land_type} · {session.land_info.region_name}
-                                    </p>
-                                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                                      <div>
-                                        <span className="text-gray-400">产出速率:</span>
-                                        <span className="text-green-400 ml-1">{session.output_rate}/h</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-400">累积:</span>
-                                        <span className="text-yellow-400 ml-1">{session.accumulated_output}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-400">工具:</span>
-                                        <span className="text-blue-400 ml-1">{session.tools.length}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-row sm:flex-col gap-2">
-                                    <PixelButton
-                                      size="sm"
-                                      className="flex-1"
-                                      onClick={() => handleCollectSessionOutput(session.id)}
-                                    >
-                                      收取
-                                    </PixelButton>
-                                    <PixelButton
-                                      size="sm"
-                                      variant="secondary"
-                                      className="flex-1"
-                                      onClick={() => handleStopSession(session.id)}
-                                    >
-                                      停止
-                                    </PixelButton>
-                                  </div>
+                            <div className="p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div>
+                                  <h4 className="font-bold text-lg text-gold-500">
+                                    {mine.land_id}
+                                  </h4>
+                                  <p className="text-sm text-gray-400">
+                                    {mine.region_name} · {mine.land_type_display}
+                                  </p>
                                 </div>
-                              </PixelCard>
-                            ))}
-                          </div>
-                        ) : (
-                          <PixelCard className="text-center py-8">
-                            <p className="text-gray-400">暂无活跃的挖矿会话</p>
-                            <p className="text-sm text-gray-500 mt-2">点击"开始挖矿"创建新会话</p>
-                          </PixelCard>
-                        )}
-                      </motion.div>
-                    )}
-                    
-                    {/* 我的工具 */}
-                    {productionTab === 'tools' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-4"
-                      >
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-lg font-bold">工具列表</h3>
-                          {toolStats && (
-                            <div className="text-sm text-gray-400">
-                              总计: {toolStats.total_tools}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {toolsLoading ? (
-                          <PixelCard className="text-center py-8">
-                            <div className="animate-spin text-4xl">⏳</div>
-                            <p className="text-gray-400 mt-2">加载中...</p>
-                          </PixelCard>
-                        ) : tools && tools.length > 0 ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {tools.map((tool) => (
-                              <PixelCard key={tool.id} className="p-3">
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1">
-                                    <p className="font-bold text-sm">{tool.tool_id}</p>
-                                    <p className="text-xs text-gray-400">{tool.tool_type_display}</p>
-                                    <div className="mt-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-400">耐久:</span>
-                                        <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                          <div
-                                            className={cn(
-                                              "h-full rounded-full transition-all",
-                                              tool.durability > 750 ? "bg-green-500" :
-                                              tool.durability > 300 ? "bg-yellow-500" : "bg-red-500"
-                                            )}
-                                            style={{ width: `${(tool.durability / tool.max_durability) * 100}%` }}
-                                          />
-                                        </div>
-                                        <span className="text-xs">{tool.durability}</span>
-                                      </div>
-                                    </div>
-                                  </div>
+                                <div className="text-right">
                                   <span className={cn(
-                                    "px-2 py-1 rounded text-xs",
-                                    tool.status === 'idle' ? "bg-green-500/20 text-green-400" :
-                                    tool.status === 'working' ? "bg-blue-500/20 text-blue-400" :
-                                    "bg-red-500/20 text-red-400"
+                                    "px-3 py-1 rounded-full text-xs font-bold",
+                                    mine.is_producing 
+                                      ? "bg-green-500/20 text-green-400"
+                                      : "bg-gray-700 text-gray-400"
                                   )}>
-                                    {tool.status_display}
+                                    {mine.is_producing ? '生产中' : '闲置'}
                                   </span>
                                 </div>
-                              </PixelCard>
-                            ))}
-                          </div>
-                        ) : (
-                          <PixelCard className="text-center py-8">
-                            <p className="text-gray-400">暂无工具</p>
-                            <p className="text-sm text-gray-500 mt-2">请先合成工具</p>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                <div>
+                                  <p className="text-gray-400 text-xs">YLD 数量</p>
+                                  <p className="font-bold text-purple-400">
+                                    {formatYLD(mine.initial_price)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400 text-xs">累计产出</p>
+                                  <p className="font-bold text-green-400">
+                                    {formatYLD(mine.accumulated_output)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400 text-xs">批次</p>
+                                  <p className="font-bold text-blue-400">
+                                    {mine.metadata?.batch_id || '未知'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-gray-400 text-xs">转换日期</p>
+                                  <p className="font-bold text-gray-300">
+                                    {formatDate(mine.metadata?.conversion_date || mine.created_at)}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* 操作按钮 */}
+                              <div className="mt-4 flex gap-2">
+                                {mine.is_producing ? (
+                                  <PixelButton 
+                                    size="sm" 
+                                    className="flex-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleCollectYLDOutput(mine.id)
+                                    }}
+                                    disabled
+                                  >
+                                    收取产出（待开放）
+                                  </PixelButton>
+                                ) : (
+                                  <PixelButton 
+                                    size="sm" 
+                                    className="flex-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleStartProduction(mine.id)
+                                    }}
+                                    disabled
+                                  >
+                                    开始生产（待开放）
+                                  </PixelButton>
+                                )}
+                                <PixelButton 
+                                  size="sm" 
+                                  variant="secondary"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleViewDetail(mine)
+                                  }}
+                                >
+                                  查看详情
+                                </PixelButton>
+                              </div>
+                            </div>
                           </PixelCard>
-                        )}
-                      </motion.div>
-                    )}
-                    
-                    {/* 合成系统 */}
-                    {productionTab === 'synthesis' && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-4"
-                      >
-                        <h3 className="text-lg font-bold">合成工具</h3>
-                        
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                          <PixelCard 
-                            className="p-4 text-center cursor-pointer hover:border-gold-500 transition-all"
-                            onClick={() => {
-                              setSynthesisType('pickaxe')
-                              setShowSynthesisModal(true)
-                            }}
-                          >
-                            <div className="text-3xl sm:text-4xl mb-2">⛏️</div>
-                            <p className="font-bold text-sm">镐头</p>
-                            <p className="text-xs text-gray-400 mt-1">铁70%+木30%</p>
-                          </PixelCard>
-                          
-                          <PixelCard 
-                            className="p-4 text-center cursor-pointer hover:border-gold-500 transition-all"
-                            onClick={() => {
-                              setSynthesisType('axe')
-                              setShowSynthesisModal(true)
-                            }}
-                          >
-                            <div className="text-3xl sm:text-4xl mb-2">🪓</div>
-                            <p className="font-bold text-sm">斧头</p>
-                            <p className="text-xs text-gray-400 mt-1">铁60%+木40%</p>
-                          </PixelCard>
-                          
-                          <PixelCard 
-                            className="p-4 text-center cursor-pointer hover:border-gold-500 transition-all"
-                            onClick={() => {
-                              setSynthesisType('hoe')
-                              setShowSynthesisModal(true)
-                            }}
-                          >
-                            <div className="text-3xl sm:text-4xl mb-2">🔨</div>
-                            <p className="font-bold text-sm">锄头</p>
-                            <p className="text-xs text-gray-400 mt-1">铁50%+木50%</p>
-                          </PixelCard>
-                          
-                          <PixelCard 
-                            className="p-4 text-center cursor-pointer hover:border-gray-600 transition-all opacity-50"
-                            onClick={() => toast('砖头合成即将开放', { icon: '🚧' })}
-                          >
-                            <div className="text-3xl sm:text-4xl mb-2">🧱</div>
-                            <p className="font-bold text-sm">砖头</p>
-                            <p className="text-xs text-gray-400 mt-1">石80%+木20%</p>
-                          </PixelCard>
+                        ))}
+                      </div>
+                    ) : (
+                      <PixelCard className="text-center py-12">
+                        <span className="text-6xl block mb-4">🏔️</span>
+                        <p className="text-gray-400 mb-4">您还没有 YLD 矿山</p>
+                        <p className="text-sm text-gray-500">
+                          YLD 矿山由 YLD 代币转换而来
+                        </p>
+                      </PixelCard>
+                    )
+                  )}
+
+                  {/* 挖矿会话 */}
+                  {hasMiningAccess && miningSubTab === 'sessions' && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-bold">活跃挖矿会话</h3>
+                        <PixelButton
+                          onClick={() => setShowStartMiningModal(true)}
+                          disabled={!userLands || userLands.length === 0}
+                        >
+                          开始挖矿
+                        </PixelButton>
+                      </div>
+                      
+                      {sessionsLoading ? (
+                        <PixelCard className="text-center py-8">
+                          <div className="animate-spin text-4xl">⏳</div>
+                          <p className="text-gray-400 mt-2">加载中...</p>
+                        </PixelCard>
+                      ) : sessions && sessions.length > 0 ? (
+                        <div className="space-y-3">
+                          {sessions.map((session) => (
+                            <PixelCard key={session.id} className="p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h4 className="font-bold text-gold-500">
+                                    {session.land_info.land_id}
+                                  </h4>
+                                  <p className="text-sm text-gray-400">
+                                    {session.land_info.land_type} · {session.land_info.region_name}
+                                  </p>
+                                  <div className="mt-2 text-sm">
+                                    <p>产出速率: <span className="text-green-400">{session.output_rate}/小时</span></p>
+                                    <p>累积产出: <span className="text-yellow-400">{session.accumulated_output}</span></p>
+                                    <p>工具数量: <span className="text-blue-400">{session.tools?.length || 0}</span></p>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <PixelButton
+                                    size="xs"
+                                    onClick={() => handleCollectSessionOutput(session.id)}
+                                  >
+                                    收取产出
+                                  </PixelButton>
+                                  <PixelButton
+                                    size="xs"
+                                    variant="secondary"
+                                    onClick={() => handleStopSession(session.id)}
+                                  >
+                                    停止生产
+                                  </PixelButton>
+                                </div>
+                              </div>
+                            </PixelCard>
+                          ))}
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </>
+                      ) : (
+                        <PixelCard className="text-center py-8">
+                          <p className="text-gray-400">暂无活跃的挖矿会话</p>
+                        </PixelCard>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 我的工具 */}
+                  {hasMiningAccess && miningSubTab === 'tools' && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-bold">工具列表</h3>
+                        {toolStats && (
+                          <div className="text-sm text-gray-400">
+                            总计: {toolStats.total_tools} | 
+                            闲置: {toolStats.by_status?.idle || 0} | 
+                            工作中: {toolStats.by_status?.working || 0}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {toolsLoading ? (
+                        <PixelCard className="text-center py-8">
+                          <div className="animate-spin text-4xl">⏳</div>
+                          <p className="text-gray-400 mt-2">加载中...</p>
+                        </PixelCard>
+                      ) : tools && tools.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {tools.map((tool) => (
+                            <PixelCard key={tool.id} className="p-3">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-bold">{tool.tool_id}</p>
+                                  <p className="text-sm text-gray-400">{tool.tool_type_display}</p>
+                                  <div className="mt-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-400">耐久度:</span>
+                                      <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
+                                        <div
+                                          className={cn(
+                                            "h-full rounded-full",
+                                            tool.durability > 750 ? "bg-green-500" :
+                                            tool.durability > 300 ? "bg-yellow-500" : "bg-red-500"
+                                          )}
+                                          style={{ width: `${(tool.durability / tool.max_durability) * 100}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs">{tool.durability}/{tool.max_durability}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <span className={cn(
+                                  "px-2 py-1 rounded text-xs",
+                                  tool.status === 'idle' ? "bg-green-500/20 text-green-400" :
+                                  tool.status === 'working' ? "bg-blue-500/20 text-blue-400" :
+                                  "bg-red-500/20 text-red-400"
+                                )}>
+                                  {tool.status_display}
+                                </span>
+                              </div>
+                            </PixelCard>
+                          ))}
+                        </div>
+                      ) : (
+                        <PixelCard className="text-center py-8">
+                          <p className="text-gray-400">暂无工具</p>
+                          <p className="text-sm text-gray-500 mt-2">请先合成工具</p>
+                        </PixelCard>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 合成系统 */}
+                  {hasMiningAccess && miningSubTab === 'synthesis' && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-bold">合成工具</h3>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <PixelCard className="p-4 text-center cursor-pointer hover:border-gold-500"
+                          onClick={() => {
+                            setSynthesisType('pickaxe')
+                            setShowSynthesisModal(true)
+                          }}
+                        >
+                          <div className="text-4xl mb-2">⛏️</div>
+                          <p className="font-bold">镐头</p>
+                          <p className="text-xs text-gray-400 mt-1">铁70% + 木30%</p>
+                        </PixelCard>
+                        
+                        <PixelCard className="p-4 text-center cursor-pointer hover:border-gold-500"
+                          onClick={() => {
+                            setSynthesisType('axe')
+                            setShowSynthesisModal(true)
+                          }}
+                        >
+                          <div className="text-4xl mb-2">🪓</div>
+                          <p className="font-bold">斧头</p>
+                          <p className="text-xs text-gray-400 mt-1">铁60% + 木40%</p>
+                        </PixelCard>
+                        
+                        <PixelCard className="p-4 text-center cursor-pointer hover:border-gold-500"
+                          onClick={() => {
+                            setSynthesisType('hoe')
+                            setShowSynthesisModal(true)
+                          }}
+                        >
+                          <div className="text-4xl mb-2">🔨</div>
+                          <p className="font-bold">锄头</p>
+                          <p className="text-xs text-gray-400 mt-1">铁50% + 木50%</p>
+                        </PixelCard>
+                        
+                        <PixelCard className="p-4 text-center cursor-pointer hover:border-gold-500"
+                          onClick={() => {
+                            toast('砖头合成即将开放', { icon: '🚧' })
+                          }}
+                        >
+                          <div className="text-4xl mb-2">🧱</div>
+                          <p className="font-bold">砖头</p>
+                          <p className="text-xs text-gray-400 mt-1">石80% + 木20%</p>
+                        </PixelCard>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
               )}
-            </motion.div>
-          )}
 
-          {/* ==================== 矿山市场标签 ==================== */}
-          {activeTab === 'market' && (
-            <motion.div
-              key="market"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <PixelCard className="text-center py-12">
-                <span className="text-6xl block mb-4">🗺️</span>
-                <p className="text-gray-400 mb-2">矿山市场即将开放</p>
-                <p className="text-sm text-gray-500">届时您可以在这里交易矿山NFT</p>
-              </PixelCard>
-            </motion.div>
-          )}
+              {/* 矿山市场 */}
+              {activeTab === 'market' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                >
+                  <PixelCard className="text-center py-12">
+                    <span className="text-6xl block mb-4">🗺️</span>
+                    <p className="text-gray-400 mb-2">矿山市场即将开放</p>
+                    <p className="text-sm text-gray-500">
+                      届时您可以在这里交易矿山 NFT
+                    </p>
+                  </PixelCard>
+                </motion.div>
+              )}
 
-          {/* ==================== 招聘市场标签 ==================== */}
-          {activeTab === 'hiring' && (
-            <motion.div
-              key="hiring"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <PixelCard className="text-center py-12">
-                <span className="text-6xl block mb-4">👷</span>
-                <p className="text-gray-400 mb-2">招聘市场即将开放</p>
-                <p className="text-sm text-gray-500">届时您可以雇佣矿工或成为矿工赚取收益</p>
-              </PixelCard>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {/* 招聘市场 */}
+              {activeTab === 'hiring' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-4"
+                >
+                  <PixelCard className="text-center py-12">
+                    <span className="text-6xl block mb-4">👷</span>
+                    <p className="text-gray-400 mb-2">招聘市场即将开放</p>
+                    <p className="text-sm text-gray-500">
+                      届时您可以雇佣矿工或成为矿工赚取收益
+                    </p>
+                  </PixelCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
 
         {/* 底部提示 - 移动端优化 */}
         <div className="mt-6 sm:mt-8">
@@ -934,10 +945,8 @@ export default function MiningPage() {
               <div className="flex-1">
                 <h3 className="font-bold text-gold-400 mb-2 text-sm sm:text-base">系统提示</h3>
                 <p className="text-xs sm:text-sm text-gray-300">
-                  {activeTab === 'yldMines' && "YLD矿山系统正在优化中，生产和收取功能即将开放。"}
-                  {activeTab === 'production' && "生产系统处于内测阶段，功能可能有所调整。记得及时收取产出！"}
-                  {activeTab === 'market' && "矿山市场正在开发中，敬请期待。"}
-                  {activeTab === 'hiring' && "招聘市场正在开发中，敬请期待。"}
+                  YLD 矿山系统和挖矿生产系统正在优化中，部分功能即将开放。
+                  挖矿功能需要内测密码验证。
                 </p>
               </div>
             </div>
@@ -947,71 +956,141 @@ export default function MiningPage() {
 
       {/* ==================== 模态框 ==================== */}
       
+      {/* 内测密码模态框 */}
+      <BetaPasswordModal
+        isOpen={showBetaModal}
+        onClose={() => setShowBetaModal(false)}
+        onSuccess={() => {
+          setHasMiningAccess(true)
+          setShowBetaModal(false)
+          setMiningSubTab('sessions')
+          toast.success('验证成功！欢迎进入挖矿系统')
+        }}
+      />
+      
       {/* YLD矿山详情模态框 */}
       <PixelModal
-        isOpen={showYLDDetailModal}
+        isOpen={showDetailModal}
         onClose={() => {
-          setShowYLDDetailModal(false)
+          setShowDetailModal(false)
           setSelectedMineId(null)
         }}
-        title="YLD矿山详情"
+        title="矿山详情"
         size={isMobile ? "small" : "large"}
       >
-        {yldDetailLoading ? (
+        {detailLoading ? (
           <div className="text-center py-8">
             <div className="animate-spin text-4xl mb-2">⏳</div>
             <p className="text-gray-400">加载详情...</p>
           </div>
-        ) : yldDetailError ? (
+        ) : detailError ? (
           <div className="text-center py-8">
             <span className="text-4xl block mb-2">❌</span>
-            <p className="text-red-400">{yldDetailError}</p>
+            <p className="text-red-400">{detailError}</p>
           </div>
-        ) : selectedYLDMine ? (
+        ) : selectedMine ? (
           <div className="space-y-4">
+            {/* 基本信息 */}
             <div className="bg-gray-800 rounded-lg p-4">
               <h3 className="font-bold mb-3 text-gold-500">基本信息</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <p className="text-gray-400">矿山编号</p>
-                  <p className="font-bold">{selectedYLDMine.land_id}</p>
+                  <p className="font-bold">{selectedMine.land_id}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">所在区域</p>
-                  <p className="font-bold">{selectedYLDMine.region_name}</p>
+                  <p className="font-bold">{selectedMine.region_name}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400">YLD数量</p>
-                  <p className="font-bold text-purple-400 text-lg">
-                    {formatAmount(selectedYLDMine.initial_price, 4)}
+                  <p className="text-gray-400">矿山类型</p>
+                  <p className="font-bold">{selectedMine.land_type_display}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">占地面积</p>
+                  <p className="font-bold">{selectedMine.size_sqm} m²</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">坐标</p>
+                  <p className="font-bold text-xs">
+                    ({selectedMine.coordinate_x}, {selectedMine.coordinate_y})
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">累计产出</p>
-                  <p className="font-bold text-green-400 text-lg">
-                    {formatAmount(selectedYLDMine.accumulated_output, 4)}
+                  <p className="text-gray-400">状态</p>
+                  <p className={cn(
+                    "font-bold",
+                    selectedMine.is_producing ? "text-green-400" : "text-gray-400"
+                  )}>
+                    {selectedMine.is_producing ? '生产中' : '闲置'}
                   </p>
                 </div>
               </div>
             </div>
             
+            {/* YLD 信息 */}
+            <div className="bg-purple-900/20 rounded-lg p-4">
+              <h3 className="font-bold mb-3 text-purple-400">YLD 信息</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-400">YLD 数量</p>
+                  <p className="font-bold text-purple-400 text-lg">
+                    {formatYLD(selectedMine.initial_price)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">累计产出</p>
+                  <p className="font-bold text-green-400 text-lg">
+                    {formatYLD(selectedMine.accumulated_output)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">日产量</p>
+                  <p className="font-bold text-yellow-400">
+                    待开放
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-400">批次编号</p>
+                  <p className="font-bold text-blue-400">
+                    {selectedMine.metadata?.batch_id || '未知'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* 操作按钮 */}
             <div className="flex gap-3 pt-4">
-              <PixelButton 
-                className="flex-1"
-                onClick={() => handleStartYLDProduction(selectedYLDMine.id)}
-                disabled
-              >
-                {selectedYLDMine.is_producing ? '收取产出' : '开始生产'}（待开放）
-              </PixelButton>
+              {selectedMine.is_producing ? (
+                <PixelButton 
+                  className="flex-1"
+                  onClick={() => handleCollectYLDOutput(selectedMine.id)}
+                  disabled
+                >
+                  收取产出（待开放）
+                </PixelButton>
+              ) : (
+                <PixelButton 
+                  className="flex-1"
+                  onClick={() => handleStartProduction(selectedMine.id)}
+                  disabled
+                >
+                  开始生产（待开放）
+                </PixelButton>
+              )}
               <PixelButton 
                 variant="secondary" 
-                onClick={() => setShowYLDDetailModal(false)}
+                onClick={() => setShowDetailModal(false)}
               >
                 关闭
               </PixelButton>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-400">无法加载矿山详情</p>
+          </div>
+        )}
       </PixelModal>
       
       {/* 开始挖矿模态框 */}
@@ -1023,72 +1102,52 @@ export default function MiningPage() {
           setSelectedTools([])
         }}
         title="开始自主挖矿"
-        size={isMobile ? "small" : "medium"}
+        size="medium"
       >
         <div className="space-y-4">
           {/* 选择土地 */}
           <div>
             <label className="text-sm font-bold text-gray-300">选择土地</label>
-            {landsLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin text-2xl">⏳</div>
-              </div>
-            ) : userLands && userLands.length > 0 ? (
-              <select
-                className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
-                value={selectedLand?.id || ''}
-                onChange={(e) => {
-                  const land = userLands.find(l => l.id === parseInt(e.target.value))
-                  setSelectedLand(land || null)
-                }}
-              >
-                <option value="">请选择土地</option>
-                {userLands.map(land => (
-                  <option key={land.id} value={land.id}>
-                    {land.land_id} - {land.land_type_display}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-gray-400 mt-2">您还没有土地</p>
-            )}
+            <select
+              className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white"
+              value={selectedLand?.id || ''}
+              onChange={(e) => {
+                const land = userLands?.find(l => l.id === parseInt(e.target.value))
+                setSelectedLand(land || null)
+              }}
+            >
+              <option value="">请选择土地</option>
+              {userLands?.map(land => (
+                <option key={land.id} value={land.id}>
+                  {land.land_id} - {land.land_type_display}
+                </option>
+              ))}
+            </select>
           </div>
           
           {/* 选择工具 */}
           <div>
-            <label className="text-sm font-bold text-gray-300">选择工具（可多选）</label>
-            {tools && tools.filter(t => t.status === 'idle').length > 0 ? (
-              <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                {tools.filter(t => t.status === 'idle').map(tool => (
-                  <label key={tool.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-800 p-2 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedTools.includes(tool.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedTools([...selectedTools, tool.id])
-                        } else {
-                          setSelectedTools(selectedTools.filter(id => id !== tool.id))
-                        }
-                      }}
-                      className="text-green-500"
-                    />
-                    <span className="text-sm">
-                      {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability})
-                    </span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 mt-2">没有可用的工具</p>
-            )}
-          </div>
-          
-          {/* 提示信息 */}
-          <div className="p-3 bg-yellow-900/20 border border-yellow-500/30 rounded">
-            <p className="text-xs text-yellow-400">
-              ⚠️ 开始挖矿需要消耗粮食（2粮食/工具/小时）
-            </p>
+            <label className="text-sm font-bold text-gray-300">选择工具</label>
+            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+              {tools?.filter(t => t.status === 'idle').map(tool => (
+                <label key={tool.id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedTools.includes(tool.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedTools([...selectedTools, tool.id])
+                      } else {
+                        setSelectedTools(selectedTools.filter(id => id !== tool.id))
+                      }
+                    }}
+                  />
+                  <span className="text-sm">
+                    {tool.tool_id} - {tool.tool_type_display} (耐久: {tool.durability})
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
           
           {/* 按钮 */}
