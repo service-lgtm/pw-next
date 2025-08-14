@@ -1,5 +1,5 @@
 // src/app/shop/tdb/payment/page.tsx
-// 支付页面 - 修复版本
+// 支付页面 - 修复版本，添加提货单号复制功能
 
 'use client'
 
@@ -126,16 +126,16 @@ function PaymentContent() {
   }
   
   // 复制文本 - 优化版本
-  const copyToClipboard = useCallback((text: string) => {
+  const copyToClipboard = useCallback((text: string, itemName?: string) => {
     // 优先使用现代的 Clipboard API
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(text).then(() => {
-        toast.success('已复制到剪贴板')
+        toast.success(itemName ? `${itemName}已复制` : '已复制到剪贴板')
       }).catch(() => {
         // 如果 Clipboard API 失败，尝试传统方法
         const successful = fallbackCopyTextToClipboard(text)
         if (successful) {
-          toast.success('已复制到剪贴板')
+          toast.success(itemName ? `${itemName}已复制` : '已复制到剪贴板')
         } else {
           toast.error('复制失败，请手动复制')
         }
@@ -144,7 +144,7 @@ function PaymentContent() {
       // 使用传统方法作为回退
       const successful = fallbackCopyTextToClipboard(text)
       if (successful) {
-        toast.success('已复制到剪贴板')
+        toast.success(itemName ? `${itemName}已复制` : '已复制到剪贴板')
       } else {
         toast.error('复制失败，请手动复制')
       }
@@ -416,7 +416,7 @@ function PaymentContent() {
                           <div className="flex items-center justify-between">
                             <p className="font-bold select-all">{orderInfo.payment_account.bank}</p>
                             <button
-                              onClick={() => copyToClipboard(orderInfo.payment_account.bank)}
+                              onClick={() => copyToClipboard(orderInfo.payment_account.bank, '银行名称')}
                               className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                             >
                               复制
@@ -430,7 +430,7 @@ function PaymentContent() {
                           <div className="flex items-center justify-between">
                             <p className="font-bold select-all">{orderInfo.payment_account.branch}</p>
                             <button
-                              onClick={() => copyToClipboard(orderInfo.payment_account.branch)}
+                              onClick={() => copyToClipboard(orderInfo.payment_account.branch, '支行名称')}
                               className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                             >
                               复制
@@ -443,7 +443,7 @@ function PaymentContent() {
                         <div className="flex items-center justify-between">
                           <p className="font-bold font-mono select-all">{orderInfo.payment_account.account}</p>
                           <button
-                            onClick={() => copyToClipboard(orderInfo.payment_account.account.replace(/\s/g, ''))}
+                            onClick={() => copyToClipboard(orderInfo.payment_account.account.replace(/\s/g, ''), '账号')}
                             className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
@@ -455,7 +455,7 @@ function PaymentContent() {
                         <div className="flex items-center justify-between">
                           <p className="font-bold select-all">{orderInfo.payment_account.account_name}</p>
                           <button
-                            onClick={() => copyToClipboard(orderInfo.payment_account.account_name)}
+                            onClick={() => copyToClipboard(orderInfo.payment_account.account_name, '户名')}
                             className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
@@ -480,7 +480,7 @@ function PaymentContent() {
                         <div className="flex items-center justify-center gap-2">
                           <p className="font-bold select-all">{orderInfo.payment_account.account}</p>
                           <button
-                            onClick={() => copyToClipboard(orderInfo.payment_account.account)}
+                            onClick={() => copyToClipboard(orderInfo.payment_account.account, '收款账号')}
                             className="text-sm text-gold-500 hover:text-gold-400 transition-colors"
                           >
                             复制
@@ -493,10 +493,24 @@ function PaymentContent() {
                 </>
               )}
               
+              {/* 修改后的提货单号复制区域 */}
               <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded">
-                <p className="text-sm text-yellow-500">
-                  <span className="font-bold">重要提示：</span>
-                  转账时请务必备注提货单号 <span className="font-mono select-all">{orderInfo.ticket_id}</span>
+                <p className="text-sm text-yellow-500 font-bold mb-2">
+                  ⚠️ 重要提示：转账时请务必备注提货单号
+                </p>
+                <div className="flex items-center justify-center gap-3 bg-gray-800/50 p-3 rounded">
+                  <span className="font-mono font-bold text-yellow-400 text-lg select-all">
+                    {orderInfo.ticket_id}
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(orderInfo.ticket_id, '提货单号')}
+                    className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 rounded font-bold transition-all hover:scale-105"
+                  >
+                    📋 复制单号
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-center">
+                  未备注单号可能导致无法确认您的支付
                 </p>
               </div>
             </PixelCard>
