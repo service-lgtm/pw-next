@@ -1,10 +1,20 @@
-// src/components/mining/YLDMineList.tsx
+// src/app/mining/YLDMineList.tsx
 // YLD 矿山列表组件
 // 
 // 功能说明：
 // 1. 显示用户的 YLD 矿山列表
 // 2. 支持查看矿山详情
 // 3. 提供生产操作入口（待开放）
+// 4. 只显示真实的日产出数据，不显示固定值
+//
+// 关联文件：
+// - 被 @/app/mining/page.tsx 使用
+// - 使用 @/types/assets 中的 YLDMine 类型
+// - 使用 @/components/shared 中的组件
+//
+// 更新历史：
+// - 2024-01: 移除固定的100 YLD/天显示
+// - 2024-01: 只显示后端返回的真实日产出数据
 
 'use client'
 
@@ -134,6 +144,10 @@ export function YLDMineList({
         // 转换日期 - 使用 converted_at
         const conversionDate = mine.converted_at || mine.metadata?.converted_at || mine.created_at
         
+        // 日产出 - 只使用真实数据，不显示固定值
+        const dailyOutput = mine.daily_output ? parseFloat(mine.daily_output) : 0
+        const hasDailyOutput = dailyOutput > 0
+        
         return (
           <PixelCard 
             key={mine.id} 
@@ -191,12 +205,12 @@ export function YLDMineList({
                 </div>
               </div>
               
-              {/* 添加日产出信息 - 只在有真实数据时显示 */}
-              {mine.daily_output && parseFloat(mine.daily_output) > 0 && (
+              {/* 只在有真实日产出数据且大于0时显示 */}
+              {hasDailyOutput && (
                 <div className="mt-3 p-2 bg-yellow-500/10 rounded flex justify-between items-center">
                   <span className="text-xs text-yellow-400">日产出</span>
                   <span className="text-sm font-bold text-yellow-400">
-                    {formatYLD(mine.daily_output)} YLD/天
+                    {formatYLD(dailyOutput)} YLD/天
                   </span>
                 </div>
               )}
