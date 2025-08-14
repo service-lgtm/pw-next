@@ -30,6 +30,8 @@ interface ToolManagementProps {
   resources: any
   onSynthesize: (toolType: string, quantity: number) => Promise<void>
   synthesizeLoading?: boolean
+  showOnlyTools?: boolean      // 只显示工具列表
+  showOnlySynthesis?: boolean   // 只显示合成系统
 }
 
 // 合成配方定义
@@ -86,11 +88,16 @@ export function ToolManagement({
   toolStats,
   resources,
   onSynthesize,
-  synthesizeLoading = false
+  synthesizeLoading = false,
+  showOnlyTools = false,
+  showOnlySynthesis = false
 }: ToolManagementProps) {
   const [showSynthesisModal, setShowSynthesisModal] = useState(false)
   const [selectedRecipe, setSelectedRecipe] = useState<keyof typeof SYNTHESIS_RECIPES>('pickaxe')
   const [synthesisQuantity, setSynthesisQuantity] = useState(1)
+  
+  // 如果指定了只显示某个部分，就不需要内部的标签切换
+  const showInternalTabs = !showOnlyTools && !showOnlySynthesis
   const [activeView, setActiveView] = useState<'list' | 'synthesis'>('list')
   
   // 处理合成
@@ -172,43 +179,63 @@ export function ToolManagement({
   
   return (
     <div className="space-y-4">
-      {/* 视图切换 */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveView('list')}
-          className={cn(
-            "px-4 py-2 rounded text-sm font-bold transition-all",
-            activeView === 'list' 
-              ? "bg-gray-700 text-white" 
-              : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+      {/* 内部视图切换 - 只在不指定显示模式时显示 */}
+      {showInternalTabs && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveView('list')}
+            className={cn(
+              "px-4 py-2 rounded text-sm font-bold transition-all",
+              activeView === 'list' 
+                ? "bg-gray-700 text-white" 
+                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+            )}
+          >
+            工具列表
+          </button>
+          <button
+            onClick={() => setActiveView('synthesis')}
+            className={cn(
+              "px-4 py-2 rounded text-sm font-bold transition-all",
+              activeView === 'synthesis' 
+                ? "bg-gray-700 text-white" 
+                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+            )}
+          >
+            合成工具
+          </button>
+          
+          {/* 统计信息 */}
+          {toolStats && activeView === 'list' && (
+            <div className="ml-auto text-sm text-gray-400 flex items-center">
+              总计: {toolStats.total_count || toolStats.total_tools || 0} | 
+              正常: {toolStats.by_status?.normal || 0} | 
+              损坏: {toolStats.by_status?.damaged || 0}
+            </div>
           )}
-        >
-          工具列表
-        </button>
-        <button
-          onClick={() => setActiveView('synthesis')}
-          className={cn(
-            "px-4 py-2 rounded text-sm font-bold transition-all",
-            activeView === 'synthesis' 
-              ? "bg-gray-700 text-white" 
-              : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-          )}
-        >
-          合成工具
-        </button>
-        
-        {/* 统计信息 */}
-        {toolStats && activeView === 'list' && (
-          <div className="ml-auto text-sm text-gray-400 flex items-center">
+        </div>
+      )}
+      
+      {/* 只显示工具时的统计信息 */}
+      {showOnlyTools && toolStats && (
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-bold">工具列表</h3>
+          <div className="text-sm text-gray-400">
             总计: {toolStats.total_count || toolStats.total_tools || 0} | 
             正常: {toolStats.by_status?.normal || 0} | 
-            损坏: {toolStats.by_status?.damaged || 0}
+            损坏: {toolStats.by_status?.damaged || 0} | 
+            维修中: {toolStats.by_status?.repairing || 0}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      
+      {/* 只显示合成系统时的标题 */}
+      {showOnlySynthesis && (
+        <h3 className="text-lg font-bold">合成工具</h3>
+      )}
       
       {/* 工具列表视图 */}
-      {activeView === 'list' && (
+      {((!showOnlyTools && !showOnlySynthesis && activeView === 'list') || showOnlyTools) && (
         loading ? (
           <PixelCard className="text-center py-8">
             <div className="animate-spin text-4xl">⏳</div>
@@ -231,7 +258,7 @@ export function ToolManagement({
       )}
       
       {/* 合成工具视图 */}
-      {activeView === 'synthesis' && (
+      {((!showOnlyTools && !showOnlySynthesis && activeView === 'synthesis') || showOnlySynthesis) && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(SYNTHESIS_RECIPES).map(([key, recipe]) => (
