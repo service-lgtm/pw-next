@@ -1,5 +1,5 @@
 // src/app/assets/page.tsx
-// 资产总览页面 - 完整版本
+// 资产总览页面 - 修复版本（移除人民币显示）
 
 'use client'
 
@@ -16,9 +16,10 @@ import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
 interface AssetSummary {
-  totalValue: number
+  totalValue: number  // TDB 总价值
   tdbBalance: number
   yldBalance: number
+  yldInTDB: number   // YLD 换算成 TDB 的价值
   landCount: number
   landValue: number
 }
@@ -43,6 +44,7 @@ export default function AssetsPage() {
     totalValue: 0,
     tdbBalance: 0,
     yldBalance: 0,
+    yldInTDB: 0,
     landCount: 0,
     landValue: 0,
   })
@@ -94,14 +96,16 @@ export default function AssetsPage() {
     if (!landsLoading && profileData) {
       const tdb = profileData.tdb_balance ? parseFloat(profileData.tdb_balance) : 0
       const yld = profileData.yld_balance ? parseFloat(profileData.yld_balance) : 0
+      const yldInTDB = yld * 2.84  // 1 YLD = 2.84 TDB
       const landValue = lands.reduce((total, land) => {
         return total + parseFloat(land.current_price || '0')
       }, 0)
       
       setAssetSummary({
-        totalValue: tdb + landValue,
+        totalValue: tdb + yldInTDB + landValue,  // 总价值 = TDB + YLD换算值 + 土地价值
         tdbBalance: tdb,
         yldBalance: yld,
+        yldInTDB: yldInTDB,
         landCount: lands.length,
         landValue: landValue,
       })
@@ -161,7 +165,7 @@ export default function AssetsPage() {
               <span className="text-lg ml-2">TDB</span>
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              ≈¥{(assetSummary.totalValue * 7.3).toFixed(2)} 人民币
+              包含土地、通证和材料等全部资产
             </p>
           </div>
         </PixelCard>
@@ -186,7 +190,7 @@ export default function AssetsPage() {
               {assetSummary.tdbBalance.toLocaleString()} TDB
             </p>
             <p className="text-xs text-gray-400 mb-3">
-              ≈¥{(assetSummary.tdbBalance * 7.3).toFixed(2)} 人民币
+              稳定交易通证 · 1 TDB = 1 USD
             </p>
             <div className="flex gap-2">
               <button 
@@ -219,7 +223,7 @@ export default function AssetsPage() {
               {assetSummary.yldBalance.toLocaleString()} YLD
             </p>
             <p className="text-xs text-gray-400 mb-3">
-              ≈¥{(assetSummary.yldBalance * 2.84 * 7.3).toFixed(2)} 人民币
+              治理通证 · 价值: {assetSummary.yldInTDB.toLocaleString()} TDB
             </p>
             <div className="flex gap-2">
               <button 
@@ -322,8 +326,8 @@ export default function AssetsPage() {
                       <span>{land.size_sqm}m²</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">储量：</span>
-                      <span>{parseFloat(land.current_price).toFixed(2)}</span>
+                      <span className="text-gray-400">价值：</span>
+                      <span className="text-gold-500">{parseFloat(land.current_price).toFixed(2)} TDB</span>
                     </div>
                   </div>
                 </PixelCard>
@@ -687,7 +691,7 @@ export default function AssetsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold">选择收款方式</h3>
+                <h3 className="text-xl font-bold">TDB兑换</h3>
                 <button
                   onClick={() => setShowExchangeModal(false)}
                   className="text-gray-400 hover:text-white text-2xl"
@@ -785,7 +789,7 @@ export default function AssetsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">预估到账：</span>
-                      <span className="font-bold text-lg">{(parseFloat(exchangeAmount) * 7.3 * 0.95).toFixed(2)}元</span>
+                      <span className="font-bold text-lg">{(parseFloat(exchangeAmount) * 0.95).toFixed(2)} USD</span>
                     </div>
                   </div>
                 )}
