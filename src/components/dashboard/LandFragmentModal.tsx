@@ -17,7 +17,6 @@ interface LandFragmentModalProps {
 export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
   const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
-  const [password, setPassword] = useState('666')
   const [batches, setBatches] = useState<Batch[]>([])
   const [stats, setStats] = useState<FragmentStats | null>(null)
   const [currentBatch, setCurrentBatch] = useState<Batch | null>(null)
@@ -57,45 +56,84 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
     }
   }
 
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [claimedFragment, setClaimedFragment] = useState<any>(null)
+
   // 领取碎片
   const handleClaim = async () => {
-    if (!password) {
-      toast.error('请输入领取密码')
-      return
-    }
-
-    if (password !== '666') {
-      toast.error('密码错误，请输入666')
-      return
-    }
-
     try {
       setClaiming(true)
-      const response = await fragmentsApi.quickClaim(password)
+      // 直接使用密码666，不需要用户输入
+      const response = await fragmentsApi.quickClaim('666')
       
       if (response.success) {
-        toast.success(`成功领取 ${response.data.size_sqm} 平方米土地碎片！`)
+        // 保存领取信息
+        setClaimedFragment(response.data)
+        setShowSuccess(true)
         
         // 重新获取数据
         await fetchData()
         
-        // 3秒后自动关闭
+        // 5秒后自动关闭
         setTimeout(() => {
+          setShowSuccess(false)
           onClose()
-        }, 3000)
+        }, 5000)
       } else {
-        toast.error(response.message || '领取失败')
+        // 处理错误响应
+        if (response.message === "您已领取过该批次的碎片，每批次限领1个") {
+          toast.error('您已领取过该批次的碎片，每批次限领1个', {
+            duration: 5000,
+            icon: '⚠️'
+          })
+        } else if (response.message.includes('已领取')) {
+          toast.error('您已领取过该批次的碎片，每批次限领1个', {
+            duration: 5000,
+            icon: '⚠️'
+          })
+        } else if (response.message.includes('领完')) {
+          toast.error('碎片已领完，请等待下一批次', {
+            duration: 4000,
+            icon: '😔'
+          })
+        } else if (response.message.includes('密码错误')) {
+          toast.error('系统配置错误，请联系管理员', {
+            duration: 4000,
+            icon: '❌'
+          })
+        } else if (response.message.includes('未开放')) {
+          toast.error('活动尚未开放，请稍后再试', {
+            duration: 4000,
+            icon: '⏰'
+          })
+        } else {
+          toast.error(response.message || '领取失败，请稍后重试')
+        }
       }
     } catch (error: any) {
       const message = error?.message || '领取失败，请稍后重试'
       
       // 处理特定错误
       if (message.includes('已领取')) {
-        toast.error('您已领取过该批次的碎片，每批次限领1个')
+        toast.error('您已领取过该批次的碎片，每批次限领1个', {
+          duration: 5000,
+          icon: '⚠️'
+        })
       } else if (message.includes('领完')) {
-        toast.error('碎片已领完，请等待下一批次')
+        toast.error('碎片已领完，请等待下一批次', {
+          duration: 4000,
+          icon: '😔'
+        })
       } else if (message.includes('未开放')) {
-        toast.error('活动尚未开放，请稍后再试')
+        toast.error('活动尚未开放，请稍后再试', {
+          duration: 4000,
+          icon: '⏰'
+        })
+      } else if (message.includes('今日领取已达上限')) {
+        toast.error('今日全平台领取已达上限，请明天再来', {
+          duration: 4000,
+          icon: '📅'
+        })
       } else {
         toast.error(message)
       }
@@ -149,7 +187,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                       土地碎片领取
                     </h2>
                     <p className="text-sm text-gray-400 mt-1">
-                      每个批次限领1个碎片，可合成土地
+                      集齐碎片可合成土地
                     </p>
                   </div>
                   <button
@@ -168,6 +206,19 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                 </div>
               ) : (
                 <>
+                  {/* 重要提示 */}
+                  <div className="bg-orange-500/10 border-l-4 border-orange-500 p-4 m-6 mb-0">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">📢</span>
+                      <div>
+                        <p className="text-sm font-bold text-orange-400">活动规则</p>
+                        <p className="text-xs text-gray-300 mt-1">
+                          每批次每人限领<span className="font-bold text-orange-400"> 1 个</span>碎片，集齐碎片可合成土地
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 批次信息 */}
                   {currentBatch && (
                     <div className="p-6 border-b-2 border-gray-800">
@@ -203,9 +254,9 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                           </p>
                           <p className="text-xs text-gray-400">剩余可领</p>
                         </div>
-                        <div className="bg-gray-800/50 p-3 rounded">
-                          <p className="text-2xl font-bold text-purple-500">
-                            {currentBatch.max_claims_per_user}
+                        <div className="bg-gray-800/50 p-3 rounded border-2 border-red-500/30">
+                          <p className="text-2xl font-bold text-red-400">
+                            1
                           </p>
                           <p className="text-xs text-gray-400">每人限领</p>
                         </div>
@@ -231,47 +282,77 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                           <p className="text-xs text-gray-400">已合成土地</p>
                         </div>
                       </div>
-                      {stats.current_fragments < 300 && (
-                        <p className="text-xs text-gray-400 text-center mt-3">
-                          还需 {300 - stats.current_fragments} 个碎片可合成土地
-                        </p>
-                      )}
+                      <p className="text-xs text-gray-400 text-center mt-3">
+                        积攒碎片可用于合成土地
+                      </p>
                     </div>
                   )}
 
                   {/* 领取区域 */}
                   <div className="p-6">
-                    {hasClaimedCurrentBatch() ? (
+                    {/* 成功恭喜界面 */}
+                    {showSuccess && claimedFragment ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="text-center py-8"
+                      >
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1, rotate: 360 }}
+                          transition={{ duration: 0.5 }}
+                          className="text-6xl mb-4"
+                        >
+                          🎉
+                        </motion.div>
+                        <h3 className="text-2xl font-black text-gold-500 mb-3">
+                          恭喜您！
+                        </h3>
+                        <p className="text-lg text-white mb-2">
+                          成功领取 <span className="text-gold-500 font-bold">{claimedFragment.size_sqm}</span> 平方米土地碎片
+                        </p>
+                        <p className="text-sm text-gray-400 mb-4">
+                          来自：{claimedFragment.batch_name}
+                        </p>
+                        <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-4">
+                          <p className="text-sm text-gold-400">
+                            碎片编号：{claimedFragment.fragment_id}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-4">
+                          窗口将在5秒后自动关闭
+                        </p>
+                      </motion.div>
+                    ) : hasClaimedCurrentBatch() ? (
                       <div className="text-center py-8">
                         <div className="text-5xl mb-4">✅</div>
                         <p className="text-lg font-bold text-green-500 mb-2">已领取</p>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-gray-400 mb-2">
                           您已领取过该批次的碎片
+                        </p>
+                        <p className="text-xs text-red-400 font-bold">
+                          每批次每人限领1个，请等待下一批次
                         </p>
                       </div>
                     ) : currentBatch?.is_active ? (
                       <>
-                        <div className="mb-4">
-                          <label className="block text-sm text-gray-400 mb-2">领取密码</label>
-                          <input
-                            type="text"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="请输入密码"
-                            className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-gold-500 focus:outline-none transition-colors"
-                            disabled={claiming}
-                          />
-                         
+                        <div className="text-center mb-6">
+                          <div className="inline-flex items-center gap-2 bg-gold-500/10 px-4 py-2 rounded-full">
+                            <span className="text-2xl">🎁</span>
+                            <span className="text-sm font-bold text-gold-400">
+                              限时福利，每人限领1个
+                            </span>
+                          </div>
                         </div>
 
                         <button
                           onClick={handleClaim}
-                          disabled={claiming || !password}
+                          disabled={claiming}
                           className={`
-                            w-full py-3 px-6 rounded-lg font-bold text-lg transition-all
-                            ${claiming || !password
+                            w-full py-4 px-6 rounded-lg font-bold text-lg transition-all
+                            ${claiming
                               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95'
+                              : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95 shadow-lg'
                             }
                           `}
                         >
@@ -281,9 +362,16 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                               领取中...
                             </span>
                           ) : (
-                            '立即领取'
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="text-2xl">🎁</span>
+                              立即领取土地碎片
+                            </span>
                           )}
                         </button>
+
+                        <p className="text-xs text-center text-gray-400 mt-4">
+                          ⚠️ 每批次每人只能领取1个碎片，请确认后领取
+                        </p>
                       </>
                     ) : (
                       <div className="text-center py-8">
