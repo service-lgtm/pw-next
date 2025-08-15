@@ -71,6 +71,8 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
       setClaiming(true)
       const response = await fragmentsApi.quickClaim(password)
       
+      console.log('领取响应:', response) // 调试日志
+      
       if (response.success) {
         // 保存领取信息
         setClaimedFragment(response.data)
@@ -85,18 +87,26 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
           onClose()
         }, 5000)
       } else {
-        // 处理错误响应 - 直接处理API返回的错误信息
+        // 处理错误响应 - API返回的success:false
+        console.log('领取失败:', response.message) // 调试日志
         handleErrorMessage(response.message)
       }
     } catch (error: any) {
+      console.error('领取异常:', error) // 调试日志
+      
       // 处理网络错误或其他异常
-      if (error?.response?.data?.message) {
-        handleErrorMessage(error.response.data.message)
+      let errorMessage = '领取失败，请稍后重试'
+      
+      // 尝试从不同的错误格式中提取消息
+      if (error?.details?.message) {
+        errorMessage = error.details.message
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message
       } else if (error?.message) {
-        handleErrorMessage(error.message)
-      } else {
-        toast.error('领取失败，请稍后重试')
+        errorMessage = error.message
       }
+      
+      handleErrorMessage(errorMessage)
     } finally {
       setClaiming(false)
     }
