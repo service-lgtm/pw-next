@@ -1,12 +1,12 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 移动端性能优化版
+// 挖矿会话管理组件 - 交互体验优化版
 // 
-// 优化说明：
-// 1. 使用虚拟滚动减少DOM节点（大量会话时）
-// 2. 简化移动端的卡片渲染
-// 3. 优化状态更新，减少重渲染
-// 4. 使用 React.memo 缓存组件
-// 5. 移动端使用更简洁的布局
+// 修复说明：
+// 1. 添加了完整的表单验证和错误提示
+// 2. 优化了用户交互反馈
+// 3. 修复了未选择土地/工具时的提示问题
+// 4. 改进了移动端和安卓的兼容性
+// 5. 添加了实时验证和视觉反馈
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -15,11 +15,11 @@
 // - 后端 FOOD_CONSUMPTION_RATE = 2（每工具每小时消耗2单位粮食）
 //
 // 更新历史：
-// - 2024-01: 移动端性能优化，简化渲染逻辑
+// - 2024-01: 完善交互体验，添加表单验证
 
 'use client'
 
-import { useState, useCallback, useMemo, memo } from 'react'
+import { useState, useCallback, useMemo, memo, useEffect } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -161,7 +161,6 @@ const DesktopSessionCard = memo(({
   onStop: () => void
 }) => {
   const metadata = session?.metadata || {}
-  const myRatio = metadata.my_ratio ?? 1
   const toolCount = metadata.tool_count || metadata.my_tools || 0
   const taxRate = metadata.tax_rate ?? 0.05
   const foodConsumption = metadata.food_consumption_rate || (toolCount * FOOD_CONSUMPTION_RATE)
@@ -295,15 +294,30 @@ export function MiningSessions({
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   
+  // 表单验证状态
+  const [landError, setLandError] = useState('')
+  const [toolsError, setToolsError] = useState('')
+  const [showErrors, setShowErrors] = useState(false)
+  
   // 检测移动端
-  useState(() => {
+  useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  })
+  }, [])
+  
+  // 重置错误状态
+  useEffect(() => {
+    if (selectedLand) {
+      setLandError('')
+    }
+    if (selectedTools.length > 0) {
+      setToolsError('')
+    }
+  }, [selectedLand, selectedTools])
   
   // 可用工具
   const availableTools = useMemo(() => 
@@ -333,27 +347,108 @@ export function MiningSessions({
     setShowStartModal(true)
     setSelectedLand(null)
     setSelectedTools([])
+    setShowErrors(false)
+    setLandError('')
+    setToolsError('')
   }, [])
   
+  // 验证表单
+  const validateForm = useCallback(() => {
+    let isValid = true
+    
+    if (!selectedLand) {
+      setLandError('请选择一块土地')
+      isValid = false
+    } else {
+      setLandError('')
+    }
+    
+    if (selectedTools.length === 0) {
+      setToolsError('请至少选择一个工具')
+      isValid = false
+    } else {
+      setToolsError('')
+    }
+    
+    return isValid
+  }, [selectedLand, selectedTools])
+  
+  // 确认开始挖矿 - 添加验证
   const handleConfirmStart = useCallback(() => {
-    if (!selectedLand || selectedTools.length === 0) {
-      toast.error('请选择土地和工具')
+    setShowErrors(true)
+    
+    if (!validateForm()) {
+      // 显示友好的错误提示
+      if (!selectedLand && selectedTools.length === 0) {
+        toast.error('请选择土地和工具后再开始挖矿', {
+          duration: 3000,
+          position: 'top-center',
+          style: {
+            background: '#dc2626',
+            color: '#fff',
+            fontSize: '14px',
+            borderRadius: '8px',
+            padding: '12px 20px'
+          }
+        })
+      } else if (!selectedLand) {
+        toast.error('请选择一块土地', {
+          duration: 3000,
+          position: 'top-center',
+          icon: '📍',
+          style: {
+            background: '#dc2626',
+            color: '#fff',
+            fontSize: '14px',
+            borderRadius: '8px',
+            padding: '12px 20px'
+          }
+        })
+      } else if (selectedTools.length === 0) {
+        toast.error('请至少选择一个工具', {
+          duration: 3000,
+          position: 'top-center',
+          icon: '🔧',
+          style: {
+            background: '#dc2626',
+            color: '#fff',
+            fontSize: '14px',
+            borderRadius: '8px',
+            padding: '12px 20px'
+          }
+        })
+      }
       return
     }
+    
+    // 验证通过，显示确认对话框
     setConfirmAction('start')
     setShowConfirmModal(true)
-  }, [selectedLand, selectedTools])
+  }, [selectedLand, selectedTools, validateForm])
   
   const handleExecuteStart = useCallback(async () => {
     if (!selectedLand || selectedTools.length === 0) return
     
     try {
       await onStartMining(selectedLand.id, selectedTools)
+      toast.success('挖矿已开始！', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '⛏️',
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px'
+        }
+      })
       setShowStartModal(false)
       setShowConfirmModal(false)
       setSelectedLand(null)
       setSelectedTools([])
       setConfirmAction(null)
+      setShowErrors(false)
     } catch (err) {
       console.error('开始挖矿失败:', err)
     }
@@ -370,6 +465,18 @@ export function MiningSessions({
     
     try {
       await onStopSession(targetSessionId)
+      toast.success('生产已停止', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '⏹️',
+        style: {
+          background: '#6b7280',
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px'
+        }
+      })
       setShowConfirmModal(false)
       setTargetSessionId(null)
       setConfirmAction(null)
@@ -377,6 +484,27 @@ export function MiningSessions({
       console.error('停止生产失败:', err)
     }
   }, [targetSessionId, onStopSession])
+  
+  // 收取产出
+  const handleCollectOutput = useCallback(async (sessionId: number) => {
+    try {
+      await onCollectOutput(sessionId)
+      toast.success('收取成功！', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '💰',
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px'
+        }
+      })
+    } catch (err) {
+      console.error('收取失败:', err)
+    }
+  }, [onCollectOutput])
   
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -426,14 +554,14 @@ export function MiningSessions({
               <MobileSessionCard
                 key={session.id}
                 session={session}
-                onCollect={() => onCollectOutput(session.id)}
+                onCollect={() => handleCollectOutput(session.id)}
                 onStop={() => handleConfirmStop(session.id)}
               />
             ) : (
               <DesktopSessionCard
                 key={session.id}
                 session={session}
-                onCollect={() => onCollectOutput(session.id)}
+                onCollect={() => handleCollectOutput(session.id)}
                 onStop={() => handleConfirmStop(session.id)}
               />
             )
@@ -459,13 +587,16 @@ export function MiningSessions({
         </PixelCard>
       )}
       
-      {/* 开始挖矿模态框 - 优化移动端 */}
+      {/* 开始挖矿模态框 - 添加表单验证 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
           setShowStartModal(false)
           setSelectedLand(null)
           setSelectedTools([])
+          setShowErrors(false)
+          setLandError('')
+          setToolsError('')
         }}
         title="开始自主挖矿"
         size={isMobile ? "small" : "medium"}
@@ -486,46 +617,67 @@ export function MiningSessions({
                     <span className="text-yellow-400">•</span>
                     <span>每个工具每小时消耗 {FOOD_CONSUMPTION_RATE} 单位粮食</span>
                   </li>
+                  <li className="flex items-start gap-1">
+                    <span className="text-blue-400">•</span>
+                    <span>请确保有足够的粮食储备再开始挖矿</span>
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
           
-          {/* 选择土地 */}
+          {/* 选择土地 - 添加错误提示 */}
           <div>
             <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
               <span>📍</span>
               <span>选择土地</span>
+              {showErrors && landError && (
+                <span className="text-red-400 text-xs ml-2">* {landError}</span>
+              )}
             </label>
             {userLands && userLands.length > 0 ? (
-              <select
-                className="w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-800/70 border border-gray-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-gold-500 transition-colors"
-                value={selectedLand?.id || ''}
-                onChange={(e) => {
-                  const land = userLands.find(l => l.id === parseInt(e.target.value))
-                  setSelectedLand(land || null)
-                }}
-              >
-                <option value="">-- 请选择土地 --</option>
-                {userLands.map(land => (
-                  <option key={land.id} value={land.id}>
-                    {land.land_id} - {land.blueprint?.land_type_display || '未知类型'}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  className={cn(
+                    "w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-800/70 border rounded-lg text-white text-xs sm:text-sm focus:outline-none transition-colors",
+                    showErrors && landError ? "border-red-500 focus:border-red-400" : "border-gray-600 focus:border-gold-500"
+                  )}
+                  value={selectedLand?.id || ''}
+                  onChange={(e) => {
+                    const land = userLands.find(l => l.id === parseInt(e.target.value))
+                    setSelectedLand(land || null)
+                  }}
+                >
+                  <option value="">-- 请选择土地 --</option>
+                  {userLands.map(land => (
+                    <option key={land.id} value={land.id}>
+                      {land.land_id} - {land.blueprint?.land_type_display || '未知类型'}
+                    </option>
+                  ))}
+                </select>
+                {showErrors && landError && (
+                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{landError}</span>
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-xs sm:text-sm text-gray-400 p-2 sm:p-3 bg-gray-800/50 rounded-lg text-center">
-                您还没有土地
+                您还没有土地，请先购买土地
               </p>
             )}
           </div>
           
-          {/* 选择工具 */}
+          {/* 选择工具 - 添加错误提示 */}
           <div>
             <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center justify-between mb-1.5 sm:mb-2">
               <span className="flex items-center gap-1 sm:gap-2">
                 <span>🔧</span>
                 <span>选择工具</span>
+                {showErrors && toolsError && (
+                  <span className="text-red-400 text-xs ml-2">* {toolsError}</span>
+                )}
               </span>
               {selectedTools.length > 0 && (
                 <span className="text-[10px] sm:text-xs bg-gold-500/20 text-gold-400 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
@@ -535,72 +687,86 @@ export function MiningSessions({
             </label>
             
             {availableTools.length > 0 ? (
-              <div className="border border-gray-600 rounded-lg overflow-hidden">
-                <div className="max-h-32 sm:max-h-48 overflow-y-auto bg-gray-800/30">
-                  {availableTools.map((tool, index) => (
-                    <label 
-                      key={tool.id} 
-                      className={cn(
-                        "flex items-center gap-2 sm:gap-3 p-2 sm:p-3 cursor-pointer transition-all",
-                        "hover:bg-gray-700/50",
-                        selectedTools.includes(tool.id) ? "bg-gray-700/70" : "",
-                        index !== 0 && "border-t border-gray-700"
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedTools.includes(tool.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedTools([...selectedTools, tool.id])
-                          } else {
-                            setSelectedTools(selectedTools.filter(id => id !== tool.id))
-                          }
-                        }}
-                        className="w-3 h-3 sm:w-4 sm:h-4 rounded border-gray-600 text-gold-500"
-                      />
-                      <div className="flex-1 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs sm:text-sm font-medium text-white">
-                            {tool.tool_id}
-                          </p>
-                          <p className="text-[10px] sm:text-xs text-gray-400">
-                            {tool.tool_type_display}
-                          </p>
+              <>
+                <div className={cn(
+                  "border rounded-lg overflow-hidden",
+                  showErrors && toolsError ? "border-red-500" : "border-gray-600"
+                )}>
+                  <div className="max-h-32 sm:max-h-48 overflow-y-auto bg-gray-800/30">
+                    {availableTools.map((tool, index) => (
+                      <label 
+                        key={tool.id} 
+                        className={cn(
+                          "flex items-center gap-2 sm:gap-3 p-2 sm:p-3 cursor-pointer transition-all",
+                          "hover:bg-gray-700/50",
+                          selectedTools.includes(tool.id) ? "bg-gray-700/70" : "",
+                          index !== 0 && "border-t border-gray-700"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTools.includes(tool.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTools([...selectedTools, tool.id])
+                            } else {
+                              setSelectedTools(selectedTools.filter(id => id !== tool.id))
+                            }
+                          }}
+                          className="w-3 h-3 sm:w-4 sm:h-4 rounded border-gray-600 text-gold-500"
+                        />
+                        <div className="flex-1 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs sm:text-sm font-medium text-white">
+                              {tool.tool_id}
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-gray-400">
+                              {tool.tool_type_display}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] sm:text-xs text-gray-400">耐久度</div>
+                            <span className="text-[10px] sm:text-xs text-gray-500">
+                              {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[10px] sm:text-xs text-gray-400">耐久度</div>
-                          <span className="text-[10px] sm:text-xs text-gray-500">
-                            {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
-                          </span>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                
-                <div className="p-1.5 sm:p-2 bg-gray-800/50 border-t border-gray-700">
-                  <div className="flex gap-1.5 sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTools(availableTools.map(t => t.id))}
-                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                    >
-                      全选
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTools([])}
-                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                    >
-                      清空
-                    </button>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div className="p-1.5 sm:p-2 bg-gray-800/50 border-t border-gray-700">
+                    <div className="flex gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTools(availableTools.map(t => t.id))}
+                        className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                      >
+                        全选
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTools([])}
+                        className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                      >
+                        清空
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+                {showErrors && toolsError && (
+                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+                    <span>❌</span>
+                    <span>{toolsError}</span>
+                  </p>
+                )}
+              </>
             ) : (
               <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg text-center">
                 <p className="text-xs sm:text-sm text-gray-400">暂无可用工具</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                  请先在"合成系统"中制作工具
+                </p>
               </div>
             )}
           </div>
@@ -617,7 +783,7 @@ export function MiningSessions({
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] sm:text-xs text-gray-400">⚙️ 耐久</span>
                     <span className="text-xs sm:text-sm font-bold text-yellow-400">
-                      {selectedTools.length}/工具
+                      {selectedTools.length} 点/工具
                     </span>
                   </div>
                 </div>
@@ -625,28 +791,48 @@ export function MiningSessions({
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] sm:text-xs text-gray-400">🌾 粮食</span>
                     <span className="text-xs sm:text-sm font-bold text-yellow-400">
-                      {selectedTools.length * FOOD_CONSUMPTION_RATE}
+                      {selectedTools.length * FOOD_CONSUMPTION_RATE} 单位
                     </span>
                   </div>
                 </div>
               </div>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-2 text-center">
+                💡 实际消耗根据土地类型和工具效率会有所不同
+              </p>
             </div>
           )}
           
-          {/* 按钮 */}
+          {/* 按钮 - 优化交互 */}
           <div className="flex gap-2 sm:gap-3 pt-1 sm:pt-2">
             <PixelButton
               className="flex-1"
               size={isMobile ? "sm" : "md"}
               onClick={handleConfirmStart}
-              disabled={!selectedLand || selectedTools.length === 0 || startMiningLoading}
+              disabled={startMiningLoading}
             >
-              {startMiningLoading ? '开始中...' : '确认开始'}
+              {startMiningLoading ? (
+                <span className="flex items-center justify-center gap-1">
+                  <span>⏳</span>
+                  <span>开始中...</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-1">
+                  <span>✅</span>
+                  <span>确认开始</span>
+                </span>
+              )}
             </PixelButton>
             <PixelButton
               variant="secondary"
               size={isMobile ? "sm" : "md"}
-              onClick={() => setShowStartModal(false)}
+              onClick={() => {
+                setShowStartModal(false)
+                setSelectedLand(null)
+                setSelectedTools([])
+                setShowErrors(false)
+                setLandError('')
+                setToolsError('')
+              }}
               className="px-6 sm:px-8"
             >
               取消
@@ -655,7 +841,7 @@ export function MiningSessions({
         </div>
       </PixelModal>
       
-      {/* 确认对话框 - 优化移动端 */}
+      {/* 确认对话框 */}
       <PixelModal
         isOpen={showConfirmModal}
         onClose={() => {
