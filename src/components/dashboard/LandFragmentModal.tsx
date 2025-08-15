@@ -361,7 +361,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                     <div className="grid grid-cols-2 gap-3 md:gap-4 text-center">
                       <div className="bg-gray-800/50 p-2 md:p-3 rounded">
                         <p className="text-lg md:text-2xl font-bold text-gold-500">
-                          {currentBatch.stats?.available || currentBatch.total_fragments}
+                          0
                         </p>
                         <p className="text-xs text-gray-400">剩余可领</p>
                       </div>
