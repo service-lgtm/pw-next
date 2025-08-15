@@ -278,12 +278,13 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
   
   const handleBuy = async () => {
     const result = await buyFood(quantity)
-    if (result) {
+    if (result && result.transaction_id) {  // 检查是否有transaction_id表示成功
       setPurchaseResult({
-        quantity,
-        totalCost: totalCost.toFixed(2),
-        newBalance: (foodStatus.tdb_balance - totalCost).toFixed(2),
-        newFood: foodStatus.current_food + quantity
+        quantity: result.quantity,
+        totalCost: result.total_cost.toFixed(2),
+        newBalance: result.tdb_balance_after.toFixed(2),
+        newFood: result.food_balance_after,
+        transactionId: result.transaction_id
       })
       setShowSuccess(true)
       onSuccess()
@@ -332,6 +333,10 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               </h3>
               
               <div className="space-y-3 bg-gray-800/50 rounded-lg p-4 text-left">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">交易编号：</span>
+                  <span className="font-bold text-xs text-white">{purchaseResult.transactionId}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">购买数量：</span>
                   <span className="font-bold text-white">{purchaseResult.quantity} 个</span>
