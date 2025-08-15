@@ -37,23 +37,23 @@ export function useFoodPurchase() {
   const buyFood = useCallback(async (quantity: number): Promise<any> => {
     if (!status) {
       toast.error('请先等待状态加载')
-      return false
+      return null
     }
 
     if (quantity < 1 || quantity > 48) {
       toast.error('购买数量必须在1-48之间')
-      return false
+      return null
     }
 
     if (status.today_purchased + quantity > status.daily_limit) {
       toast.error(`超过每日限额，您今天还可以购买${status.today_remaining}个`)
-      return false
+      return null
     }
 
     const totalCost = quantity * status.unit_price
     if (status.tdb_balance < totalCost) {
       toast.error(`TDB余额不足，需要${totalCost.toFixed(2)} TDB`)
-      return false
+      return null
     }
 
     try {
@@ -61,6 +61,7 @@ export function useFoodPurchase() {
       setError(null)
       
       const response = await foodApi.buyFood(quantity)
+      console.log('[useFoodPurchase] buyFood response:', response) // 调试日志
       
       if (response.success && response.data) {
         // 更新本地状态
@@ -73,27 +74,27 @@ export function useFoodPurchase() {
           can_buy: response.data!.today_remaining > 0 && response.data!.tdb_balance_after >= prev.unit_price
         } : null)
         
-        // 如果达到每日限额，提醒
+        // 如果达到每日限额，延迟提醒
         if (response.data.today_remaining === 0) {
           setTimeout(() => {
             toast('今日购买额度已用完，明天0点重置', { 
               icon: '⏰',
               duration: 5000 
             })
-          }, 1000)
+          }, 3500)
         }
         
-        // 返回购买结果数据
+        // 返回完整的购买结果数据
         return response.data
       } else {
         toast.error(response.message || '购买失败')
-        return false
+        return null
       }
     } catch (err: any) {
       const message = err?.message || '购买失败'
       setError(message)
       toast.error(message)
-      return false
+      return null
     } finally {
       setBuying(false)
     }
