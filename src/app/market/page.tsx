@@ -270,144 +270,235 @@ interface BuyFoodModalProps {
 function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalProps) {
   const { buyFood, buying } = useFoodPurchase()
   const [quantity, setQuantity] = useState(10)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [purchaseResult, setPurchaseResult] = useState<any>(null)
   
   const totalCost = quantity * (foodStatus?.unit_price || 0.01)
   const quickAmounts = [1, 10, 20, 48]
   
   const handleBuy = async () => {
-    const success = await buyFood(quantity)
-    if (success) {
+    const result = await buyFood(quantity)
+    if (result) {
+      setPurchaseResult({
+        quantity,
+        totalCost: totalCost.toFixed(2),
+        newBalance: (foodStatus.tdb_balance - totalCost).toFixed(2),
+        newFood: foodStatus.current_food + quantity
+      })
+      setShowSuccess(true)
       onSuccess()
-      setQuantity(10)
+      
+      // 3秒后自动关闭
+      setTimeout(() => {
+        handleClose()
+      }, 3000)
     }
+  }
+  
+  const handleClose = () => {
+    setShowSuccess(false)
+    setPurchaseResult(null)
+    setQuantity(10)
+    onClose()
   }
   
   return (
     <PixelModal
       isOpen={isOpen}
-      onClose={onClose}
-      title="购买粮食"
+      onClose={handleClose}
+      title={showSuccess ? "购买成功" : "购买粮食"}
       size="small"
     >
       {foodStatus && (
         <div className="space-y-4">
-          {/* 价格信息 */}
-          <div className="p-4 bg-gray-800/50 rounded">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-gray-400">单价</p>
-                <p className="font-bold text-gold-500">{foodStatus.unit_price} TDB</p>
-              </div>
-              <div>
-                <p className="text-gray-400">TDB余额</p>
-                <p className="font-bold text-gold-500">
-                  {foodStatus.tdb_balance.toFixed(2)} TDB
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400">今日已购</p>
-                <p className="font-bold">
-                  {foodStatus.today_purchased}/{foodStatus.daily_limit}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400">剩余额度</p>
-                <p className="font-bold text-green-400">
-                  {foodStatus.today_remaining}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* 购买数量 */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              购买数量
-            </label>
-            <div className="flex gap-2 mb-2">
-              {quickAmounts.map(amount => (
-                <button
-                  key={amount}
-                  onClick={() => setQuantity(Math.min(amount, foodStatus.today_remaining))}
-                  disabled={amount > foodStatus.today_remaining}
-                  className={cn(
-                    "flex-1 py-2 rounded border transition-all",
-                    amount === quantity
-                      ? "bg-gold-500/20 border-gold-500 text-white"
-                      : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white",
-                    amount > foodStatus.today_remaining && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  {amount}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              min={1}
-              max={foodStatus.today_remaining}
-              value={quantity}
-              onChange={(e) => {
-                const val = parseInt(e.target.value) || 0
-                setQuantity(Math.min(Math.max(1, val), foodStatus.today_remaining))
-              }}
-              className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
-            />
-          </div>
-          
-          {/* 费用汇总 */}
-          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>数量：</span>
-                <span className="font-bold">{quantity} 个</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>单价：</span>
-                <span>{foodStatus.unit_price} TDB</span>
-              </div>
-              <div className="border-t border-gray-700 pt-2 mt-2">
+          {showSuccess && purchaseResult ? (
+            // 成功提示界面
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-6"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1, rotate: 360 }}
+                transition={{ duration: 0.5 }}
+                className="text-6xl mb-4"
+              >
+                ✅
+              </motion.div>
+              
+              <h3 className="text-xl font-bold text-green-400 mb-4">
+                购买成功！
+              </h3>
+              
+              <div className="space-y-3 bg-gray-800/50 rounded-lg p-4 text-left">
                 <div className="flex justify-between">
-                  <span>总计：</span>
-                  <span className="font-bold text-gold-500 text-lg">
-                    {totalCost.toFixed(2)} TDB
-                  </span>
+                  <span className="text-gray-400">购买数量：</span>
+                  <span className="font-bold text-white">{purchaseResult.quantity} 个</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">花费 TDB：</span>
+                  <span className="font-bold text-gold-500">{purchaseResult.totalCost} TDB</span>
+                </div>
+                <div className="border-t border-gray-700 pt-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">当前粮食：</span>
+                    <span className="font-bold text-yellow-400">{purchaseResult.newFood} 个</span>
+                  </div>
+                  <div className="flex justify-between mt-2">
+                    <span className="text-gray-400">剩余 TDB：</span>
+                    <span className="font-bold text-gold-500">{purchaseResult.newBalance} TDB</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          {/* 余额不足提示 */}
-          {totalCost > foodStatus.tdb_balance && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
-              <p className="text-sm text-red-400">
-                TDB余额不足，请先购买更多TDB
+              
+              <div className="mt-6 space-y-3">
+                <PixelButton
+                  onClick={() => {
+                    setShowSuccess(false)
+                    setPurchaseResult(null)
+                    setQuantity(10)
+                  }}
+                  variant="primary"
+                  className="w-full"
+                >
+                  继续购买
+                </PixelButton>
+                <PixelButton
+                  onClick={handleClose}
+                  variant="secondary"
+                  className="w-full"
+                >
+                  关闭
+                </PixelButton>
+              </div>
+              
+              <p className="text-xs text-gray-400 mt-4">
+                窗口将在3秒后自动关闭
               </p>
-            </div>
+            </motion.div>
+          ) : (
+            // 原有的购买界面
+            <>
+              {/* 价格信息 */}
+              <div className="p-4 bg-gray-800/50 rounded">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-400">单价</p>
+                    <p className="font-bold text-gold-500">{foodStatus.unit_price} TDB</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">TDB余额</p>
+                    <p className="font-bold text-gold-500">
+                      {foodStatus.tdb_balance.toFixed(2)} TDB
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">今日已购</p>
+                    <p className="font-bold">
+                      {foodStatus.today_purchased}/{foodStatus.daily_limit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">剩余额度</p>
+                    <p className="font-bold text-green-400">
+                      {foodStatus.today_remaining}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 购买数量 */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  购买数量
+                </label>
+                <div className="flex gap-2 mb-2">
+                  {quickAmounts.map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => setQuantity(Math.min(amount, foodStatus.today_remaining))}
+                      disabled={amount > foodStatus.today_remaining}
+                      className={cn(
+                        "flex-1 py-2 rounded border transition-all",
+                        amount === quantity
+                          ? "bg-gold-500/20 border-gold-500 text-white"
+                          : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white",
+                        amount > foodStatus.today_remaining && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {amount}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  min={1}
+                  max={foodStatus.today_remaining}
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setQuantity(Math.min(Math.max(1, val), foodStatus.today_remaining))
+                  }}
+                  className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                />
+              </div>
+              
+              {/* 费用汇总 */}
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>数量：</span>
+                    <span className="font-bold">{quantity} 个</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>单价：</span>
+                    <span>{foodStatus.unit_price} TDB</span>
+                  </div>
+                  <div className="border-t border-gray-700 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span>总计：</span>
+                      <span className="font-bold text-gold-500 text-lg">
+                        {totalCost.toFixed(2)} TDB
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 余额不足提示 */}
+              {totalCost > foodStatus.tdb_balance && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
+                  <p className="text-sm text-red-400">
+                    TDB余额不足，请先购买更多TDB
+                  </p>
+                </div>
+              )}
+              
+              {/* 操作按钮 */}
+              <div className="flex gap-3">
+                <PixelButton
+                  variant="secondary"
+                  onClick={handleClose}
+                  className="flex-1"
+                >
+                  取消
+                </PixelButton>
+                <PixelButton
+                  onClick={handleBuy}
+                  disabled={
+                    buying || 
+                    !foodStatus.can_buy || 
+                    quantity <= 0 || 
+                    totalCost > foodStatus.tdb_balance
+                  }
+                  className="flex-1"
+                >
+                  {buying ? '购买中...' : `确认购买`}
+                </PixelButton>
+              </div>
+            </>
           )}
-          
-          {/* 操作按钮 */}
-          <div className="flex gap-3">
-            <PixelButton
-              variant="secondary"
-              onClick={onClose}
-              className="flex-1"
-            >
-              取消
-            </PixelButton>
-            <PixelButton
-              onClick={handleBuy}
-              disabled={
-                buying || 
-                !foodStatus.can_buy || 
-                quantity <= 0 || 
-                totalCost > foodStatus.tdb_balance
-              }
-              className="flex-1"
-            >
-              {buying ? '购买中...' : `确认购买`}
-            </PixelButton>
-          </div>
         </div>
       )}
     </PixelModal>
