@@ -29,7 +29,7 @@ const sidebarItems = [
     icon: '💼',
     items: [
       { label: '挖矿中心', href: 'https://www.pxsj.net.cn/mining', icon: '⛏️', isActive: true, isExternal: true },
-      { label: '交易市场', href: '/market', icon: '🛒', isActive: false },
+      { label: '交易市场', href: 'https://www.pxsj.net.cn/market', icon: '🛒', isActive: true, isExternal: true },
       { label: '我的商店', href: '/shop', icon: '🏪', isActive: false },
     ]
   },
