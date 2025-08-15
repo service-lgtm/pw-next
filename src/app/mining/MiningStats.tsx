@@ -258,7 +258,7 @@ export function MiningStats({
       <PixelCard className="p-4 bg-blue-900/20">
         <h3 className="font-bold mb-2 text-blue-400">操作说明</h3>
         <div className="space-y-2 text-xs text-gray-400">
-          <p>• YLD 矿山可产出 YLD 代币</p>
+          <p>• YLD 矿山可产出 YLD 通证</p>
           <p>• 点击矿山卡片查看详情</p>
           <p>• 挖矿功能需要内测密码</p>
           <p>• 生产功能即将全面开放</p>
