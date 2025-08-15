@@ -1,16 +1,17 @@
 // src/app/assets/land/[id]/page.tsx
-// 土地详情页面
+// 土地详情页面 - 修复版
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useLandDetail } from '@/hooks/useLands'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 interface PageProps {
   params: {
@@ -89,12 +90,12 @@ export default function LandDetailPage({ params }: PageProps) {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl font-black text-white mb-2">{land.land_id}</h1>
-              <p className="text-gray-400">{land.region.name} · {land.blueprint.land_type_display}</p>
+              <p className="text-gray-400">{land.region?.name || '未知区域'} · {land.blueprint?.land_type_display || land.land_type_display}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-400">当前价值</p>
               <p className="text-3xl font-black text-gold-500">
-                {parseFloat(land.current_price).toLocaleString()} TDB
+                {land.current_price ? parseFloat(land.current_price).toLocaleString() : 0} TDB
               </p>
             </div>
           </div>
@@ -139,23 +140,23 @@ export default function LandDetailPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-400">类型</span>
-                  <span className="font-bold">{land.blueprint.land_type_display}</span>
+                  <span className="font-bold">{land.blueprint?.land_type_display || land.land_type_display || '未知'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">面积</span>
-                  <span className="font-bold">{land.size_sqm.toLocaleString()} m²</span>
+                  <span className="font-bold">{land.size_sqm ? land.size_sqm.toLocaleString() : 0} m²</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">坐标</span>
-                  <span className="font-mono">({land.coordinate_x}, {land.coordinate_y})</span>
+                  <span className="font-mono">({land.coordinate_x || 0}, {land.coordinate_y || 0})</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">初始价格</span>
-                  <span>{parseFloat(land.initial_price).toLocaleString()} TDB</span>
+                  <span>{land.initial_price ? parseFloat(land.initial_price).toLocaleString() : 0} TDB</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">购买时间</span>
-                  <span>{new Date(land.owned_at || land.created_at).toLocaleDateString()}</span>
+                  <span>{land.owned_at || land.created_at ? new Date(land.owned_at || land.created_at).toLocaleDateString() : '未知'}</span>
                 </div>
                 {land.is_special && (
                   <div className="pt-3 border-t border-gray-700">
@@ -171,11 +172,11 @@ export default function LandDetailPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-400">日产出</span>
-                  <span className="font-bold">{land.blueprint.daily_output} {land.blueprint.output_resource}</span>
+                  <span className="font-bold">{land.blueprint?.daily_output || 0} {land.blueprint?.output_resource || ''}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">建筑等级</span>
-                  <span>{land.construction_level}/{land.blueprint.max_floors}</span>
+                  <span>{land.construction_level || 0}/{land.blueprint?.max_floors || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">生产状态</span>
@@ -185,11 +186,11 @@ export default function LandDetailPage({ params }: PageProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">累计产出</span>
-                  <span>{land.accumulated_output}</span>
+                  <span>{land.accumulated_output || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">能耗率</span>
-                  <span>{land.blueprint.energy_consumption_rate}%</span>
+                  <span>{land.blueprint?.energy_consumption_rate || 0}%</span>
                 </div>
               </div>
             </PixelCard>
@@ -198,8 +199,8 @@ export default function LandDetailPage({ params }: PageProps) {
             <PixelCard className="p-6">
               <h3 className="text-lg font-bold mb-4">蓝图信息</h3>
               <div className="space-y-3">
-                <p className="text-sm text-gray-300">{land.blueprint.description}</p>
-                {land.blueprint.features.length > 0 && (
+                <p className="text-sm text-gray-300">{land.blueprint?.description || '暂无描述'}</p>
+                {land.blueprint?.features && land.blueprint.features.length > 0 && (
                   <div>
                     <p className="text-sm font-bold text-gray-400 mb-2">特性：</p>
                     <ul className="list-disc list-inside text-sm text-gray-300">
@@ -218,17 +219,17 @@ export default function LandDetailPage({ params }: PageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-400">区域</span>
-                  <span className="font-bold">{land.region.name}</span>
+                  <span className="font-bold">{land.region?.name || '未知'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">区域代码</span>
-                  <span className="font-mono">{land.region.code}</span>
+                  <span className="font-mono">{land.region?.code || '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">区域类型</span>
-                  <span>{land.region.region_type}</span>
+                  <span>{land.region?.region_type || '-'}</span>
                 </div>
-                {land.region.parent_name && (
+                {land.region?.parent_name && (
                   <div className="flex justify-between">
                     <span className="text-gray-400">上级区域</span>
                     <span>{land.region.parent_name}</span>
@@ -256,15 +257,15 @@ export default function LandDetailPage({ params }: PageProps) {
                         <div>
                           <p className="font-bold">{tx.transaction_type_display}</p>
                           <p className="text-sm text-gray-400">
-                            {tx.from_username} → {tx.to_username}
+                            {tx.from_username || '系统'} → {tx.to_username || '未知'}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-gold-500">
-                            {parseFloat(tx.price).toLocaleString()} TDB
+                            {tx.price ? parseFloat(tx.price).toLocaleString() : 0} TDB
                           </p>
                           <p className="text-xs text-gray-400">
-                            {new Date(tx.created_at).toLocaleDateString()}
+                            {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : '未知'}
                           </p>
                         </div>
                       </div>
@@ -320,7 +321,7 @@ export default function LandDetailPage({ params }: PageProps) {
                   <span className="ml-2 text-xs">(即将开放)</span>
                 </PixelButton>
                 <p className="text-sm text-gray-400">
-                  升级费用：{land.blueprint.construction_cost_per_floor} TDB/层
+                  升级费用：{land.blueprint?.construction_cost_per_floor || 0} TDB/层
                 </p>
               </div>
             </PixelCard>
@@ -353,7 +354,3 @@ export default function LandDetailPage({ params }: PageProps) {
     </div>
   )
 }
-
-// 需要导入
-import { cn } from '@/lib/utils'
-import { AnimatePresence } from 'framer-motion'
