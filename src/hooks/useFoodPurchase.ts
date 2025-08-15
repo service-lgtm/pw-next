@@ -1,5 +1,5 @@
 // src/hooks/useFoodPurchase.ts
-// 粮食购买 Hook
+// 粮食购买 Hook - 使用 TDB 购买
 
 import { useState, useEffect, useCallback } from 'react'
 import { request } from '@/lib/api'
@@ -9,11 +9,11 @@ import toast from 'react-hot-toast'
 
 export interface FoodPurchaseStatus {
   current_food: number      // 当前粮食数量
-  tdb_balance: number       // TDB余额
+  tdb_balance: number       // TDB余额（用于购买）
   today_purchased: number   // 今日已购买
   today_remaining: number   // 今日剩余额度
-  daily_limit: number       // 每日限额
-  unit_price: number        // 单价
+  daily_limit: number       // 每日限额（48个）
+  unit_price: number        // 单价（0.01 TDB）
   can_buy: boolean         // 是否可以购买
   next_reset_time: string  // 下次重置时间
 }
@@ -66,7 +66,7 @@ export function useFoodPurchase() {
     }
   }, [])
 
-  // 购买粮食
+  // 购买粮食（使用 TDB）
   const buyFood = useCallback(async (quantity: number): Promise<boolean> => {
     if (!status) {
       toast.error('请先等待状态加载')
