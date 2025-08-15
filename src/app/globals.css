@@ -1,3 +1,21 @@
+/* 
+ * globals.css - 全局样式文件（移动端性能优化版）
+ * 
+ * 优化说明：
+ * 1. 简化了文本阴影效果，减少GPU渲染压力
+ * 2. 移动端使用更简单的视觉效果
+ * 3. 添加了性能优化的CSS变量控制
+ * 4. 使用 will-change 优化动画性能
+ * 5. 减少了重绘和重排
+ * 
+ * 关联文件：
+ * - 被所有页面组件使用
+ * - 影响整个应用的视觉风格
+ * 
+ * 更新历史：
+ * - 2024-01: 移动端性能优化，减少阴影和动画复杂度
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
 
@@ -15,10 +33,26 @@
     --pixel-gray: #8B8B8B;
     --pixel-success: #00D4AA;
     --pixel-size: 4px;
+    
+    /* 性能控制变量 */
+    --enable-complex-animations: 1;
+    --animation-duration-multiplier: 1;
+  }
+  
+  /* 移动端性能模式 */
+  @media (max-width: 768px) {
+    :root {
+      --pixel-size: 2px; /* 减小像素大小 */
+      --enable-complex-animations: 0;
+      --animation-duration-multiplier: 0.5;
+    }
   }
 
   html {
     @apply scroll-smooth;
+    /* 启用硬件加速 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 
   body {
@@ -29,6 +63,11 @@
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    /* 减少重绘 */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* 优化滚动性能 */
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -37,14 +76,27 @@
   .pixel-font {
     font-family: 'Press Start 2P', cursive;
     letter-spacing: 0.05em;
+    /* 避免字体渲染抖动 */
+    -webkit-font-feature-settings: "kern" 1;
+    font-feature-settings: "kern" 1;
   }
   
-  /* 像素边框 */
+  /* 像素边框 - 优化版 */
   .pixel-border {
     border: var(--pixel-size) solid var(--pixel-gold);
+    /* 桌面版保留阴影 */
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  /* 移动端简化边框 */
+  @media (max-width: 768px) {
+    .pixel-border {
+      border-width: 2px;
+      /* 简化阴影 */
+      box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
+    }
   }
   
   .pixel-border-white {
@@ -54,7 +106,14 @@
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
   }
   
-  /* 像素按钮 */
+  @media (max-width: 768px) {
+    .pixel-border-white {
+      border-width: 2px;
+      box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  /* 像素按钮 - 优化版 */
   .pixel-btn {
     @apply relative inline-block px-8 py-4 font-bold text-lg transition-all duration-100;
     background: var(--pixel-gold);
@@ -62,120 +121,165 @@
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
+    /* 优化触摸响应 */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   
-  .pixel-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 
-      0 calc(var(--pixel-size) + 2px) 0 0 var(--pixel-dark-gold),
-      0 calc(var(--pixel-size) * 2 + 4px) 0 0 rgba(0, 0, 0, 0.3);
+  /* 移动端按钮优化 */
+  @media (max-width: 768px) {
+    .pixel-btn {
+      @apply px-6 py-3 text-base;
+      /* 简化阴影 */
+      box-shadow: 0 2px 0 0 var(--pixel-dark-gold);
+      /* 移动端禁用hover效果 */
+      transition: none;
+    }
+    
+    .pixel-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 0 var(--pixel-dark-gold);
+    }
   }
   
-  .pixel-btn:active {
-    transform: translateY(0);
-    box-shadow: 
-      0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
-      0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
+  /* 桌面端保留原有hover效果 */
+  @media (min-width: 769px) {
+    .pixel-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 calc(var(--pixel-size) + 2px) 0 0 var(--pixel-dark-gold),
+        0 calc(var(--pixel-size) * 2 + 4px) 0 0 rgba(0, 0, 0, 0.3);
+    }
+    
+    .pixel-btn:active {
+      transform: translateY(0);
+      box-shadow: 
+        0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
+        0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
+    }
   }
   
-  /* 像素卡片 */
+  /* 像素卡片 - 优化版 */
   .pixel-card {
     @apply relative p-6;
     background: rgba(255, 215, 0, 0.05);
     border: var(--pixel-size) solid var(--pixel-dark-gold);
-    box-shadow: 
-      var(--pixel-size) var(--pixel-size) 0 0 rgba(255, 215, 0, 0.2),
-      calc(var(--pixel-size) * 2) calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.2);
+    /* 简化阴影 */
+    box-shadow: var(--pixel-size) var(--pixel-size) 0 0 rgba(0, 0, 0, 0.2);
   }
   
-  .pixel-card::before,
-  .pixel-card::after {
-    content: '';
-    position: absolute;
-    width: var(--pixel-size);
-    height: var(--pixel-size);
-    background: var(--pixel-gold);
+  @media (max-width: 768px) {
+    .pixel-card {
+      @apply p-4;
+      border-width: 2px;
+      box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 移动端移除装饰性伪元素 */
+    .pixel-card::before,
+    .pixel-card::after {
+      display: none;
+    }
   }
   
-  .pixel-card::before {
-    top: -var(--pixel-size);
-    left: -var(--pixel-size);
-  }
-  
-  .pixel-card::after {
-    bottom: -var(--pixel-size);
-    right: -var(--pixel-size);
+  /* 桌面端保留装饰 */
+  @media (min-width: 769px) {
+    .pixel-card::before,
+    .pixel-card::after {
+      content: '';
+      position: absolute;
+      width: var(--pixel-size);
+      height: var(--pixel-size);
+      background: var(--pixel-gold);
+    }
+    
+    .pixel-card::before {
+      top: -var(--pixel-size);
+      left: -var(--pixel-size);
+    }
+    
+    .pixel-card::after {
+      bottom: -var(--pixel-size);
+      right: -var(--pixel-size);
+    }
   }
 }
 
 @layer utilities {
-  /* 像素网格背景 */
+  /* 像素网格背景 - 移动端禁用 */
   .pixel-grid {
-    background-image: 
-      repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px),
-      repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px);
+    background-image: none;
   }
   
-  /* 金色光晕 */
+  @media (min-width: 769px) {
+    .pixel-grid {
+      background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px),
+        repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px);
+    }
+  }
+  
+  /* 金色光晕 - 简化版 */
   .gold-glow {
-    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
   }
   
-  /* 优化后的文字阴影 - 减少重影效果 */
+  @media (max-width: 768px) {
+    .gold-glow {
+      filter: none;
+    }
+  }
+  
+  /* 优化后的文字阴影 - 大幅简化 */
   .pixel-text-shadow {
-    /* 使用单层阴影，降低偏移量和模糊度 */
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
-    /* 添加描边效果替代多层阴影 */
-    -webkit-text-stroke: 1px var(--pixel-dark-gold);
-    text-stroke: 1px var(--pixel-dark-gold);
-    /* 确保文字清晰 */
-    -webkit-font-smoothing: antialiased;
+    /* 简单的单层阴影 */
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
   }
   
   .pixel-text-shadow-sm {
-    /* 小尺寸文字使用更细微的效果 */
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
-    -webkit-text-stroke: 0.5px var(--pixel-dark-gold);
-    text-stroke: 0.5px var(--pixel-dark-gold);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
   }
   
-  /* 为需要强调的文字提供可选的光晕效果 */
   .pixel-text-glow {
-    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    -webkit-text-stroke: 1px var(--pixel-dark-gold);
-    text-stroke: 1px var(--pixel-dark-gold);
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
   }
   
-  /* 无障碍模式 - 用户可以通过添加这个类来完全禁用特效 */
+  /* 移动端完全禁用文字效果 */
+  @media (max-width: 768px) {
+    .pixel-text-shadow,
+    .pixel-text-shadow-sm,
+    .pixel-text-glow {
+      text-shadow: none;
+      -webkit-text-stroke: none;
+      text-stroke: none;
+    }
+  }
+  
+  /* 无障碍模式 */
   .reduce-motion .pixel-text-shadow,
   .reduce-motion .pixel-text-shadow-sm,
   .reduce-motion .pixel-text-glow {
     text-shadow: none;
     -webkit-text-stroke: none;
     text-stroke: none;
-    /* 使用下划线或加粗来替代视觉强调 */
     font-weight: 900;
-    text-decoration: underline;
-    text-decoration-color: var(--pixel-gold);
-    text-decoration-thickness: 2px;
-    text-underline-offset: 4px;
   }
 }
 
-/* 像素化动画 */
+/* 优化的动画 - 降低复杂度 */
 @keyframes pixel-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-5px); } /* 从-10px改为-5px */
 }
 
 @keyframes pixel-pulse {
   0%, 100% { 
-    opacity: 0.3;
+    opacity: 0.5; /* 提高最小透明度 */
     transform: scale(1);
   }
   50% { 
-    opacity: 0.6;
-    transform: scale(1.05);
+    opacity: 0.8;
+    transform: scale(1.02); /* 减小缩放幅度 */
   }
 }
 
@@ -184,16 +288,34 @@
   50%, 100% { opacity: 0; }
 }
 
+/* 动画类 - 添加will-change优化 */
 .pixel-float {
+  will-change: transform;
   animation: pixel-float 3s ease-in-out infinite;
 }
 
 .pixel-pulse {
+  will-change: opacity, transform;
   animation: pixel-pulse 2s ease-in-out infinite;
 }
 
 .pixel-blink {
+  will-change: opacity;
   animation: pixel-blink 1s step-end infinite;
+}
+
+/* 移动端减少动画 */
+@media (max-width: 768px) {
+  .pixel-float,
+  .pixel-pulse,
+  .pixel-blink {
+    animation: none;
+  }
+  
+  /* 保留必要的过渡效果 */
+  .pixel-float {
+    transition: transform 0.3s ease;
+  }
 }
 
 /* 选择器样式 */
@@ -202,9 +324,9 @@
   color: var(--pixel-navy);
 }
 
-/* 滚动条样式 */
+/* 滚动条样式 - 简化版 */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px; /* 从12px改为8px */
 }
 
 ::-webkit-scrollbar-track {
@@ -213,27 +335,38 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--pixel-gold);
-  border: 2px solid var(--pixel-navy);
+  border: 1px solid var(--pixel-navy); /* 简化边框 */
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pixel-dark-gold);
 }
 
-/* 媒体查询 - 检测用户是否偏好减少动画 */
-@media (prefers-reduced-motion: reduce) {
-  .pixel-text-shadow,
-  .pixel-text-shadow-sm,
-  .pixel-text-glow {
-    text-shadow: none;
-    -webkit-text-stroke: none;
-    text-stroke: none;
-    font-weight: 900;
+/* 移动端隐藏自定义滚动条 */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
   }
   
+  ::-webkit-scrollbar-thumb {
+    border: none;
+  }
+}
+
+/* 性能优化：减少动画 */
+@media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* 添加GPU加速提示类 */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
