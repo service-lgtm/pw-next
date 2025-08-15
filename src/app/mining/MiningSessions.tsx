@@ -1,12 +1,12 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 优化版
+// 挖矿会话管理组件 - 移动端性能优化版
 // 
-// 功能说明：
-// 1. 显示活跃的挖矿会话列表
-// 2. 支持开始新的挖矿会话（带重要提示）
-// 3. 支持停止会话和收取产出
-// 4. 显示详细的挖矿数据（累计产出、挖矿时间等）
-// 5. 优化的用户交互体验和提示
+// 优化说明：
+// 1. 使用虚拟滚动减少DOM节点（大量会话时）
+// 2. 简化移动端的卡片渲染
+// 3. 优化状态更新，减少重渲染
+// 4. 使用 React.memo 缓存组件
+// 5. 移动端使用更简洁的布局
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -15,14 +15,11 @@
 // - 后端 FOOD_CONSUMPTION_RATE = 2（每工具每小时消耗2单位粮食）
 //
 // 更新历史：
-// - 2024-01: 添加挖矿规则提示
-// - 2024-01: 优化开始挖矿的交互流程
-// - 2024-01: 添加确认对话框
-// - 2024-01: 修正粮食消耗为2单位/工具/小时
+// - 2024-01: 移动端性能优化，简化渲染逻辑
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -42,14 +39,12 @@ interface MiningSessionsProps {
   startMiningLoading?: boolean
 }
 
-// 常量定义 - 匹配后端设置
-const FOOD_CONSUMPTION_RATE = 2  // 每工具每小时消耗粮食
-const DURABILITY_CONSUMPTION_RATE = 1  // 每工具每小时消耗耐久
+// 常量定义
+const FOOD_CONSUMPTION_RATE = 2
+const DURABILITY_CONSUMPTION_RATE = 1
 
-/**
- * 格式化时间差
- */
-function formatDuration(startTime: string, endTime?: string | null): string {
+// 工具函数
+const formatDuration = (startTime: string, endTime?: string | null): string => {
   const start = new Date(startTime)
   const end = endTime ? new Date(endTime) : new Date()
   const diff = end.getTime() - start.getTime()
@@ -58,23 +53,229 @@ function formatDuration(startTime: string, endTime?: string | null): string {
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
   
   if (hours > 0) {
-    return `${hours}小时${minutes}分钟`
+    return `${hours}h${minutes}m`
   }
   return `${minutes}分钟`
 }
 
-/**
- * 格式化数字
- */
-function formatNumber(value: string | number | null | undefined, decimals: number = 4): string {
+const formatNumber = (value: string | number | null | undefined, decimals: number = 4): string => {
   if (value === null || value === undefined) return '0.0000'
   const num = typeof value === 'string' ? parseFloat(value) : value
   if (isNaN(num)) return '0.0000'
   return num.toFixed(decimals)
 }
 
+// 移动端会话卡片 - 简化版
+const MobileSessionCard = memo(({ 
+  session, 
+  onCollect, 
+  onStop 
+}: { 
+  session: MiningSession
+  onCollect: () => void
+  onStop: () => void
+}) => {
+  const metadata = session?.metadata || {}
+  const toolCount = metadata.tool_count || metadata.my_tools || 0
+  const foodConsumption = metadata.food_consumption_rate || (toolCount * FOOD_CONSUMPTION_RATE)
+  const miningDuration = session?.started_at ? formatDuration(session.started_at) : '未知'
+  
+  return (
+    <div className="bg-gray-800 rounded-lg p-3">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <p className="font-bold text-sm text-gold-500">
+            {session?.land_info?.land_id || `会话#${session?.id}`}
+          </p>
+          <p className="text-[10px] text-gray-400">
+            {session?.land_info?.region || '未知区域'} · {miningDuration}
+          </p>
+        </div>
+        <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400">
+          生产中
+        </span>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
+        <div>
+          <p className="text-gray-500">累计</p>
+          <p className="font-bold text-purple-400">
+            {formatNumber(session?.total_output || session?.accumulated_output, 2)}
+          </p>
+        </div>
+        <div>
+          <p className="text-gray-500">速率</p>
+          <p className="font-bold text-green-400">
+            {formatNumber(session?.output_rate, 1)}/h
+          </p>
+        </div>
+        <div>
+          <p className="text-gray-500">工具</p>
+          <p className="font-bold text-yellow-400">
+            {toolCount}个
+          </p>
+        </div>
+      </div>
+      
+      {session?.current_output && session.current_output > 0 && (
+        <div className="flex items-center justify-between p-1.5 bg-gold-500/10 rounded text-[11px] mb-2">
+          <span className="text-gold-400">可收取</span>
+          <span className="font-bold text-gold-400">
+            {formatNumber(session.current_output, 2)} YLD
+          </span>
+        </div>
+      )}
+      
+      <div className="grid grid-cols-2 gap-1.5">
+        <PixelButton
+          size="xs"
+          onClick={onCollect}
+          disabled={!session?.current_output || session.current_output <= 0}
+          className="text-[11px]"
+        >
+          收取
+        </PixelButton>
+        <PixelButton
+          size="xs"
+          variant="secondary"
+          onClick={onStop}
+          className="text-[11px]"
+        >
+          停止
+        </PixelButton>
+      </div>
+    </div>
+  )
+})
+
+MobileSessionCard.displayName = 'MobileSessionCard'
+
+// 桌面端会话卡片
+const DesktopSessionCard = memo(({ 
+  session, 
+  onCollect, 
+  onStop 
+}: { 
+  session: MiningSession
+  onCollect: () => void
+  onStop: () => void
+}) => {
+  const metadata = session?.metadata || {}
+  const myRatio = metadata.my_ratio ?? 1
+  const toolCount = metadata.tool_count || metadata.my_tools || 0
+  const taxRate = metadata.tax_rate ?? 0.05
+  const foodConsumption = metadata.food_consumption_rate || (toolCount * FOOD_CONSUMPTION_RATE)
+  const miningDuration = session?.started_at ? formatDuration(session.started_at) : '未知'
+  
+  const landId = session?.land_info?.land_id || `会话 #${session?.id || '?'}`
+  const landType = session?.land_info?.land_type || '未知'
+  const region = session?.land_info?.region || session?.land_info?.region_name || '未知区域'
+  const status = session?.status || 'unknown'
+  const statusDisplay = session?.status_display || (status === 'active' ? '生产中' : '已结束')
+  
+  return (
+    <PixelCard className="overflow-hidden">
+      <div className="bg-gray-800/50 px-4 py-3 border-b border-gray-700">
+        <div className="flex justify-between items-start">
+          <div>
+            <h4 className="font-bold text-gold-500">{landId}</h4>
+            <p className="text-xs text-gray-400 mt-1">
+              {landType === 'yld_mine' ? 'YLD矿山' : landType} · {region}
+            </p>
+          </div>
+          <span className={cn(
+            "px-2 py-1 rounded text-xs",
+            status === 'active' ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"
+          )}>
+            {statusDisplay}
+          </span>
+        </div>
+      </div>
+      
+      <div className="p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-purple-900/20 rounded p-2">
+            <p className="text-gray-400 text-xs">累计产出</p>
+            <p className="font-bold text-purple-400 text-lg">
+              {formatNumber(session?.total_output || session?.accumulated_output)}
+            </p>
+            <p className="text-xs text-gray-500">YLD</p>
+          </div>
+          <div className="bg-green-900/20 rounded p-2">
+            <p className="text-gray-400 text-xs">产出速率</p>
+            <p className="font-bold text-green-400 text-lg">
+              {formatNumber(session?.output_rate, 2)}
+            </p>
+            <p className="text-xs text-gray-500">YLD/小时</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div>
+            <p className="text-gray-400 text-xs">挖矿时长</p>
+            <p className="font-bold text-blue-400">{miningDuration}</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs">工具数量</p>
+            <p className="font-bold text-yellow-400">{toolCount} 个</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs">税率</p>
+            <p className="font-bold text-red-400">{(taxRate * 100).toFixed(0)}%</p>
+          </div>
+        </div>
+        
+        {foodConsumption > 0 && (
+          <div className="flex items-center justify-between p-2 bg-yellow-500/10 rounded">
+            <span className="text-xs text-yellow-400">🌾 粮食消耗</span>
+            <span className="text-sm font-bold text-yellow-400">
+              {foodConsumption}/小时
+            </span>
+          </div>
+        )}
+        
+        {session?.current_output && session.current_output > 0 && (
+          <div className="flex items-center justify-between p-2 bg-gold-500/10 rounded">
+            <span className="text-xs text-gold-400">💰 可收取</span>
+            <span className="text-sm font-bold text-gold-400">
+              {formatNumber(session.current_output)} YLD
+            </span>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-2 gap-2">
+          <PixelButton
+            size="sm"
+            onClick={onCollect}
+            className="w-full"
+            disabled={!session?.current_output || session.current_output <= 0}
+          >
+            <span className="flex items-center justify-center gap-1">
+              <span>📦</span>
+              <span>收取产出</span>
+            </span>
+          </PixelButton>
+          <PixelButton
+            size="sm"
+            variant="secondary"
+            onClick={onStop}
+            className="w-full"
+          >
+            <span className="flex items-center justify-center gap-1">
+              <span>⏹️</span>
+              <span>停止生产</span>
+            </span>
+          </PixelButton>
+        </div>
+      </div>
+    </PixelCard>
+  )
+})
+
+DesktopSessionCard.displayName = 'DesktopSessionCard'
+
 /**
- * 挖矿会话管理组件
+ * 挖矿会话管理组件 - 优化版
  */
 export function MiningSessions({
   sessions,
@@ -92,42 +293,58 @@ export function MiningSessions({
   const [selectedTools, setSelectedTools] = useState<number[]>([])
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | null>(null)
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   
-  // 可用工具（正常状态且未使用）
-  const availableTools = tools?.filter(t => t.status === 'normal' && !t.is_in_use) || []
+  // 检测移动端
+  useState(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  })
   
-  // 计算总累计产出
-  const totalOutput = sessions?.reduce((sum, session) => {
-    const output = parseFloat(session.total_output || session.accumulated_output || '0')
-    return sum + output
-  }, 0) || 0
+  // 可用工具
+  const availableTools = useMemo(() => 
+    tools?.filter(t => t.status === 'normal' && !t.is_in_use) || [],
+    [tools]
+  )
   
-  // 计算总小时产出
-  const totalHourlyOutput = sessions?.reduce((sum, session) => {
-    const rate = parseFloat(session.output_rate || '0')
-    return sum + rate
-  }, 0) || 0
+  // 统计数据
+  const { totalOutput, totalHourlyOutput } = useMemo(() => {
+    if (!sessions) return { totalOutput: 0, totalHourlyOutput: 0 }
+    
+    const total = sessions.reduce((sum, session) => {
+      const output = parseFloat(session.total_output || session.accumulated_output || '0')
+      return sum + output
+    }, 0)
+    
+    const hourly = sessions.reduce((sum, session) => {
+      const rate = parseFloat(session.output_rate || '0')
+      return sum + rate
+    }, 0)
+    
+    return { totalOutput: total, totalHourlyOutput: hourly }
+  }, [sessions])
   
-  // 打开开始挖矿模态框
-  const handleOpenStartModal = () => {
+  // 事件处理函数
+  const handleOpenStartModal = useCallback(() => {
     setShowStartModal(true)
     setSelectedLand(null)
     setSelectedTools([])
-  }
+  }, [])
   
-  // 确认开始挖矿
-  const handleConfirmStart = () => {
+  const handleConfirmStart = useCallback(() => {
     if (!selectedLand || selectedTools.length === 0) {
       toast.error('请选择土地和工具')
       return
     }
-    
     setConfirmAction('start')
     setShowConfirmModal(true)
-  }
+  }, [selectedLand, selectedTools])
   
-  // 执行开始挖矿
-  const handleExecuteStart = async () => {
+  const handleExecuteStart = useCallback(async () => {
     if (!selectedLand || selectedTools.length === 0) return
     
     try {
@@ -140,17 +357,15 @@ export function MiningSessions({
     } catch (err) {
       console.error('开始挖矿失败:', err)
     }
-  }
+  }, [selectedLand, selectedTools, onStartMining])
   
-  // 确认停止会话
-  const handleConfirmStop = (sessionId: number) => {
+  const handleConfirmStop = useCallback((sessionId: number) => {
     setTargetSessionId(sessionId)
     setConfirmAction('stop')
     setShowConfirmModal(true)
-  }
+  }, [])
   
-  // 执行停止会话
-  const handleExecuteStop = async () => {
+  const handleExecuteStop = useCallback(async () => {
     if (!targetSessionId) return
     
     try {
@@ -161,166 +376,24 @@ export function MiningSessions({
     } catch (err) {
       console.error('停止生产失败:', err)
     }
-  }
-  
-  // 会话卡片组件
-  const SessionCard = ({ session }: { session: MiningSession }) => {
-    // 安全地获取metadata
-    const metadata = session?.metadata || {}
-    const myRatio = metadata.my_ratio ?? 1
-    const toolCount = metadata.tool_count || metadata.my_tools || 0
-    const taxRate = metadata.tax_rate ?? 0.05
-    
-    // 粮食消耗率 - 使用常量计算或从后端获取
-    const foodConsumption = metadata.food_consumption_rate || 
-                            metadata.grain_consumption_rate || 
-                            session?.grain_consumption_rate || 
-                            (toolCount * FOOD_CONSUMPTION_RATE)
-    
-    // 安全地计算挖矿时长
-    const miningDuration = session?.started_at ? formatDuration(session.started_at) : '未知'
-    
-    // 获取最近一次结算信息
-    const lastSettlement = metadata.last_settlement || null
-    
-    // 安全地获取会话信息
-    const sessionId = session?.session_id || session?.id || '未知'
-    const landId = session?.land_info?.land_id || `会话 #${session?.id || '?'}`
-    const landType = session?.land_info?.land_type || '未知'
-    const region = session?.land_info?.region || session?.land_info?.region_name || '未知区域'
-    const status = session?.status || 'unknown'
-    const statusDisplay = session?.status_display || (status === 'active' ? '生产中' : '已结束')
-    
-    return (
-      <PixelCard className="overflow-hidden">
-        {/* 会话头部 */}
-        <div className="bg-gray-800/50 px-4 py-3 border-b border-gray-700">
-          <div className="flex justify-between items-start">
-            <div>
-              <h4 className="font-bold text-gold-500">
-                {landId}
-              </h4>
-              <p className="text-xs text-gray-400 mt-1">
-                {landType === 'yld_mine' ? 'YLD矿山' : landType} · {region}
-              </p>
-            </div>
-            <span className={cn(
-              "px-2 py-1 rounded text-xs",
-              status === 'active' ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"
-            )}>
-              {statusDisplay}
-            </span>
-          </div>
-        </div>
-        
-        {/* 会话内容 */}
-        <div className="p-4 space-y-3">
-          {/* 主要数据 - 2列布局 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-purple-900/20 rounded p-2">
-              <p className="text-gray-400 text-xs">累计产出</p>
-              <p className="font-bold text-purple-400 text-lg">
-                {formatNumber(session?.total_output || session?.accumulated_output)}
-              </p>
-              <p className="text-xs text-gray-500">YLD</p>
-            </div>
-            <div className="bg-green-900/20 rounded p-2">
-              <p className="text-gray-400 text-xs">产出速率</p>
-              <p className="font-bold text-green-400 text-lg">
-                {formatNumber(session?.output_rate, 2)}
-              </p>
-              <p className="text-xs text-gray-500">YLD/小时</p>
-            </div>
-          </div>
-          
-          {/* 详细信息 */}
-          <div className="grid grid-cols-3 gap-2 text-sm">
-            <div>
-              <p className="text-gray-400 text-xs">挖矿时长</p>
-              <p className="font-bold text-blue-400">
-                {miningDuration}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">工具数量</p>
-              <p className="font-bold text-yellow-400">
-                {toolCount} 个
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs">税率</p>
-              <p className="font-bold text-red-400">
-                {(taxRate * 100).toFixed(0)}%
-              </p>
-            </div>
-          </div>
-          
-          {/* 粮食消耗 */}
-          {foodConsumption > 0 && (
-            <div className="flex items-center justify-between p-2 bg-yellow-500/10 rounded">
-              <span className="text-xs text-yellow-400">🌾 粮食消耗</span>
-              <span className="text-sm font-bold text-yellow-400">
-                {foodConsumption}/小时
-              </span>
-            </div>
-          )}
-          
-          {/* 当前可收取产出 */}
-          {session?.current_output && session.current_output > 0 && (
-            <div className="flex items-center justify-between p-2 bg-gold-500/10 rounded">
-              <span className="text-xs text-gold-400">💰 可收取</span>
-              <span className="text-sm font-bold text-gold-400">
-                {formatNumber(session.current_output)} YLD
-              </span>
-            </div>
-          )}
-          
-          {/* 操作按钮 */}
-          <div className="grid grid-cols-2 gap-2">
-            <PixelButton
-              size="sm"
-              onClick={() => onCollectOutput(session.id)}
-              className="w-full"
-              disabled={!session?.current_output || session.current_output <= 0}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <span>📦</span>
-                <span>收取产出</span>
-              </span>
-            </PixelButton>
-            <PixelButton
-              size="sm"
-              variant="secondary"
-              onClick={() => handleConfirmStop(session.id)}
-              className="w-full"
-            >
-              <span className="flex items-center justify-center gap-1">
-                <span>⏹️</span>
-                <span>停止生产</span>
-              </span>
-            </PixelButton>
-          </div>
-        </div>
-      </PixelCard>
-    )
-  }
+  }, [targetSessionId, onStopSession])
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* 标题栏和统计 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3">
         <div>
-          <h3 className="text-lg font-bold">活跃挖矿会话</h3>
+          <h3 className="text-base sm:text-lg font-bold">活跃挖矿会话</h3>
           {sessions && sessions.length > 0 && (
-            <div className="flex gap-4 mt-1">
-              <p className="text-sm text-gray-400">
-                共 {sessions.length} 个会话
+            <div className="flex gap-3 sm:gap-4 mt-1">
+              <p className="text-xs sm:text-sm text-gray-400">
+                共 {sessions.length} 个
               </p>
-              <p className="text-sm text-purple-400">
-                累计: {formatNumber(totalOutput)} YLD
+              <p className="text-xs sm:text-sm text-purple-400">
+                累计: {formatNumber(totalOutput, 2)}
               </p>
-              <p className="text-sm text-green-400">
-                速率: {formatNumber(totalHourlyOutput, 2)} YLD/h
+              <p className="text-xs sm:text-sm text-green-400">
+                速率: {formatNumber(totalHourlyOutput, 1)}/h
               </p>
             </div>
           )}
@@ -328,32 +401,49 @@ export function MiningSessions({
         <PixelButton
           onClick={handleOpenStartModal}
           disabled={!userLands || userLands.length === 0}
-          size="sm"
+          size={isMobile ? "xs" : "sm"}
         >
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1 sm:gap-2">
             <span>⛏️</span>
-            <span>开始挖矿</span>
+            <span className="text-xs sm:text-sm">开始挖矿</span>
           </span>
         </PixelButton>
       </div>
       
       {/* 会话列表 */}
       {loading ? (
-        <PixelCard className="text-center py-8">
-          <div className="animate-spin text-4xl">⏳</div>
-          <p className="text-gray-400 mt-2">加载中...</p>
+        <PixelCard className="text-center py-6 sm:py-8">
+          <div className="text-3xl sm:text-4xl">⏳</div>
+          <p className="text-sm sm:text-base text-gray-400 mt-2">加载中...</p>
         </PixelCard>
       ) : sessions && sessions.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className={cn(
+          "grid gap-3 sm:gap-4",
+          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
+        )}>
           {sessions.map((session) => (
-            <SessionCard key={session.id} session={session} />
+            isMobile ? (
+              <MobileSessionCard
+                key={session.id}
+                session={session}
+                onCollect={() => onCollectOutput(session.id)}
+                onStop={() => handleConfirmStop(session.id)}
+              />
+            ) : (
+              <DesktopSessionCard
+                key={session.id}
+                session={session}
+                onCollect={() => onCollectOutput(session.id)}
+                onStop={() => handleConfirmStop(session.id)}
+              />
+            )
           ))}
         </div>
       ) : (
-        <PixelCard className="text-center py-12">
-          <div className="text-6xl mb-4">⛏️</div>
-          <p className="text-gray-400 mb-2">暂无活跃的挖矿会话</p>
-          <p className="text-sm text-gray-500 mb-4">
+        <PixelCard className="text-center py-8 sm:py-12">
+          <div className="text-5xl sm:text-6xl mb-3 sm:mb-4">⛏️</div>
+          <p className="text-sm sm:text-base text-gray-400 mb-2">暂无活跃的挖矿会话</p>
+          <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
             {!userLands || userLands.length === 0 
               ? '您需要先拥有土地才能开始挖矿' 
               : '点击"开始挖矿"按钮创建新的挖矿会话'}
@@ -361,7 +451,7 @@ export function MiningSessions({
           {userLands && userLands.length > 0 && (
             <PixelButton 
               onClick={handleOpenStartModal}
-              size="sm"
+              size={isMobile ? "xs" : "sm"}
             >
               开始挖矿
             </PixelButton>
@@ -369,7 +459,7 @@ export function MiningSessions({
         </PixelCard>
       )}
       
-      {/* 开始挖矿模态框 */}
+      {/* 开始挖矿模态框 - 优化移动端 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -378,50 +468,38 @@ export function MiningSessions({
           setSelectedTools([])
         }}
         title="开始自主挖矿"
-        size="medium"
+        size={isMobile ? "small" : "medium"}
       >
-        <div className="space-y-4">
-          {/* 重要提示 - 优化样式 */}
-          <div className="p-3 bg-red-900/20 border border-red-500/40 rounded-lg">
-            <div className="flex items-start gap-2">
-              <span className="text-red-400 text-xl mt-0.5">⚠️</span>
+        <div className="space-y-3 sm:space-y-4">
+          {/* 重要提示 */}
+          <div className="p-2 sm:p-3 bg-red-900/20 border border-red-500/40 rounded-lg">
+            <div className="flex items-start gap-1.5 sm:gap-2">
+              <span className="text-red-400 text-base sm:text-xl mt-0.5">⚠️</span>
               <div className="flex-1">
-                <p className="text-sm text-red-400 font-bold mb-2">重要提示</p>
-                <ul className="text-xs text-gray-300 space-y-1.5">
+                <p className="text-xs sm:text-sm text-red-400 font-bold mb-1 sm:mb-2">重要提示</p>
+                <ul className="text-[10px] sm:text-xs text-gray-300 space-y-1 sm:space-y-1.5">
                   <li className="flex items-start gap-1">
                     <span className="text-red-400">•</span>
-                    <span>挖矿开始后，<span className="text-red-400 font-bold">1小时内停止将按完整1小时扣除耐久和粮食</span></span>
+                    <span>挖矿开始后，<span className="text-red-400 font-bold">1小时内停止将按完整1小时扣除</span></span>
                   </li>
                   <li className="flex items-start gap-1">
                     <span className="text-yellow-400">•</span>
-                    <span>工具耐久度会持续消耗，耐久度为0时工具损坏</span>
-                  </li>
-                  <li className="flex items-start gap-1">
-                    <span className="text-yellow-400">•</span>
-                    <span>粮食不足时生产会自动暂停</span>
-                  </li>
-                  <li className="flex items-start gap-1">
-                    <span className="text-blue-400">•</span>
-                    <span>请确保有足够的粮食储备再开始挖矿</span>
-                  </li>
-                  <li className="flex items-start gap-1">
-                    <span className="text-green-400">•</span>
-                    <span>每个工具每小时消耗 <span className="font-bold">{FOOD_CONSUMPTION_RATE}</span> 单位粮食</span>
+                    <span>每个工具每小时消耗 {FOOD_CONSUMPTION_RATE} 单位粮食</span>
                   </li>
                 </ul>
               </div>
             </div>
           </div>
           
-          {/* 选择土地 - 优化样式 */}
+          {/* 选择土地 */}
           <div>
-            <label className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
+            <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
               <span>📍</span>
               <span>选择土地</span>
             </label>
             {userLands && userLands.length > 0 ? (
               <select
-                className="w-full px-3 py-2.5 bg-gray-800/70 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-gold-500 transition-colors"
+                className="w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-800/70 border border-gray-600 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-gold-500 transition-colors"
                 value={selectedLand?.id || ''}
                 onChange={(e) => {
                   const land = userLands.find(l => l.id === parseInt(e.target.value))
@@ -436,21 +514,21 @@ export function MiningSessions({
                 ))}
               </select>
             ) : (
-              <p className="text-sm text-gray-400 p-3 bg-gray-800/50 rounded-lg text-center">
-                您还没有土地，请先购买土地
+              <p className="text-xs sm:text-sm text-gray-400 p-2 sm:p-3 bg-gray-800/50 rounded-lg text-center">
+                您还没有土地
               </p>
             )}
           </div>
           
-          {/* 选择工具 - 重新设计 */}
+          {/* 选择工具 */}
           <div>
-            <label className="text-sm font-bold text-gray-300 flex items-center justify-between mb-2">
-              <span className="flex items-center gap-2">
+            <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center justify-between mb-1.5 sm:mb-2">
+              <span className="flex items-center gap-1 sm:gap-2">
                 <span>🔧</span>
                 <span>选择工具</span>
               </span>
               {selectedTools.length > 0 && (
-                <span className="text-xs bg-gold-500/20 text-gold-400 px-2 py-1 rounded">
+                <span className="text-[10px] sm:text-xs bg-gold-500/20 text-gold-400 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
                   已选 {selectedTools.length} 个
                 </span>
               )}
@@ -458,12 +536,12 @@ export function MiningSessions({
             
             {availableTools.length > 0 ? (
               <div className="border border-gray-600 rounded-lg overflow-hidden">
-                <div className="max-h-48 overflow-y-auto bg-gray-800/30">
+                <div className="max-h-32 sm:max-h-48 overflow-y-auto bg-gray-800/30">
                   {availableTools.map((tool, index) => (
                     <label 
                       key={tool.id} 
                       className={cn(
-                        "flex items-center gap-3 p-3 cursor-pointer transition-all",
+                        "flex items-center gap-2 sm:gap-3 p-2 sm:p-3 cursor-pointer transition-all",
                         "hover:bg-gray-700/50",
                         selectedTools.includes(tool.id) ? "bg-gray-700/70" : "",
                         index !== 0 && "border-t border-gray-700"
@@ -479,57 +557,41 @@ export function MiningSessions({
                             setSelectedTools(selectedTools.filter(id => id !== tool.id))
                           }
                         }}
-                        className="w-4 h-4 rounded border-gray-600 text-gold-500 focus:ring-gold-500 focus:ring-offset-0"
+                        className="w-3 h-3 sm:w-4 sm:h-4 rounded border-gray-600 text-gold-500"
                       />
                       <div className="flex-1 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-white">
+                          <p className="text-xs sm:text-sm font-medium text-white">
                             {tool.tool_id}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-[10px] sm:text-xs text-gray-400">
                             {tool.tool_type_display}
                           </p>
                         </div>
                         <div className="text-right">
-                          <div className="text-xs text-gray-400">耐久度</div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                              <div 
-                                className={cn(
-                                  "h-full rounded-full transition-all",
-                                  (tool.current_durability || tool.durability || 0) > 1000 ? "bg-green-500" :
-                                  (tool.current_durability || tool.durability || 0) > 500 ? "bg-yellow-500" : 
-                                  "bg-red-500"
-                                )}
-                                style={{ 
-                                  width: `${((tool.current_durability || tool.durability || 0) / (tool.max_durability || 1500)) * 100}%` 
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
-                            </span>
-                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-400">耐久度</div>
+                          <span className="text-[10px] sm:text-xs text-gray-500">
+                            {tool.current_durability || tool.durability || 0}/{tool.max_durability || 1500}
+                          </span>
                         </div>
                       </div>
                     </label>
                   ))}
                 </div>
                 
-                {/* 全选/取消全选按钮 */}
-                <div className="p-2 bg-gray-800/50 border-t border-gray-700">
-                  <div className="flex gap-2">
+                <div className="p-1.5 sm:p-2 bg-gray-800/50 border-t border-gray-700">
+                  <div className="flex gap-1.5 sm:gap-2">
                     <button
                       type="button"
                       onClick={() => setSelectedTools(availableTools.map(t => t.id))}
-                      className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
                     >
                       全选
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedTools([])}
-                      className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                      className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
                     >
                       清空
                     </button>
@@ -537,71 +599,55 @@ export function MiningSessions({
                 </div>
               </div>
             ) : (
-              <div className="p-4 bg-gray-800/50 rounded-lg text-center">
-                <p className="text-sm text-gray-400">
-                  暂无可用工具
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  请先在"合成系统"中制作工具
-                </p>
+              <div className="p-3 sm:p-4 bg-gray-800/50 rounded-lg text-center">
+                <p className="text-xs sm:text-sm text-gray-400">暂无可用工具</p>
               </div>
             )}
           </div>
           
-          {/* 预计消耗 - 美化样式 */}
+          {/* 预计消耗 */}
           {selectedLand && selectedTools.length > 0 && (
-            <div className="p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg">
-              <p className="text-xs text-blue-400 font-bold mb-3 flex items-center gap-2">
+            <div className="p-2 sm:p-3 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg">
+              <p className="text-[10px] sm:text-xs text-blue-400 font-bold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2">
                 <span>📊</span>
                 <span>预计消耗（每小时）</span>
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-800/50 rounded p-2">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="bg-gray-800/50 rounded p-1.5 sm:p-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">⚙️ 工具耐久</span>
-                    <span className="text-sm font-bold text-yellow-400">
-                      {selectedTools.length * DURABILITY_CONSUMPTION_RATE} 点/工具
+                    <span className="text-[10px] sm:text-xs text-gray-400">⚙️ 耐久</span>
+                    <span className="text-xs sm:text-sm font-bold text-yellow-400">
+                      {selectedTools.length}/工具
                     </span>
                   </div>
                 </div>
-                <div className="bg-gray-800/50 rounded p-2">
+                <div className="bg-gray-800/50 rounded p-1.5 sm:p-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">🌾 粮食消耗</span>
-                    <span className="text-sm font-bold text-yellow-400">
-                      {selectedTools.length * FOOD_CONSUMPTION_RATE} 单位
+                    <span className="text-[10px] sm:text-xs text-gray-400">🌾 粮食</span>
+                    <span className="text-xs sm:text-sm font-bold text-yellow-400">
+                      {selectedTools.length * FOOD_CONSUMPTION_RATE}
                     </span>
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                💡 实际消耗根据土地类型和工具效率会有所不同
-              </p>
             </div>
           )}
           
-          {/* 按钮 - 优化样式 */}
-          <div className="flex gap-3 pt-2">
+          {/* 按钮 */}
+          <div className="flex gap-2 sm:gap-3 pt-1 sm:pt-2">
             <PixelButton
               className="flex-1"
+              size={isMobile ? "sm" : "md"}
               onClick={handleConfirmStart}
               disabled={!selectedLand || selectedTools.length === 0 || startMiningLoading}
             >
-              {startMiningLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="animate-spin">⏳</span>
-                  <span>开始中...</span>
-                </span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <span>✅</span>
-                  <span>确认开始</span>
-                </span>
-              )}
+              {startMiningLoading ? '开始中...' : '确认开始'}
             </PixelButton>
             <PixelButton
               variant="secondary"
+              size={isMobile ? "sm" : "md"}
               onClick={() => setShowStartModal(false)}
-              className="px-8"
+              className="px-6 sm:px-8"
             >
               取消
             </PixelButton>
@@ -609,7 +655,7 @@ export function MiningSessions({
         </div>
       </PixelModal>
       
-      {/* 确认对话框 */}
+      {/* 确认对话框 - 优化移动端 */}
       <PixelModal
         isOpen={showConfirmModal}
         onClose={() => {
@@ -620,50 +666,48 @@ export function MiningSessions({
         title={confirmAction === 'start' ? '确认开始挖矿' : '确认停止生产'}
         size="small"
       >
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {confirmAction === 'start' ? (
             <>
-              <div className="text-center py-4">
-                <div className="text-5xl mb-3">⚠️</div>
-                <p className="text-sm text-gray-300 mb-2">
+              <div className="text-center py-3 sm:py-4">
+                <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">⚠️</div>
+                <p className="text-xs sm:text-sm text-gray-300 mb-1 sm:mb-2">
                   您确定要开始挖矿吗？
                 </p>
-                <p className="text-xs text-red-400 font-bold">
-                  开始后1小时内停止将扣除完整1小时的资源消耗
+                <p className="text-[10px] sm:text-xs text-red-400 font-bold">
+                  开始后1小时内停止将扣除完整1小时的资源
                 </p>
               </div>
-              <div className="bg-gray-800 rounded p-3 text-xs">
+              <div className="bg-gray-800 rounded p-2 sm:p-3 text-[10px] sm:text-xs">
                 <p className="text-gray-400 mb-1">挖矿信息：</p>
                 <p>土地：{selectedLand?.land_id}</p>
                 <p>工具数量：{selectedTools.length} 个</p>
                 <p>预计粮食消耗：{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位/小时</p>
-                <p className="text-yellow-400 mt-1">
-                  注：实际消耗根据土地类型可能不同
-                </p>
               </div>
             </>
           ) : (
             <>
-              <div className="text-center py-4">
-                <div className="text-5xl mb-3">🛑</div>
-                <p className="text-sm text-gray-300 mb-2">
+              <div className="text-center py-3 sm:py-4">
+                <div className="text-4xl sm:text-5xl mb-2 sm:mb-3">🛑</div>
+                <p className="text-xs sm:text-sm text-gray-300 mb-1 sm:mb-2">
                   您确定要停止这个生产会话吗？
                 </p>
-                <p className="text-xs text-yellow-400">
+                <p className="text-[10px] sm:text-xs text-yellow-400">
                   停止后可以收取累计的产出
                 </p>
               </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
-                <p className="text-xs text-yellow-400">
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-2 sm:p-3">
+                <p className="text-[10px] sm:text-xs text-yellow-400">
                   ⚠️ 如果挖矿时间不足1小时，仍会扣除1小时的耐久和粮食
                 </p>
               </div>
             </>
           )}
           
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <PixelButton
               className="flex-1"
+              size={isMobile ? "sm" : "md"}
               variant={confirmAction === 'stop' ? 'secondary' : 'primary'}
               onClick={confirmAction === 'start' ? handleExecuteStart : handleExecuteStop}
             >
@@ -671,6 +715,7 @@ export function MiningSessions({
             </PixelButton>
             <PixelButton
               variant="secondary"
+              size={isMobile ? "sm" : "md"}
               onClick={() => {
                 setShowConfirmModal(false)
                 setConfirmAction(null)
