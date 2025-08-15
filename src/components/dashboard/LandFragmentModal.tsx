@@ -71,12 +71,17 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
       setClaiming(true)
       const response = await fragmentsApi.quickClaim(password)
       
-      console.log('领取响应:', response) // 调试日志
-      
-      if (response.success) {
-        // 保存领取信息
+      // API现在统一返回200，通过success字段判断
+      if (response && response.success === true) {
+        // 成功领取
         setClaimedFragment(response.data)
         setShowSuccess(true)
+        
+        // 显示成功提示
+        toast.success(`成功领取 ${response.data.size_sqm} 平方米土地碎片！`, {
+          icon: '🎉',
+          duration: 3000
+        })
         
         // 重新获取数据
         await fetchData()
@@ -86,27 +91,27 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
           setShowSuccess(false)
           onClose()
         }, 5000)
+      } else if (response && response.success === false) {
+        // 处理业务错误 - API返回的success:false
+        handleErrorMessage(response.message || '领取失败')
       } else {
-        // 处理错误响应 - API返回的success:false
-        console.log('领取失败:', response.message) // 调试日志
-        handleErrorMessage(response.message)
+        // 响应格式异常
+        toast.error('服务器响应异常，请稍后重试')
       }
     } catch (error: any) {
-      console.error('领取异常:', error) // 调试日志
+      console.error('领取异常:', error)
       
       // 处理网络错误或其他异常
-      let errorMessage = '领取失败，请稍后重试'
+      let errorMessage = '网络错误，请检查网络连接后重试'
       
-      // 尝试从不同的错误格式中提取消息
-      if (error?.details?.message) {
-        errorMessage = error.details.message
-      } else if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message
-      } else if (error?.message) {
+      if (error?.message) {
         errorMessage = error.message
       }
       
-      handleErrorMessage(errorMessage)
+      toast.error(errorMessage, {
+        icon: '❌',
+        duration: 4000
+      })
     } finally {
       setClaiming(false)
     }
