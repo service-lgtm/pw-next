@@ -1,878 +1,415 @@
 // src/app/market/page.tsx
-// NFT 交易市场页面 - C2C 交易平台
+// 交易市场页面 - 包含粮食购买功能
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
-import { cn } from '@/lib/utils'
+import { useFoodPurchase } from '@/hooks/useFoodPurchase'
+import { useInventory } from '@/hooks/useInventory'
 import toast from 'react-hot-toast'
-
-// NFT 资产类型
-type AssetType = 'all' | 'land' | 'tool' | 'building' | 'mine' | 'resource'
-type ViewMode = 'grid' | 'list'
-type SortOption = 'latest' | 'price_asc' | 'price_desc'
-
-interface NFTAsset {
-  id: string
-  name: string
-  type: 'land' | 'tool' | 'building' | 'mine' | 'resource'
-  resourceType?: 'stone' | 'iron' | 'wood' | 'food' | 'seed' | 'yld'
-  icon: string
-  price: number
-  owner: string
-  ownerId: string
-  status: 'selling' | 'sold'
-  attributes: Record<string, any>
-  createdAt: string
-  updatedAt: string
-}
-
-interface Transaction {
-  id: string
-  type: 'mint' | 'list' | 'sale' | 'cancel'
-  price?: number
-  from: string
-  to: string
-  date: string
-}
+import { cn } from '@/lib/utils'
 
 export default function MarketPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const [showBuyModal, setShowBuyModal] = useState(false)
   
-  // 状态管理
-  const [selectedType, setSelectedType] = useState<AssetType>('all')
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [sortBy, setSortBy] = useState<SortOption>('latest')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 999999])
-  const [showFilterModal, setShowFilterModal] = useState(false)
-  const [selectedAsset, setSelectedAsset] = useState<NFTAsset | null>(null)
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [assets, setAssets] = useState<NFTAsset[]>([])
-  const [userTdbBalance, setUserTdbBalance] = useState(10000) // 模拟用户余额
-
-  // 模拟交易历史
-  const mockTransactions: Transaction[] = [
-    { id: '1', type: 'mint', from: '系统', to: '张*明', date: '2025-01-20 10:00' },
-    { id: '2', type: 'list', price: 5000, from: '张*明', to: '市场', date: '2025-01-21 14:30' },
-    { id: '3', type: 'sale', price: 5000, from: '张*明', to: '李*华', date: '2025-01-22 09:15' },
-  ]
-
-  // 资产类型配置
-  const assetTypes = [
-    { value: 'all', label: '全部', count: 256 },
-    { value: 'land', label: '土地', count: 45, icon: '🏞️' },
-    { value: 'mine', label: '矿山', count: 38, icon: '⛏️' },
-    { value: 'tool', label: '工具', count: 52, icon: '🔨' },
-    { value: 'building', label: '房产', count: 21, icon: '🏠' },
-    { value: 'resource', label: '资源', count: 100, icon: '📦' },
-  ]
-
-  // 价格区间选项
-  const priceRanges = [
-    { label: '全部价格', value: [0, 999999] },
-    { label: '0 - 10K', value: [0, 10000] },
-    { label: '10K - 50K', value: [10000, 50000] },
-    { label: '50K+', value: [50000, 999999] },
-  ]
-
-  // 模拟获取资产数据
+  // 获取粮食购买状态
+  const { status: foodStatus, loading: foodLoading, buyFood, buying, refreshStatus } = useFoodPurchase()
+  
+  // 获取库存信息
+  const { inventory, refetch: refetchInventory } = useInventory({
+    category: 'materials',
+    includePrices: true
+  })
+  
+  // 检查认证状态
   useEffect(() => {
-    fetchAssets()
-  }, [selectedType, sortBy, priceRange, searchQuery])
-
-  const fetchAssets = () => {
-    setLoading(true)
-    // 模拟 API 调用
-    setTimeout(() => {
-      const mockAssets: NFTAsset[] = [
-        // 陨石矿山 - 最高价值
-        {
-          id: '1',
-          name: '陨石矿山 #YLD-007',
-          type: 'mine',
-          icon: '💎',
-          price: 88888,
-          owner: '王*明',
-          ownerId: '12345',
-          status: 'selling',
-          attributes: {
-            '类型': '陨石矿',
-            '储量': '10,000 YLD',
-            '日产量': '10 YLD',
-            'ROI': '15%/月',
-            '坐标': '(120.123, 31.456)',
-          },
-          createdAt: '2025-01-20',
-          updatedAt: '2025-01-22',
-        },
-        // 其他矿山
-        {
-          id: '2',
-          name: '铁矿山 #12345',
-          type: 'mine',
-          icon: '⛏️',
-          price: 15000,
-          owner: '李*华',
-          ownerId: '23456',
-          status: 'selling',
-          attributes: {
-            '类型': '铁矿',
-            '储量': '50,000',
-            '日产量': '100',
-            '坐标': '(121.789, 31.012)',
-          },
-          createdAt: '2025-01-19',
-          updatedAt: '2025-01-21',
-        },
-        {
-          id: '3',
-          name: '石矿山 #67890',
-          type: 'mine',
-          icon: '🪨',
-          price: 12000,
-          owner: '张*三',
-          ownerId: '34567',
-          status: 'selling',
-          attributes: {
-            '类型': '石矿',
-            '储量': '100,000',
-            '日产量': '200',
-            '坐标': '(120.456, 31.789)',
-          },
-          createdAt: '2025-01-18',
-          updatedAt: '2025-01-20',
-        },
-        {
-          id: '4',
-          name: '森林 #34567',
-          type: 'mine',
-          icon: '🌲',
-          price: 8000,
-          owner: '赵*六',
-          ownerId: '45678',
-          status: 'selling',
-          attributes: {
-            '类型': '森林',
-            '储量': '再生资源',
-            '日产量': '50 木头',
-            '坐标': '(119.123, 30.456)',
-          },
-          createdAt: '2025-01-17',
-          updatedAt: '2025-01-19',
-        },
-        // 土地
-        {
-          id: '5',
-          name: '商业地块 #CBD-001',
-          type: 'land',
-          icon: '🏞️',
-          price: 35000,
-          owner: '孙*七',
-          ownerId: '56789',
-          status: 'selling',
-          attributes: {
-            '面积': '300 m²',
-            '区域': '陆家嘴CBD',
-            '建设状态': '可建设',
-            '溢价': '300%',
-          },
-          createdAt: '2025-01-16',
-          updatedAt: '2025-01-18',
-        },
-        {
-          id: '6',
-          name: '农业用地 #FARM-123',
-          type: 'land',
-          icon: '🌾',
-          price: 5000,
-          owner: '周*八',
-          ownerId: '67890',
-          status: 'selling',
-          attributes: {
-            '面积': '1000 m²',
-            '区域': '崇明农业区',
-            '土壤肥力': '优良',
-            '适合作物': '水稻、小麦',
-          },
-          createdAt: '2025-01-15',
-          updatedAt: '2025-01-17',
-        },
-        // 工具
-        {
-          id: '7',
-          name: '锄头 #HOE-888',
-          type: 'tool',
-          icon: '🔨',
-          price: 2500,
-          owner: '吴*九',
-          ownerId: '78901',
-          status: 'selling',
-          attributes: {
-            '类型': '锄头',
-            '耐久度': '1450/1500',
-            '用途': '开采陨石矿',
-            '品质': '精良',
-          },
-          createdAt: '2025-01-14',
-          updatedAt: '2025-01-16',
-        },
-        {
-          id: '8',
-          name: '镐头 #PICK-999',
-          type: 'tool',
-          icon: '⛏️',
-          price: 2000,
-          owner: '郑*十',
-          ownerId: '89012',
-          status: 'selling',
-          attributes: {
-            '类型': '镐头',
-            '耐久度': '1480/1500',
-            '用途': '开采石矿/铁矿',
-            '品质': '普通',
-          },
-          createdAt: '2025-01-13',
-          updatedAt: '2025-01-15',
-        },
-        {
-          id: '9',
-          name: '斧头 #AXE-777',
-          type: 'tool',
-          icon: '🪓',
-          price: 1800,
-          owner: '钱*一',
-          ownerId: '90123',
-          status: 'selling',
-          attributes: {
-            '类型': '斧头',
-            '耐久度': '1350/1500',
-            '用途': '砍伐森林',
-            '品质': '普通',
-          },
-          createdAt: '2025-01-12',
-          updatedAt: '2025-01-14',
-        },
-        // 资源
-        {
-          id: '10',
-          name: '石矿 x1000',
-          type: 'resource',
-          resourceType: 'stone',
-          icon: '🪨',
-          price: 500,
-          owner: '蒋*二',
-          ownerId: '01234',
-          status: 'selling',
-          attributes: {
-            '类型': '原材料',
-            '数量': '1000',
-            '用途': '合成砖头',
-            '品质': '标准',
-          },
-          createdAt: '2025-01-11',
-          updatedAt: '2025-01-13',
-        },
-        {
-          id: '11',
-          name: '铁矿 x500',
-          type: 'resource',
-          resourceType: 'iron',
-          icon: '⚙️',
-          price: 800,
-          owner: '沈*三',
-          ownerId: '12345',
-          status: 'selling',
-          attributes: {
-            '类型': '原材料',
-            '数量': '500',
-            '用途': '合成工具',
-            '品质': '优质',
-          },
-          createdAt: '2025-01-10',
-          updatedAt: '2025-01-12',
-        },
-        {
-          id: '12',
-          name: '木头 x200',
-          type: 'resource',
-          resourceType: 'wood',
-          icon: '🪵',
-          price: 300,
-          owner: '韩*四',
-          ownerId: '23456',
-          status: 'selling',
-          attributes: {
-            '类型': '原材料',
-            '数量': '200',
-            '用途': '合成工具/建设加速',
-            '品质': '标准',
-          },
-          createdAt: '2025-01-09',
-          updatedAt: '2025-01-11',
-        },
-        {
-          id: '13',
-          name: '粮食 x100',
-          type: 'resource',
-          resourceType: 'food',
-          icon: '🌾',
-          price: 200,
-          owner: '杨*五',
-          ownerId: '34567',
-          status: 'selling',
-          attributes: {
-            '类型': '消耗品',
-            '数量': '100',
-            '用途': '补充能量',
-            '效果': '每个恢复10%能量',
-          },
-          createdAt: '2025-01-08',
-          updatedAt: '2025-01-10',
-        },
-        {
-          id: '14',
-          name: '种子包 x50',
-          type: 'resource',
-          resourceType: 'seed',
-          icon: '🌱',
-          price: 150,
-          owner: '朱*六',
-          ownerId: '45678',
-          status: 'selling',
-          attributes: {
-            '类型': '种植材料',
-            '数量': '50',
-            '用途': '种植粮食',
-            '产出预期': '5倍收成',
-          },
-          createdAt: '2025-01-07',
-          updatedAt: '2025-01-09',
-        },
-        {
-          id: '15',
-          name: 'YLD x10',
-          type: 'resource',
-          resourceType: 'yld',
-          icon: '💎',
-          price: 5000,
-          owner: '秦*七',
-          ownerId: '56789',
-          status: 'selling',
-          attributes: {
-            '类型': '治理代币',
-            '数量': '10',
-            '用途': '合成/Gas费',
-            '稀有度': '极其稀有',
-          },
-          createdAt: '2025-01-06',
-          updatedAt: '2025-01-08',
-        },
-        {
-          id: '16',
-          name: '砖头 x300',
-          type: 'resource',
-          resourceType: 'stone',
-          icon: '🧱',
-          price: 1500,
-          owner: '尤*八',
-          ownerId: '67890',
-          status: 'selling',
-          attributes: {
-            '类型': '建筑材料',
-            '数量': '300',
-            '用途': '建设房产',
-            '说明': '刚好可建一层',
-          },
-          createdAt: '2025-01-05',
-          updatedAt: '2025-01-07',
-        },
-      ]
-
-      // 应用筛选
-      let filtered = [...mockAssets]
-      
-      // 类型筛选
-      if (selectedType !== 'all') {
-        filtered = filtered.filter(asset => asset.type === selectedType)
-      }
-      
-      // 价格筛选
-      filtered = filtered.filter(asset => 
-        asset.price >= priceRange[0] && asset.price <= priceRange[1]
-      )
-      
-      // 搜索筛选
-      if (searchQuery) {
-        filtered = filtered.filter(asset => 
-          asset.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      }
-      
-      // 排序
-      filtered.sort((a, b) => {
-        switch (sortBy) {
-          case 'price_asc':
-            return a.price - b.price
-          case 'price_desc':
-            return b.price - a.price
-          case 'latest':
-          default:
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        }
-      })
-
-      setAssets(filtered)
-      setLoading(false)
-    }, 500)
-  }
-
-  // 处理购买
-  const handlePurchase = () => {
-    if (!selectedAsset) return
-    
-    if (userTdbBalance < selectedAsset.price) {
-      toast.error('TDB余额不足')
-      return
+    if (!authLoading && !isAuthenticated) {
+      toast.error('请先登录')
+      router.push('/login?redirect=/market')
     }
-    
-    // 模拟购买过程
-    setLoading(true)
-    setTimeout(() => {
-      setUserTdbBalance(prev => prev - selectedAsset.price)
-      toast.success('购买成功！')
-      setShowPurchaseModal(false)
-      setSelectedAsset(null)
-      fetchAssets() // 刷新列表
-      setLoading(false)
-    }, 1000)
+  }, [authLoading, isAuthenticated, router])
+  
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin text-4xl mb-4">⏳</div>
+          <p className="text-gray-400">验证登录状态...</p>
+        </div>
+      </div>
+    )
   }
-
-  // 获取交易类型的中文名
-  const getTransactionTypeName = (type: Transaction['type']) => {
-    const typeMap = {
-      mint: '铸造',
-      list: '上架',
-      sale: '出售',
-      cancel: '取消'
-    }
-    return typeMap[type]
+  
+  if (!isAuthenticated) {
+    return null
   }
-
+  
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
       {/* 页面标题 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
       >
         <h1 className="text-2xl md:text-3xl font-black text-white">
-          NFT 交易市场
+          交易市场
         </h1>
-        <p className="text-gray-400 mt-1">发现并交易游戏内的稀有资产</p>
+        <p className="text-gray-400 mt-1">
+          购买生产所需的资源
+        </p>
       </motion.div>
+      
+      {/* 粮食购买卡片 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <PixelCard className="p-6">
+          <div className="flex flex-col md:flex-row justify-between gap-6">
+            {/* 左侧信息 */}
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-5xl">🌾</span>
+                <div>
+                  <h2 className="text-xl font-bold">粮食</h2>
+                  <p className="text-sm text-gray-400">挖矿生产必需品，每小时消耗2个/工具</p>
+                </div>
+              </div>
+              
+              {foodLoading ? (
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-800 rounded animate-pulse w-32"></div>
+                  <div className="h-4 bg-gray-800 rounded animate-pulse w-24"></div>
+                </div>
+              ) : foodStatus ? (
+                <div className="space-y-3">
+                  {/* 状态信息 */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-400">当前库存</p>
+                      <p className="text-lg font-bold text-yellow-400">
+                        {foodStatus.current_food.toFixed(0)}
+                        <span className="text-xs text-gray-400 ml-1">个</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">单价</p>
+                      <p className="text-lg font-bold text-purple-500">
+                        {foodStatus.unit_price}
+                        <span className="text-xs text-gray-400 ml-1">YLD</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">今日已购</p>
+                      <p className="text-lg font-bold">
+                        {foodStatus.today_purchased}
+                        <span className="text-xs text-gray-400">/{foodStatus.daily_limit}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">剩余额度</p>
+                      <p className={cn(
+                        "text-lg font-bold",
+                        foodStatus.today_remaining > 0 ? "text-green-400" : "text-red-400"
+                      )}>
+                        {foodStatus.today_remaining}
+                        <span className="text-xs text-gray-400 ml-1">个</span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* 进度条 */}
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-400 mb-1">
+                      <span>今日购买进度</span>
+                      <span>{((foodStatus.today_purchased / foodStatus.daily_limit) * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                      <div 
+                        className={cn(
+                          "h-full transition-all",
+                          foodStatus.today_purchased >= foodStatus.daily_limit 
+                            ? "bg-red-500" 
+                            : foodStatus.today_purchased > foodStatus.daily_limit * 0.5 
+                            ? "bg-yellow-500" 
+                            : "bg-green-500"
+                        )}
+                        style={{ 
+                          width: `${Math.min(100, (foodStatus.today_purchased / foodStatus.daily_limit) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* YLD余额提示 */}
+                  <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded">
+                    <span className="text-sm text-gray-400">YLD余额</span>
+                    <span className="font-bold text-purple-500">
+                      {foodStatus.yld_balance.toFixed(2)} YLD
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-400">加载失败</p>
+              )}
+            </div>
+            
+            {/* 右侧操作 */}
+            <div className="flex flex-col justify-between items-center md:items-end gap-4">
+              <div className="text-center md:text-right">
+                <p className="text-xs text-gray-400 mb-1">每日限购</p>
+                <p className="text-3xl font-bold text-gold-500">48</p>
+                <p className="text-xs text-gray-400">个/天</p>
+                <p className="text-xs text-gray-500 mt-2">单价: 0.01 YLD</p>
+              </div>
+              
+              <PixelButton
+                onClick={() => setShowBuyModal(true)}
+                disabled={!foodStatus?.can_buy || foodLoading}
+                size="sm"
+                className="min-w-[120px]"
+              >
+                {foodLoading ? '加载中...' : 
+                 !foodStatus?.can_buy ? '今日额度已用完' : 
+                 '立即购买'}
+              </PixelButton>
+              
+              {foodStatus && !foodStatus.can_buy && (
+                <p className="text-xs text-gray-400 text-center">
+                  重置时间：
+                  <br />
+                  {new Date(foodStatus.next_reset_time).toLocaleString('zh-CN')}
+                </p>
+              )}
+            </div>
+          </div>
+        </PixelCard>
+      </motion.div>
+      
+      {/* 其他资源提示 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mt-6 grid md:grid-cols-2 gap-4"
+      >
+        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">🪵</span>
+            <div>
+              <h3 className="text-lg font-bold">木材交易</h3>
+              <p className="text-sm text-gray-400">即将开放</p>
+            </div>
+          </div>
+        </PixelCard>
+        
+        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">⛏️</span>
+            <div>
+              <h3 className="text-lg font-bold">铁矿交易</h3>
+              <p className="text-sm text-gray-400">即将开放</p>
+            </div>
+          </div>
+        </PixelCard>
+        
+        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">🪨</span>
+            <div>
+              <h3 className="text-lg font-bold">石材交易</h3>
+              <p className="text-sm text-gray-400">即将开放</p>
+            </div>
+          </div>
+        </PixelCard>
+        
+        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">💱</span>
+            <div>
+              <h3 className="text-lg font-bold">货币兑换</h3>
+              <p className="text-sm text-gray-400">即将开放</p>
+            </div>
+          </div>
+        </PixelCard>
+      </motion.div>
+      
+      {/* 购买粮食弹窗 */}
+      <BuyFoodModal
+        isOpen={showBuyModal}
+        onClose={() => setShowBuyModal(false)}
+        foodStatus={foodStatus}
+        onSuccess={() => {
+          refreshStatus()
+          refetchInventory()
+          setShowBuyModal(false)
+        }}
+      />
+    </div>
+  )
+}
 
-      {/* 资产分类 Tabs */}
-      <div className="flex flex-wrap gap-2">
-        {assetTypes.map((type) => (
-          <motion.button
-            key={type.value}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setSelectedType(type.value as AssetType)}
-            className={cn(
-              "px-4 py-2 rounded-md font-bold transition-all",
-              selectedType === type.value
-                ? "bg-gold-500 text-black"
-                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-            )}
-          >
-            {type.icon && <span className="mr-2">{type.icon}</span>}
-            {type.label}
-            <span className="ml-2 text-sm opacity-70">({type.count})</span>
-          </motion.button>
-        ))}
-      </div>
+// 购买粮食弹窗组件
+interface BuyFoodModalProps {
+  isOpen: boolean
+  onClose: () => void
+  foodStatus: any
+  onSuccess: () => void
+}
 
-      {/* 筛选和排序栏 */}
-      <PixelCard className="p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* 搜索框 */}
-          <div className="flex-1">
+function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalProps) {
+  const { buyFood, buying } = useFoodPurchase()
+  const [quantity, setQuantity] = useState(10)
+  
+  const totalCost = quantity * (foodStatus?.unit_price || 0.01)
+  const quickAmounts = [1, 10, 20, 48]
+  
+  const handleBuy = async () => {
+    const success = await buyFood(quantity)
+    if (success) {
+      onSuccess()
+      setQuantity(10)
+    }
+  }
+  
+  return (
+    <PixelModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="购买粮食"
+      size="small"
+    >
+      {foodStatus && (
+        <div className="space-y-4">
+          {/* 价格信息 */}
+          <div className="p-4 bg-gray-800/50 rounded">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-gray-400">单价</p>
+                <p className="font-bold text-purple-500">{foodStatus.unit_price} YLD</p>
+              </div>
+              <div>
+                <p className="text-gray-400">YLD余额</p>
+                <p className="font-bold text-purple-500">
+                  {foodStatus.yld_balance.toFixed(2)} YLD
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-400">今日已购</p>
+                <p className="font-bold">
+                  {foodStatus.today_purchased}/{foodStatus.daily_limit}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-400">剩余额度</p>
+                <p className="font-bold text-green-400">
+                  {foodStatus.today_remaining}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* 购买数量 */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">
+              购买数量
+            </label>
+            <div className="flex gap-2 mb-2">
+              {quickAmounts.map(amount => (
+                <button
+                  key={amount}
+                  onClick={() => setQuantity(Math.min(amount, foodStatus.today_remaining))}
+                  disabled={amount > foodStatus.today_remaining}
+                  className={cn(
+                    "flex-1 py-2 rounded border transition-all",
+                    amount === quantity
+                      ? "bg-gold-500/20 border-gold-500 text-white"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white",
+                    amount > foodStatus.today_remaining && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {amount}
+                </button>
+              ))}
+            </div>
             <input
-              type="text"
-              placeholder="搜索资产名称或编号..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500"
+              type="number"
+              min={1}
+              max={foodStatus.today_remaining}
+              value={quantity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0
+                setQuantity(Math.min(Math.max(1, val), foodStatus.today_remaining))
+              }}
+              className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
             />
           </div>
           
-          {/* 筛选按钮 */}
-          <PixelButton
-            onClick={() => setShowFilterModal(true)}
-            variant="secondary"
-          >
-            <span className="mr-2">🔍</span>
-            高级筛选
-          </PixelButton>
-          
-          {/* 排序下拉 */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="px-4 py-2 bg-gray-800 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500"
-          >
-            <option value="latest">最新上架</option>
-            <option value="price_asc">价格从低到高</option>
-            <option value="price_desc">价格从高到低</option>
-          </select>
-          
-          {/* 视图切换 */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "p-2 rounded",
-                viewMode === 'grid' ? 'bg-gold-500 text-black' : 'bg-gray-800 text-gray-300'
-              )}
-            >
-              <span className="text-xl">⊞</span>
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "p-2 rounded",
-                viewMode === 'list' ? 'bg-gold-500 text-black' : 'bg-gray-800 text-gray-300'
-              )}
-            >
-              <span className="text-xl">☰</span>
-            </button>
-          </div>
-        </div>
-      </PixelCard>
-
-      {/* 资产展示区 */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin text-4xl mb-4">⏳</div>
-            <p className="text-gray-400">加载中...</p>
-          </div>
-        </div>
-      ) : assets.length === 0 ? (
-        <PixelCard className="p-20 text-center">
-          <div className="text-6xl mb-4">🔍</div>
-          <p className="text-gray-400">没有找到符合条件的资产</p>
-        </PixelCard>
-      ) : (
-        <div className={cn(
-          viewMode === 'grid' 
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            : "space-y-4"
-        )}>
-          {assets.map((asset) => (
-            <motion.div
-              key={asset.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setSelectedAsset(asset)}
-              className="cursor-pointer"
-            >
-              {viewMode === 'grid' ? (
-                // 网格视图卡片
-                <PixelCard className="h-full hover:border-gold-500 transition-colors">
-                  <div className="p-4 space-y-3">
-                    <div className="text-center">
-                      <div className="text-5xl mb-2">{asset.icon}</div>
-                      <h3 className="font-bold text-lg">{asset.name}</h3>
-                      <p className="text-sm text-gray-400">{asset.type}</p>
-                    </div>
-                    <div className="pt-3 border-t border-gray-700">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-400">价格</span>
-                        <span className="text-xl font-bold text-gold-500">
-                          {asset.price.toLocaleString()} TDB
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-sm text-gray-400">状态</span>
-                        <span className={cn(
-                          "text-sm font-bold",
-                          asset.status === 'selling' ? 'text-green-500' : 'text-gray-500'
-                        )}>
-                          {asset.status === 'selling' ? '出售中' : '已售出'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </PixelCard>
-              ) : (
-                // 列表视图
-                <PixelCard className="hover:border-gold-500 transition-colors">
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-4xl">{asset.icon}</span>
-                      <div>
-                        <h3 className="font-bold">{asset.name}</h3>
-                        <p className="text-sm text-gray-400">
-                          {asset.type} · 所有者: {asset.owner}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-gold-500">
-                        {asset.price.toLocaleString()} TDB
-                      </p>
-                      <p className={cn(
-                        "text-sm",
-                        asset.status === 'selling' ? 'text-green-500' : 'text-gray-500'
-                      )}>
-                        {asset.status === 'selling' ? '出售中' : '已售出'}
-                      </p>
-                    </div>
-                  </div>
-                </PixelCard>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {/* 高级筛选弹窗 */}
-      <PixelModal
-        isOpen={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        title="高级筛选"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-gray-300 mb-2">
-              价格区间
-            </label>
+          {/* 费用汇总 */}
+          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded">
             <div className="space-y-2">
-              {priceRanges.map((range) => (
-                <label key={range.label} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="priceRange"
-                    checked={priceRange[0] === range.value[0] && priceRange[1] === range.value[1]}
-                    onChange={() => setPriceRange(range.value as [number, number])}
-                    className="text-gold-500"
-                  />
-                  <span>{range.label}</span>
-                </label>
-              ))}
+              <div className="flex justify-between text-sm">
+                <span>数量：</span>
+                <span className="font-bold">{quantity} 个</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>单价：</span>
+                <span>{foodStatus.unit_price} YLD</span>
+              </div>
+              <div className="border-t border-gray-700 pt-2 mt-2">
+                <div className="flex justify-between">
+                  <span>总计：</span>
+                  <span className="font-bold text-purple-500 text-lg">
+                    {totalCost.toFixed(2)} YLD
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-bold text-gray-300 mb-2">
-              自定义价格区间
-            </label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="number"
-                placeholder="最低价"
-                className="flex-1 px-3 py-2 bg-gray-800 rounded"
-                value={priceRange[0]}
-                onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-              />
-              <span>-</span>
-              <input
-                type="number"
-                placeholder="最高价"
-                className="flex-1 px-3 py-2 bg-gray-800 rounded"
-                value={priceRange[1]}
-                onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-              />
+          {/* 余额不足提示 */}
+          {totalCost > foodStatus.yld_balance && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
+              <p className="text-sm text-red-400">
+                YLD余额不足，请先获取更多YLD
+              </p>
             </div>
-          </div>
+          )}
           
-          <div className="flex gap-3 mt-6">
-            <PixelButton
-              className="flex-1"
-              onClick={() => {
-                setShowFilterModal(false)
-                fetchAssets()
-              }}
-            >
-              应用筛选
-            </PixelButton>
+          {/* 操作按钮 */}
+          <div className="flex gap-3">
             <PixelButton
               variant="secondary"
+              onClick={onClose}
               className="flex-1"
-              onClick={() => {
-                setPriceRange([0, 999999])
-                setShowFilterModal(false)
-              }}
             >
-              重置
+              取消
+            </PixelButton>
+            <PixelButton
+              onClick={handleBuy}
+              disabled={
+                buying || 
+                !foodStatus.can_buy || 
+                quantity <= 0 || 
+                totalCost > foodStatus.yld_balance
+              }
+              className="flex-1"
+            >
+              {buying ? '购买中...' : `确认购买`}
             </PixelButton>
           </div>
         </div>
-      </PixelModal>
-
-      {/* 资产详情弹窗 */}
-      <AnimatePresence>
-        {selectedAsset && (
-          <PixelModal
-            isOpen={!!selectedAsset}
-            onClose={() => setSelectedAsset(null)}
-            title="资产详情"
-            size="large"
-            className="!max-w-3xl"
-          >
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* 左侧 - 视觉展示 */}
-              <div className="text-center">
-                <div className="text-[120px] mb-4">{selectedAsset.icon}</div>
-                <h2 className="text-2xl font-black mb-2">{selectedAsset.name}</h2>
-                <p className="text-gray-400">类型: {selectedAsset.type}</p>
-              </div>
-              
-              {/* 右侧 - 核心信息 */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-400">所有者</p>
-                  <p className="font-bold">{selectedAsset.owner}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm text-gray-400">当前价格</p>
-                  <p className="text-3xl font-black text-gold-500">
-                    {selectedAsset.price.toLocaleString()} TDB
-                  </p>
-                </div>
-                
-                {selectedAsset.ownerId === user?.id ? (
-                  <PixelButton className="w-full" variant="secondary">
-                    下架商品
-                  </PixelButton>
-                ) : (
-                  <PixelButton
-                    className="w-full"
-                    onClick={() => setShowPurchaseModal(true)}
-                    disabled={selectedAsset.status === 'sold'}
-                  >
-                    {selectedAsset.status === 'selling' ? '立即购买' : '已售出'}
-                  </PixelButton>
-                )}
-              </div>
-            </div>
-            
-            {/* 下方 - 属性与历史 */}
-            <div className="mt-6 space-y-6">
-              {/* 属性 */}
-              <div>
-                <h3 className="text-lg font-bold mb-3">属性</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(selectedAsset.attributes).map(([key, value]) => (
-                    <div key={key} className="p-3 bg-gray-800 rounded">
-                      <p className="text-xs text-gray-400">{key}</p>
-                      <p className="font-bold">{value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* 交易历史 */}
-              <div>
-                <h3 className="text-lg font-bold mb-3">交易历史</h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {mockTransactions.map((tx) => (
-                    <div key={tx.id} className="p-3 bg-gray-800 rounded flex justify-between items-center">
-                      <div>
-                        <p className="font-bold">{getTransactionTypeName(tx.type)}</p>
-                        <p className="text-sm text-gray-400">
-                          {tx.from} → {tx.to}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {tx.price && (
-                          <p className="font-bold text-gold-500">{tx.price.toLocaleString()} TDB</p>
-                        )}
-                        <p className="text-xs text-gray-400">{tx.date}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </PixelModal>
-        )}
-      </AnimatePresence>
-
-      {/* 购买确认弹窗 */}
-      <PixelModal
-        isOpen={showPurchaseModal}
-        onClose={() => setShowPurchaseModal(false)}
-        title="确认购买"
-      >
-        {selectedAsset && (
-          <div className="space-y-4">
-            <div className="text-center mb-4">
-              <div className="text-6xl mb-2">{selectedAsset.icon}</div>
-              <h3 className="font-bold">{selectedAsset.name}</h3>
-            </div>
-            
-            <div className="space-y-2 p-4 bg-gray-800 rounded">
-              <div className="flex justify-between">
-                <span className="text-gray-400">购买价格</span>
-                <span className="font-bold text-gold-500">
-                  {selectedAsset.price.toLocaleString()} TDB
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">当前余额</span>
-                <span className="font-bold">{userTdbBalance.toLocaleString()} TDB</span>
-              </div>
-              <div className="h-px bg-gray-700 my-2" />
-              <div className="flex justify-between">
-                <span className="text-gray-400">购买后余额</span>
-                <span className={cn(
-                  "font-bold",
-                  userTdbBalance >= selectedAsset.price ? "text-green-500" : "text-red-500"
-                )}>
-                  {(userTdbBalance - selectedAsset.price).toLocaleString()} TDB
-                </span>
-              </div>
-            </div>
-            
-            {userTdbBalance < selectedAsset.price && (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
-                <p className="text-red-500 text-sm">TDB余额不足，请先充值</p>
-              </div>
-            )}
-            
-            <div className="flex gap-3">
-              <PixelButton
-                className="flex-1"
-                onClick={handlePurchase}
-                disabled={userTdbBalance < selectedAsset.price || loading}
-              >
-                {loading ? '处理中...' : '确认支付'}
-              </PixelButton>
-              <PixelButton
-                variant="secondary"
-                className="flex-1"
-                onClick={() => setShowPurchaseModal(false)}
-              >
-                取消
-              </PixelButton>
-            </div>
-          </div>
-        )}
-      </PixelModal>
-    </div>
+      )}
+    </PixelModal>
   )
 }
