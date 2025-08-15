@@ -238,6 +238,398 @@ export const productionApi = {
       }>('/production/resources/stats/'),
   },
 
+  // ==================== 粮食购买相关类型 ====================
+export interface BuyFoodRequest {
+  quantity: number
+  payment_password?: string
+}
+
+export interface BuyFoodResponse {
+  success: boolean
+  message: string
+  data: {
+    quantity: number
+    total_cost: number
+    tdb_balance_before: number
+    tdb_balance_after: number
+    food_balance_before: number
+    food_balance_after: number
+    daily_purchased: number
+    daily_remaining: number
+    transaction_id: string
+  }
+}
+
+export interface FoodPriceInfo {
+  unit_price: number
+  currency: string
+  daily_limit: number
+  user_purchased_today: number
+  remaining_today: number
+  next_reset_time: string
+  can_buy: boolean
+}
+
+// 添加到 productionApi 对象中
+export const productionApi = {
+  // ... 现有接口 ...
+  
+  // ==================== 粮食购买 ====================
+  food: {
+    // 购买粮食
+    buy: (data: BuyFoodRequest) =>
+      request<BuyFoodResponse>('/production/buy-food/', {
+        method: 'POST',
+        body: data,
+      }),
+    
+    // 获取粮食价格信息
+    getPrice: () =>
+      request<{
+        success: boolean
+        data: FoodPriceInfo
+      }>('/production/food-price/'),
+  },
+}
+
+// ========== src/hooks/useBuyFood.ts ==========
+// 购买粮食 Hook
+
+import { useState, useEffect, useCallback } from 'react'
+import { productionApi } from '@/lib/api/production'
+import type { FoodPriceInfo } from '@/lib/api/production'
+import toast from 'react-hot-toast'
+
+// 获取粮食价格信息
+export function useFoodPrice() {
+  const [priceInfo, setPriceInfo] = useState<FoodPriceInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchPriceInfo = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await productionApi.food.getPrice()
+      
+      if (response.success && response.data) {
+        setPriceInfo(response.data)
+      }
+    } catch (err) {
+      console.error('[useFoodPrice] Error:', err)
+      setError(err instanceof Error ? err.message : '获取价格失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPriceInfo()
+  }, [fetchPriceInfo])
+
+  return {
+    priceInfo,
+    loading,
+    error,
+    refetch: fetchPriceInfo
+  }
+}
+
+// 购买粮食
+export function useBuyFood() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const buyFood = useCallback(async (quantity: number, paymentPassword?: string) => {
+    if (quantity < 1) {
+      toast.error('购买数量至少为1个')
+      return null
+    }
+
+    if (quantity > 48) {
+      toast.error('单次购买不能超过48个')
+      return null
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await productionApi.food.buy({
+        quantity,
+        payment_password: paymentPassword
+      })
+      
+      if (response.success) {
+        toast.success(response.message || `成功购买${quantity}个粮食`)
+        
+        // 显示详细信息
+        const data = response.data
+        toast.success(
+          `花费 ${data.total_cost} TDB，当前粮食：${data.food_balance_after}个`,
+          { duration: 4000 }
+        )
+        
+        // 如果达到每日限额，提醒
+        if (data.daily_remaining === 0) {
+          toast('今日购买额度已用完，明天0点重置', { 
+            icon: '⏰',
+            duration: 5000 
+          })
+        }
+        
+        return response.data
+      } else {
+        throw new Error(response.message || '购买失败')
+      }
+    } catch (err: any) {
+      const message = err?.message || '购买失败'
+      setError(message)
+      toast.error(message)
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return {
+    buyFood,
+    loading,
+    error
+  }
+}
+
+// ========== 购买粮食组件示例 ==========
+// src/components/production/BuyFoodModal.tsx
+
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { PixelCard } from '@/components/shared/PixelCard'
+import { PixelButton } from '@/components/shared/PixelButton'
+import { useFoodPrice, useBuyFood } from '@/hooks/useBuyFood'
+import { cn } from '@/lib/utils'
+
+interface BuyFoodModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess?: () => void
+}
+
+export function BuyFoodModal({ isOpen, onClose, onSuccess }: BuyFoodModalProps) {
+  const { priceInfo, loading: priceLoading, refetch: refetchPrice } = useFoodPrice()
+  const { buyFood, loading: buying } = useBuyFood()
+  
+  const [quantity, setQuantity] = useState(10)
+  const [paymentPassword, setPaymentPassword] = useState('')
+  
+  const totalCost = quantity * (priceInfo?.unit_price || 0.01)
+  
+  const handleBuy = async () => {
+    const result = await buyFood(quantity, paymentPassword)
+    
+    if (result) {
+      // 刷新价格信息（更新今日已购买数量）
+      await refetchPrice()
+      
+      // 重置输入
+      setQuantity(10)
+      setPaymentPassword('')
+      
+      // 回调
+      onSuccess?.()
+      onClose()
+    }
+  }
+  
+  // 快速选择数量
+  const quickAmounts = [1, 10, 20, 48]
+  
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.9 }}
+            className="bg-gray-900 border-2 border-gray-700 rounded-lg p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 标题 */}
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">购买粮食</h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {priceLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin text-4xl mb-4">⏳</div>
+                <p className="text-gray-400">加载价格信息...</p>
+              </div>
+            ) : priceInfo ? (
+              <div className="space-y-4">
+                {/* 价格信息 */}
+                <PixelCard className="p-4 bg-gray-800/50">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">单价：</span>
+                      <span className="font-bold">{priceInfo.unit_price} TDB/个</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">每日限购：</span>
+                      <span>{priceInfo.daily_limit}个</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">今日已购：</span>
+                      <span className={cn(
+                        priceInfo.user_purchased_today >= priceInfo.daily_limit
+                          ? "text-red-500"
+                          : "text-green-500"
+                      )}>
+                        {priceInfo.user_purchased_today}/{priceInfo.daily_limit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">剩余额度：</span>
+                      <span className="font-bold text-gold-500">
+                        {priceInfo.remaining_today}个
+                      </span>
+                    </div>
+                  </div>
+                </PixelCard>
+                
+                {/* 购买数量 */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    购买数量
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    {quickAmounts.map(amount => (
+                      <button
+                        key={amount}
+                        onClick={() => setQuantity(Math.min(amount, priceInfo.remaining_today))}
+                        disabled={amount > priceInfo.remaining_today}
+                        className={cn(
+                          "flex-1 py-2 rounded border transition-all",
+                          amount === quantity
+                            ? "bg-gold-500/20 border-gold-500 text-white"
+                            : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white",
+                          amount > priceInfo.remaining_today && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {amount}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    min={1}
+                    max={priceInfo.remaining_today}
+                    value={quantity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0
+                      setQuantity(Math.min(Math.max(1, val), priceInfo.remaining_today))
+                    }}
+                    className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                  />
+                </div>
+                
+                {/* 支付密码（如果需要） */}
+                {false && ( // 根据后端配置决定是否显示
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      支付密码
+                    </label>
+                    <input
+                      type="password"
+                      value={paymentPassword}
+                      onChange={(e) => setPaymentPassword(e.target.value)}
+                      placeholder="请输入支付密码"
+                      className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
+                    />
+                  </div>
+                )}
+                
+                {/* 费用汇总 */}
+                <PixelCard className="p-4 bg-green-500/10 border-green-500">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>数量：</span>
+                      <span className="font-bold">{quantity}个</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>单价：</span>
+                      <span>{priceInfo.unit_price} TDB</span>
+                    </div>
+                    <div className="border-t border-gray-700 pt-2 mt-2">
+                      <div className="flex justify-between text-lg">
+                        <span>总计：</span>
+                        <span className="font-bold text-gold-500">
+                          {totalCost.toFixed(2)} TDB
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </PixelCard>
+                
+                {/* 提示信息 */}
+                {!priceInfo.can_buy && (
+                  <div className="p-3 bg-red-500/10 border border-red-500 rounded">
+                    <p className="text-sm text-red-400">
+                      今日购买额度已用完，请明天再来
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      重置时间：{new Date(priceInfo.next_reset_time).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+                
+                {/* 操作按钮 */}
+                <div className="flex gap-3">
+                  <PixelButton
+                    variant="secondary"
+                    onClick={onClose}
+                    className="flex-1"
+                  >
+                    取消
+                  </PixelButton>
+                  <PixelButton
+                    onClick={handleBuy}
+                    disabled={!priceInfo.can_buy || buying || quantity <= 0}
+                    className="flex-1"
+                  >
+                    {buying ? '购买中...' : `确认购买 (${totalCost.toFixed(2)} TDB)`}
+                  </PixelButton>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-red-500">加载价格信息失败</p>
+                <PixelButton onClick={() => refetchPrice()} className="mt-4">
+                  重试
+                </PixelButton>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+  
   // ==================== 统计与分析 ====================
   stats: {
     // 获取生产统计
