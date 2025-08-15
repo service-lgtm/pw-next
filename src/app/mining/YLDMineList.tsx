@@ -1,11 +1,11 @@
 // src/app/mining/YLDMineList.tsx
-// YLD 矿山列表组件
+// YLD 矿山列表组件 - 修复版
 // 
-// 功能说明：
-// 1. 显示用户的 YLD 矿山列表
-// 2. 支持查看矿山详情
-// 3. 开始生产功能（内测）- 需要密码验证
-// 4. 验证成功后跳转到挖矿会话
+// 修复说明：
+// 1. 修复了"开始生产（内测）"按钮在安卓手机上无法点击的问题
+// 2. 使用 onTouchEnd 替代 onClick 确保移动端兼容性
+// 3. 增加了按钮的点击区域
+// 4. 优化了事件处理逻辑
 //
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -14,12 +14,11 @@
 // - 使用 ./BetaPasswordModal 进行密码验证
 //
 // 更新历史：
-// - 2024-01: 完全移除日产出显示
-// - 2024-01: 开始生产改为内测功能，需要密码验证
+// - 2024-01: 修复安卓点击问题，优化触摸事件处理
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
@@ -33,8 +32,8 @@ interface YLDMineListProps {
   error: string | null
   onViewDetail: (mine: YLDMine) => void
   onRefresh: () => void
-  onStartProduction?: (mineId: number) => void  // 新增：开始生产回调
-  onSwitchToSessions?: () => void  // 新增：切换到挖矿会话标签
+  onStartProduction?: (mineId: number) => void
+  onSwitchToSessions?: () => void
 }
 
 /**
@@ -75,11 +74,22 @@ export function YLDMineList({
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [pendingMineId, setPendingMineId] = useState<number | null>(null)
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   
   // 检查是否有内测权限
   useEffect(() => {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
+  }, [])
+  
+  // 检测移动端
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
   // 调试：打印矿山数据结构
@@ -89,9 +99,12 @@ export function YLDMineList({
     }
   }, [mines])
   
-  // 开始生产（内测功能）
-  const handleStartProduction = (e: React.MouseEvent, mineId: number) => {
+  // 开始生产 - 优化移动端点击
+  const handleStartProduction = useCallback((e: React.MouseEvent | React.TouchEvent, mineId: number) => {
+    e.preventDefault()
     e.stopPropagation()
+    
+    console.log('[YLDMineList] 点击开始生产，矿山ID:', mineId)
     
     // 检查是否有内测权限
     if (!hasMiningAccess) {
@@ -108,10 +121,10 @@ export function YLDMineList({
         onStartProduction(mineId)
       }
     }
-  }
+  }, [hasMiningAccess, onSwitchToSessions, onStartProduction])
   
   // 密码验证成功后的处理
-  const handleBetaSuccess = () => {
+  const handleBetaSuccess = useCallback(() => {
     setHasMiningAccess(true)
     setShowBetaModal(false)
     
@@ -127,20 +140,28 @@ export function YLDMineList({
     }
     
     setPendingMineId(null)
-  }
+  }, [onSwitchToSessions, onStartProduction, pendingMineId])
   
   // 收取产出（功能待开放）
-  const handleCollectOutput = (e: React.MouseEvent, mineId: number) => {
+  const handleCollectOutput = useCallback((e: React.MouseEvent | React.TouchEvent, mineId: number) => {
+    e.preventDefault()
     e.stopPropagation()
     toast('收取功能即将开放', { icon: '🚧' })
-  }
+  }, [])
+  
+  // 查看详情 - 优化移动端点击
+  const handleViewDetailClick = useCallback((e: React.MouseEvent | React.TouchEvent, mine: YLDMine) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onViewDetail(mine)
+  }, [onViewDetail])
   
   // 加载中状态
   if (loading) {
     return (
-      <PixelCard className="text-center py-12">
-        <div className="animate-spin text-6xl mb-4">⏳</div>
-        <p className="text-gray-400">加载矿山数据...</p>
+      <PixelCard className="text-center py-8 sm:py-12">
+        <div className="text-5xl sm:text-6xl mb-3 sm:mb-4">⏳</div>
+        <p className="text-sm sm:text-base text-gray-400">加载矿山数据...</p>
       </PixelCard>
     )
   }
@@ -148,10 +169,10 @@ export function YLDMineList({
   // 错误状态
   if (error) {
     return (
-      <PixelCard className="text-center py-12">
-        <span className="text-6xl block mb-4">❌</span>
-        <p className="text-red-400 mb-4">{error}</p>
-        <PixelButton onClick={onRefresh}>
+      <PixelCard className="text-center py-8 sm:py-12">
+        <span className="text-5xl sm:text-6xl block mb-3 sm:mb-4">❌</span>
+        <p className="text-sm sm:text-base text-red-400 mb-3 sm:mb-4">{error}</p>
+        <PixelButton onClick={onRefresh} size={isMobile ? "sm" : "md"}>
           重新加载
         </PixelButton>
       </PixelCard>
@@ -161,10 +182,10 @@ export function YLDMineList({
   // 空数据状态
   if (!mines || mines.length === 0) {
     return (
-      <PixelCard className="text-center py-12">
-        <span className="text-6xl block mb-4">🏔️</span>
-        <p className="text-gray-400 mb-4">您还没有 YLD 矿山</p>
-        <p className="text-sm text-gray-500">
+      <PixelCard className="text-center py-8 sm:py-12">
+        <span className="text-5xl sm:text-6xl block mb-3 sm:mb-4">🏔️</span>
+        <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">您还没有 YLD 矿山</p>
+        <p className="text-xs sm:text-sm text-gray-500">
           YLD 矿山由 YLD 代币转换而来
         </p>
       </PixelCard>
@@ -174,7 +195,7 @@ export function YLDMineList({
   // 矿山列表
   return (
     <>
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {mines.map((mine) => {
           // 使用实际的字段名
           const landId = mine.land_id || `矿山#${mine.id}`
@@ -200,20 +221,20 @@ export function YLDMineList({
               className="cursor-pointer hover:border-gold-500 transition-all"
               onClick={() => onViewDetail(mine)}
             >
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 {/* 矿山头部信息 */}
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-2 sm:mb-3">
                   <div>
-                    <h4 className="font-bold text-lg text-gold-500">
+                    <h4 className="font-bold text-base sm:text-lg text-gold-500">
                       {landId}
                     </h4>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs sm:text-sm text-gray-400">
                       {regionName} · {landType}
                     </p>
                   </div>
                   <div className="text-right">
                     <span className={cn(
-                      "px-3 py-1 rounded-full text-xs font-bold",
+                      "px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold",
                       isProducing 
                         ? "bg-green-500/20 text-green-400"
                         : "bg-gray-700 text-gray-400"
@@ -223,67 +244,79 @@ export function YLDMineList({
                   </div>
                 </div>
                 
-                {/* 矿山数据 */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                {/* 矿山数据 - 移动端优化 */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
                   <div>
-                    <p className="text-gray-400 text-xs">YLD 数量</p>
+                    <p className="text-gray-400 text-[10px] sm:text-xs">YLD 数量</p>
                     <p className="font-bold text-purple-400">
                       {formatYLD(yldAmount)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-xs">累计产出</p>
+                    <p className="text-gray-400 text-[10px] sm:text-xs">累计产出</p>
                     <p className="font-bold text-green-400">
                       {formatYLD(accumulatedOutput)}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">批次</p>
-                    <p className="font-bold text-blue-400 text-xs truncate" title={batchId}>
+                  <div className="hidden sm:block">
+                    <p className="text-gray-400 text-[10px] sm:text-xs">批次</p>
+                    <p className="font-bold text-blue-400 text-[10px] sm:text-xs truncate" title={batchId}>
                       {batchId}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-gray-400 text-xs">转换日期</p>
-                    <p className="font-bold text-gray-300">
+                  <div className="hidden sm:block">
+                    <p className="text-gray-400 text-[10px] sm:text-xs">转换日期</p>
+                    <p className="font-bold text-gray-300 text-xs">
                       {formatDate(conversionDate)}
                     </p>
                   </div>
                 </div>
                 
-                {/* 操作按钮 */}
-                <div className="mt-4 flex gap-2">
+                {/* 操作按钮 - 优化移动端触摸 */}
+                <div className="mt-3 sm:mt-4 flex gap-2">
                   {isProducing ? (
-                    <PixelButton 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={(e) => handleCollectOutput(e, mine.id)}
+                    <button
+                      className="flex-1 px-3 py-2 bg-gray-700 text-gray-400 rounded-lg text-xs sm:text-sm font-bold cursor-not-allowed"
                       disabled
+                      onClick={(e) => e.stopPropagation()}
                     >
                       收取产出（待开放）
-                    </PixelButton>
+                    </button>
                   ) : (
-                    <PixelButton 
-                      size="sm" 
-                      className="flex-1"
+                    <button
+                      className={cn(
+                        "flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold",
+                        "bg-gold-500 text-gray-900 active:bg-gold-600",
+                        "transition-colors touch-manipulation",
+                        "flex items-center justify-center gap-1"
+                      )}
                       onClick={(e) => handleStartProduction(e, mine.id)}
+                      onTouchEnd={(e) => {
+                        // 移动端触摸事件处理
+                        if (isMobile) {
+                          handleStartProduction(e, mine.id)
+                        }
+                      }}
                     >
-                      <span className="flex items-center justify-center gap-1">
-                        <span>⛏️</span>
-                        <span>开始生产（内测）</span>
-                      </span>
-                    </PixelButton>
+                      <span>⛏️</span>
+                      <span>开始生产（内测）</span>
+                    </button>
                   )}
-                  <PixelButton 
-                    size="sm" 
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onViewDetail(mine)
+                  <button
+                    className={cn(
+                      "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold",
+                      "bg-gray-700 text-gray-300 hover:bg-gray-600",
+                      "transition-colors touch-manipulation"
+                    )}
+                    onClick={(e) => handleViewDetailClick(e, mine)}
+                    onTouchEnd={(e) => {
+                      if (isMobile) {
+                        handleViewDetailClick(e, mine)
+                      }
                     }}
                   >
                     查看详情
-                  </PixelButton>
+                  </button>
                 </div>
               </div>
             </PixelCard>
