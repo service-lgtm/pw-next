@@ -1,5 +1,5 @@
 // src/app/market/page.tsx
-// 交易市场页面 - 包含粮食购买功能
+// 交易市场页面 - 包含粮食购买功能（使用 TDB 支付）
 
 'use client'
 
@@ -104,9 +104,9 @@ export default function MarketPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">单价</p>
-                      <p className="text-lg font-bold text-purple-500">
+                      <p className="text-lg font-bold text-gold-500">
                         {foodStatus.unit_price}
-                        <span className="text-xs text-gray-400 ml-1">YLD</span>
+                        <span className="text-xs text-gray-400 ml-1">TDB</span>
                       </p>
                     </div>
                     <div>
@@ -151,11 +151,11 @@ export default function MarketPage() {
                     </div>
                   </div>
                   
-                  {/* YLD余额提示 */}
+                  {/* TDB余额提示 */}
                   <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded">
-                    <span className="text-sm text-gray-400">YLD余额</span>
-                    <span className="font-bold text-purple-500">
-                      {foodStatus.yld_balance.toFixed(2)} YLD
+                    <span className="text-sm text-gray-400">TDB余额</span>
+                    <span className="font-bold text-gold-500">
+                      {foodStatus.tdb_balance.toFixed(2)} TDB
                     </span>
                   </div>
                 </div>
@@ -170,7 +170,7 @@ export default function MarketPage() {
                 <p className="text-xs text-gray-400 mb-1">每日限购</p>
                 <p className="text-3xl font-bold text-gold-500">48</p>
                 <p className="text-xs text-gray-400">个/天</p>
-                <p className="text-xs text-gray-500 mt-2">单价: 0.01 YLD</p>
+                <p className="text-xs text-gray-500 mt-2">单价: 0.01 TDB</p>
               </div>
               
               <PixelButton
@@ -296,12 +296,12 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-gray-400">单价</p>
-                <p className="font-bold text-purple-500">{foodStatus.unit_price} YLD</p>
+                <p className="font-bold text-gold-500">{foodStatus.unit_price} TDB</p>
               </div>
               <div>
-                <p className="text-gray-400">YLD余额</p>
-                <p className="font-bold text-purple-500">
-                  {foodStatus.yld_balance.toFixed(2)} YLD
+                <p className="text-gray-400">TDB余额</p>
+                <p className="font-bold text-gold-500">
+                  {foodStatus.tdb_balance.toFixed(2)} TDB
                 </p>
               </div>
               <div>
@@ -364,13 +364,13 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               </div>
               <div className="flex justify-between text-sm">
                 <span>单价：</span>
-                <span>{foodStatus.unit_price} YLD</span>
+                <span>{foodStatus.unit_price} TDB</span>
               </div>
               <div className="border-t border-gray-700 pt-2 mt-2">
                 <div className="flex justify-between">
                   <span>总计：</span>
-                  <span className="font-bold text-purple-500 text-lg">
-                    {totalCost.toFixed(2)} YLD
+                  <span className="font-bold text-gold-500 text-lg">
+                    {totalCost.toFixed(2)} TDB
                   </span>
                 </div>
               </div>
@@ -378,10 +378,10 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
           </div>
           
           {/* 余额不足提示 */}
-          {totalCost > foodStatus.yld_balance && (
+          {totalCost > foodStatus.tdb_balance && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
               <p className="text-sm text-red-400">
-                YLD余额不足，请先获取更多YLD
+                TDB余额不足，请先购买更多TDB
               </p>
             </div>
           )}
@@ -401,7 +401,7 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
                 buying || 
                 !foodStatus.can_buy || 
                 quantity <= 0 || 
-                totalCost > foodStatus.yld_balance
+                totalCost > foodStatus.tdb_balance
               }
               className="flex-1"
             >
