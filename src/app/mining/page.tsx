@@ -737,7 +737,7 @@ export default function MiningPage() {
                     <div>
                       <p className="text-gray-400">日产出</p>
                       <p className="font-bold text-yellow-400 text-lg">
-                        {formatYLD(selectedMine.daily_output)}
+                        暂无数据
                       </p>
                     </div>
                     <div>
