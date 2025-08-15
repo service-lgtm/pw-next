@@ -439,6 +439,9 @@ export function MiningSessions({
   const [toolsError, setToolsError] = useState('')
   const [showErrors, setShowErrors] = useState(false)
   
+  // 资源预检查状态
+  const [resourceWarning, setResourceWarning] = useState('')
+  
   // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
@@ -513,7 +516,7 @@ export function MiningSessions({
     return isValid
   }, [selectedLand, selectedTools])
   
-  // 确认开始挖矿 - 添加验证
+  // 确认开始挖矿 - 添加验证和预检查
   const handleConfirmStart = useCallback(() => {
     setShowErrors(true)
     
@@ -561,10 +564,26 @@ export function MiningSessions({
       return
     }
     
+    // 资源预检查提示
+    let warning = ''
+    
+    // 检查工具耐久度
+    const selectedToolObjects = availableTools.filter(t => selectedTools.includes(t.id))
+    const lowDurabilityTools = selectedToolObjects.filter(t => 
+      (t.current_durability || t.durability || 0) < 100
+    )
+    
+    if (lowDurabilityTools.length > 0) {
+      warning = `有 ${lowDurabilityTools.length} 个工具耐久度低于100，可能很快需要维修`
+    }
+    
+    // 设置警告信息
+    setResourceWarning(warning)
+    
     // 验证通过，显示确认对话框
     setConfirmAction('start')
     setShowConfirmModal(true)
-  }, [selectedLand, selectedTools, validateForm])
+  }, [selectedLand, selectedTools, validateForm, availableTools])
   
   const handleExecuteStart = useCallback(async () => {
     if (!selectedLand || selectedTools.length === 0) return
@@ -589,8 +608,108 @@ export function MiningSessions({
       setSelectedTools([])
       setConfirmAction(null)
       setShowErrors(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error('开始挖矿失败:', err)
+      
+      // 解析错误信息
+      let errorMessage = '开始挖矿失败'
+      let errorIcon = '❌'
+      let bgColor = '#dc2626'
+      
+      // 根据不同的错误类型显示不同的提示
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail
+        
+        // 粮食不足
+        if (detail.includes('粮食不足') || detail.includes('grain') || detail.includes('food')) {
+          errorMessage = '粮食储备不足，请先补充粮食'
+          errorIcon = '🌾'
+          bgColor = '#f59e0b'
+        }
+        // 工具已被使用
+        else if (detail.includes('工具已被使用') || detail.includes('tool') && detail.includes('in use')) {
+          errorMessage = '选中的工具已在使用中，请选择其他工具'
+          errorIcon = '🔧'
+          bgColor = '#dc2626'
+        }
+        // 土地已被占用
+        else if (detail.includes('土地') && detail.includes('占用')) {
+          errorMessage = '该土地已被占用，请选择其他土地'
+          errorIcon = '📍'
+          bgColor = '#dc2626'
+        }
+        // 工具耐久度不足
+        else if (detail.includes('耐久') || detail.includes('durability')) {
+          errorMessage = '工具耐久度不足，请维修或更换工具'
+          errorIcon = '⚠️'
+          bgColor = '#f59e0b'
+        }
+        // 土地储量不足
+        else if (detail.includes('储量') || detail.includes('capacity')) {
+          errorMessage = '土地储量不足，无法开始挖矿'
+          errorIcon = '⛏️'
+          bgColor = '#6b7280'
+        }
+        // 权限问题
+        else if (detail.includes('权限') || detail.includes('permission')) {
+          errorMessage = '您没有权限在此土地上挖矿'
+          errorIcon = '🔒'
+          bgColor = '#dc2626'
+        }
+        // 超出挖矿会话限制
+        else if (detail.includes('会话') && detail.includes('限制')) {
+          errorMessage = '已达到最大挖矿会话数量限制'
+          errorIcon = '📊'
+          bgColor = '#6b7280'
+        }
+        // 其他具体错误
+        else {
+          errorMessage = detail
+        }
+      } 
+      // 如果有 message 字段
+      else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message
+      }
+      // 如果是字符串错误
+      else if (typeof err === 'string') {
+        errorMessage = err
+      }
+      // 网络错误
+      else if (err?.message?.includes('Network')) {
+        errorMessage = '网络连接失败，请检查网络后重试'
+        errorIcon = '🌐'
+        bgColor = '#6b7280'
+      }
+      // 超时错误
+      else if (err?.message?.includes('timeout')) {
+        errorMessage = '请求超时，请稍后重试'
+        errorIcon = '⏱️'
+        bgColor = '#6b7280'
+      }
+      
+      // 显示错误提示
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: 'top-center',
+        icon: errorIcon,
+        style: {
+          background: bgColor,
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px',
+          maxWidth: '90vw',
+          wordBreak: 'break-word'
+        }
+      })
+      
+      // 如果是关键错误，关闭确认对话框返回到选择界面
+      if (errorMessage.includes('粮食') || errorMessage.includes('工具已被使用')) {
+        setShowConfirmModal(false)
+        setConfirmAction(null)
+        // 不关闭主对话框，让用户可以重新选择
+      }
     }
   }, [selectedLand, selectedTools, onStartMining])
   
@@ -620,8 +739,32 @@ export function MiningSessions({
       setShowConfirmModal(false)
       setTargetSessionId(null)
       setConfirmAction(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error('停止生产失败:', err)
+      
+      // 解析错误信息
+      let errorMessage = '停止生产失败'
+      
+      if (err?.response?.data?.detail) {
+        errorMessage = err.response.data.detail
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err?.message) {
+        errorMessage = err.message
+      }
+      
+      toast.error(errorMessage, {
+        duration: 4000,
+        position: 'top-center',
+        icon: '❌',
+        style: {
+          background: '#dc2626',
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px'
+        }
+      })
     }
   }, [targetSessionId, onStopSession])
   
@@ -641,8 +784,48 @@ export function MiningSessions({
           padding: '12px 20px'
         }
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error('收取失败:', err)
+      
+      // 解析错误信息
+      let errorMessage = '收取产出失败'
+      let errorIcon = '❌'
+      
+      if (err?.response?.data?.detail) {
+        const detail = err.response.data.detail
+        
+        // 没有可收取的产出
+        if (detail.includes('没有可收取') || detail.includes('no output')) {
+          errorMessage = '当前没有可收取的产出'
+          errorIcon = '📦'
+        }
+        // 会话已结束
+        else if (detail.includes('会话已结束') || detail.includes('session ended')) {
+          errorMessage = '该挖矿会话已结束'
+          errorIcon = '⏹️'
+        }
+        // 其他错误
+        else {
+          errorMessage = detail
+        }
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err?.message) {
+        errorMessage = err.message
+      }
+      
+      toast.error(errorMessage, {
+        duration: 4000,
+        position: 'top-center',
+        icon: errorIcon,
+        style: {
+          background: '#dc2626',
+          color: '#fff',
+          fontSize: '14px',
+          borderRadius: '8px',
+          padding: '12px 20px'
+        }
+      })
     }
   }, [onCollectOutput])
   
@@ -993,11 +1176,31 @@ export function MiningSessions({
                   开始后1小时内停止将扣除完整1小时的资源
                 </p>
               </div>
+              
+              {/* 资源检查提示 */}
+              {resourceWarning && (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-2 sm:p-3 mb-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-yellow-400">⚠️</span>
+                    <p className="text-[10px] sm:text-xs text-yellow-400 flex-1">
+                      {resourceWarning}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
               <div className="bg-gray-800 rounded p-2 sm:p-3 text-[10px] sm:text-xs">
                 <p className="text-gray-400 mb-1">挖矿信息：</p>
                 <p>土地：{selectedLand?.land_id}</p>
                 <p>工具数量：{selectedTools.length} 个</p>
                 <p>预计粮食消耗：{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位/小时</p>
+                {selectedTools.length > 0 && (
+                  <>
+                    <p className="text-yellow-400 mt-1">
+                      💡 建议准备至少 {selectedTools.length * FOOD_CONSUMPTION_RATE * 2} 单位粮食（2小时用量）
+                    </p>
+                  </>
+                )}
               </div>
             </>
           ) : (
