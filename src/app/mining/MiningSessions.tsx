@@ -1,25 +1,23 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 交互体验优化版
+// 挖矿会话管理组件 - 自定义下拉框版
 // 
 // 修复说明：
-// 1. 添加了完整的表单验证和错误提示
-// 2. 优化了用户交互反馈
-// 3. 修复了未选择土地/工具时的提示问题
-// 4. 改进了移动端和安卓的兼容性
-// 5. 添加了实时验证和视觉反馈
+// 1. 使用自定义下拉框替代原生 select，解决安卓兼容性问题
+// 2. 添加了触摸友好的列表选择界面
+// 3. 优化了移动端的交互体验
+// 4. 保留了所有表单验证功能
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/types/production 中的 MiningSession 类型
 // - 使用 @/hooks/useProduction 中的相关 hooks
-// - 后端 FOOD_CONSUMPTION_RATE = 2（每工具每小时消耗2单位粮食）
 //
 // 更新历史：
-// - 2024-01: 完善交互体验，添加表单验证
+// - 2024-01: 使用自定义下拉框解决安卓兼容性问题
 
 'use client'
 
-import { useState, useCallback, useMemo, memo, useEffect } from 'react'
+import { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -64,6 +62,148 @@ const formatNumber = (value: string | number | null | undefined, decimals: numbe
   if (isNaN(num)) return '0.0000'
   return num.toFixed(decimals)
 }
+
+// 自定义下拉框组件
+const CustomDropdown = memo(({ 
+  lands, 
+  selectedLand, 
+  onSelect,
+  error,
+  showError 
+}: { 
+  lands: Land[]
+  selectedLand: Land | null
+  onSelect: (land: Land | null) => void
+  error: string
+  showError: boolean
+}) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  
+  // 点击外部关闭
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [isOpen])
+  
+  const handleSelect = (land: Land | null) => {
+    onSelect(land)
+    setIsOpen(false)
+  }
+  
+  return (
+    <div ref={dropdownRef} className="relative">
+      {/* 触发按钮 */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-800/70 border rounded-lg",
+          "text-left text-white text-xs sm:text-sm",
+          "focus:outline-none transition-colors",
+          "flex items-center justify-between",
+          showError && error ? "border-red-500 focus:border-red-400" : "border-gray-600 focus:border-gold-500"
+        )}
+        style={{
+          WebkitTapHighlightColor: 'transparent',
+          touchAction: 'manipulation'
+        }}
+      >
+        <span className={cn(
+          selectedLand ? "text-white" : "text-gray-400"
+        )}>
+          {selectedLand ? `${selectedLand.land_id} - ${selectedLand.blueprint?.land_type_display || '未知类型'}` : '-- 请选择土地 --'}
+        </span>
+        <span className={cn(
+          "transition-transform",
+          isOpen ? "rotate-180" : ""
+        )}>
+          ▼
+        </span>
+      </button>
+      
+      {/* 下拉列表 */}
+      {isOpen && (
+        <div className={cn(
+          "absolute z-50 w-full mt-1",
+          "bg-gray-800 border border-gray-600 rounded-lg",
+          "shadow-xl max-h-60 overflow-y-auto",
+          "animate-in fade-in-0 zoom-in-95"
+        )}
+        style={{
+          WebkitOverflowScrolling: 'touch'
+        }}
+        >
+          {/* 默认选项 */}
+          <button
+            type="button"
+            onClick={() => handleSelect(null)}
+            className={cn(
+              "w-full px-3 py-2 text-left text-xs sm:text-sm",
+              "hover:bg-gray-700 transition-colors",
+              "border-b border-gray-700",
+              !selectedLand ? "bg-gray-700 text-gold-400" : "text-gray-400"
+            )}
+            style={{
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation'
+            }}
+          >
+            -- 请选择土地 --
+          </button>
+          
+          {/* 土地选项 */}
+          {lands.map((land, index) => (
+            <button
+              key={land.id}
+              type="button"
+              onClick={() => handleSelect(land)}
+              className={cn(
+                "w-full px-3 py-2.5 text-left text-xs sm:text-sm",
+                "hover:bg-gray-700 transition-colors",
+                "flex flex-col gap-0.5",
+                selectedLand?.id === land.id ? "bg-gray-700 text-gold-400" : "text-white",
+                index !== lands.length - 1 && "border-b border-gray-700/50"
+              )}
+              style={{
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation'
+              }}
+            >
+              <span className="font-medium">{land.land_id}</span>
+              <span className="text-[10px] sm:text-xs text-gray-400">
+                {land.blueprint?.land_type_display || '未知类型'}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {/* 错误提示 */}
+      {showError && error && (
+        <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+          <span>❌</span>
+          <span>{error}</span>
+        </p>
+      )}
+    </div>
+  )
+})
+
+CustomDropdown.displayName = 'CustomDropdown'
 
 // 移动端会话卡片 - 简化版
 const MobileSessionCard = memo(({ 
@@ -274,7 +414,7 @@ const DesktopSessionCard = memo(({
 DesktopSessionCard.displayName = 'DesktopSessionCard'
 
 /**
- * 挖矿会话管理组件 - 优化版
+ * 挖矿会话管理组件 - 自定义下拉框版
  */
 export function MiningSessions({
   sessions,
@@ -587,7 +727,7 @@ export function MiningSessions({
         </PixelCard>
       )}
       
-      {/* 开始挖矿模态框 - 添加表单验证 */}
+      {/* 开始挖矿模态框 - 使用自定义下拉框 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -626,7 +766,7 @@ export function MiningSessions({
             </div>
           </div>
           
-          {/* 选择土地 - 添加错误提示 */}
+          {/* 选择土地 - 使用自定义下拉框 */}
           <div>
             <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
               <span>📍</span>
@@ -636,32 +776,13 @@ export function MiningSessions({
               )}
             </label>
             {userLands && userLands.length > 0 ? (
-              <>
-                <select
-                  className={cn(
-                    "w-full px-2 sm:px-3 py-2 sm:py-2.5 bg-gray-800/70 border rounded-lg text-white text-xs sm:text-sm focus:outline-none transition-colors",
-                    showErrors && landError ? "border-red-500 focus:border-red-400" : "border-gray-600 focus:border-gold-500"
-                  )}
-                  value={selectedLand?.id || ''}
-                  onChange={(e) => {
-                    const land = userLands.find(l => l.id === parseInt(e.target.value))
-                    setSelectedLand(land || null)
-                  }}
-                >
-                  <option value="">-- 请选择土地 --</option>
-                  {userLands.map(land => (
-                    <option key={land.id} value={land.id}>
-                      {land.land_id} - {land.blueprint?.land_type_display || '未知类型'}
-                    </option>
-                  ))}
-                </select>
-                {showErrors && landError && (
-                  <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                    <span>❌</span>
-                    <span>{landError}</span>
-                  </p>
-                )}
-              </>
+              <CustomDropdown
+                lands={userLands}
+                selectedLand={selectedLand}
+                onSelect={setSelectedLand}
+                error={landError}
+                showError={showErrors}
+              />
             ) : (
               <p className="text-xs sm:text-sm text-gray-400 p-2 sm:p-3 bg-gray-800/50 rounded-lg text-center">
                 您还没有土地，请先购买土地
@@ -669,7 +790,7 @@ export function MiningSessions({
             )}
           </div>
           
-          {/* 选择工具 - 添加错误提示 */}
+          {/* 选择工具 - 保持原有实现 */}
           <div>
             <label className="text-xs sm:text-sm font-bold text-gray-300 flex items-center justify-between mb-1.5 sm:mb-2">
               <span className="flex items-center gap-1 sm:gap-2">
@@ -741,6 +862,10 @@ export function MiningSessions({
                         type="button"
                         onClick={() => setSelectedTools(availableTools.map(t => t.id))}
                         className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                        style={{
+                          WebkitTapHighlightColor: 'transparent',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         全选
                       </button>
@@ -748,6 +873,10 @@ export function MiningSessions({
                         type="button"
                         onClick={() => setSelectedTools([])}
                         className="text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+                        style={{
+                          WebkitTapHighlightColor: 'transparent',
+                          touchAction: 'manipulation'
+                        }}
                       >
                         清空
                       </button>
