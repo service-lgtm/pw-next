@@ -467,71 +467,31 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                       </div>
                     </div>
                   ) : currentBatch?.is_active ? (
-                    <>
-                      <div className="text-center mb-4">
-                        <div className="inline-flex items-center gap-2 bg-gold-500/10 px-3 md:px-4 py-2 rounded-full">
-                          <span className="text-xl md:text-2xl">🎁</span>
-                          <span className="text-xs md:text-sm font-bold text-gold-400">
-                            限时福利，每人限领1个
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <label className="block text-xs md:text-sm text-gray-400 mb-2">领取密码</label>
-                        <input
-                          ref={inputRef}
-                          type="text"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="请输入领取密码"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white text-sm md:text-base focus:border-gold-500 focus:outline-none transition-colors"
-                          disabled={claiming}
-                          style={{
-                            fontSize: '16px', // 防止 iOS 缩放
-                            WebkitAppearance: 'none',
-                            appearance: 'none'
-                          }}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !claiming && password) {
-                              handleClaim()
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <button
-                        onClick={handleClaim}
-                        disabled={claiming || !password}
-                        className={`
-                          w-full py-3 md:py-4 px-4 md:px-6 rounded-lg font-bold text-base md:text-lg transition-all
-                          ${claiming || !password
-                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95 shadow-lg'
-                          }
-                        `}
-                        style={{
-                          touchAction: 'manipulation',
-                          WebkitTapHighlightColor: 'transparent'
-                        }}
-                      >
-                        {claiming ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <span>⏳</span>
-                            领取中...
-                          </span>
-                        ) : (
-                          <span className="flex items-center justify-center gap-2">
-                            <span className="text-xl md:text-2xl">🎁</span>
-                            立即领取土地碎片
-                          </span>
-                        )}
-                      </button>
-
-                      <p className="text-xs text-center text-gray-400 mt-3 md:mt-4">
-                        ⚠️ 每批次每人只能领取1个碎片，请确认后领取
+                    // 活动进行中但不再显示领取界面，直接显示敬请期待
+                    <div className="text-center py-6 md:py-8">
+                      <div className="text-4xl md:text-5xl mb-4">🎁</div>
+                      <p className="text-base md:text-lg font-bold text-gold-500 mb-2">活动进行中</p>
+                      <p className="text-xs md:text-sm text-gray-400 mb-4">
+                        本批次领取已结束
                       </p>
-                    </>
+                      
+                      {/* 敬请期待提示 */}
+                      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4 md:p-5">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <span className="text-2xl">🌟</span>
+                          <p className="text-base md:text-lg font-bold text-purple-400">
+                            敬请期待
+                          </p>
+                          <span className="text-2xl">🌟</span>
+                        </div>
+                        <p className="text-xs md:text-sm text-gray-300">
+                          更多精彩活动即将推出
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          请关注后续批次开放通知
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-center py-6 md:py-8">
                       <div className="text-4xl md:text-5xl mb-4">⏰</div>
