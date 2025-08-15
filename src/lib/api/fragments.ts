@@ -94,12 +94,28 @@ export interface BatchProgress {
 
 // ========== API 接口 ==========
 export const fragmentsApi = {
-  // 快速领取碎片
-  quickClaim: (password: string) =>
-    request<ClaimResponse>('/assets/fragments/quick-claim/', {
-      method: 'POST',
-      body: { password }
-    }),
+  // 快速领取碎片 - 特殊处理400错误
+  quickClaim: async (password: string): Promise<ClaimResponse> => {
+    try {
+      const response = await request<ClaimResponse>('/assets/fragments/quick-claim/', {
+        method: 'POST',
+        body: { password }
+      })
+      return response
+    } catch (error: any) {
+      // 处理 400 错误 - API 返回的业务错误
+      if (error?.status === 400 && error?.details) {
+        // 返回错误信息，保持与成功响应相同的结构
+        return {
+          success: false,
+          message: error.details.message || error.message || '领取失败',
+          data: null as any
+        }
+      }
+      // 其他错误继续抛出
+      throw error
+    }
+  },
   
   // 获取批次列表
   getBatches: (params?: {
