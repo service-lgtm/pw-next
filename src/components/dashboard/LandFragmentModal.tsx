@@ -7,6 +7,7 @@
 // 3. 优化 z-index 层级
 // 4. 改进触摸事件处理
 // 5. 修复移动端键盘弹出问题
+// 6. 【新增】领取成功后隐藏输入框和按钮，显示敬请期待
 //
 // 关联文件：
 // - 被 Dashboard 页面使用
@@ -15,6 +16,7 @@
 //
 // 更新历史：
 // - 2024-01: 修复 iOS 兼容性问题，优化移动端体验
+// - 2024-01: 领取成功后显示敬请期待界面
 
 'use client'
 
@@ -152,10 +154,6 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
         // 3秒后刷新数据
         setTimeout(() => {
           fetchData()
-          // 5秒后恢复到正常界面
-          setTimeout(() => {
-            setShowSuccess(false)
-          }, 2000)
         }, 3000)
         
         return
@@ -401,7 +399,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
 
                 {/* 领取区域 */}
                 <div className="p-4 md:p-6">
-                  {/* 成功恭喜界面 */}
+                  {/* 成功恭喜界面 - 现在会一直显示直到关闭弹窗 */}
                   {showSuccess && claimedFragment ? (
                     <div className="text-center py-6 md:py-8">
                       <div className="text-5xl md:text-6xl mb-4">
@@ -416,25 +414,57 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                       <p className="text-xs md:text-sm text-gray-400 mb-4">
                         来自：{claimedFragment.batch_name}
                       </p>
-                      <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-3 md:p-4">
+                      <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-3 md:p-4 mb-6">
                         <p className="text-xs md:text-sm text-gold-400">
                           碎片编号：{claimedFragment.fragment_id}
                         </p>
                       </div>
-                      <p className="text-xs text-gray-400 mt-4">
-                        继续领取其他批次或点击右上角关闭
+                      
+                      {/* 敬请期待提示 */}
+                      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4 md:p-5">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <span className="text-2xl">🌟</span>
+                          <p className="text-base md:text-lg font-bold text-purple-400">
+                            敬请期待
+                          </p>
+                          <span className="text-2xl">🌟</span>
+                        </div>
+                        <p className="text-xs md:text-sm text-gray-300">
+                          更多精彩活动即将推出
+                        </p>
+                        <p className="text-xs text-gray-400 mt-2">
+                          请关注后续批次开放通知
+                        </p>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-4">
+                        点击右上角关闭窗口
                       </p>
                     </div>
                   ) : hasClaimedCurrentBatch() ? (
                     <div className="text-center py-6 md:py-8">
                       <div className="text-4xl md:text-5xl mb-4">✅</div>
                       <p className="text-base md:text-lg font-bold text-green-500 mb-2">已领取</p>
-                      <p className="text-xs md:text-sm text-gray-400 mb-2">
+                      <p className="text-xs md:text-sm text-gray-400 mb-4">
                         您已领取过该批次的碎片
                       </p>
-                      <p className="text-xs text-red-400 font-bold">
-                        每批次每人限领1个，请等待下一批次
-                      </p>
+                      
+                      {/* 敬请期待提示 - 已领取状态 */}
+                      <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-lg p-4 md:p-5">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <span className="text-2xl">🌟</span>
+                          <p className="text-base md:text-lg font-bold text-purple-400">
+                            敬请期待
+                          </p>
+                          <span className="text-2xl">🌟</span>
+                        </div>
+                        <p className="text-xs md:text-sm text-gray-300">
+                          下一批次活动即将开启
+                        </p>
+                        <p className="text-xs text-red-400 font-bold mt-2">
+                          每批次每人限领1个
+                        </p>
+                      </div>
                     </div>
                   ) : currentBatch?.is_active ? (
                     <>
