@@ -2,42 +2,9 @@
 // 粮食购买 Hook - 使用 YLD 购买
 
 import { useState, useEffect, useCallback } from 'react'
-import { request } from '@/lib/api'
+import { foodApi } from '@/lib/api/food'
+import type { FoodPurchaseStatus } from '@/lib/api/food'
 import toast from 'react-hot-toast'
-
-// ==================== 类型定义 ====================
-
-export interface FoodPurchaseStatus {
-  current_food: number      // 当前粮食数量
-  yld_balance: number       // YLD余额（用于购买）
-  tdb_balance: number       // TDB余额（仅供参考）
-  today_purchased: number   // 今日已购买
-  today_remaining: number   // 今日剩余额度
-  daily_limit: number       // 每日限额（48个）
-  unit_price: number        // 单价（0.01 YLD）
-  currency: string          // 货币类型 'YLD'
-  can_buy: boolean         // 是否可以购买
-  next_reset_time: string  // 下次重置时间
-}
-
-export interface BuyFoodResponse {
-  success: boolean
-  message: string
-  data?: {
-    transaction_id: string
-    quantity: number
-    unit_price: number
-    total_cost: number
-    currency: string
-    yld_balance_before: number
-    yld_balance_after: number
-    food_balance_before: number
-    food_balance_after: number
-    today_purchased: number
-    today_remaining: number
-    daily_limit: number
-  }
-}
 
 // ==================== Hook 实现 ====================
 
@@ -53,10 +20,7 @@ export function useFoodPurchase() {
       setLoading(true)
       setError(null)
       
-      const response = await request<{
-        success: boolean
-        data: FoodPurchaseStatus
-      }>('/production/food/purchase-status/')
+      const response = await foodApi.getPurchaseStatus()
       
       if (response.success && response.data) {
         setStatus(response.data)
@@ -96,10 +60,7 @@ export function useFoodPurchase() {
       setBuying(true)
       setError(null)
       
-      const response = await request<BuyFoodResponse>('/production/food/buy/', {
-        method: 'POST',
-        body: { quantity }
-      })
+      const response = await foodApi.buyFood(quantity)
       
       if (response.success && response.data) {
         toast.success(response.message || `成功购买${quantity}个粮食`)
