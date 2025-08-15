@@ -1,5 +1,5 @@
 // src/hooks/useFoodPurchase.ts
-// 粮食购买 Hook - 使用 YLD 购买
+// 粮食购买 Hook - 使用 TDB 购买
 
 import { useState, useEffect, useCallback } from 'react'
 import { foodApi } from '@/lib/api/food'
@@ -33,7 +33,7 @@ export function useFoodPurchase() {
     }
   }, [])
 
-  // 购买粮食（使用 YLD）
+  // 购买粮食（使用 TDB）
   const buyFood = useCallback(async (quantity: number): Promise<boolean> => {
     if (!status) {
       toast.error('请先等待状态加载')
@@ -51,8 +51,8 @@ export function useFoodPurchase() {
     }
 
     const totalCost = quantity * status.unit_price
-    if (status.yld_balance < totalCost) {
-      toast.error(`YLD余额不足，需要${totalCost.toFixed(2)} YLD`)
+    if (status.tdb_balance < totalCost) {
+      toast.error(`TDB余额不足，需要${totalCost.toFixed(2)} TDB`)
       return false
     }
 
@@ -69,15 +69,15 @@ export function useFoodPurchase() {
         setStatus(prev => prev ? {
           ...prev,
           current_food: response.data!.food_balance_after,
-          yld_balance: response.data!.yld_balance_after,
+          tdb_balance: response.data!.tdb_balance_after,
           today_purchased: response.data!.today_purchased,
           today_remaining: response.data!.today_remaining,
-          can_buy: response.data!.today_remaining > 0 && response.data!.yld_balance_after >= prev.unit_price
+          can_buy: response.data!.today_remaining > 0 && response.data!.tdb_balance_after >= prev.unit_price
         } : null)
         
         // 显示详细信息
         toast.success(
-          `花费 ${response.data.total_cost.toFixed(2)} YLD，当前粮食：${response.data.food_balance_after}个`,
+          `花费 ${response.data.total_cost.toFixed(2)} TDB，当前粮食：${response.data.food_balance_after}个`,
           { duration: 4000 }
         )
         
