@@ -108,16 +108,14 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
           }
         })
         
-        // 重新获取数据
+        // 3秒后刷新数据，但不关闭弹窗
         setTimeout(() => {
           fetchData()
-        }, 1000)
-        
-        // 5秒后自动关闭
-        setTimeout(() => {
-          setShowSuccess(false)
-          onClose()
-        }, 5000)
+          // 5秒后恢复到正常界面（不再显示恭喜界面）
+          setTimeout(() => {
+            setShowSuccess(false)
+          }, 2000)
+        }, 3000)
         
         return
       }
@@ -398,7 +396,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                             </p>
                           </div>
                           <p className="text-xs text-gray-400 mt-4">
-                            窗口将在5秒后自动关闭
+                            继续领取其他批次或点击右上角关闭
                           </p>
                         </motion.div>
                       ) : hasClaimedCurrentBatch() ? (
