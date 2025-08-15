@@ -1,5 +1,5 @@
 // src/lib/api/food.ts
-// 粮食购买 API 接口
+// 粮食购买 API 接口 - 使用 TDB 支付
 
 import { request } from '../api'
 
@@ -17,9 +17,9 @@ export interface BuyFoodResponse {
     quantity: number
     unit_price: number
     total_cost: number
-    currency: string  // 'YLD'
-    yld_balance_before: number
-    yld_balance_after: number
+    currency: string  // 'TDB' (改为TDB)
+    tdb_balance_before: number  // TDB余额（之前）
+    tdb_balance_after: number   // TDB余额（之后）
     food_balance_before: number
     food_balance_after: number
     today_purchased: number
@@ -30,13 +30,13 @@ export interface BuyFoodResponse {
 
 export interface FoodPurchaseStatus {
   current_food: number      // 当前粮食数量
-  yld_balance: number       // YLD余额（用于购买）
-  tdb_balance: number       // TDB余额（仅供参考）
+  tdb_balance: number       // TDB余额（用于购买）
+  yld_balance: number       // YLD余额（仅供参考）
   today_purchased: number   // 今日已购买
   today_remaining: number   // 今日剩余额度
   daily_limit: number       // 每日限额（48个）
-  unit_price: number        // 单价（0.01 YLD）
-  currency: string          // 'YLD'
+  unit_price: number        // 单价（0.01 TDB）
+  currency: string          // 'TDB'
   can_buy: boolean         // 是否可以购买
   next_reset_time: string  // 下次重置时间
 }
@@ -45,7 +45,7 @@ export interface FoodPurchaseStatus {
 
 export const foodApi = {
   /**
-   * 购买粮食（使用 YLD）
+   * 购买粮食（使用 TDB）
    * @param quantity 购买数量（1-48）
    */
   buyFood: async (quantity: number): Promise<BuyFoodResponse> => {
