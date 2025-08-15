@@ -17,6 +17,7 @@ interface LandFragmentModalProps {
 export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
   const [loading, setLoading] = useState(false)
   const [claiming, setClaiming] = useState(false)
+  const [password, setPassword] = useState('')
   const [batches, setBatches] = useState<Batch[]>([])
   const [stats, setStats] = useState<FragmentStats | null>(null)
   const [currentBatch, setCurrentBatch] = useState<Batch | null>(null)
@@ -61,10 +62,14 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
 
   // 领取碎片
   const handleClaim = async () => {
+    if (!password) {
+      toast.error('请输入领取密码')
+      return
+    }
+
     try {
       setClaiming(true)
-      // 直接使用密码666，不需要用户输入
-      const response = await fragmentsApi.quickClaim('666')
+      const response = await fragmentsApi.quickClaim(password)
       
       if (response.success) {
         // 保存领取信息
@@ -80,65 +85,70 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
           onClose()
         }, 5000)
       } else {
-        // 处理错误响应
-        if (response.message === "您已领取过该批次的碎片，每批次限领1个") {
-          toast.error('您已领取过该批次的碎片，每批次限领1个', {
-            duration: 5000,
-            icon: '⚠️'
-          })
-        } else if (response.message.includes('已领取')) {
-          toast.error('您已领取过该批次的碎片，每批次限领1个', {
-            duration: 5000,
-            icon: '⚠️'
-          })
-        } else if (response.message.includes('领完')) {
-          toast.error('碎片已领完，请等待下一批次', {
-            duration: 4000,
-            icon: '😔'
-          })
-        } else if (response.message.includes('密码错误')) {
-          toast.error('系统配置错误，请联系管理员', {
-            duration: 4000,
-            icon: '❌'
-          })
-        } else if (response.message.includes('未开放')) {
-          toast.error('活动尚未开放，请稍后再试', {
-            duration: 4000,
-            icon: '⏰'
-          })
-        } else {
-          toast.error(response.message || '领取失败，请稍后重试')
-        }
+        // 处理错误响应 - 直接处理API返回的错误信息
+        handleErrorMessage(response.message)
       }
     } catch (error: any) {
-      const message = error?.message || '领取失败，请稍后重试'
-      
-      // 处理特定错误
-      if (message.includes('已领取')) {
-        toast.error('您已领取过该批次的碎片，每批次限领1个', {
-          duration: 5000,
-          icon: '⚠️'
-        })
-      } else if (message.includes('领完')) {
-        toast.error('碎片已领完，请等待下一批次', {
-          duration: 4000,
-          icon: '😔'
-        })
-      } else if (message.includes('未开放')) {
-        toast.error('活动尚未开放，请稍后再试', {
-          duration: 4000,
-          icon: '⏰'
-        })
-      } else if (message.includes('今日领取已达上限')) {
-        toast.error('今日全平台领取已达上限，请明天再来', {
-          duration: 4000,
-          icon: '📅'
-        })
+      // 处理网络错误或其他异常
+      if (error?.response?.data?.message) {
+        handleErrorMessage(error.response.data.message)
+      } else if (error?.message) {
+        handleErrorMessage(error.message)
       } else {
-        toast.error(message)
+        toast.error('领取失败，请稍后重试')
       }
     } finally {
       setClaiming(false)
+    }
+  }
+
+  // 统一处理错误信息
+  const handleErrorMessage = (message: string) => {
+    if (message === "您已领取过该批次的碎片，每批次限领1个") {
+      toast.error('您已领取过该批次的碎片，每批次限领1个', {
+        duration: 5000,
+        icon: '⚠️'
+      })
+      // 刷新数据以更新界面状态
+      fetchData()
+    } else if (message.includes('已领取')) {
+      toast.error('您已领取过该批次的碎片，每批次限领1个', {
+        duration: 5000,
+        icon: '⚠️'
+      })
+      fetchData()
+    } else if (message.includes('领完')) {
+      toast.error('碎片已领完，请等待下一批次', {
+        duration: 4000,
+        icon: '😔'
+      })
+    } else if (message.includes('密码错误') || message.includes('领取密码错误')) {
+      toast.error('领取密码错误，请输入正确的密码', {
+        duration: 4000,
+        icon: '❌'
+      })
+    } else if (message.includes('未开放') || message.includes('尚未开放')) {
+      toast.error('活动尚未开放，请稍后再试', {
+        duration: 4000,
+        icon: '⏰'
+      })
+    } else if (message.includes('今日领取已达上限')) {
+      toast.error('今日全平台领取已达上限，请明天再来', {
+        duration: 4000,
+        icon: '📅'
+      })
+    } else if (message.includes('该批次未激活')) {
+      toast.error('该批次未激活，请等待激活', {
+        duration: 4000,
+        icon: '⏸️'
+      })
+    } else if (message.includes('该批次已结束')) {
+      toast.error('该批次已结束，请等待下一批次', {
+        duration: 4000,
+        icon: '🏁'
+      })
+    } else {
+      toast.error(message || '领取失败，请稍后重试')
     }
   }
 
@@ -336,7 +346,7 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                       </div>
                     ) : currentBatch?.is_active ? (
                       <>
-                        <div className="text-center mb-6">
+                        <div className="text-center mb-4">
                           <div className="inline-flex items-center gap-2 bg-gold-500/10 px-4 py-2 rounded-full">
                             <span className="text-2xl">🎁</span>
                             <span className="text-sm font-bold text-gold-400">
@@ -345,12 +355,29 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                           </div>
                         </div>
 
+                        <div className="mb-4">
+                          <label className="block text-sm text-gray-400 mb-2">领取密码</label>
+                          <input
+                            type="text"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="请输入领取密码"
+                            className="w-full px-4 py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-gold-500 focus:outline-none transition-colors"
+                            disabled={claiming}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && !claiming && password) {
+                                handleClaim()
+                              }
+                            }}
+                          />
+                        </div>
+
                         <button
                           onClick={handleClaim}
-                          disabled={claiming}
+                          disabled={claiming || !password}
                           className={`
                             w-full py-4 px-6 rounded-lg font-bold text-lg transition-all
-                            ${claiming
+                            ${claiming || !password
                               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                               : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95 shadow-lg'
                             }
