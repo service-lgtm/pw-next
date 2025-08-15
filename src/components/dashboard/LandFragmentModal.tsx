@@ -272,9 +272,9 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
             exit={{ opacity: 0, scale: 0.9 }}
             className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="bg-[#0A1628] border-4 border-gray-800 rounded-lg w-full max-w-lg pointer-events-auto overflow-hidden max-h-[90vh] overflow-y-auto">
-              {/* 标题栏 */}
-              <div className="bg-gradient-to-r from-gold-500/20 to-yellow-600/20 p-4 md:p-6 border-b-4 border-gray-800 sticky top-0 z-10">
+            <div className="bg-[#0A1628] border-4 border-gray-800 rounded-lg w-full max-w-lg pointer-events-auto max-h-[90vh] flex flex-col">
+              {/* 标题栏 - 增强背景不透明度 */}
+              <div className="bg-gradient-to-r from-gold-500/30 to-yellow-600/30 p-4 md:p-6 border-b-4 border-gray-800 flex-shrink-0" style={{ backgroundColor: 'rgba(10, 22, 40, 0.98)' }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl md:text-2xl font-black text-gold-500 flex items-center gap-2">
@@ -294,190 +294,193 @@ export function LandFragmentModal({ isOpen, onClose }: LandFragmentModalProps) {
                 </div>
               </div>
 
-              {loading ? (
-                <div className="p-8 md:p-12 text-center">
-                  <div className="animate-spin text-4xl mb-4">⏳</div>
-                  <p className="text-gray-400">加载中...</p>
-                </div>
-              ) : (
-                <>
-                  {/* 重要提示 */}
-                  <div className="bg-orange-500/10 border-l-4 border-orange-500 p-3 md:p-4 m-4 md:m-6 mb-0">
-                    <div className="flex items-start gap-2 md:gap-3">
-                      <span className="text-xl md:text-2xl">📢</span>
-                      <div>
-                        <p className="text-xs md:text-sm font-bold text-orange-400">活动规则</p>
-                        <p className="text-xs text-gray-300 mt-1">
-                          每批次每人限领<span className="font-bold text-orange-400"> 1 个</span>碎片，集齐碎片可合成土地
-                        </p>
-                      </div>
-                    </div>
+              {/* 内容区域 - 可滚动 */}
+              <div className="flex-1 overflow-y-auto">
+                {loading ? (
+                  <div className="p-8 md:p-12 text-center">
+                    <div className="animate-spin text-4xl mb-4">⏳</div>
+                    <p className="text-gray-400">加载中...</p>
                   </div>
-
-                  {/* 批次信息 */}
-                  {currentBatch && (
-                    <div className="p-4 md:p-6 border-b-2 border-gray-800">
-                      <div className="mb-4">
-                        <h3 className="font-bold text-white text-sm md:text-base mb-2">{currentBatch.batch_name}</h3>
-                        <p className="text-xs md:text-sm text-gray-400">{currentBatch.description}</p>
-                      </div>
-
-                      {/* 状态信息 */}
-                      <div className="grid grid-cols-2 gap-3 md:gap-4 text-center">
-                        <div className="bg-gray-800/50 p-2 md:p-3 rounded">
-                          <p className="text-lg md:text-2xl font-bold text-gold-500">
-                            {currentBatch.stats?.available || currentBatch.total_fragments}
+                ) : (
+                  <>
+                    {/* 重要提示 */}
+                    <div className="bg-orange-500/10 border-l-4 border-orange-500 p-3 md:p-4 m-4 md:m-6 mb-0">
+                      <div className="flex items-start gap-2 md:gap-3">
+                        <span className="text-xl md:text-2xl">📢</span>
+                        <div>
+                          <p className="text-xs md:text-sm font-bold text-orange-400">活动规则</p>
+                          <p className="text-xs text-gray-300 mt-1">
+                            每批次每人限领<span className="font-bold text-orange-400"> 1 个</span>碎片，集齐碎片可合成土地
                           </p>
-                          <p className="text-xs text-gray-400">剩余可领</p>
-                        </div>
-                        <div className="bg-gray-800/50 p-2 md:p-3 rounded border-2 border-red-500/30">
-                          <p className="text-lg md:text-2xl font-bold text-red-400">
-                            1
-                          </p>
-                          <p className="text-xs text-gray-400">每人限领</p>
                         </div>
                       </div>
                     </div>
-                  )}
 
-                  {/* 用户统计 */}
-                  {stats && (
-                    <div className="p-4 md:p-6 border-b-2 border-gray-800">
-                      <h4 className="font-bold text-white text-sm md:text-base mb-3">我的碎片</h4>
-                      <div className="grid grid-cols-3 gap-2 md:gap-3 text-center">
-                        <div>
-                          <p className="text-lg md:text-xl font-bold text-green-500">{stats.current_fragments}</p>
-                          <p className="text-xs text-gray-400">当前持有</p>
+                    {/* 批次信息 */}
+                    {currentBatch && (
+                      <div className="p-4 md:p-6 border-b-2 border-gray-800">
+                        <div className="mb-4">
+                          <h3 className="font-bold text-white text-sm md:text-base mb-2">{currentBatch.batch_name}</h3>
+                          <p className="text-xs md:text-sm text-gray-400">{currentBatch.description}</p>
                         </div>
-                        <div>
-                          <p className="text-lg md:text-xl font-bold text-blue-500">{stats.total_claimed}</p>
-                          <p className="text-xs text-gray-400">累计领取</p>
-                        </div>
-                        <div>
-                          <p className="text-lg md:text-xl font-bold text-purple-500">{stats.lands_combined}</p>
-                          <p className="text-xs text-gray-400">已合成土地</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 text-center mt-3">
-                        积攒碎片可用于合成土地
-                      </p>
-                    </div>
-                  )}
 
-                  {/* 领取区域 */}
-                  <div className="p-4 md:p-6">
-                    {/* 成功恭喜界面 */}
-                    {showSuccess && claimedFragment ? (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="text-center py-6 md:py-8"
-                      >
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1, rotate: 360 }}
-                          transition={{ duration: 0.5 }}
-                          className="text-5xl md:text-6xl mb-4"
-                        >
-                          🎉
-                        </motion.div>
-                        <h3 className="text-xl md:text-2xl font-black text-gold-500 mb-3">
-                          恭喜您！
-                        </h3>
-                        <p className="text-base md:text-lg text-white mb-2">
-                          成功领取 <span className="text-gold-500 font-bold">{claimedFragment.size_sqm}</span> 平方米土地碎片
-                        </p>
-                        <p className="text-xs md:text-sm text-gray-400 mb-4">
-                          来自：{claimedFragment.batch_name}
-                        </p>
-                        <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-3 md:p-4">
-                          <p className="text-xs md:text-sm text-gold-400">
-                            碎片编号：{claimedFragment.fragment_id}
-                          </p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-4">
-                          窗口将在5秒后自动关闭
-                        </p>
-                      </motion.div>
-                    ) : hasClaimedCurrentBatch() ? (
-                      <div className="text-center py-6 md:py-8">
-                        <div className="text-4xl md:text-5xl mb-4">✅</div>
-                        <p className="text-base md:text-lg font-bold text-green-500 mb-2">已领取</p>
-                        <p className="text-xs md:text-sm text-gray-400 mb-2">
-                          您已领取过该批次的碎片
-                        </p>
-                        <p className="text-xs text-red-400 font-bold">
-                          每批次每人限领1个，请等待下一批次
-                        </p>
-                      </div>
-                    ) : currentBatch?.is_active ? (
-                      <>
-                        <div className="text-center mb-4">
-                          <div className="inline-flex items-center gap-2 bg-gold-500/10 px-3 md:px-4 py-2 rounded-full">
-                            <span className="text-xl md:text-2xl">🎁</span>
-                            <span className="text-xs md:text-sm font-bold text-gold-400">
-                              限时福利，每人限领1个
-                            </span>
+                        {/* 状态信息 */}
+                        <div className="grid grid-cols-2 gap-3 md:gap-4 text-center">
+                          <div className="bg-gray-800/50 p-2 md:p-3 rounded">
+                            <p className="text-lg md:text-2xl font-bold text-gold-500">
+                              {currentBatch.stats?.available || currentBatch.total_fragments}
+                            </p>
+                            <p className="text-xs text-gray-400">剩余可领</p>
+                          </div>
+                          <div className="bg-gray-800/50 p-2 md:p-3 rounded border-2 border-red-500/30">
+                            <p className="text-lg md:text-2xl font-bold text-red-400">
+                              1
+                            </p>
+                            <p className="text-xs text-gray-400">每人限领</p>
                           </div>
                         </div>
+                      </div>
+                    )}
 
-                        <div className="mb-4">
-                          <label className="block text-xs md:text-sm text-gray-400 mb-2">领取密码</label>
-                          <input
-                            type="text"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="请输入领取密码"
-                            className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white text-sm md:text-base focus:border-gold-500 focus:outline-none transition-colors"
-                            disabled={claiming}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && !claiming && password) {
-                                handleClaim()
-                              }
-                            }}
-                          />
+                    {/* 用户统计 */}
+                    {stats && (
+                      <div className="p-4 md:p-6 border-b-2 border-gray-800">
+                        <h4 className="font-bold text-white text-sm md:text-base mb-3">我的碎片</h4>
+                        <div className="grid grid-cols-3 gap-2 md:gap-3 text-center">
+                          <div>
+                            <p className="text-lg md:text-xl font-bold text-green-500">{stats.current_fragments}</p>
+                            <p className="text-xs text-gray-400">当前持有</p>
+                          </div>
+                          <div>
+                            <p className="text-lg md:text-xl font-bold text-blue-500">{stats.total_claimed}</p>
+                            <p className="text-xs text-gray-400">累计领取</p>
+                          </div>
+                          <div>
+                            <p className="text-lg md:text-xl font-bold text-purple-500">{stats.lands_combined}</p>
+                            <p className="text-xs text-gray-400">已合成土地</p>
+                          </div>
                         </div>
-
-                        <button
-                          onClick={handleClaim}
-                          disabled={claiming || !password}
-                          className={`
-                            w-full py-3 md:py-4 px-4 md:px-6 rounded-lg font-bold text-base md:text-lg transition-all
-                            ${claiming || !password
-                              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95 shadow-lg'
-                            }
-                          `}
-                        >
-                          {claiming ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <span className="animate-spin">⏳</span>
-                              领取中...
-                            </span>
-                          ) : (
-                            <span className="flex items-center justify-center gap-2">
-                              <span className="text-xl md:text-2xl">🎁</span>
-                              立即领取土地碎片
-                            </span>
-                          )}
-                        </button>
-
-                        <p className="text-xs text-center text-gray-400 mt-3 md:mt-4">
-                          ⚠️ 每批次每人只能领取1个碎片，请确认后领取
-                        </p>
-                      </>
-                    ) : (
-                      <div className="text-center py-6 md:py-8">
-                        <div className="text-4xl md:text-5xl mb-4">⏰</div>
-                        <p className="text-base md:text-lg font-bold text-gray-400 mb-2">活动未开始</p>
-                        <p className="text-xs md:text-sm text-gray-400">
-                          请等待活动开放
+                        <p className="text-xs text-gray-400 text-center mt-3">
+                          积攒碎片可用于合成土地
                         </p>
                       </div>
                     )}
-                  </div>
-                </>
-              )}
+
+                    {/* 领取区域 */}
+                    <div className="p-4 md:p-6">
+                      {/* 成功恭喜界面 */}
+                      {showSuccess && claimedFragment ? (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-center py-6 md:py-8"
+                        >
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1, rotate: 360 }}
+                            transition={{ duration: 0.5 }}
+                            className="text-5xl md:text-6xl mb-4"
+                          >
+                            🎉
+                          </motion.div>
+                          <h3 className="text-xl md:text-2xl font-black text-gold-500 mb-3">
+                            恭喜您！
+                          </h3>
+                          <p className="text-base md:text-lg text-white mb-2">
+                            成功领取 <span className="text-gold-500 font-bold">{claimedFragment.size_sqm}</span> 平方米土地碎片
+                          </p>
+                          <p className="text-xs md:text-sm text-gray-400 mb-4">
+                            来自：{claimedFragment.batch_name}
+                          </p>
+                          <div className="bg-gold-500/10 border border-gold-500/30 rounded-lg p-3 md:p-4">
+                            <p className="text-xs md:text-sm text-gold-400">
+                              碎片编号：{claimedFragment.fragment_id}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-4">
+                            窗口将在5秒后自动关闭
+                          </p>
+                        </motion.div>
+                      ) : hasClaimedCurrentBatch() ? (
+                        <div className="text-center py-6 md:py-8">
+                          <div className="text-4xl md:text-5xl mb-4">✅</div>
+                          <p className="text-base md:text-lg font-bold text-green-500 mb-2">已领取</p>
+                          <p className="text-xs md:text-sm text-gray-400 mb-2">
+                            您已领取过该批次的碎片
+                          </p>
+                          <p className="text-xs text-red-400 font-bold">
+                            每批次每人限领1个，请等待下一批次
+                          </p>
+                        </div>
+                      ) : currentBatch?.is_active ? (
+                        <>
+                          <div className="text-center mb-4">
+                            <div className="inline-flex items-center gap-2 bg-gold-500/10 px-3 md:px-4 py-2 rounded-full">
+                              <span className="text-xl md:text-2xl">🎁</span>
+                              <span className="text-xs md:text-sm font-bold text-gold-400">
+                                限时福利，每人限领1个
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mb-4">
+                            <label className="block text-xs md:text-sm text-gray-400 mb-2">领取密码</label>
+                            <input
+                              type="text"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="请输入领取密码"
+                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-800 border-2 border-gray-700 rounded-lg text-white text-sm md:text-base focus:border-gold-500 focus:outline-none transition-colors"
+                              disabled={claiming}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && !claiming && password) {
+                                  handleClaim()
+                                }
+                              }}
+                            />
+                          </div>
+
+                          <button
+                            onClick={handleClaim}
+                            disabled={claiming || !password}
+                            className={`
+                              w-full py-3 md:py-4 px-4 md:px-6 rounded-lg font-bold text-base md:text-lg transition-all
+                              ${claiming || !password
+                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-gold-500 to-yellow-600 text-white hover:scale-105 active:scale-95 shadow-lg'
+                              }
+                            `}
+                          >
+                            {claiming ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <span className="animate-spin">⏳</span>
+                                领取中...
+                              </span>
+                            ) : (
+                              <span className="flex items-center justify-center gap-2">
+                                <span className="text-xl md:text-2xl">🎁</span>
+                                立即领取土地碎片
+                              </span>
+                            )}
+                          </button>
+
+                          <p className="text-xs text-center text-gray-400 mt-3 md:mt-4">
+                            ⚠️ 每批次每人只能领取1个碎片，请确认后领取
+                          </p>
+                        </>
+                      ) : (
+                        <div className="text-center py-6 md:py-8">
+                          <div className="text-4xl md:text-5xl mb-4">⏰</div>
+                          <p className="text-base md:text-lg font-bold text-gray-400 mb-2">活动未开始</p>
+                          <p className="text-xs md:text-sm text-gray-400">
+                            请等待活动开放
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </motion.div>
         </>
