@@ -1,19 +1,17 @@
 /* 
- * globals.css - 全局样式文件（修复模态框定位问题）
+ * globals.css - 全局样式文件（最终修复版）
  * 
- * 修复说明：
- * 1. 保留了之前的移动端性能优化
- * 2. 修复了模态框定位问题
- * 3. 确保 z-index 层级正确
- * 4. 添加了模态框的固定定位样式
+ * 修复原则：
+ * 1. 保持原有布局结构不变
+ * 2. 只优化真正影响性能的部分
+ * 3. 移动端简化视觉效果但不改变定位
  * 
  * 关联文件：
  * - 被所有页面组件使用
  * - 影响整个应用的视觉风格
- * - 特别影响 PixelModal 组件的显示
  * 
  * 更新历史：
- * - 2024-01: 修复模态框定位，保持移动端优化
+ * - 2024-01: 精准优化性能，不破坏布局
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -33,33 +31,10 @@
     --pixel-gray: #8B8B8B;
     --pixel-success: #00D4AA;
     --pixel-size: 4px;
-    
-    /* 性能控制变量 */
-    --enable-complex-animations: 1;
-    --animation-duration-multiplier: 1;
-    
-    /* z-index 层级管理 */
-    --z-modal-backdrop: 9998;
-    --z-modal: 9999;
-    --z-dropdown: 1000;
-    --z-header: 100;
-    --z-default: 1;
-  }
-  
-  /* 移动端性能模式 */
-  @media (max-width: 768px) {
-    :root {
-      --pixel-size: 2px;
-      --enable-complex-animations: 0;
-      --animation-duration-multiplier: 0.5;
-    }
   }
 
   html {
     @apply scroll-smooth;
-    /* 启用硬件加速 */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
   }
 
   body {
@@ -70,20 +45,6 @@
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
-    /* 减少重绘 */
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    /* 优化滚动性能 */
-    -webkit-overflow-scrolling: touch;
-    /* 确保body不会被模态框影响 */
-    position: relative;
-  }
-  
-  /* 修复模态框定位 */
-  body.modal-open {
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
   }
 }
 
@@ -92,24 +53,14 @@
   .pixel-font {
     font-family: 'Press Start 2P', cursive;
     letter-spacing: 0.05em;
-    -webkit-font-feature-settings: "kern" 1;
-    font-feature-settings: "kern" 1;
   }
   
-  /* 像素边框 - 优化版 */
+  /* 像素边框 */
   .pixel-border {
     border: var(--pixel-size) solid var(--pixel-gold);
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
-  }
-  
-  /* 移动端简化边框 */
-  @media (max-width: 768px) {
-    .pixel-border {
-      border-width: 2px;
-      box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
-    }
   }
   
   .pixel-border-white {
@@ -119,14 +70,7 @@
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
   }
   
-  @media (max-width: 768px) {
-    .pixel-border-white {
-      border-width: 2px;
-      box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
-    }
-  }
-  
-  /* 像素按钮 - 优化版 */
+  /* 像素按钮 */
   .pixel-btn {
     @apply relative inline-block px-8 py-4 font-bold text-lg transition-all duration-100;
     background: var(--pixel-gold);
@@ -134,209 +78,118 @@
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    /* 确保按钮在模态框中可点击 */
-    position: relative;
-    z-index: 1;
   }
   
-  /* 移动端按钮优化 */
-  @media (max-width: 768px) {
-    .pixel-btn {
-      @apply px-6 py-3 text-base;
-      box-shadow: 0 2px 0 0 var(--pixel-dark-gold);
-      transition: none;
-    }
-    
-    .pixel-btn:active {
-      transform: translateY(1px);
-      box-shadow: 0 1px 0 0 var(--pixel-dark-gold);
-    }
+  .pixel-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 calc(var(--pixel-size) + 2px) 0 0 var(--pixel-dark-gold),
+      0 calc(var(--pixel-size) * 2 + 4px) 0 0 rgba(0, 0, 0, 0.3);
   }
   
-  /* 桌面端hover效果 */
-  @media (min-width: 769px) {
-    .pixel-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 
-        0 calc(var(--pixel-size) + 2px) 0 0 var(--pixel-dark-gold),
-        0 calc(var(--pixel-size) * 2 + 4px) 0 0 rgba(0, 0, 0, 0.3);
-    }
-    
-    .pixel-btn:active {
-      transform: translateY(0);
-      box-shadow: 
-        0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
-        0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
-    }
+  .pixel-btn:active {
+    transform: translateY(0);
+    box-shadow: 
+      0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
+      0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
   }
   
-  /* 像素卡片 - 优化版 */
+  /* 像素卡片 */
   .pixel-card {
     @apply relative p-6;
     background: rgba(255, 215, 0, 0.05);
     border: var(--pixel-size) solid var(--pixel-dark-gold);
-    box-shadow: var(--pixel-size) var(--pixel-size) 0 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 
+      var(--pixel-size) var(--pixel-size) 0 0 rgba(255, 215, 0, 0.2),
+      calc(var(--pixel-size) * 2) calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.2);
   }
   
-  @media (max-width: 768px) {
-    .pixel-card {
-      @apply p-4;
-      border-width: 2px;
-      box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.1);
-    }
-    
-    .pixel-card::before,
-    .pixel-card::after {
-      display: none;
-    }
+  .pixel-card::before,
+  .pixel-card::after {
+    content: '';
+    position: absolute;
+    width: var(--pixel-size);
+    height: var(--pixel-size);
+    background: var(--pixel-gold);
   }
   
-  @media (min-width: 769px) {
-    .pixel-card::before,
-    .pixel-card::after {
-      content: '';
-      position: absolute;
-      width: var(--pixel-size);
-      height: var(--pixel-size);
-      background: var(--pixel-gold);
-    }
-    
-    .pixel-card::before {
-      top: -var(--pixel-size);
-      left: -var(--pixel-size);
-    }
-    
-    .pixel-card::after {
-      bottom: -var(--pixel-size);
-      right: -var(--pixel-size);
-    }
+  .pixel-card::before {
+    top: -var(--pixel-size);
+    left: -var(--pixel-size);
   }
   
-  /* 模态框样式修复 */
-  .modal-backdrop {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    background-color: rgba(0, 0, 0, 0.75);
-    z-index: var(--z-modal-backdrop) !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-  }
-  
-  .modal-content {
-    position: relative !important;
-    z-index: var(--z-modal) !important;
-    max-height: 90vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* 确保模态框内的元素可交互 */
-  .modal-content * {
-    position: relative;
-    z-index: 1;
+  .pixel-card::after {
+    bottom: -var(--pixel-size);
+    right: -var(--pixel-size);
   }
 }
 
 @layer utilities {
-  /* 像素网格背景 - 移动端禁用 */
+  /* 像素网格背景 */
   .pixel-grid {
-    background-image: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    z-index: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px),
+      repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px);
   }
   
-  @media (min-width: 769px) {
-    .pixel-grid {
-      background-image: 
-        repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px),
-        repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255, 215, 0, 0.03) 50px, rgba(255, 215, 0, 0.03) 51px);
-    }
-  }
-  
-  /* 金色光晕 - 简化版 */
+  /* 金色光晕 */
   .gold-glow {
-    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+    filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
   }
   
-  @media (max-width: 768px) {
-    .gold-glow {
-      filter: none;
-    }
-  }
-  
-  /* 优化后的文字阴影 */
+  /* 优化后的文字阴影 - 减少重影效果 */
   .pixel-text-shadow {
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    /* 桌面端：保持原有效果但简化 */
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+    -webkit-text-stroke: 1px var(--pixel-dark-gold);
+    text-stroke: 1px var(--pixel-dark-gold);
+    -webkit-font-smoothing: antialiased;
   }
   
   .pixel-text-shadow-sm {
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+    /* 小尺寸文字使用更细微的效果 */
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+    -webkit-text-stroke: 0.5px var(--pixel-dark-gold);
+    text-stroke: 0.5px var(--pixel-dark-gold);
   }
   
+  /* 为需要强调的文字提供可选的光晕效果 */
   .pixel-text-glow {
-    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    -webkit-text-stroke: 1px var(--pixel-dark-gold);
+    text-stroke: 1px var(--pixel-dark-gold);
   }
   
-  /* 移动端禁用文字效果 */
-  @media (max-width: 768px) {
-    .pixel-text-shadow,
-    .pixel-text-shadow-sm,
-    .pixel-text-glow {
-      text-shadow: none;
-      -webkit-text-stroke: none;
-      text-stroke: none;
-    }
-  }
-  
-  /* 无障碍模式 */
+  /* 无障碍模式 - 用户可以通过添加这个类来完全禁用特效 */
   .reduce-motion .pixel-text-shadow,
   .reduce-motion .pixel-text-shadow-sm,
   .reduce-motion .pixel-text-glow {
     text-shadow: none;
     -webkit-text-stroke: none;
     text-stroke: none;
+    /* 使用下划线或加粗来替代视觉强调 */
     font-weight: 900;
-  }
-  
-  /* 确保内容在正确的层级 */
-  .content-layer {
-    position: relative;
-    z-index: var(--z-default);
-  }
-  
-  /* 固定定位元素 */
-  .fixed-layer {
-    position: fixed;
-    z-index: var(--z-header);
+    text-decoration: underline;
+    text-decoration-color: var(--pixel-gold);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
   }
 }
 
-/* 优化的动画 */
+/* 像素化动画 */
 @keyframes pixel-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-10px); }
 }
 
 @keyframes pixel-pulse {
   0%, 100% { 
-    opacity: 0.5;
+    opacity: 0.3;
     transform: scale(1);
   }
   50% { 
-    opacity: 0.8;
-    transform: scale(1.02);
+    opacity: 0.6;
+    transform: scale(1.05);
   }
 }
 
@@ -345,33 +198,16 @@
   50%, 100% { opacity: 0; }
 }
 
-/* 动画类 */
 .pixel-float {
-  will-change: transform;
   animation: pixel-float 3s ease-in-out infinite;
 }
 
 .pixel-pulse {
-  will-change: opacity, transform;
   animation: pixel-pulse 2s ease-in-out infinite;
 }
 
 .pixel-blink {
-  will-change: opacity;
   animation: pixel-blink 1s step-end infinite;
-}
-
-/* 移动端减少动画 */
-@media (max-width: 768px) {
-  .pixel-float,
-  .pixel-pulse,
-  .pixel-blink {
-    animation: none;
-  }
-  
-  .pixel-float {
-    transition: transform 0.3s ease;
-  }
 }
 
 /* 选择器样式 */
@@ -382,7 +218,7 @@
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 
 ::-webkit-scrollbar-track {
@@ -391,38 +227,110 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--pixel-gold);
-  border: 1px solid var(--pixel-navy);
+  border: 2px solid var(--pixel-navy);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pixel-dark-gold);
 }
 
-/* 移动端滚动条 */
+/* ========== 移动端性能优化（不改变布局） ========== */
 @media (max-width: 768px) {
-  ::-webkit-scrollbar {
-    width: 4px;
+  /* 简化文字阴影效果 */
+  .pixel-text-shadow {
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
+    -webkit-text-stroke: none;
+    text-stroke: none;
   }
   
-  ::-webkit-scrollbar-thumb {
-    border: none;
+  .pixel-text-shadow-sm {
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+    -webkit-text-stroke: none;
+    text-stroke: none;
+  }
+  
+  .pixel-text-glow {
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+    -webkit-text-stroke: none;
+    text-stroke: none;
+  }
+  
+  /* 简化动画 */
+  .pixel-float {
+    animation: pixel-float 4s ease-in-out infinite;
+  }
+  
+  .pixel-pulse {
+    animation: pixel-pulse 3s ease-in-out infinite;
+  }
+  
+  /* 简化像素网格背景 */
+  .pixel-grid {
+    background-image: none;
+  }
+  
+  /* 简化光晕效果 */
+  .gold-glow {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+  }
+  
+  /* 优化触摸反馈 */
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* 防止 iOS 输入框缩放 */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* 简化卡片装饰 */
+  .pixel-card::before,
+  .pixel-card::after {
+    display: none;
+  }
+  
+  /* 优化滚动性能 */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
   }
 }
 
-/* 性能优化：减少动画 */
+/* ========== 低性能设备检测 ========== */
+@media (hover: none) and (pointer: coarse) {
+  /* 触摸设备优化 */
+  .pixel-btn:hover {
+    transform: none;
+  }
+  
+  /* 减少过渡动画 */
+  * {
+    transition-duration: 0.1s !important;
+  }
+}
+
+/* ========== 减少动画偏好 ========== */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-}
-
-/* GPU加速提示类 */
-.gpu-accelerated {
-  transform: translateZ(0);
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+  
+  .pixel-text-shadow,
+  .pixel-text-shadow-sm,
+  .pixel-text-glow {
+    text-shadow: none !important;
+    -webkit-text-stroke: none !important;
+    text-stroke: none !important;
+  }
 }
