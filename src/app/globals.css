@@ -1,19 +1,19 @@
 /* 
- * globals.css - 全局样式文件（移动端性能优化版）
+ * globals.css - 全局样式文件（修复模态框定位问题）
  * 
- * 优化说明：
- * 1. 简化了文本阴影效果，减少GPU渲染压力
- * 2. 移动端使用更简单的视觉效果
- * 3. 添加了性能优化的CSS变量控制
- * 4. 使用 will-change 优化动画性能
- * 5. 减少了重绘和重排
+ * 修复说明：
+ * 1. 保留了之前的移动端性能优化
+ * 2. 修复了模态框定位问题
+ * 3. 确保 z-index 层级正确
+ * 4. 添加了模态框的固定定位样式
  * 
  * 关联文件：
  * - 被所有页面组件使用
  * - 影响整个应用的视觉风格
+ * - 特别影响 PixelModal 组件的显示
  * 
  * 更新历史：
- * - 2024-01: 移动端性能优化，减少阴影和动画复杂度
+ * - 2024-01: 修复模态框定位，保持移动端优化
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -37,12 +37,19 @@
     /* 性能控制变量 */
     --enable-complex-animations: 1;
     --animation-duration-multiplier: 1;
+    
+    /* z-index 层级管理 */
+    --z-modal-backdrop: 9998;
+    --z-modal: 9999;
+    --z-dropdown: 1000;
+    --z-header: 100;
+    --z-default: 1;
   }
   
   /* 移动端性能模式 */
   @media (max-width: 768px) {
     :root {
-      --pixel-size: 2px; /* 减小像素大小 */
+      --pixel-size: 2px;
       --enable-complex-animations: 0;
       --animation-duration-multiplier: 0.5;
     }
@@ -68,6 +75,15 @@
     backface-visibility: hidden;
     /* 优化滚动性能 */
     -webkit-overflow-scrolling: touch;
+    /* 确保body不会被模态框影响 */
+    position: relative;
+  }
+  
+  /* 修复模态框定位 */
+  body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
   }
 }
 
@@ -76,7 +92,6 @@
   .pixel-font {
     font-family: 'Press Start 2P', cursive;
     letter-spacing: 0.05em;
-    /* 避免字体渲染抖动 */
     -webkit-font-feature-settings: "kern" 1;
     font-feature-settings: "kern" 1;
   }
@@ -84,7 +99,6 @@
   /* 像素边框 - 优化版 */
   .pixel-border {
     border: var(--pixel-size) solid var(--pixel-gold);
-    /* 桌面版保留阴影 */
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
@@ -94,7 +108,6 @@
   @media (max-width: 768px) {
     .pixel-border {
       border-width: 2px;
-      /* 简化阴影 */
       box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.2);
     }
   }
@@ -121,18 +134,18 @@
     box-shadow: 
       0 var(--pixel-size) 0 0 var(--pixel-dark-gold),
       0 calc(var(--pixel-size) * 2) 0 0 rgba(0, 0, 0, 0.3);
-    /* 优化触摸响应 */
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    /* 确保按钮在模态框中可点击 */
+    position: relative;
+    z-index: 1;
   }
   
   /* 移动端按钮优化 */
   @media (max-width: 768px) {
     .pixel-btn {
       @apply px-6 py-3 text-base;
-      /* 简化阴影 */
       box-shadow: 0 2px 0 0 var(--pixel-dark-gold);
-      /* 移动端禁用hover效果 */
       transition: none;
     }
     
@@ -142,7 +155,7 @@
     }
   }
   
-  /* 桌面端保留原有hover效果 */
+  /* 桌面端hover效果 */
   @media (min-width: 769px) {
     .pixel-btn:hover {
       transform: translateY(-2px);
@@ -164,7 +177,6 @@
     @apply relative p-6;
     background: rgba(255, 215, 0, 0.05);
     border: var(--pixel-size) solid var(--pixel-dark-gold);
-    /* 简化阴影 */
     box-shadow: var(--pixel-size) var(--pixel-size) 0 0 rgba(0, 0, 0, 0.2);
   }
   
@@ -175,14 +187,12 @@
       box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.1);
     }
     
-    /* 移动端移除装饰性伪元素 */
     .pixel-card::before,
     .pixel-card::after {
       display: none;
     }
   }
   
-  /* 桌面端保留装饰 */
   @media (min-width: 769px) {
     .pixel-card::before,
     .pixel-card::after {
@@ -203,12 +213,48 @@
       right: -var(--pixel-size);
     }
   }
+  
+  /* 模态框样式修复 */
+  .modal-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: var(--z-modal-backdrop) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  
+  .modal-content {
+    position: relative !important;
+    z-index: var(--z-modal) !important;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* 确保模态框内的元素可交互 */
+  .modal-content * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 @layer utilities {
   /* 像素网格背景 - 移动端禁用 */
   .pixel-grid {
     background-image: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 0;
   }
   
   @media (min-width: 769px) {
@@ -230,9 +276,8 @@
     }
   }
   
-  /* 优化后的文字阴影 - 大幅简化 */
+  /* 优化后的文字阴影 */
   .pixel-text-shadow {
-    /* 简单的单层阴影 */
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
   }
   
@@ -244,7 +289,7 @@
     text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
   }
   
-  /* 移动端完全禁用文字效果 */
+  /* 移动端禁用文字效果 */
   @media (max-width: 768px) {
     .pixel-text-shadow,
     .pixel-text-shadow-sm,
@@ -264,22 +309,34 @@
     text-stroke: none;
     font-weight: 900;
   }
+  
+  /* 确保内容在正确的层级 */
+  .content-layer {
+    position: relative;
+    z-index: var(--z-default);
+  }
+  
+  /* 固定定位元素 */
+  .fixed-layer {
+    position: fixed;
+    z-index: var(--z-header);
+  }
 }
 
-/* 优化的动画 - 降低复杂度 */
+/* 优化的动画 */
 @keyframes pixel-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); } /* 从-10px改为-5px */
+  50% { transform: translateY(-5px); }
 }
 
 @keyframes pixel-pulse {
   0%, 100% { 
-    opacity: 0.5; /* 提高最小透明度 */
+    opacity: 0.5;
     transform: scale(1);
   }
   50% { 
     opacity: 0.8;
-    transform: scale(1.02); /* 减小缩放幅度 */
+    transform: scale(1.02);
   }
 }
 
@@ -288,7 +345,7 @@
   50%, 100% { opacity: 0; }
 }
 
-/* 动画类 - 添加will-change优化 */
+/* 动画类 */
 .pixel-float {
   will-change: transform;
   animation: pixel-float 3s ease-in-out infinite;
@@ -312,7 +369,6 @@
     animation: none;
   }
   
-  /* 保留必要的过渡效果 */
   .pixel-float {
     transition: transform 0.3s ease;
   }
@@ -324,9 +380,9 @@
   color: var(--pixel-navy);
 }
 
-/* 滚动条样式 - 简化版 */
+/* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 8px; /* 从12px改为8px */
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -335,14 +391,14 @@
 
 ::-webkit-scrollbar-thumb {
   background: var(--pixel-gold);
-  border: 1px solid var(--pixel-navy); /* 简化边框 */
+  border: 1px solid var(--pixel-navy);
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pixel-dark-gold);
 }
 
-/* 移动端隐藏自定义滚动条 */
+/* 移动端滚动条 */
 @media (max-width: 768px) {
   ::-webkit-scrollbar {
     width: 4px;
@@ -362,7 +418,7 @@
   }
 }
 
-/* 添加GPU加速提示类 */
+/* GPU加速提示类 */
 .gpu-accelerated {
   transform: translateZ(0);
   will-change: transform;
