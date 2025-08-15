@@ -34,7 +34,7 @@ export function useFoodPurchase() {
   }, [])
 
   // 购买粮食（使用 TDB）
-  const buyFood = useCallback(async (quantity: number): Promise<boolean> => {
+  const buyFood = useCallback(async (quantity: number): Promise<any> => {
     if (!status) {
       toast.error('请先等待状态加载')
       return false
@@ -63,8 +63,6 @@ export function useFoodPurchase() {
       const response = await foodApi.buyFood(quantity)
       
       if (response.success && response.data) {
-        toast.success(response.message || `成功购买${quantity}个粮食`)
-        
         // 更新本地状态
         setStatus(prev => prev ? {
           ...prev,
@@ -75,21 +73,18 @@ export function useFoodPurchase() {
           can_buy: response.data!.today_remaining > 0 && response.data!.tdb_balance_after >= prev.unit_price
         } : null)
         
-        // 显示详细信息
-        toast.success(
-          `花费 ${response.data.total_cost.toFixed(2)} TDB，当前粮食：${response.data.food_balance_after}个`,
-          { duration: 4000 }
-        )
-        
         // 如果达到每日限额，提醒
         if (response.data.today_remaining === 0) {
-          toast('今日购买额度已用完，明天0点重置', { 
-            icon: '⏰',
-            duration: 5000 
-          })
+          setTimeout(() => {
+            toast('今日购买额度已用完，明天0点重置', { 
+              icon: '⏰',
+              duration: 5000 
+            })
+          }, 1000)
         }
         
-        return true
+        // 返回购买结果数据
+        return response.data
       } else {
         toast.error(response.message || '购买失败')
         return false
