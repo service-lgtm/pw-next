@@ -1,5 +1,5 @@
 // src/app/assets/page.tsx
-// 资产总览页面 - 基于原型图精确重构
+// 资产总览页面 - 完整版本
 
 'use client'
 
@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { api, ApiError, TokenManager } from '@/lib/api'
 import { useMyLands } from '@/hooks/useLands'
+import { useInventory, formatValue, getResourceIcon } from '@/hooks/useInventory'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ export default function AssetsPage() {
   const router = useRouter()
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { lands, loading: landsLoading } = useMyLands()
+  const { inventory, loading: inventoryLoading } = useInventory({ category: 'all' })
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState<any>(null)
   
@@ -121,7 +123,7 @@ export default function AssetsPage() {
     return null
   }
 
-  if (loading || landsLoading) {
+  if (loading || landsLoading || inventoryLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -159,7 +161,7 @@ export default function AssetsPage() {
               <span className="text-lg ml-2">TDB</span>
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              ≈{(assetSummary.totalValue * 0.01).toFixed(2)} 克黄金
+              ≈¥{(assetSummary.totalValue * 7.3).toFixed(2)} 人民币
             </p>
           </div>
         </PixelCard>
@@ -184,7 +186,7 @@ export default function AssetsPage() {
               {assetSummary.tdbBalance.toLocaleString()} TDB
             </p>
             <p className="text-xs text-gray-400 mb-3">
-              ≈{(assetSummary.tdbBalance * 0.01).toFixed(2)} 克黄金
+              ≈¥{(assetSummary.tdbBalance * 7.3).toFixed(2)} 人民币
             </p>
             <div className="flex gap-2">
               <button 
@@ -217,7 +219,7 @@ export default function AssetsPage() {
               {assetSummary.yldBalance.toLocaleString()} YLD
             </p>
             <p className="text-xs text-gray-400 mb-3">
-              ≈{(assetSummary.yldBalance * 0.01).toFixed(2)} TDB
+              ≈¥{(assetSummary.yldBalance * 2.84 * 7.3).toFixed(2)} 人民币
             </p>
             <div className="flex gap-2">
               <button 
@@ -350,76 +352,106 @@ export default function AssetsPage() {
             </h3>
             <div className="grid md:grid-cols-3 gap-4">
               {/* 铁矿 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">铁矿</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('iron')} 铁矿
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.materials?.iron?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.materials?.iron?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 石材 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">石材</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('stone')} 石材
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.materials?.stone?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.materials?.stone?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 木材 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">木材</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('wood')} 木材
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.materials?.wood?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.materials?.wood?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 种子 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">种子</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('seed')} 种子
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.materials?.seed?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.materials?.seed?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 粮食 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">粮食</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('food')} 粮食
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.materials?.food?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.materials?.food?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
@@ -439,61 +471,103 @@ export default function AssetsPage() {
             </h3>
             <div className="grid md:grid-cols-4 gap-4">
               {/* 镐头 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">镐头</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('pickaxe')} 镐头
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.tools?.pickaxe?.count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">使用中</span>
+                    <span className="text-green-500">
+                      {inventory?.tools?.pickaxe?.working || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.tools?.pickaxe?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 锄头 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">锄头</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('hoe')} 锄头
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.tools?.hoe?.count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">使用中</span>
+                    <span className="text-green-500">
+                      {inventory?.tools?.hoe?.working || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.tools?.hoe?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
               {/* 斧头 */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">斧头</h4>
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('axe')} 斧头
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.tools?.axe?.count || 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">使用中</span>
+                    <span className="text-green-500">
+                      {inventory?.tools?.axe?.working || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.tools?.axe?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
 
-              {/* 砖头？ */}
-              <PixelCard className="p-4 opacity-75">
-                <h4 className="font-bold mb-2">砖头？</h4>
+              {/* 砖头 */}
+              <PixelCard className="p-4">
+                <h4 className="font-bold mb-2 flex items-center gap-2">
+                  {getResourceIcon('brick')} 砖头
+                </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">数量</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="font-bold">
+                      {inventory?.special?.brick?.amount || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-500">待开放</span>
+                    <span className="text-gold-500">
+                      {formatValue(inventory?.special?.brick?.value || 0, 'TDB')}
+                    </span>
                   </div>
                 </div>
               </PixelCard>
@@ -576,15 +650,15 @@ export default function AssetsPage() {
         )}
 
         {/* 空状态 */}
-        {activeTab === 'material' && (
+        {activeTab === 'material' && (!inventory?.materials || Object.keys(inventory.materials).length === 0) && (
           <div className="text-center py-12 text-gray-400">
-            <p>材料功能待开放</p>
+            <p>暂无材料资产</p>
           </div>
         )}
         
-        {activeTab === 'tool' && (
+        {activeTab === 'tool' && (!inventory?.tools || Object.keys(inventory.tools).length === 0) && (
           <div className="text-center py-12 text-gray-400">
-            <p>工具功能待开放</p>
+            <p>暂无工具资产</p>
           </div>
         )}
         
@@ -711,7 +785,7 @@ export default function AssetsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">预估到账：</span>
-                      <span className="font-bold text-lg">{(parseFloat(exchangeAmount) * 6.5 * 0.95).toFixed(2)}元</span>
+                      <span className="font-bold text-lg">{(parseFloat(exchangeAmount) * 7.3 * 0.95).toFixed(2)}元</span>
                     </div>
                   </div>
                 )}
