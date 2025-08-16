@@ -705,61 +705,50 @@ const SessionCardV2 = memo(({
   isMobile?: boolean
 }) => {
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const [currentHourMinutes, setCurrentHourMinutes] = useState(0)
   
-  // 每分钟更新当前小时的挖矿分钟数
+  // 每分钟更新时间
   useEffect(() => {
-    const updateMinutes = () => {
+    const timer = setInterval(() => {
       setCurrentTime(Date.now())
-      setCurrentHourMinutes(calculateCurrentHourMinutes(session))
-    }
+    }, 60000)
     
-    updateMinutes()
-    const interval = setInterval(updateMinutes, 60000) // 每分钟更新
-    
-    return () => clearInterval(interval)
-  }, [session])
+    return () => clearInterval(timer)
+  }, [])
   
-  // 从session中提取数据（根据实际API响应）- 修复：添加所有需要的变量定义
+  // 直接从 API 响应中提取数据 - 修复：使用正确的字段名
   const sessionId = session.session_id || `Session-${session.id}`
-  const sessionPk = session.id || session.session_pk
-  const landInfo = session.land || session.land_info || {}
-  const landName = landInfo.land_id || landInfo.name || '未知土地'
-  const landType = landInfo.land_type_display || landInfo.blueprint?.land_type_display || '未知类型'
-  const startTime = session.started_at || session.start_time
-  const toolCount = session.tool_count || session.tools?.length || 0
-  const foodConsumption = session.food_consumption_rate || (toolCount * FOOD_CONSUMPTION_RATE)
+  const sessionPk = session.session_pk || session.id
+  const landId = session.land_id
+  const landName = session.land_name || '未知土地'
+  const startTime = session.started_at
+  const toolCount = session.tool_count || 0
+  const foodConsumption = session.food_consumption_rate || 0
   const resourceType = session.resource_type || 'yld'
   const algorithmVersion = session.algorithm_version || 'v2'
-  const miningType = session.mining_type || session.metadata?.mining_type || 'SELF_MINING'
-  const taxRate = TAX_RATES[miningType] || 0.05
   
-  // 新算法v2特有字段（根据API文档）
-  const pendingOutput = session.pending_output || session.pending_rewards || 0
-  const settledHours = session.settled_hours || session.hours_settled || 0
-  const lastSettlementHour = session.last_settlement_hour || session.last_settlement || null
+  // 核心数据 - 修复：直接使用 API 返回的字段
+  const pendingOutput = session.pending_output || 0  // 待收取净收益
+  const settledHours = session.settled_hours || 0    // 已结算小时数
+  const totalHoursWorked = session.total_hours_worked || 0  // 总工作小时数
+  const currentHourMinutes = session.current_hour_minutes || 0  // 当前小时分钟数
+  const currentHourStatus = session.current_hour_status || `累积中(${currentHourMinutes}/60)`
+  const lastSettlementHour = session.last_settlement_hour || null
+  const canStop = session.can_stop !== false
   
-  // 计算总工作小时数
-  const totalHoursWorked = (() => {
-    if (!startTime) return 0
-    try {
-      const start = new Date(startTime)
-      const now = new Date()
-      const diff = now.getTime() - start.getTime()
-      return diff / (1000 * 60 * 60)
-    } catch {
-      return 0
+  // 计算下次结算信息
+  const getNextSettlementInfo = () => {
+    const now = new Date()
+    const nextHour = new Date(now)
+    nextHour.setHours(now.getHours() + 1, 0, 0, 0)
+    const minutes = 60 - now.getMinutes()
+    
+    return {
+      time: nextHour.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      minutes: minutes
     }
-  })()
+  }
   
-  // 计算当前小时状态
-  const currentHourStatus = currentHourMinutes >= 60 ? 
-    '✅ 将参与结算' : 
-    `累积中(${currentHourMinutes}/60)`
-  
-  // 预估当前小时产出（如果有速率数据）
-  const hourlyRate = session.current_hourly_rate || session.output_rate || 0
-  const estimatedCurrentHourOutput = (hourlyRate * Math.min(currentHourMinutes, 60) / 60) * (1 - taxRate)
+  const nextSettlement = getNextSettlementInfo()
   
   if (isMobile) {
     return (
@@ -810,6 +799,7 @@ const SessionCardV2 = memo(({
             size="xs"
             variant="secondary"
             onClick={onStop}
+            disabled={!canStop}
             className="text-[11px]"
           >
             结束挖矿
@@ -851,7 +841,7 @@ const SessionCardV2 = memo(({
       </div>
       
       <div className="p-4 space-y-3">
-        {/* 新算法v2 核心信息 */}
+        {/* 新算法v2 核心信息 - 修复：正确显示 pending_output */}
         <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-bold text-purple-400">新算法v2 状态</span>
@@ -877,11 +867,12 @@ const SessionCardV2 = memo(({
             <div>
               <p className="text-xs text-gray-400">当前小时挖矿进度</p>
               <p className="text-sm font-bold text-yellow-400">{currentHourMinutes} / 60 分钟</p>
+              <p className="text-xs text-gray-500 mt-1">{currentHourStatus}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-400">下次结算</p>
-              <p className="text-sm font-bold text-yellow-400">{getNextSettlementInfo().time}</p>
-              <p className="text-xs text-gray-500">{getNextSettlementInfo().minutes}分钟后</p>
+              <p className="text-sm font-bold text-yellow-400">{nextSettlement.time}</p>
+              <p className="text-xs text-gray-500">{nextSettlement.minutes}分钟后</p>
             </div>
           </div>
           {currentHourMinutes < 60 && (
@@ -899,7 +890,7 @@ const SessionCardV2 = memo(({
           )}
         </div>
         
-        {/* 详细信息 */}
+        {/* 详细信息 - 修复：使用正确的字段 */}
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <p className="text-gray-400 text-xs">挖矿时长</p>
@@ -924,11 +915,17 @@ const SessionCardV2 = memo(({
           </div>
         )}
         
-        {/* 重要提示 */}
+        {/* 重要提示 - 根据状态动态显示 */}
         <div className="p-2 bg-red-900/20 border border-red-500/30 rounded">
-          <p className="text-xs text-red-400">
-            ⚠️ 重要：收益在整点结算但不发放，需要停止挖矿才能收取所有待收取收益
-          </p>
+          {pendingOutput > 0 ? (
+            <p className="text-xs text-yellow-400">
+              💰 您有 {formatNumber(pendingOutput, 4)} YLD 待收取，停止挖矿即可获得
+            </p>
+          ) : (
+            <p className="text-xs text-red-400">
+              ⚠️ 重要：收益在整点结算但不发放，需要停止挖矿才能收取所有待收取收益
+            </p>
+          )}
         </div>
         
         {/* 操作按钮 */}
@@ -937,6 +934,7 @@ const SessionCardV2 = memo(({
             size="sm"
             variant="primary"
             onClick={onStop}
+            disabled={!canStop}
             className="w-full"
           >
             <span className="flex items-center justify-center gap-1">
