@@ -863,7 +863,7 @@ export function useMiningSummary(options?: {
     if (enabled && !hasFetchedRef.current && !summary) {
       fetchSummary()
     }
-  }, [enabled])
+  }, [enabled]) // 注意：不要添加 fetchSummary 作为依赖，避免循环
   
   useEffect(() => {
     if (!autoRefresh || !enabled) return
@@ -876,7 +876,7 @@ export function useMiningSummary(options?: {
     }, Math.max(refreshInterval, 60000))
     
     return () => clearInterval(interval)
-  }, [autoRefresh, enabled, refreshInterval, fetchSummary])
+  }, [autoRefresh, enabled, refreshInterval]) // 移除 fetchSummary 依赖，避免循环
   
   return {
     summary,
