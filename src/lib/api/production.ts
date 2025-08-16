@@ -16,6 +16,7 @@
 //
 // 更新历史：
 // - 2024-12: 新增YLD系统监控、挖矿汇总、批量操作等接口
+// - 2024-12: 修复文件结尾问题，添加缺失的闭合括号
 
 import { request } from './index'
 import type {
@@ -439,3 +440,137 @@ export const productionApi = {
           max_purchasable: number
         }
       }>('/production/food/purchase-status/'),
+  },
+
+  // ==================== 土地管理 ====================
+  lands: {
+    // 获取用户土地列表
+    getUserLands: () =>
+      request<{
+        success: boolean
+        data: {
+          count: number
+          results: any[]
+        }
+      }>('/production/lands/user/'),
+
+    // 获取可用土地列表（招募挖矿）
+    getAvailableLands: (params?: {
+      ownership?: 'mine' | 'others' | 'all'
+      land_type?: string
+      has_tools?: boolean
+      page?: number
+      page_size?: number
+    }) =>
+      request<{
+        success: boolean
+        data: {
+          count: number
+          results: any[]
+          total_pages?: number
+          current_page?: number
+          page_size?: number
+        }
+      }>('/production/lands/available/', { params }),
+
+    // 获取土地挖矿详情
+    getLandMiningInfo: (landId: number) =>
+      request<{
+        success: boolean
+        data: any
+      }>(`/production/lands/${landId}/mining-info/`),
+  },
+
+  // ==================== 统计数据 ====================
+  stats: {
+    // 获取生产统计
+    getProductionStats: () =>
+      request<ProductionStatsResponse>('/production/stats/'),
+
+    // 检查粮食状态
+    checkFoodStatus: () =>
+      request<{
+        success: boolean
+        data: {
+          current_food: number
+          consumption_rate: number
+          hours_sustainable: number
+          hours_sustainable_display: string
+          warning: boolean
+          warning_message: string | null
+          active_sessions_count: number
+        }
+      }>('/production/food-status/'),
+  },
+}
+
+// ==================== 辅助函数 ====================
+
+/**
+ * 格式化资源余额（从旧接口响应）
+ * @param resources - 用户资源数组
+ * @returns 格式化后的资源余额对象
+ */
+export function formatResourceBalance(resources: UserResource[]): ResourceBalance {
+  const balance: ResourceBalance = {
+    wood: 0,
+    iron: 0,
+    stone: 0,
+    yld: 0,
+    grain: 0,
+    seed: 0,
+    brick: 0
+  }
+  
+  resources.forEach(resource => {
+    const amount = parseFloat(resource.available_amount || resource.amount || '0')
+    
+    // 处理粮食字段映射（food/grain 兼容性处理）
+    if (resource.resource_type === 'food' || resource.resource_type === 'grain') {
+      balance.grain = amount
+      balance.food = amount  // 同时设置 food 字段保持向后兼容
+    } else if (resource.resource_type in balance) {
+      balance[resource.resource_type as keyof ResourceBalance] = amount
+    }
+  })
+  
+  return balance
+}
+
+/**
+ * 格式化资源统计到余额（从新接口响应）
+ * @param stats - 资源统计数据
+ * @returns 格式化后的资源余额对象
+ */
+export function formatResourceStatsToBalance(stats: any): ResourceBalance {
+  const balance: ResourceBalance = {
+    wood: 0,
+    iron: 0,
+    stone: 0,
+    yld: 0,
+    grain: 0,
+    seed: 0,
+    brick: 0
+  }
+  
+  if (stats?.resources) {
+    Object.entries(stats.resources).forEach(([key, resource]: [string, any]) => {
+      const amount = parseFloat(resource.available ?? resource.amount ?? '0')
+      
+      // 特别处理粮食字段（food/grain 兼容性处理）
+      if (key === 'food' || key === 'grain') {
+        balance.grain = amount
+        balance.food = amount  // 同时设置 food 字段保持向后兼容
+      } else if (key in balance) {
+        balance[key as keyof ResourceBalance] = amount
+      }
+    })
+  }
+  
+  // 如果有钱包数据，添加 YLD
+  if (stats?.wallet?.yld_balance !== undefined) {
+    balance.yld = parseFloat(stats.wallet.yld_balance)
+  }
+  
+  return balance
+}
