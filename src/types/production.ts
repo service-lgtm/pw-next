@@ -1,24 +1,27 @@
-// src/lib/api/production.ts
-// 挖矿生产系统 API - 增强完整版
+// src/types/production.ts
+// 挖矿生产系统类型定义 - 完整生产版本
 //
 // 文件说明：
-// 1. 本文件包含所有挖矿生产相关的 API 接口
-// 2. 新增：YLD状态、挖矿预检查、产出率历史、批量操作等接口
-// 3. 使用 JWT 认证，自动处理 token
-// 4. 修复了资源统计接口，新增 getResourceStats 方法
+// 1. 本文件包含所有挖矿生产相关的类型定义
+// 2. 包括工具、资源、挖矿会话等核心数据结构
+// 3. 与后端 API 返回的数据结构保持一致
+// 4. 处理了字段兼容性问题（如 total_output vs accumulated_output）
 //
 // 关联文件：
-// - src/lib/api/index.ts: 基础请求函数和认证管理
-// - src/types/production.ts: 生产系统类型定义
-// - src/hooks/useProduction.ts: 生产系统 Hook
-// - backend/production/urls.py: 后端路由定义
-// - backend/production/views.py: 后端视图
+// - src/lib/api/production.ts: 生产系统 API 接口调用
+// - src/hooks/useProduction.ts: 生产系统 React Hook
+// - src/app/mining/page.tsx: 挖矿页面主组件
+// - src/app/mining/MiningSessions.tsx: 挖矿会话管理组件
+// - backend/production/models.py: 后端数据模型
+// - backend/production/serializers.py: 后端序列化器
 //
 // 更新历史：
-// - 2024-12: 新增YLD系统监控、挖矿汇总、批量操作等接口
-// - 2024-12: 修复文件结尾问题，添加缺失的闭合括号
+// - 2024-12: 添加字段兼容性处理
+// - 2024-12: 完善错误类型定义
+// - 2024-12: 添加详细注释说明
+// - 2024-12: 移除错误的导入
 
-import { request } from './index'
+// ==================== 工具相关类型 ====================
 import type {
   Tool,
   UserResource,
