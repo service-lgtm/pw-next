@@ -821,9 +821,9 @@ function MiningPage() {
                           resources?.food || 0
                         )}
                       </p>
-                      {grainStatus?.warning && (
+                      {grainStatus?.warning && grainStatus?.hours_remaining != null && (
                         <p className="text-xs text-red-400">
-                          剩{grainStatus.hours_remaining.toFixed(1)}h
+                          剩{typeof grainStatus.hours_remaining === 'number' ? grainStatus.hours_remaining.toFixed(1) : '0'}h
                         </p>
                       )}
                     </PixelCard>
@@ -861,8 +861,8 @@ function MiningPage() {
                         />
                       )}
                       
-                      {/* 新增：YLD 系统状态监控 */}
-                      <YLDSystemStatus 
+                      {/* 新增：YLD 系统状态监控 - 暂时隐藏 */}
+                      {/* <YLDSystemStatus 
                         compact={isMobile}
                         onRefresh={() => {
                           refetchSessions()
@@ -870,7 +870,7 @@ function MiningPage() {
                           refetchMiningSummary()
                           refetchYLDStatus()
                         }}
-                      />
+                      /> */}
                       
                       {/* 挖矿会话管理 */}
                       <MiningSessions
@@ -961,7 +961,8 @@ function MiningPage() {
             {/* 招聘市场 */}
             {activeTab === 'hiring' && (
               <div className="space-y-4">
-                <RecruitmentMiningGuide />
+                {/* 暂时隐藏招募挖矿说明 */}
+                {/* <RecruitmentMiningGuide /> */}
                 
                 <PixelCard className="text-center py-8 sm:py-12">
                   <span className="text-4xl sm:text-6xl block mb-3 sm:mb-4">👷</span>
