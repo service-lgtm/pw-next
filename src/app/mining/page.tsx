@@ -581,7 +581,7 @@ function MiningPage() {
       {hasMiningAccess && <BetaBanner />}
       
       {/* 自动刷新监控系统 */}
-      {hasMiningAccess && (
+      {hasMiningAccess && sessions && sessions.length > 0 && (
         <AutoRefreshSystem
           enabled={true}
           sessions={sessions}
@@ -595,10 +595,11 @@ function MiningPage() {
             refetchResources()
             refetchResourceStats()
           }}
-          onRefreshSummary={refetchMiningSummary}
+          // 不传递 onRefreshSummary，避免循环请求
+          // onRefreshSummary={refetchMiningSummary}
           config={{
-            sessionCheckInterval: 30000,      // 30秒检查会话
-            resourceCheckInterval: 60000,     // 60秒检查资源
+            sessionCheckInterval: 60000,      // 60秒检查会话（增加间隔）
+            resourceCheckInterval: 120000,    // 120秒检查资源（增加间隔）
             grainWarningThreshold: 2,         // 粮食少于2小时警告
             durabilityWarningThreshold: 100,  // 耐久度少于100警告
             enableNotifications: true,        // 启用通知
@@ -606,9 +607,15 @@ function MiningPage() {
           }}
           onGrainLow={(hours) => {
             console.log('[AutoRefresh] 粮食不足:', hours, '小时')
+            // 粮食不足时刷新界面
+            refetchResources()
+            refetchResourceStats()
+            refetchGrainStatus()
           }}
           onToolDamaged={(tool) => {
             console.log('[AutoRefresh] 工具损坏:', tool.tool_id)
+            // 工具损坏时刷新工具列表
+            refetchTools()
           }}
           onSessionComplete={(session) => {
             console.log('[AutoRefresh] 会话可收取:', session.session_id)
