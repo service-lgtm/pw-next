@@ -1,12 +1,9 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 简化重组版
+// 挖矿中心页面 - 简化重组版（删除挖矿汇总）
 // 
-// 优化说明：
-// 1. 拆分了独立组件（矿山市场、招聘市场、合成系统）
-// 2. 合成系统提升为一级导航
-// 3. 简化了页面结构，提高可维护性
-// 4. 修复了 iPad 兼容性问题
-// 5. 更新了按钮文字（去挖矿）
+// 更新说明：
+// 1. 删除了 MiningSummaryCard 组件和相关显示
+// 2. 保留 miningSummary 数据传递给 MiningSessions 组件
 // 
 // 关联组件（同目录下）：
 // - ./BetaPasswordModal: 内测密码验证
@@ -19,9 +16,6 @@
 // - ./HiringMarket: 招聘市场（新拆分）
 // - ./SynthesisSystem: 合成系统（新拆分）
 // - ./YLDSystemStatus: YLD系统状态监控
-//
-// 更新历史：
-// - 2024-12: 重组页面结构，拆分独立组件
 
 'use client'
 
@@ -197,98 +191,6 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningS
 })
 
 MobileResourceBar.displayName = 'MobileResourceBar'
-
-// 挖矿汇总卡片组件
-const MiningSummaryCard = memo(({ summary, compact = false }: any) => {
-  if (!summary) return null
-
-  if (compact) {
-    return (
-      <PixelCard className="p-3 mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-bold">挖矿概况</h4>
-          <span className="text-xs text-gray-400">
-            {summary.active_sessions?.count || 0} 个会话
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="text-center">
-            <p className="text-gray-500">总速率</p>
-            <p className="font-bold text-green-400">
-              {safeFormatYLD(summary.active_sessions?.total_hourly_output || 0, 2)}/h
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500">今日产出</p>
-            <p className="font-bold text-purple-400">
-              {safeFormatYLD(summary.today_production?.total_output || 0, 2)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500">粮食剩余</p>
-            <p className="font-bold text-yellow-400">
-              {safeFormatResource(summary.food_sustainability_hours || 0, 1)}h
-            </p>
-          </div>
-        </div>
-      </PixelCard>
-    )
-  }
-
-  return (
-    <PixelCard className="p-4 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-bold text-lg">挖矿汇总</h3>
-        <div className="text-sm text-gray-400">
-          活跃会话: {summary.active_sessions?.count || 0}
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-gray-800 rounded p-3">
-          <p className="text-xs text-gray-400 mb-1">总产出速率</p>
-          <p className="text-lg font-bold text-green-400">
-            {safeFormatYLD(summary.active_sessions?.total_hourly_output || 0, 2)}/h
-          </p>
-        </div>
-        <div className="bg-gray-800 rounded p-3">
-          <p className="text-xs text-gray-400 mb-1">今日产出</p>
-          <p className="text-lg font-bold text-purple-400">
-            {safeFormatYLD(summary.today_production?.total_output || 0, 2)}
-          </p>
-        </div>
-        <div className="bg-gray-800 rounded p-3">
-          <p className="text-xs text-gray-400 mb-1">粮食可持续</p>
-          <p className="text-lg font-bold text-yellow-400">
-            {safeFormatResource(summary.food_sustainability_hours || 0, 1)} 小时
-          </p>
-        </div>
-        <div className="bg-gray-800 rounded p-3">
-          <p className="text-xs text-gray-400 mb-1">工具状态</p>
-          <p className="text-sm">
-            <span className="text-green-400">{summary.tools?.idle || 0} 闲置</span>
-            <span className="text-gray-400 mx-1">/</span>
-            <span className="text-blue-400">{summary.tools?.in_use || 0} 使用中</span>
-          </p>
-        </div>
-      </div>
-      
-      {summary.yld_status && summary.yld_status.percentage_used > 80 && (
-        <div className="mt-3 p-2 bg-yellow-900/20 border border-yellow-500/30 rounded">
-          <div className="flex items-center gap-2">
-            <span className="text-yellow-400">⚠️</span>
-            <p className="text-xs text-yellow-400">
-              YLD 今日产量已使用 {summary.yld_status.percentage_used.toFixed(1)}%，
-              剩余 {safeFormatYLD(summary.yld_status.remaining, 2)} YLD
-            </p>
-          </div>
-        </div>
-      )}
-    </PixelCard>
-  )
-})
-
-MiningSummaryCard.displayName = 'MiningSummaryCard'
 
 // 主页面组件
 function MiningPage() {
@@ -871,25 +773,6 @@ function MiningPage() {
                 {miningSubTab === 'sessions' && (
                   hasMiningAccess ? (
                     <div className="space-y-4">
-                      {/* 挖矿汇总卡片 */}
-                      {miningSummary && (
-                        <MiningSummaryCard 
-                          summary={miningSummary} 
-                          compact={isMobile}
-                        />
-                      )}
-                      
-                      {/* YLD 系统状态监控 - 暂时隐藏 */}
-                      {/* <YLDSystemStatus 
-                        compact={isMobile}
-                        onRefresh={() => {
-                          refetchSessions()
-                          refetchResourceStats()
-                          refetchMiningSummary()
-                          refetchYLDStatus()
-                        }}
-                      /> */}
-                      
                       {/* 挖矿会话管理 */}
                       <MiningSessions
                         sessions={sessions}
@@ -901,6 +784,12 @@ function MiningPage() {
                         onCollectOutput={handleCollectSessionOutput}
                         startMiningLoading={startMiningLoading}
                         miningSummary={miningSummary}
+                        onRefresh={() => {
+                          refetchSessions()
+                          refetchTools()
+                          refetchResourceStats()
+                          refetchMiningSummary()
+                        }}
                         onBuyFood={() => {
                           toast('购买粮食功能即将开放', { icon: '🌾' })
                         }}
