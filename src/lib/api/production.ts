@@ -59,6 +59,60 @@ export const productionApi = {
         body: data,
       }),
 
+    getCollectPending: (params?: { resource_type?: string }) =>
+      request<{
+        success: boolean
+        data: {
+          total_pending: number
+          sessions: Array<{
+            session_id: string
+            resource_type: string
+            hours_settled: number
+            total_pending: number
+            last_settlement: string
+          }>
+          can_collect: boolean
+          update_time: string
+          message: string
+          summary: {
+            active_sessions: number
+            total_hours_settled: number
+          }
+        }
+      }>(`${API_PREFIX}/collect/pending/`, { params }),
+
+    // 获取小时结算状态  
+    getHourlySettlement: (params?: {
+      hours?: number
+      resource_type?: string
+    }) =>
+      request<{
+        success: boolean
+        data: {
+          resource_type: string
+          snapshots: Array<{
+            hour: string
+            hourly_rate: number
+            total_tools: number
+            metadata: any
+          }>
+          current_hour: {
+            hour: string
+            hourly_rate: number
+            active_sessions: number
+            minutes_passed: number
+            minutes_remaining: number
+          }
+          user_settlements: Array<{
+            hour: string
+            status: string
+            net_output: number
+            tool_weight: number
+          }>
+          query_hours: number
+        }
+      }>(`${API_PREFIX}/settlement/hourly/`, { params }),
+
     // 添加工具到挖矿
     addTools: (data: AddToolToMiningRequest) =>
       request<AddToolResponse>(`${API_PREFIX}/mining/self/add-tools/`, {
