@@ -30,6 +30,7 @@ import { useState, useEffect, useCallback, useMemo, memo, Component, ReactNode, 
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+import { safeFormatYLD, safeFormatResource } from '@/utils/formatters'
 
 // 组件导入 - 从同目录导入
 import { PixelCard } from '@/components/shared/PixelCard'
@@ -142,56 +143,50 @@ class ErrorBoundary extends Component<
   }
 }
 
-// 移动端资源显示组件 - 优化渲染
+// 移动端资源显示组件 - 使用安全格式化函数
 const MobileResourceBar = memo(({ resources, resourceStats, grainStatus }: any) => {
-  const formatResource = useCallback((value: string | number): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    if (isNaN(num)) return '0.00'
-    return num.toFixed(2)
-  }, [])
-  
   return (
     <div className="grid grid-cols-4 gap-1 mb-3 md:hidden">
       <div className="bg-gray-800 rounded p-2 text-center">
         <p className="text-[10px] text-gray-400">木头</p>
         <p className="text-xs font-bold text-green-400">
-          {formatResource(
+          {safeFormatResource(
             resourceStats?.data?.resources?.wood?.available || 
-            resources?.wood || 0
+            resources?.wood
           )}
         </p>
       </div>
       <div className="bg-gray-800 rounded p-2 text-center">
         <p className="text-[10px] text-gray-400">铁矿</p>
         <p className="text-xs font-bold text-gray-400">
-          {formatResource(
+          {safeFormatResource(
             resourceStats?.data?.resources?.iron?.available || 
-            resources?.iron || 0
+            resources?.iron
           )}
         </p>
       </div>
       <div className="bg-gray-800 rounded p-2 text-center">
         <p className="text-[10px] text-gray-400">石头</p>
         <p className="text-xs font-bold text-blue-400">
-          {formatResource(
+          {safeFormatResource(
             resourceStats?.data?.resources?.stone?.available || 
-            resources?.stone || 0
+            resources?.stone
           )}
         </p>
       </div>
       <div className="bg-gray-800 rounded p-2 text-center">
         <p className="text-[10px] text-gray-400">粮食</p>
         <p className="text-xs font-bold text-yellow-400">
-          {formatResource(
+          {safeFormatResource(
             resourceStats?.data?.resources?.food?.available || 
             resourceStats?.data?.resources?.grain?.available || 
             resources?.grain || 
-            resources?.food || 0
+            resources?.food
           )}
         </p>
-        {grainStatus?.warning && (
+        {grainStatus?.warning && grainStatus?.hours_remaining != null && (
           <p className="text-[10px] text-red-400">
-            {grainStatus.hours_remaining.toFixed(0)}h
+            {safeFormatResource(grainStatus.hours_remaining, 0)}h
           </p>
         )}
       </div>
@@ -374,17 +369,13 @@ function MiningPage() {
     }
   }, [hasMiningAccess, pendingMiningTab])
   
-  // ========== 工具函数 - 使用 useCallback 优化 ==========
-  const formatYLD = useCallback((value: string | number): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    if (isNaN(num)) return '0.00'
-    return num.toFixed(4)
+  // ========== 工具函数 - 使用安全格式化函数 ==========
+  const formatYLD = useCallback((value: string | number | null | undefined): string => {
+    return safeFormatYLD(value)
   }, [])
   
-  const formatResource = useCallback((value: string | number): string => {
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    if (isNaN(num)) return '0.00'
-    return num.toFixed(2)
+  const formatResource = useCallback((value: string | number | null | undefined): string => {
+    return safeFormatResource(value)
   }, [])
   
   const handleViewDetail = useCallback((mine: YLDMine) => {
