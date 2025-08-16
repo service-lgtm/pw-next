@@ -274,13 +274,13 @@ export function YLDMineList({
                 
                 {/* 操作按钮 - 优化移动端触摸 */}
                 <div className="mt-3 sm:mt-4 flex gap-2">
-                  {isProducing ? (
+                 {isProducing ? (
                     <button
                       className="flex-1 px-3 py-2 bg-gray-700 text-gray-400 rounded-lg text-xs sm:text-sm font-bold cursor-not-allowed"
                       disabled
                       onClick={(e) => e.stopPropagation()}
                     >
-                      收取产出（待开放）
+                      生产中
                     </button>
                   ) : (
                     <button
@@ -299,7 +299,7 @@ export function YLDMineList({
                       }}
                     >
                       <span>⛏️</span>
-                      <span>开始生产（内测）</span>
+                      <span>去挖矿（内测中）</span>
                     </button>
                   )}
                   <button
