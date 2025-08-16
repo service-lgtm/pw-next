@@ -613,104 +613,101 @@ export function useMiningPreCheck() {
 // ==================== 挖矿汇总（修复循环请求） ====================
 
 export function useMiningSummary(options?: {
- enabled?: boolean
- autoRefresh?: boolean
- refreshInterval?: number
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
 }) {
- const { enabled = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
- 
- const [summary, setSummary] = useState<any>(null)
- const [loading, setLoading] = useState(false)
- const [error, setError] = useState<string | null>(null)
- const fetchingRef = useRef(false)
- const lastFetchRef = useRef<number>(0)
- 
- const fetchSummary = useCallback(async () => {
-   if (!enabled) return
-   
-   // 防止重复请求
-   const now = Date.now()
-   if (fetchingRef.current || (now - lastFetchRef.current < 5000)) {
-     console.log('[useMiningSummary] Skipping request - too frequent')
-     return
-   }
-   
-   fetchingRef.current = true
-   lastFetchRef.current = now
-   setLoading(true)
-   setError(null)
-   
-   try {
-     const response = await productionApi.mining.getSummary()
-     setSummary(response.data)
-   } catch (err: any) {
-     console.error('[useMiningSummary] Error:', err)
-     // 不设置错误，使用默认数据
-     setSummary({
-       active_sessions: {
-         count: 0,
-         sessions: [],
-         total_hourly_output: 0,
-         total_food_consumption: 0
-       },
-       resources: {
-         iron: 0,
-         stone: 0,
-         wood: 0,
-         food: 0,
-         brick: 0,
-         yld: 0
-       },
-       tools: {
-         total: 0,
-         in_use: 0,
-         idle: 0,
-         damaged: 0
-       },
-       food_sustainability_hours: 0,
-       today_production: {
-         total_output: 0,
-         collection_count: 0
-       },
-       yld_status: {
-         daily_limit: 208,
-         remaining: 208,
-         percentage_used: 0,
-         is_exhausted: false
-       }
-     })
-   } finally {
-     setLoading(false)
-     fetchingRef.current = false
-   }
- }, [enabled])
- 
- // 初始加载
- useEffect(() => {
-   if (enabled && !summary) {
-     fetchSummary()
-   }
- }, [enabled]) // 移除 fetchSummary 依赖，避免循环
- 
- // 自动刷新
- useEffect(() => {
-   if (!autoRefresh || !enabled) return
-   
-   const interval = setInterval(() => {
-     if (!fetchingRef.current) {
-       fetchSummary()
-     }
-   }, refreshInterval)
-   
-   return () => clearInterval(interval)
- }, [autoRefresh, enabled, refreshInterval, fetchSummary])
- 
- return {
-   summary,
-   loading,
-   error,
-   refetch: fetchSummary
- }
+  const { enabled = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+  
+  const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fetchingRef = useRef(false)
+  const lastFetchRef = useRef<number>(0)
+  const hasFetchedRef = useRef(false)
+  
+  const fetchSummary = useCallback(async () => {
+    if (!enabled) return
+    
+    // 防止重复请求
+    const now = Date.now()
+    if (fetchingRef.current || (now - lastFetchRef.current < 10000)) {
+      console.log('[useMiningSummary] Skipping request - too frequent')
+      return
+    }
+    
+    fetchingRef.current = true
+    lastFetchRef.current = now
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await productionApi.mining.getSummary()
+      setSummary(response.data)
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useMiningSummary] Error:', err)
+      // 使用默认数据，不报错
+      if (!hasFetchedRef.current) {
+        setSummary({
+          active_sessions: {
+            count: 0,
+            sessions: [],
+            total_hourly_output: 0,
+            total_food_consumption: 0
+          },
+          resources: {
+            iron: 0,
+            stone: 0,
+            wood: 0,
+            food: 0,
+            brick: 0,
+            yld: 0
+          },
+          tools: {
+            total: 0,
+            in_use: 0,
+            idle: 0,
+            damaged: 0
+          },
+          food_sustainability_hours: 0,
+          today_production: {
+            total_output: 0,
+            collection_count: 0
+          },
+          yld_status: {
+            daily_limit: 208,
+            remaining: 208,
+            percentage_used: 0,
+            is_exhausted: false
+          }
+        })
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled])
+  
+  // 初始加载 - 只加载一次
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current && !summary) {
+      const timer = setTimeout(() => {
+        fetchSummary()
+      }, 1000) // 延迟1秒，避免初始化时过多请求
+      return () => clearTimeout(timer)
+    }
+  }, [enabled]) // 不依赖 fetchSummary，避免循环
+  
+  // 手动刷新 - 完全禁用自动刷新
+  // 汇总数据应该只在用户操作时刷新
+  
+  return {
+    summary,
+    loading,
+    error,
+    refetch: fetchSummary
+  }
 }
 
 // ==================== 会话产出率历史 ====================
