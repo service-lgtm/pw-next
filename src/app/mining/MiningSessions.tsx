@@ -1,26 +1,30 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 修复生产版
+// 挖矿会话管理组件 - 根据API文档修正版
 // 
 // 功能说明：
 // 1. 管理用户的挖矿会话（开始、停止、收取）
 // 2. 支持自主挖矿、带工具打工、无工具打工
-// 3. 新增：挖矿预检查、产出率历史、批量操作
+// 3. 根据实际API响应格式显示数据
 // 4. 完善的错误处理和用户提示
 // 5. 移动端和桌面端自适应
 // 
+// API数据字段映射（根据文档）：
+// - session.id: 会话主键
+// - session.session_id: 会话编号
+// - session.total_output: 累计产出
+// - session.output_rate: 产出率
+// - session.started_at: 开始时间
+// - session.metadata.tool_count: 工具数量
+// - session.metadata.food_consumption_rate: 粮食消耗率
+// - session.land.land_id: 土地编号
+// - session.land.blueprint.land_type_display: 土地类型
+//
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用（挖矿主页面）
 // - 使用 @/types/production 中的类型定义
 // - 使用 @/hooks/useProduction 中的 Hook
 // - 调用 @/lib/api/production 中的 API
 // - 使用 @/components/shared 中的 UI 组件
-// - 使用 ./MiningPreCheck 组件（预检查）
-// - 使用 ./SessionRateHistory 组件（产出率历史）
-// - 后端接口：/production/sessions/, /production/mining/self/start/ 等
-//
-// 修复历史：
-// - 2024-12: 修复 isToolAvailable 函数导入问题
-// - 2024-12: 修复类型定义导入错误
 
 'use client'
 
@@ -62,38 +66,91 @@ const MIN_COLLECT_HOURS = 1  // 最少收取小时数
 /**
  * 获取会话总产出
  */
-const getSessionTotalOutput = (session: MiningSession): number => {
-  // 兼容不同字段名
-  const output = session.total_output || 
-                  session.accumulated_output || 
-                  session.cumulative_output || 
-                  0
+const getSessionTotalOutput = (session: any): number => {
+  // 根据API文档，字段名是 total_output
+  const output = session.total_output || '0'
   return typeof output === 'string' ? parseFloat(output) : output
 }
 
 /**
  * 获取会话开始时间
  */
-const getSessionStartTime = (session: MiningSession): string => {
-  return session.start_time || session.started_at || ''
+const getSessionStartTime = (session: any): string => {
+  // 根据API文档，字段名是 started_at
+  return session.started_at || ''
 }
 
 /**
  * 获取会话工具数量
  */
-const getSessionToolCount = (session: MiningSession): number => {
-  if (session.tool_count) return session.tool_count
-  if (session.tools && Array.isArray(session.tools)) return session.tools.length
-  if (session.tool_ids && Array.isArray(session.tool_ids)) return session.tool_ids.length
+const getSessionToolCount = (session: any): number => {
+  // 根据API文档，工具数量在 metadata.tool_count
+  if (session.metadata?.tool_count) return session.metadata.tool_count
+  if (session.metadata?.tool_ids && Array.isArray(session.metadata.tool_ids)) {
+    return session.metadata.tool_ids.length
+  }
   return 0
 }
 
 /**
  * 获取会话粮食消耗
  */
-const getSessionFoodConsumption = (session: MiningSession): number => {
-  const toolCount = getSessionToolCount(session)
-  return toolCount * FOOD_CONSUMPTION_RATE
+const getSessionFoodConsumption = (session: any): number => {
+  // 根据API文档，粮食消耗率在 metadata.food_consumption_rate
+  return session.metadata?.food_consumption_rate || 0
+}
+
+/**
+ * 获取土地信息
+ */
+const getLandInfo = (session: any): any => {
+  // 根据API文档，土地信息在 land 字段
+  return session.land || session.land_info || {}
+}
+
+/**
+ * 获取会话状态
+ */
+const getSessionStatus = (session: any): string => {
+  return session.status || 'active'
+}
+
+/**
+ * 获取会话状态显示
+ */
+const getSessionStatusDisplay = (session: any): string => {
+  return session.status_display || (session.status === 'active' ? '进行中' : '已结束')
+}
+
+/**
+ * 获取资源类型
+ */
+const getResourceType = (session: any): string => {
+  return session.resource_type || 'yld'
+}
+
+/**
+ * 获取产出率
+ */
+const getOutputRate = (session: any): number => {
+  const rate = session.output_rate || '0'
+  return typeof rate === 'string' ? parseFloat(rate) : rate
+}
+
+/**
+ * 获取税率
+ */
+const getTaxRate = (session: any): number => {
+  // 从 metadata 或根级别获取税率
+  const rate = session.metadata?.tax_rate ?? session.tax_rate ?? 0.05
+  return typeof rate === 'string' ? parseFloat(rate) : rate
+}
+
+/**
+ * 获取挖矿类型
+ */
+const getMiningType = (session: any): string => {
+  return session.metadata?.mining_type || 'SELF_MINING'
 }
 
 /**
@@ -300,37 +357,42 @@ const MobileSessionCard = memo(({
   onStop,
   onViewHistory 
 }: { 
-  session: MiningSession
+  session: any
   onCollect: () => void
   onStop: () => void
   onViewHistory: () => void
 }) => {
+  const landInfo = getLandInfo(session)
   const totalOutput = getSessionTotalOutput(session)
   const startTime = getSessionStartTime(session)
   const toolCount = getSessionToolCount(session)
   const foodConsumption = getSessionFoodConsumption(session)
   const collectableHours = calculateCollectableHours(startTime)
-  const canCollect = collectableHours >= MIN_COLLECT_HOURS || (session.current_output && session.current_output > 0)
+  const canCollect = collectableHours >= MIN_COLLECT_HOURS
+  const outputRate = getOutputRate(session)
+  const resourceType = getResourceType(session)
+  const status = getSessionStatus(session)
+  const statusDisplay = getSessionStatusDisplay(session)
   
   return (
     <div className="bg-gray-800 rounded-lg p-3">
       <div className="flex justify-between items-start mb-2">
         <div>
           <p className="font-bold text-sm text-gold-500">
-            {session.land_info?.land_id || `会话#${session.id}`}
+            {landInfo.land_id || `会话#${session.id}`}
           </p>
           <p className="text-[10px] text-gray-400">
-            {session.land_info?.region_name || session.land_info?.region || '未知区域'} 
+            {landInfo.blueprint?.land_type_display || '未知类型'} 
             · {formatDuration(startTime)}
           </p>
         </div>
         <span className={cn(
           "px-1.5 py-0.5 rounded text-[10px]",
-          session.status === 'active' ? "bg-green-500/20 text-green-400" : 
-          session.status === 'paused' ? "bg-yellow-500/20 text-yellow-400" :
+          status === 'active' ? "bg-green-500/20 text-green-400" : 
+          status === 'paused' ? "bg-yellow-500/20 text-yellow-400" :
           "bg-gray-500/20 text-gray-400"
         )}>
-          {session.status_display || '生产中'}
+          {statusDisplay}
         </span>
       </div>
       
@@ -341,7 +403,7 @@ const MobileSessionCard = memo(({
         </div>
         <div>
           <p className="text-gray-500">速率</p>
-          <p className="font-bold text-green-400">{formatNumber(session.output_rate, 1)}/h</p>
+          <p className="font-bold text-green-400">{formatNumber(outputRate, 1)}/h</p>
         </div>
         <div>
           <p className="text-gray-500">工具</p>
@@ -353,7 +415,7 @@ const MobileSessionCard = memo(({
         <div className="flex items-center justify-between p-1.5 bg-gold-500/10 rounded text-[11px] mb-2">
           <span className="text-gold-400">可收取</span>
           <span className="font-bold text-gold-400">
-            {session.current_output ? formatNumber(session.current_output, 2) : `${collectableHours}小时产出`}
+            {`${collectableHours}小时产出`}
           </span>
         </div>
       )}
@@ -399,19 +461,23 @@ const DesktopSessionCard = memo(({
   onStop,
   onViewHistory 
 }: { 
-  session: MiningSession
+  session: any
   onCollect: () => void
   onStop: () => void
   onViewHistory: () => void
 }) => {
+  const landInfo = getLandInfo(session)
   const totalOutput = getSessionTotalOutput(session)
   const startTime = getSessionStartTime(session)
   const toolCount = getSessionToolCount(session)
   const foodConsumption = getSessionFoodConsumption(session)
   const collectableHours = calculateCollectableHours(startTime)
-  const canCollect = collectableHours >= MIN_COLLECT_HOURS || (session.current_output && session.current_output > 0)
-  
-  const taxRate = session.metadata?.tax_rate ?? session.tax_rate ?? 0.05
+  const canCollect = collectableHours >= MIN_COLLECT_HOURS
+  const outputRate = getOutputRate(session)
+  const resourceType = getResourceType(session)
+  const status = getSessionStatus(session)
+  const statusDisplay = getSessionStatusDisplay(session)
+  const taxRate = getTaxRate(session)
   const miningDuration = formatDuration(startTime)
   
   return (
@@ -420,20 +486,20 @@ const DesktopSessionCard = memo(({
         <div className="flex justify-between items-start">
           <div>
             <h4 className="font-bold text-gold-500">
-              {session.land_info?.land_id || `会话 #${session.id}`}
+              {landInfo.land_id || `会话 #${session.id}`}
             </h4>
             <p className="text-xs text-gray-400 mt-1">
-              {session.land_info?.land_type_display || session.land_info?.land_type || '未知类型'} 
-              · {session.land_info?.region_name || session.land_info?.region || '未知区域'}
+              {landInfo.blueprint?.land_type_display || '未知类型'} 
+              · {landInfo.region_name || '未知区域'}
             </p>
           </div>
           <span className={cn(
             "px-2 py-1 rounded text-xs",
-            session.status === 'active' ? "bg-green-500/20 text-green-400" :
-            session.status === 'paused' ? "bg-yellow-500/20 text-yellow-400" :
+            status === 'active' ? "bg-green-500/20 text-green-400" :
+            status === 'paused' ? "bg-yellow-500/20 text-yellow-400" :
             "bg-gray-500/20 text-gray-400"
           )}>
-            {session.status_display || (session.status === 'active' ? '生产中' : '已结束')}
+            {statusDisplay}
           </span>
         </div>
       </div>
@@ -444,11 +510,11 @@ const DesktopSessionCard = memo(({
           <div className="bg-purple-900/20 rounded p-2">
             <p className="text-gray-400 text-xs">累计产出</p>
             <p className="font-bold text-purple-400 text-lg">{formatNumber(totalOutput)}</p>
-            <p className="text-xs text-gray-500">{session.resource_type || 'YLD'}</p>
+            <p className="text-xs text-gray-500">{resourceType.toUpperCase()}</p>
           </div>
           <div className="bg-green-900/20 rounded p-2">
             <p className="text-gray-400 text-xs">产出速率</p>
-            <p className="font-bold text-green-400 text-lg">{formatNumber(session.output_rate, 2)}</p>
+            <p className="font-bold text-green-400 text-lg">{formatNumber(outputRate, 2)}</p>
             <p className="text-xs text-gray-500">每小时</p>
           </div>
         </div>
@@ -466,7 +532,7 @@ const DesktopSessionCard = memo(({
           <div>
             <p className="text-gray-400 text-xs">税率</p>
             <p className="font-bold text-red-400">
-              {typeof taxRate === 'number' ? (taxRate * 100).toFixed(0) : parseFloat(taxRate) * 100}%
+              {(taxRate * 100).toFixed(0)}%
             </p>
           </div>
         </div>
@@ -484,9 +550,7 @@ const DesktopSessionCard = memo(({
           <div className="flex items-center justify-between p-2 bg-gold-500/10 rounded">
             <span className="text-xs text-gold-400">💰 可收取</span>
             <span className="text-sm font-bold text-gold-400">
-              {session.current_output ? 
-                `${formatNumber(session.current_output)} ${session.resource_type || 'YLD'}` : 
-                `${collectableHours} 小时产出`}
+              {`${collectableHours} 小时产出`}
             </span>
           </div>
         )}
@@ -601,10 +665,7 @@ export function MiningSessions({
     if (!sessions) return { totalOutput: 0, totalHourlyOutput: 0 }
     
     const total = sessions.reduce((sum, session) => sum + getSessionTotalOutput(session), 0)
-    const hourly = sessions.reduce((sum, session) => {
-      const rate = parseFloat(session.output_rate || '0')
-      return sum + rate
-    }, 0)
+    const hourly = sessions.reduce((sum, session) => sum + getOutputRate(session), 0)
     
     return { totalOutput: total, totalHourlyOutput: hourly }
   }, [sessions])
@@ -1025,8 +1086,8 @@ export function MiningSessions({
             sessionId={selectedSessionId}
             sessionInfo={sessions?.find(s => s.id === selectedSessionId) ? {
               session_id: sessions.find(s => s.id === selectedSessionId)!.session_id,
-              resource_type: sessions.find(s => s.id === selectedSessionId)!.resource_type,
-              land_id: sessions.find(s => s.id === selectedSessionId)!.land_info?.land_id
+              resource_type: getResourceType(sessions.find(s => s.id === selectedSessionId)!),
+              land_id: getLandInfo(sessions.find(s => s.id === selectedSessionId)!).land_id
             } : undefined}
             onClose={() => {
               setShowRateHistory(false)
@@ -1037,7 +1098,7 @@ export function MiningSessions({
         </PixelModal>
       )}
       
-      {/* 开始挖矿模态框 - 保留原有功能 */}
+      {/* 开始挖矿模态框 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -1358,14 +1419,16 @@ export function MiningSessions({
                   const startTime = getSessionStartTime(session)
                   const duration = formatDuration(startTime)
                   const totalOutput = getSessionTotalOutput(session)
+                  const resourceType = getResourceType(session)
+                  const landInfo = getLandInfo(session)
                   
                   return (
                     <div className="bg-gray-800 rounded p-3 text-xs">
                       <p className="text-gray-400 mb-2">会话信息：</p>
                       <div className="space-y-1">
-                        <p>土地：{session.land_info?.land_id || '未知'}</p>
+                        <p>土地：{landInfo.land_id || '未知'}</p>
                         <p>运行时长：{duration}</p>
-                        <p>累计产出：{formatNumber(totalOutput, 2)} {session.resource_type || 'YLD'}</p>
+                        <p>累计产出：{formatNumber(totalOutput, 2)} {resourceType.toUpperCase()}</p>
                       </div>
                     </div>
                   )
