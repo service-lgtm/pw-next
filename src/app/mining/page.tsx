@@ -36,6 +36,7 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
+import { BetaNotice, BetaBanner } from './BetaNotice'
 import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
@@ -491,6 +492,9 @@ function MiningPage() {
   
   return (
     <div className="min-h-screen bg-gray-900">
+      {/* 内测横幅提醒 */}
+      {hasMiningAccess && <BetaBanner />}
+      
       {/* 顶部状态栏 - 优化移动端显示 */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-3 py-2 md:px-4 md:py-3">
@@ -876,6 +880,9 @@ function MiningPage() {
           refetchResourceStats()
         }}
       />
+      
+      {/* 内测提示弹窗 - 只在有权限时显示 */}
+      {hasMiningAccess && <BetaNotice compact={isMobile} />}
       
       {/* 矿山详情模态框 - 优化移动端 */}
       <PixelModal
