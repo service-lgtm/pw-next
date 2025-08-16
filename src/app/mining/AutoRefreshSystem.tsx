@@ -200,7 +200,7 @@ export function AutoRefreshSystem({
     }
   }, [yldStatus, enableNotifications, onYLDExhausted])
   
-  // 设置定时刷新
+  // 设置定时刷新 - 修复版，防止循环请求
   useEffect(() => {
     if (!enabled) {
       // 清理所有定时器
@@ -211,32 +211,42 @@ export function AutoRefreshSystem({
       return
     }
     
-    // 会话刷新
-    if (onRefreshSessions) {
-      refreshTimersRef.current.sessions = setInterval(() => {
-        console.log('[AutoRefresh] Refreshing sessions')
-        onRefreshSessions()
-      }, sessionCheckInterval)
+    // 只在有活跃会话时才启动自动刷新
+    const hasActiveSessions = sessions && sessions.length > 0
+    
+    if (hasActiveSessions) {
+      // 会话刷新 - 只在有会话时刷新
+      if (onRefreshSessions && !refreshTimersRef.current.sessions) {
+        console.log('[AutoRefresh] Starting session refresh timer')
+        refreshTimersRef.current.sessions = setInterval(() => {
+          console.log('[AutoRefresh] Refreshing sessions')
+          onRefreshSessions()
+        }, sessionCheckInterval)
+      }
+      
+      // 资源刷新 - 降低频率
+      if (onRefreshResources && !refreshTimersRef.current.resources) {
+        console.log('[AutoRefresh] Starting resource refresh timer')
+        refreshTimersRef.current.resources = setInterval(() => {
+          console.log('[AutoRefresh] Refreshing resources')
+          onRefreshResources()
+        }, resourceCheckInterval * 2) // 降低频率
+      }
+    } else {
+      // 没有活跃会话时，停止自动刷新
+      console.log('[AutoRefresh] No active sessions, stopping timers')
+      Object.values(refreshTimersRef.current).forEach(timer => {
+        if (timer) clearInterval(timer)
+      })
+      refreshTimersRef.current = {}
     }
     
-    // 资源刷新
-    if (onRefreshResources) {
-      refreshTimersRef.current.resources = setInterval(() => {
-        console.log('[AutoRefresh] Refreshing resources')
-        onRefreshResources()
-      }, resourceCheckInterval)
-    }
-    
-    // 汇总刷新（间隔更长，避免频繁请求）
-    if (onRefreshSummary) {
-      refreshTimersRef.current.summary = setInterval(() => {
-        console.log('[AutoRefresh] Refreshing summary')
-        onRefreshSummary()
-      }, Math.max(sessionCheckInterval * 2, 60000)) // 至少60秒
-    }
+    // 汇总刷新 - 完全禁用，避免循环请求
+    // 汇总数据应该只在用户操作时刷新，不自动刷新
     
     // 清理函数
     return () => {
+      console.log('[AutoRefresh] Cleaning up timers')
       Object.values(refreshTimersRef.current).forEach(timer => {
         if (timer) clearInterval(timer)
       })
@@ -244,11 +254,12 @@ export function AutoRefreshSystem({
     }
   }, [
     enabled,
+    sessions, // 添加 sessions 依赖
     sessionCheckInterval,
     resourceCheckInterval,
     onRefreshSessions,
-    onRefreshResources,
-    onRefreshSummary
+    onRefreshResources
+    // 移除 onRefreshSummary，不自动刷新汇总
   ])
   
   // 监控状态变化
