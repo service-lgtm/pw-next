@@ -257,7 +257,7 @@ export function BetaNotice({ className, compact = false }: BetaNoticeProps) {
             <PixelButton
               size="sm"
               variant="secondary"
-              onClick={() => window.open('https://www.pxsj.net.cn/help', '_blank')}
+              onClick={() => window.open('https://www.pxsj.net.cn/', '_blank')}
               className="flex-1"
             >
               <span className="flex items-center justify-center gap-1">
