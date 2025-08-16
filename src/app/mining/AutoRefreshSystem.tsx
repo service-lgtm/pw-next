@@ -1,65 +1,57 @@
 // src/app/mining/AutoRefreshSystem.tsx
-// 自动刷新监控系统 - 生产级版本
+// 自动刷新监控系统 - 修复版
 // 
 // 功能说明：
-// 1. 监控粮食消耗状态
-// 2. 检查工具耐久度
-// 3. 检测会话完成状态
-// 4. 自动刷新数据
-// 5. 发送通知提醒
+// 1. 监控挖矿系统状态并自动刷新
+// 2. 修复循环请求问题
+// 3. 提供粮食预警、工具损坏提醒等功能
+// 4. 智能刷新策略，避免频繁请求
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/hooks/useProduction 中的各种 Hook
-// - 使用 react-hot-toast 进行通知
+// - 使用 @/types/production 中的类型定义
 // 
-// 创建时间：2024-12
-// 更新历史：
-// - 2024-12: 创建自动刷新监控系统
+// 修复历史：
+// - 2024-12: 修复循环请求问题
+// - 2024-12: 添加请求节流和去重
 
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
 import toast from 'react-hot-toast'
-import { safeFormatResource, safeFormatYLD } from '@/utils/formatters'
+import type { MiningSession, Tool } from '@/types/production'
 
 interface AutoRefreshSystemProps {
-  // 数据和状态
-  enabled?: boolean
-  sessions?: any[]
-  tools?: any[]
-  grainStatus?: any
-  miningSummary?: any
-  yldStatus?: any
-  
-  // 刷新函数
+  enabled: boolean
+  sessions: MiningSession[] | null
+  tools: Tool[] | null
+  grainStatus: any
+  miningSummary: any
+  yldStatus: any
   onRefreshSessions?: () => void
   onRefreshTools?: () => void
   onRefreshResources?: () => void
   onRefreshSummary?: () => void
-  
-  // 配置
   config?: {
-    sessionCheckInterval?: number      // 会话检查间隔（默认30秒）
-    resourceCheckInterval?: number     // 资源检查间隔（默认60秒）
-    grainWarningThreshold?: number    // 粮食警告阈值（默认2小时）
-    durabilityWarningThreshold?: number // 耐久度警告阈值（默认100）
-    enableNotifications?: boolean      // 是否启用通知（默认true）
-    enableAutoCollect?: boolean       // 是否自动收取（默认false）
+    sessionCheckInterval?: number
+    resourceCheckInterval?: number
+    grainWarningThreshold?: number
+    durabilityWarningThreshold?: number
+    enableNotifications?: boolean
+    enableAutoCollect?: boolean
   }
-  
-  // 回调
   onGrainLow?: (hours: number) => void
-  onToolDamaged?: (tool: any) => void
-  onSessionComplete?: (session: any) => void
+  onToolDamaged?: (tool: Tool) => void
+  onSessionComplete?: (session: MiningSession) => void
   onYLDExhausted?: () => void
 }
 
 /**
- * 自动刷新监控系统
+ * 自动刷新监控系统组件
  */
 export function AutoRefreshSystem({
-  enabled = true,
+  enabled,
   sessions,
   tools,
   grainStatus,
@@ -75,73 +67,43 @@ export function AutoRefreshSystem({
   onSessionComplete,
   onYLDExhausted
 }: AutoRefreshSystemProps) {
-  // 配置参数
   const {
-    sessionCheckInterval = 30000,     // 30秒
-    resourceCheckInterval = 60000,    // 60秒
-    grainWarningThreshold = 2,        // 2小时
-    durabilityWarningThreshold = 100, // 100耐久度
-    enableNotifications = true,
-    enableAutoCollect = false
+    sessionCheckInterval = 30000,      // 30秒检查会话
+    resourceCheckInterval = 60000,     // 60秒检查资源
+    grainWarningThreshold = 2,         // 粮食少于2小时警告
+    durabilityWarningThreshold = 100,  // 耐久度少于100警告
+    enableNotifications = true,        // 启用通知
+    enableAutoCollect = false          // 自动收取
   } = config
   
-  // 记录上次通知时间，避免重复通知
-  const lastNotifications = useRef<{
-    grainWarning?: number
-    yldWarning?: number
-    toolWarnings: Set<number>
-    sessionCompletes: Set<number>
-  }>({
-    toolWarnings: new Set(),
-    sessionCompletes: new Set()
-  })
-  
-  // 定时器引用
-  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const resourceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // 记录上次检查时间，避免重复通知
+  const lastGrainWarningRef = useRef<number>(0)
+  const lastToolWarningRef = useRef<Set<string>>(new Set())
+  const lastSessionCompleteRef = useRef<Set<string>>(new Set())
+  const lastYLDWarningRef = useRef<number>(0)
+  const refreshTimersRef = useRef<{
+    sessions?: NodeJS.Timeout
+    resources?: NodeJS.Timeout
+    summary?: NodeJS.Timeout
+  }>({})
   
   // 检查粮食状态
   const checkGrainStatus = useCallback(() => {
     if (!grainStatus || !enableNotifications) return
     
-    const hoursRemaining = grainStatus.hours_remaining || grainStatus.hours_sustainable || 0
+    const hoursRemaining = grainStatus.hours_sustainable || grainStatus.hours_remaining || 0
     
-    // 粮食不足警告
-    if (hoursRemaining < grainWarningThreshold) {
+    if (hoursRemaining < grainWarningThreshold && hoursRemaining > 0) {
       const now = Date.now()
-      const lastWarning = lastNotifications.current.grainWarning || 0
-      
-      // 每5分钟最多通知一次
-      if (now - lastWarning > 5 * 60 * 1000) {
-        lastNotifications.current.grainWarning = now
+      // 每5分钟最多提醒一次
+      if (now - lastGrainWarningRef.current > 300000) {
+        lastGrainWarningRef.current = now
         
-        if (hoursRemaining <= 0) {
-          toast.error('⚠️ 粮食已耗尽！挖矿即将停止', {
-            duration: 5000,
-            position: 'top-center',
-            style: {
-              background: '#dc2626',
-              color: '#fff',
-              fontWeight: 'bold'
-            }
-          })
-        } else if (hoursRemaining < 1) {
-          toast.error(`🌾 粮食即将耗尽！仅剩 ${safeFormatResource(hoursRemaining * 60, 0)} 分钟`, {
-            duration: 5000,
-            position: 'top-center',
-            style: {
-              background: '#f59e0b',
-              color: '#fff'
-            }
-          })
-        } else {
-          toast.warning(`🌾 粮食储备不足，仅可维持 ${safeFormatResource(hoursRemaining, 1)} 小时`, {
-            duration: 4000,
-            position: 'top-center'
-          })
-        }
+        toast.error(`⚠️ 粮食即将耗尽！剩余 ${hoursRemaining.toFixed(1)} 小时`, {
+          duration: 5000,
+          position: 'top-center'
+        })
         
-        // 触发回调
         if (onGrainLow) {
           onGrainLow(hoursRemaining)
         }
@@ -150,234 +112,166 @@ export function AutoRefreshSystem({
   }, [grainStatus, grainWarningThreshold, enableNotifications, onGrainLow])
   
   // 检查工具状态
-  const checkToolStatus = useCallback(() => {
-    if (!tools || !Array.isArray(tools) || !enableNotifications) return
+  const checkToolsStatus = useCallback(() => {
+    if (!tools || !enableNotifications) return
     
     tools.forEach(tool => {
-      const durability = tool.current_durability ?? tool.durability ?? 0
-      
-      // 检查耐久度低的工具
-      if (durability < durabilityWarningThreshold && durability > 0) {
-        if (!lastNotifications.current.toolWarnings.has(tool.id)) {
-          lastNotifications.current.toolWarnings.add(tool.id)
+      if (tool.current_durability < durabilityWarningThreshold) {
+        if (!lastToolWarningRef.current.has(tool.tool_id)) {
+          lastToolWarningRef.current.add(tool.tool_id)
           
-          toast.warning(`🔧 工具 ${tool.tool_id} 耐久度低（${durability}/${tool.max_durability || 1500}）`, {
+          toast.error(`🔧 工具 ${tool.tool_id} 耐久度低！剩余 ${tool.current_durability}`, {
             duration: 4000,
-            position: 'top-right'
+            position: 'top-center'
           })
           
-          // 触发回调
           if (onToolDamaged) {
             onToolDamaged(tool)
           }
         }
-      } else if (durability >= durabilityWarningThreshold) {
-        // 如果耐久度恢复，移除警告记录
-        lastNotifications.current.toolWarnings.delete(tool.id)
-      }
-      
-      // 检查损坏的工具
-      if (tool.status === 'damaged' && !lastNotifications.current.toolWarnings.has(-tool.id)) {
-        lastNotifications.current.toolWarnings.add(-tool.id)
-        
-        toast.error(`❌ 工具 ${tool.tool_id} 已损坏，需要维修`, {
-          duration: 5000,
-          position: 'top-right',
-          style: {
-            background: '#dc2626',
-            color: '#fff'
-          }
-        })
+      } else {
+        // 如果工具修复了，从警告列表中移除
+        lastToolWarningRef.current.delete(tool.tool_id)
       }
     })
   }, [tools, durabilityWarningThreshold, enableNotifications, onToolDamaged])
   
   // 检查会话状态
-  const checkSessionStatus = useCallback(() => {
-    if (!sessions || !Array.isArray(sessions)) return
+  const checkSessionsStatus = useCallback(() => {
+    if (!sessions || !enableNotifications) return
     
     sessions.forEach(session => {
-      // 计算可收取的小时数
-      const startTime = session.started_at || session.start_time
-      if (!startTime) return
-      
-      try {
-        const start = new Date(startTime)
-        const now = new Date()
-        const hoursWorked = (now.getTime() - start.getTime()) / (1000 * 60 * 60)
-        const collectableHours = Math.floor(hoursWorked)
-        
-        // 检查是否有可收取的产出
-        if (collectableHours >= 1 && !lastNotifications.current.sessionCompletes.has(session.id)) {
-          lastNotifications.current.sessionCompletes.add(session.id)
+      // 检查是否有可收取的产出
+      if (session.current_output && session.current_output > 0) {
+        if (!lastSessionCompleteRef.current.has(session.session_id)) {
+          lastSessionCompleteRef.current.add(session.session_id)
           
-          if (enableNotifications) {
-            const outputAmount = collectableHours * parseFloat(session.output_rate || '0')
-            toast.success(`💰 会话 ${session.session_id} 有 ${safeFormatYLD(outputAmount, 2)} 可收取`, {
-              duration: 5000,
-              position: 'top-center',
-              action: {
-                label: '收取',
-                onClick: () => {
-                  // 这里可以添加收取逻辑
-                  console.log('收取产出:', session.id)
-                }
-              }
-            })
-          }
+          toast.success(`💰 会话 ${session.session_id} 有产出可收取！`, {
+            duration: 4000,
+            position: 'top-center'
+          })
           
-          // 触发回调
           if (onSessionComplete) {
             onSessionComplete(session)
           }
+          
+          // 如果启用自动收取
+          if (enableAutoCollect) {
+            // 这里可以触发自动收取逻辑
+            console.log('[AutoRefresh] 自动收取功能暂未实现')
+          }
         }
-      } catch (error) {
-        console.error('[AutoRefresh] 检查会话状态失败:', error)
+      } else {
+        lastSessionCompleteRef.current.delete(session.session_id)
       }
     })
-  }, [sessions, enableNotifications, onSessionComplete])
+  }, [sessions, enableNotifications, enableAutoCollect, onSessionComplete])
   
   // 检查YLD状态
   const checkYLDStatus = useCallback(() => {
     if (!yldStatus || !enableNotifications) return
     
-    // YLD即将耗尽警告
-    if (yldStatus.percentage_used >= 90) {
+    if (yldStatus.is_exhausted) {
       const now = Date.now()
-      const lastWarning = lastNotifications.current.yldWarning || 0
-      
-      // 每10分钟最多通知一次
-      if (now - lastWarning > 10 * 60 * 1000) {
-        lastNotifications.current.yldWarning = now
+      // 每10分钟最多提醒一次
+      if (now - lastYLDWarningRef.current > 600000) {
+        lastYLDWarningRef.current = now
         
-        if (yldStatus.is_exhausted) {
-          toast.error('🛑 YLD今日产量已耗尽，所有YLD挖矿会话已停止', {
-            duration: 6000,
-            position: 'top-center',
-            style: {
-              background: '#dc2626',
-              color: '#fff',
-              fontWeight: 'bold'
-            }
-          })
-          
-          // 触发回调
-          if (onYLDExhausted) {
-            onYLDExhausted()
-          }
-        } else if (yldStatus.percentage_used >= 95) {
-          toast.error(`⚠️ YLD产量即将耗尽！仅剩 ${safeFormatYLD(yldStatus.remaining, 2)} YLD`, {
-            duration: 5000,
-            position: 'top-center',
-            style: {
-              background: '#f59e0b',
-              color: '#fff'
-            }
-          })
-        } else {
-          toast.warning(`💎 YLD产量已使用 ${yldStatus.percentage_used.toFixed(1)}%`, {
-            duration: 4000,
-            position: 'top-center'
-          })
+        toast.error('🛑 今日YLD产量已耗尽！', {
+          duration: 5000,
+          position: 'top-center'
+        })
+        
+        if (onYLDExhausted) {
+          onYLDExhausted()
         }
+      }
+    } else if (yldStatus.percentage_used > 90) {
+      const now = Date.now()
+      // 每5分钟最多提醒一次
+      if (now - lastYLDWarningRef.current > 300000) {
+        lastYLDWarningRef.current = now
+        
+        toast.warning(`⚠️ YLD产量即将耗尽！已使用 ${yldStatus.percentage_used.toFixed(1)}%`, {
+          duration: 4000,
+          position: 'top-center'
+        })
       }
     }
   }, [yldStatus, enableNotifications, onYLDExhausted])
   
-  // 执行所有检查
-  const performAllChecks = useCallback(() => {
-    console.log('[AutoRefresh] 执行状态检查...')
-    
-    // 检查各项状态
-    checkGrainStatus()
-    checkToolStatus()
-    checkSessionStatus()
-    checkYLDStatus()
-    
-    // 触发数据刷新
-    if (onRefreshSummary) {
-      onRefreshSummary()
-    }
-  }, [checkGrainStatus, checkToolStatus, checkSessionStatus, checkYLDStatus, onRefreshSummary])
-  
-  // 设置定时器
+  // 设置定时刷新
   useEffect(() => {
     if (!enabled) {
-      // 清理定时器
-      if (sessionTimerRef.current) {
-        clearInterval(sessionTimerRef.current)
-        sessionTimerRef.current = null
-      }
-      if (resourceTimerRef.current) {
-        clearInterval(resourceTimerRef.current)
-        resourceTimerRef.current = null
-      }
+      // 清理所有定时器
+      Object.values(refreshTimersRef.current).forEach(timer => {
+        if (timer) clearInterval(timer)
+      })
+      refreshTimersRef.current = {}
       return
     }
     
-    // 立即执行一次检查
-    performAllChecks()
-    
-    // 设置会话检查定时器
-    sessionTimerRef.current = setInterval(() => {
-      checkSessionStatus()
-      if (onRefreshSessions) {
+    // 会话刷新
+    if (onRefreshSessions) {
+      refreshTimersRef.current.sessions = setInterval(() => {
+        console.log('[AutoRefresh] Refreshing sessions')
         onRefreshSessions()
-      }
-    }, sessionCheckInterval)
+      }, sessionCheckInterval)
+    }
     
-    // 设置资源检查定时器
-    resourceTimerRef.current = setInterval(() => {
-      checkGrainStatus()
-      checkToolStatus()
-      checkYLDStatus()
-      if (onRefreshResources) {
+    // 资源刷新
+    if (onRefreshResources) {
+      refreshTimersRef.current.resources = setInterval(() => {
+        console.log('[AutoRefresh] Refreshing resources')
         onRefreshResources()
-      }
-    }, resourceCheckInterval)
+      }, resourceCheckInterval)
+    }
+    
+    // 汇总刷新（间隔更长，避免频繁请求）
+    if (onRefreshSummary) {
+      refreshTimersRef.current.summary = setInterval(() => {
+        console.log('[AutoRefresh] Refreshing summary')
+        onRefreshSummary()
+      }, Math.max(sessionCheckInterval * 2, 60000)) // 至少60秒
+    }
     
     // 清理函数
     return () => {
-      if (sessionTimerRef.current) {
-        clearInterval(sessionTimerRef.current)
-      }
-      if (resourceTimerRef.current) {
-        clearInterval(resourceTimerRef.current)
-      }
+      Object.values(refreshTimersRef.current).forEach(timer => {
+        if (timer) clearInterval(timer)
+      })
+      refreshTimersRef.current = {}
     }
   }, [
     enabled,
     sessionCheckInterval,
     resourceCheckInterval,
-    checkSessionStatus,
-    checkGrainStatus,
-    checkToolStatus,
-    checkYLDStatus,
     onRefreshSessions,
     onRefreshResources,
-    performAllChecks
+    onRefreshSummary
   ])
   
-  // 监听页面可见性变化
+  // 监控状态变化
   useEffect(() => {
     if (!enabled) return
     
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // 页面变为可见时，立即执行一次检查
-        console.log('[AutoRefresh] 页面变为可见，执行检查')
-        performAllChecks()
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [enabled, performAllChecks])
+    checkGrainStatus()
+    checkToolsStatus()
+    checkSessionsStatus()
+    checkYLDStatus()
+  }, [
+    enabled,
+    grainStatus,
+    tools,
+    sessions,
+    yldStatus,
+    checkGrainStatus,
+    checkToolsStatus,
+    checkSessionsStatus,
+    checkYLDStatus
+  ])
   
-  // 不渲染任何UI，只执行监控逻辑
+  // 组件不渲染任何内容
   return null
 }
 
