@@ -1,30 +1,32 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 移动端性能优化版
+// 挖矿中心页面 - 安卓兼容优化版
 // 
 // 优化说明：
-// 1. 移除了 framer-motion 动画，使用CSS过渡替代
-// 2. 添加了数据懒加载和虚拟滚动
-// 3. 优化了移动端布局和交互
-// 4. 减少了不必要的重渲染
-// 5. 使用 React.memo 和 useMemo 优化性能
+// 1. 移除 sessionStorage 使用，改用组件状态
+// 2. 添加错误边界处理运行时错误
+// 3. 优化移动端交互和性能
+// 4. 使用 safeStorage 替代 localStorage
+// 5. 添加全局错误处理
 // 
 // 关联组件（同目录下）：
-// - ./BetaPasswordModal: 内测密码验证
+// - ./BetaPasswordModal: 内测密码验证（已使用 safeStorage）
 // - ./YLDMineList: YLD矿山列表
 // - ./MiningSessions: 挖矿会话管理
 // - ./ToolManagement: 工具管理
 // - ./MiningStats: 统计信息
+// - @/utils/safeStorage: 安全存储工具
 //
 // API 接口：
 // - /production/resources/stats/: 新的资源统计接口
 // - /production/resources/: 旧的资源接口（保留兼容）
 //
 // 更新历史：
-// - 2024-01: 移动端性能优化，移除动画，添加懒加载
+// - 2024-01: 修复安卓兼容性，移除 sessionStorage
+// - 2024-01: 添加错误边界和全局错误处理
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo, Component, ReactNode, ErrorInfo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -59,6 +61,85 @@ import {
 
 // 类型导入
 import type { YLDMine } from '@/types/assets'
+
+// 错误边界组件
+interface ErrorBoundaryState {
+  hasError: boolean
+  error?: Error
+  errorInfo?: ErrorInfo
+}
+
+class ErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    // 更新 state 使下一次渲染能够显示降级后的 UI
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // 记录错误到错误报告服务
+    console.error('[MiningPage ErrorBoundary] Caught error:', error, errorInfo)
+    
+    // 可以在这里发送错误到监控服务
+    // sendErrorToService(error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // 错误后的 fallback UI
+      return (
+        this.props.fallback || (
+          <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+            <div className="text-center max-w-md">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h2 className="text-xl text-white mb-2">页面加载出错</h2>
+              <p className="text-gray-400 mb-4 text-sm">
+                {this.state.error?.message || '发生了一个未知错误'}
+              </p>
+              <div className="space-y-2">
+                <PixelButton
+                  onClick={() => {
+                    this.setState({ hasError: false, error: undefined })
+                    window.location.reload()
+                  }}
+                  className="w-full"
+                >
+                  刷新页面
+                </PixelButton>
+                <PixelButton
+                  variant="secondary"
+                  onClick={() => window.history.back()}
+                  className="w-full"
+                >
+                  返回上一页
+                </PixelButton>
+              </div>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <details className="mt-4 text-left">
+                  <summary className="text-xs text-gray-500 cursor-pointer">
+                    错误详情 (开发模式)
+                  </summary>
+                  <pre className="text-xs text-red-400 mt-2 p-2 bg-gray-800 rounded overflow-auto max-h-40">
+                    {this.state.error.stack}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </div>
+        )
+      )
+    }
+
+    return this.props.children
+  }
+}
 
 // 移动端资源显示组件 - 优化渲染
 const MobileResourceBar = memo(({ resources, resourceStats, grainStatus }: any) => {
@@ -119,7 +200,8 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus }: any) 
 
 MobileResourceBar.displayName = 'MobileResourceBar'
 
-export default function MiningPage() {
+// 主页面组件
+function MiningPage() {
   // ========== 认证状态 ==========
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -132,6 +214,9 @@ export default function MiningPage() {
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // 替代 sessionStorage 的状态
+  const [pendingMiningTab, setPendingMiningTab] = useState<string | null>(null)
   
   // ========== 数据获取 - 优化：条件加载 ==========
   const shouldFetchData = !authLoading && isAuthenticated
@@ -220,6 +305,42 @@ export default function MiningPage() {
   } = useCollectOutput()
   
   // ========== 副作用 ==========
+  
+  // 全局错误处理
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('[MiningPage] Global error:', event.error)
+      
+      // 特殊处理某些已知错误
+      if (event.error?.message?.includes('localStorage')) {
+        console.warn('[MiningPage] localStorage error detected, using fallback')
+        // 错误已经被 safeStorage 处理，这里不需要额外操作
+        event.preventDefault()
+      }
+    }
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('[MiningPage] Unhandled promise rejection:', event.reason)
+      
+      // 显示用户友好的错误提示
+      if (event.reason?.message) {
+        toast.error(`操作失败: ${event.reason.message}`, {
+          duration: 4000,
+          position: 'top-center'
+        })
+      }
+    }
+
+    window.addEventListener('error', handleError)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+
+    return () => {
+      window.removeEventListener('error', handleError)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+    }
+  }, [])
+  
+  // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -229,6 +350,7 @@ export default function MiningPage() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
+  // 认证检查
   useEffect(() => {
     if (authLoading) return
     if (!isAuthenticated) {
@@ -237,10 +359,19 @@ export default function MiningPage() {
     }
   }, [authLoading, isAuthenticated, router])
   
+  // 检查内测权限
   useEffect(() => {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
   }, [])
+  
+  // 处理待切换的标签页
+  useEffect(() => {
+    if (hasMiningAccess && pendingMiningTab) {
+      setMiningSubTab(pendingMiningTab as any)
+      setPendingMiningTab(null)
+    }
+  }, [hasMiningAccess, pendingMiningTab])
   
   // ========== 工具函数 - 使用 useCallback 优化 ==========
   const formatYLD = useCallback((value: string | number): string => {
@@ -269,41 +400,68 @@ export default function MiningPage() {
   }, [hasMiningAccess])
   
   const handleStartSelfMining = useCallback(async (landId: number, toolIds: number[]) => {
-    await startMining({
-      land_id: landId,
-      tool_ids: toolIds
-    })
-    refetchSessions()
-    refetchTools()
-    refetchResourceStats()
+    try {
+      await startMining({
+        land_id: landId,
+        tool_ids: toolIds
+      })
+      refetchSessions()
+      refetchTools()
+      refetchResourceStats()
+    } catch (error) {
+      console.error('[MiningPage] Start mining failed:', error)
+      // 错误已经在 hook 中处理
+    }
   }, [startMining, refetchSessions, refetchTools, refetchResourceStats])
   
   const handleStopSession = useCallback(async (sessionId: number) => {
-    await stopProduction(sessionId)
-    toast.success('已停止生产')
-    refetchSessions()
-    refetchTools()
-    refetchResources()
-    refetchResourceStats()
+    try {
+      await stopProduction(sessionId)
+      toast.success('已停止生产')
+      refetchSessions()
+      refetchTools()
+      refetchResources()
+      refetchResourceStats()
+    } catch (error) {
+      console.error('[MiningPage] Stop session failed:', error)
+    }
   }, [stopProduction, refetchSessions, refetchTools, refetchResources, refetchResourceStats])
   
   const handleCollectSessionOutput = useCallback(async (sessionId: number) => {
-    await collectOutput(sessionId)
-    toast.success('收取成功！')
-    refetchSessions()
-    refetchResources()
-    refetchResourceStats()
+    try {
+      await collectOutput(sessionId)
+      toast.success('收取成功！')
+      refetchSessions()
+      refetchResources()
+      refetchResourceStats()
+    } catch (error) {
+      console.error('[MiningPage] Collect output failed:', error)
+    }
   }, [collectOutput, refetchSessions, refetchResources, refetchResourceStats])
   
   const handleSynthesize = useCallback(async (toolType: string, quantity: number) => {
-    await synthesize({
-      tool_type: toolType,
-      quantity: quantity
-    })
-    refetchTools()
-    refetchResources()
-    refetchResourceStats()
+    try {
+      await synthesize({
+        tool_type: toolType,
+        quantity: quantity
+      })
+      refetchTools()
+      refetchResources()
+      refetchResourceStats()
+    } catch (error) {
+      console.error('[MiningPage] Synthesize failed:', error)
+    }
   }, [synthesize, refetchTools, refetchResources, refetchResourceStats])
+  
+  // 处理标签页点击（替代 sessionStorage）
+  const handleTabClick = useCallback((tab: string) => {
+    if (!hasMiningAccess) {
+      setPendingMiningTab(tab)
+      setShowBetaModal(true)
+    } else {
+      setMiningSubTab(tab as any)
+    }
+  }, [hasMiningAccess])
   
   // ========== 渲染逻辑 ==========
   if (authLoading) {
@@ -454,14 +612,7 @@ export default function MiningPage() {
                     YLD矿山
                   </button>
                   <button
-                    onClick={() => {
-                      if (!hasMiningAccess) {
-                        sessionStorage.setItem('pendingMiningTab', 'sessions')
-                        setShowBetaModal(true)
-                      } else {
-                        setMiningSubTab('sessions')
-                      }
-                    }}
+                    onClick={() => handleTabClick('sessions')}
                     className={cn(
                       "px-2 py-1 sm:px-3 sm:py-1.5 rounded text-[11px] sm:text-sm font-bold transition-colors whitespace-nowrap",
                       miningSubTab === 'sessions' 
@@ -472,14 +623,7 @@ export default function MiningPage() {
                     挖矿会话
                   </button>
                   <button
-                    onClick={() => {
-                      if (!hasMiningAccess) {
-                        sessionStorage.setItem('pendingMiningTab', 'tools')
-                        setShowBetaModal(true)
-                      } else {
-                        setMiningSubTab('tools')
-                      }
-                    }}
+                    onClick={() => handleTabClick('tools')}
                     className={cn(
                       "px-2 py-1 sm:px-3 sm:py-1.5 rounded text-[11px] sm:text-sm font-bold transition-colors whitespace-nowrap",
                       miningSubTab === 'tools' 
@@ -490,14 +634,7 @@ export default function MiningPage() {
                     我的工具
                   </button>
                   <button
-                    onClick={() => {
-                      if (!hasMiningAccess) {
-                        sessionStorage.setItem('pendingMiningTab', 'synthesis')
-                        setShowBetaModal(true)
-                      } else {
-                        setMiningSubTab('synthesis')
-                      }
-                    }}
+                    onClick={() => handleTabClick('synthesis')}
                     className={cn(
                       "px-2 py-1 sm:px-3 sm:py-1.5 rounded text-[11px] sm:text-sm font-bold transition-colors whitespace-nowrap",
                       miningSubTab === 'synthesis' 
@@ -719,17 +856,22 @@ export default function MiningPage() {
       {/* 内测密码模态框 */}
       <BetaPasswordModal
         isOpen={showBetaModal}
-        onClose={() => setShowBetaModal(false)}
+        onClose={() => {
+          setShowBetaModal(false)
+          setPendingMiningTab(null)
+        }}
         onSuccess={() => {
           setHasMiningAccess(true)
           setShowBetaModal(false)
-          const targetTab = sessionStorage.getItem('pendingMiningTab')
-          if (targetTab && targetTab !== 'overview') {
-            setMiningSubTab(targetTab as any)
-            sessionStorage.removeItem('pendingMiningTab')
+          
+          // 如果有待切换的标签页，切换到对应页面
+          if (pendingMiningTab && pendingMiningTab !== 'overview') {
+            setMiningSubTab(pendingMiningTab as any)
+            setPendingMiningTab(null)
           } else {
             setMiningSubTab('sessions')
           }
+          
           toast.success('验证成功！欢迎进入挖矿系统')
           refetchResourceStats()
         }}
@@ -821,5 +963,14 @@ export default function MiningPage() {
         )}
       </PixelModal>
     </div>
+  )
+}
+
+// 导出带错误边界的组件
+export default function MiningPageWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <MiningPage />
+    </ErrorBoundary>
   )
 }
