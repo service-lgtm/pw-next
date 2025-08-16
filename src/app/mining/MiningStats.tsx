@@ -1,25 +1,29 @@
 // src/app/mining/MiningStats.tsx
-// 矿山统计信息组件
+// 矿山统计信息组件 - 使用安全格式化函数版本
 // 
 // 功能说明：
 // 1. 显示 YLD 矿山统计数据
 // 2. 显示资源统计信息（使用新的 ResourceStatsView 接口）
 // 3. 提供快捷操作入口
+// 4. 使用安全的格式化函数防止 toFixed 错误
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/components/shared/PixelCard
 // - 使用 @/components/shared/PixelButton
+// - 使用 @/utils/formatters（安全格式化函数）
 // - 从 @/hooks/useProduction 获取资源数据
 // - 调用后端 /production/resources/stats/ 接口
 //
 // 更新历史：
 // - 2024-01: 添加 resourceStats 参数支持新的资源统计接口
+// - 2024-01: 使用安全格式化函数修复 toFixed 错误
 
 'use client'
 
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
+import { safeFormatYLD, safeFormatResource, safeFormatHours } from '@/utils/formatters'
 
 interface MiningStatsProps {
   yldStats: any
@@ -30,24 +34,6 @@ interface MiningStatsProps {
   sessions?: any[]  // 添加挖矿会话数据
   onRefresh: () => void
   onOpenMining: () => void
-}
-
-/**
- * 格式化 YLD 数量
- */
-function formatYLD(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value
-  if (isNaN(num)) return '0.00'
-  return num.toFixed(4)
-}
-
-/**
- * 格式化资源数量
- */
-function formatResource(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value
-  if (isNaN(num)) return '0.00'
-  return num.toFixed(2)
 }
 
 /**
@@ -67,14 +53,15 @@ export function MiningStats({
   console.log('[MiningStats] resourceStats:', resourceStats)
   console.log('[MiningStats] resources:', resources)
   
-  // 计算挖矿会话的累计产出
+  // 计算挖矿会话的累计产出 - 使用安全的数值处理
   const sessionsTotalOutput = sessions?.reduce((sum, session) => {
-    const output = parseFloat(session.total_output || session.accumulated_output || '0')
-    return sum + output
+    const output = parseFloat(session?.total_output || session?.accumulated_output || '0')
+    return sum + (isNaN(output) ? 0 : output)
   }, 0) || 0
   
-  // 计算总累计产出（YLD矿山 + 挖矿会话）
-  const totalAccumulatedOutput = (parseFloat(yldStats?.total_accumulated_output || '0') + sessionsTotalOutput)
+  // 计算总累计产出（YLD矿山 + 挖矿会话）- 使用安全的数值处理
+  const yldOutput = parseFloat(yldStats?.total_accumulated_output || '0')
+  const totalAccumulatedOutput = (isNaN(yldOutput) ? 0 : yldOutput) + sessionsTotalOutput
   
   return (
     <div className="space-y-6">
@@ -92,29 +79,29 @@ export function MiningStats({
             <div className="grid grid-cols-2 gap-3">
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">总矿山</p>
-                <p className="text-xl font-bold text-gold-500">{yldStats.total_mines}</p>
+                <p className="text-xl font-bold text-gold-500">{yldStats.total_mines || 0}</p>
               </div>
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">YLD 总量</p>
                 <p className="text-xl font-bold text-purple-500">
-                  {formatYLD(yldStats.total_yld_capacity)}
+                  {safeFormatYLD(yldStats.total_yld_capacity)}
                 </p>
               </div>
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">累计产出</p>
                 <p className="text-xl font-bold text-green-500">
-                  {formatYLD(totalAccumulatedOutput)}
+                  {safeFormatYLD(totalAccumulatedOutput)}
                 </p>
                 {hasMiningAccess && sessionsTotalOutput > 0 && (
                   <p className="text-xs text-gray-500 mt-1">
-                    挖矿: {formatYLD(sessionsTotalOutput)}
+                    挖矿: {safeFormatYLD(sessionsTotalOutput)}
                   </p>
                 )}
               </div>
               <div className="text-center p-3 bg-gray-800 rounded">
                 <p className="text-xs text-gray-400">生产中</p>
                 <p className="text-xl font-bold text-blue-500">
-                  {yldStats.producing_count + (hasMiningAccess && sessions ? sessions.length : 0)}
+                  {(yldStats.producing_count || 0) + (hasMiningAccess && sessions ? sessions.length : 0)}
                 </p>
                 {hasMiningAccess && sessions && sessions.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">
@@ -142,10 +129,10 @@ export function MiningStats({
                 <span className="text-2xl">🪵</span>
               </div>
               <p className="text-lg font-bold text-green-400 mt-1">
-                {formatResource(
+                {safeFormatResource(
                   resourceStats?.resources?.wood?.available || 
                   resourceStats?.resources?.wood?.amount || 
-                  resources?.wood || 0
+                  resources?.wood
                 )}
               </p>
             </div>
@@ -156,10 +143,10 @@ export function MiningStats({
                 <span className="text-2xl">⛏️</span>
               </div>
               <p className="text-lg font-bold text-gray-400 mt-1">
-                {formatResource(
+                {safeFormatResource(
                   resourceStats?.resources?.iron?.available || 
                   resourceStats?.resources?.iron?.amount || 
-                  resources?.iron || 0
+                  resources?.iron
                 )}
               </p>
             </div>
@@ -170,10 +157,10 @@ export function MiningStats({
                 <span className="text-2xl">🪨</span>
               </div>
               <p className="text-lg font-bold text-blue-400 mt-1">
-                {formatResource(
+                {safeFormatResource(
                   resourceStats?.resources?.stone?.available || 
                   resourceStats?.resources?.stone?.amount || 
-                  resources?.stone || 0
+                  resources?.stone
                 )}
               </p>
             </div>
@@ -184,30 +171,30 @@ export function MiningStats({
                 <span className="text-2xl">🌾</span>
               </div>
               <p className="text-lg font-bold text-yellow-400 mt-1">
-                {formatResource(
+                {safeFormatResource(
                   resourceStats?.resources?.food?.available || 
                   resourceStats?.resources?.food?.amount || 
                   resourceStats?.resources?.grain?.available || 
                   resourceStats?.resources?.grain?.amount || 
                   resources?.grain || 
-                  resources?.food || 0
+                  resources?.food
                 )}
               </p>
               {grainStatus && grainStatus.warning && (
                 <p className="text-xs text-red-400 mt-1">
-                  剩{grainStatus.hours_remaining.toFixed(1)}h
+                  剩{safeFormatHours(grainStatus.hours_remaining)}
                 </p>
               )}
             </div>
           </div>
           
           {/* 显示总价值（如果有） */}
-          {resourceStats?.total_value && (
+          {resourceStats?.total_value !== undefined && resourceStats?.total_value !== null && (
             <div className="mt-3 p-2 bg-purple-900/20 rounded">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-purple-400">资源总价值</span>
                 <span className="text-sm font-bold text-purple-400">
-                  {resourceStats.total_value.toFixed(2)} YLD
+                  {safeFormatResource(resourceStats.total_value)} YLD
                 </span>
               </div>
             </div>
@@ -216,19 +203,19 @@ export function MiningStats({
           {/* 显示钱包余额（如果有） */}
           {resourceStats?.wallet && (
             <div className="mt-3 space-y-2">
-              {resourceStats.wallet.yld_balance > 0 && (
+              {resourceStats.wallet.yld_balance !== undefined && resourceStats.wallet.yld_balance > 0 && (
                 <div className="p-2 bg-purple-900/20 rounded flex justify-between items-center">
                   <span className="text-xs text-purple-400">YLD 钱包</span>
                   <span className="text-sm font-bold text-purple-400">
-                    {formatYLD(resourceStats.wallet.yld_balance)}
+                    {safeFormatYLD(resourceStats.wallet.yld_balance)}
                   </span>
                 </div>
               )}
-              {resourceStats.wallet.tdb_balance > 0 && (
+              {resourceStats.wallet.tdb_balance !== undefined && resourceStats.wallet.tdb_balance > 0 && (
                 <div className="p-2 bg-gold-900/20 rounded flex justify-between items-center">
                   <span className="text-xs text-gold-400">TDB 余额</span>
                   <span className="text-sm font-bold text-gold-400">
-                    {formatResource(resourceStats.wallet.tdb_balance)}
+                    {safeFormatResource(resourceStats.wallet.tdb_balance)}
                   </span>
                 </div>
               )}
