@@ -1,11 +1,11 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 生产级完整版本
+// 挖矿会话管理组件 - 增强生产版（完整版）
 // 
 // 功能说明：
 // 1. 管理用户的挖矿会话（开始、停止、收取）
 // 2. 支持自主挖矿、带工具打工、无工具打工
-// 3. 完善的错误处理和用户提示
-// 4. 兼容多种API响应格式
+// 3. 新增：挖矿预检查、产出率历史、批量操作
+// 4. 完善的错误处理和用户提示
 // 5. 移动端和桌面端自适应
 // 
 // 关联文件：
@@ -14,12 +14,13 @@
 // - 使用 @/hooks/useProduction 中的 Hook
 // - 调用 @/lib/api/production 中的 API
 // - 使用 @/components/shared 中的 UI 组件
+// - 使用 ./MiningPreCheck 组件（预检查）
+// - 使用 ./SessionRateHistory 组件（产出率历史）
 // - 后端接口：/production/sessions/, /production/mining/self/start/ 等
 //
 // 更新历史：
-// - 2024-12: 完善错误处理，添加详细的错误提示
-// - 2024-12: 处理字段兼容性问题
-// - 2024-12: 优化移动端交互体验
+// - 2024-12: 集成预检查、产出率历史、批量操作等新功能
+// - 2024-12: 修复组件结构问题
 
 'use client'
 
@@ -27,6 +28,8 @@ import { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
+import { MiningPreCheck } from './MiningPreCheck'
+import { SessionRateHistory } from './SessionRateHistory'
 import { cn } from '@/lib/utils'
 import type { 
   MiningSession, 
@@ -40,6 +43,7 @@ import type {
 } from '@/types/production'
 import type { Land } from '@/types/assets'
 import toast from 'react-hot-toast'
+import { useStopAllSessions } from '@/hooks/useProduction'
 
 // 导入辅助函数
 import {
@@ -59,6 +63,8 @@ interface MiningSessionsProps {
   onStartMining: (landId: number, toolIds: number[]) => Promise<void>
   onStopSession: (sessionId: number) => Promise<void>
   onCollectOutput: (sessionId: number) => Promise<void>
+  onBuyFood?: () => void
+  onSynthesizeTool?: () => void
   startMiningLoading?: boolean
 }
 
@@ -244,11 +250,13 @@ CustomDropdown.displayName = 'CustomDropdown'
 const MobileSessionCard = memo(({ 
   session, 
   onCollect, 
-  onStop 
+  onStop,
+  onViewHistory 
 }: { 
   session: MiningSession
   onCollect: () => void
   onStop: () => void
+  onViewHistory: () => void
 }) => {
   const totalOutput = getTotalOutput(session)
   const startTime = getStartTime(session)
@@ -303,7 +311,7 @@ const MobileSessionCard = memo(({
         </div>
       )}
       
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <PixelButton
           size="xs"
           onClick={onCollect}
@@ -320,6 +328,14 @@ const MobileSessionCard = memo(({
         >
           停止
         </PixelButton>
+        <PixelButton
+          size="xs"
+          variant="secondary"
+          onClick={onViewHistory}
+          className="text-[11px]"
+        >
+          历史
+        </PixelButton>
       </div>
     </div>
   )
@@ -333,11 +349,13 @@ MobileSessionCard.displayName = 'MobileSessionCard'
 const DesktopSessionCard = memo(({ 
   session, 
   onCollect, 
-  onStop 
+  onStop,
+  onViewHistory 
 }: { 
   session: MiningSession
   onCollect: () => void
   onStop: () => void
+  onViewHistory: () => void
 }) => {
   const totalOutput = getTotalOutput(session)
   const startTime = getStartTime(session)
@@ -427,7 +445,7 @@ const DesktopSessionCard = memo(({
         )}
         
         {/* 操作按钮 */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <PixelButton
             size="sm"
             onClick={onCollect}
@@ -436,7 +454,7 @@ const DesktopSessionCard = memo(({
           >
             <span className="flex items-center justify-center gap-1">
               <span>📦</span>
-              <span>收取产出</span>
+              <span>收取</span>
             </span>
           </PixelButton>
           <PixelButton
@@ -447,7 +465,18 @@ const DesktopSessionCard = memo(({
           >
             <span className="flex items-center justify-center gap-1">
               <span>⏹️</span>
-              <span>停止生产</span>
+              <span>停止</span>
+            </span>
+          </PixelButton>
+          <PixelButton
+            size="sm"
+            variant="secondary"
+            onClick={onViewHistory}
+            className="w-full"
+          >
+            <span className="flex items-center justify-center gap-1">
+              <span>📊</span>
+              <span>历史</span>
             </span>
           </PixelButton>
         </div>
@@ -471,16 +500,24 @@ export function MiningSessions({
   onStartMining,
   onStopSession,
   onCollectOutput,
+  onBuyFood,
+  onSynthesizeTool,
   startMiningLoading = false
 }: MiningSessionsProps) {
   // 状态管理
   const [showStartModal, setShowStartModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showPreCheck, setShowPreCheck] = useState(false)
+  const [showRateHistory, setShowRateHistory] = useState(false)
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null)
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [selectedTools, setSelectedTools] = useState<number[]>([])
-  const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | null>(null)
+  const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'stopAll' | null>(null)
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // 批量停止功能
+  const { stopAll, loading: stopAllLoading } = useStopAllSessions()
   
   // 表单验证状态
   const [landError, setLandError] = useState('')
@@ -531,6 +568,14 @@ export function MiningSessions({
    * 打开开始挖矿模态框
    */
   const handleOpenStartModal = useCallback(() => {
+    setShowPreCheck(true)
+  }, [])
+  
+  /**
+   * 预检查通过后继续
+   */
+  const handlePreCheckProceed = useCallback(() => {
+    setShowPreCheck(false)
     setShowStartModal(true)
     setSelectedLand(null)
     setSelectedTools([])
@@ -723,6 +768,25 @@ export function MiningSessions({
   }, [targetSessionId, onStopSession])
   
   /**
+   * 批量停止所有会话
+   */
+  const handleStopAll = useCallback(async () => {
+    try {
+      const result = await stopAll()
+      
+      setShowConfirmModal(false)
+      setConfirmAction(null)
+      
+      // 刷新会话列表
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (error) {
+      console.error('批量停止失败:', error)
+    }
+  }, [stopAll])
+  
+  /**
    * 收取产出
    */
   const handleCollectOutput = useCallback(async (sessionId: number) => {
@@ -779,6 +843,14 @@ export function MiningSessions({
     }
   }, [onCollectOutput])
   
+  /**
+   * 查看产出率历史
+   */
+  const handleViewHistory = useCallback((sessionId: number) => {
+    setSelectedSessionId(sessionId)
+    setShowRateHistory(true)
+  }, [])
+  
   // ==================== 渲染 ====================
   
   return (
@@ -795,16 +867,33 @@ export function MiningSessions({
             </div>
           )}
         </div>
-        <PixelButton
-          onClick={handleOpenStartModal}
-          disabled={!userLands || userLands.length === 0 || !tools || tools.length === 0}
-          size={isMobile ? "xs" : "sm"}
-        >
-          <span className="flex items-center gap-2">
-            <span>⛏️</span>
-            <span>开始挖矿</span>
-          </span>
-        </PixelButton>
+        <div className="flex gap-2">
+          {sessions && sessions.length > 0 && (
+            <PixelButton
+              onClick={() => {
+                setConfirmAction('stopAll')
+                setShowConfirmModal(true)
+              }}
+              variant="secondary"
+              size={isMobile ? "xs" : "sm"}
+            >
+              <span className="flex items-center gap-2">
+                <span>⏹️</span>
+                <span>全部停止</span>
+              </span>
+            </PixelButton>
+          )}
+          <PixelButton
+            onClick={handleOpenStartModal}
+            disabled={!userLands || userLands.length === 0 || !tools || tools.length === 0}
+            size={isMobile ? "xs" : "sm"}
+          >
+            <span className="flex items-center gap-2">
+              <span>⛏️</span>
+              <span>开始挖矿</span>
+            </span>
+          </PixelButton>
+        </div>
       </div>
       
       {/* 会话列表 */}
@@ -825,6 +914,7 @@ export function MiningSessions({
                 session={session}
                 onCollect={() => handleCollectOutput(session.id)}
                 onStop={() => handleConfirmStop(session.id)}
+                onViewHistory={() => handleViewHistory(session.id)}
               />
             ) : (
               <DesktopSessionCard
@@ -832,6 +922,7 @@ export function MiningSessions({
                 session={session}
                 onCollect={() => handleCollectOutput(session.id)}
                 onStop={() => handleConfirmStop(session.id)}
+                onViewHistory={() => handleViewHistory(session.id)}
               />
             )
           ))}
@@ -855,7 +946,51 @@ export function MiningSessions({
         </PixelCard>
       )}
       
-      {/* 开始挖矿模态框 */}
+      {/* 挖矿预检查模态框 */}
+      {showPreCheck && (
+        <PixelModal
+          isOpen={showPreCheck}
+          onClose={() => setShowPreCheck(false)}
+          title="挖矿条件检查"
+          size={isMobile ? "small" : "medium"}
+        >
+          <MiningPreCheck
+            onProceed={handlePreCheckProceed}
+            onCancel={() => setShowPreCheck(false)}
+            onBuyFood={onBuyFood}
+            onSynthesizeTool={onSynthesizeTool}
+          />
+        </PixelModal>
+      )}
+      
+      {/* 产出率历史模态框 */}
+      {showRateHistory && selectedSessionId && (
+        <PixelModal
+          isOpen={showRateHistory}
+          onClose={() => {
+            setShowRateHistory(false)
+            setSelectedSessionId(null)
+          }}
+          title="产出率历史"
+          size={isMobile ? "small" : "large"}
+        >
+          <SessionRateHistory
+            sessionId={selectedSessionId}
+            sessionInfo={sessions?.find(s => s.id === selectedSessionId) ? {
+              session_id: sessions.find(s => s.id === selectedSessionId)!.session_id,
+              resource_type: sessions.find(s => s.id === selectedSessionId)!.resource_type,
+              land_id: sessions.find(s => s.id === selectedSessionId)!.land_info?.land_id
+            } : undefined}
+            onClose={() => {
+              setShowRateHistory(false)
+              setSelectedSessionId(null)
+            }}
+            compact={isMobile}
+          />
+        </PixelModal>
+      )}
+      
+      {/* 开始挖矿模态框 - 保留原有功能 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -1080,7 +1215,11 @@ export function MiningSessions({
           setConfirmAction(null)
           setTargetSessionId(null)
         }}
-        title={confirmAction === 'start' ? '确认开始挖矿' : '确认停止生产'}
+        title={
+          confirmAction === 'start' ? '确认开始挖矿' : 
+          confirmAction === 'stopAll' ? '确认停止所有会话' :
+          '确认停止生产'
+        }
         size="small"
       >
         <div className="space-y-4">
@@ -1123,6 +1262,25 @@ export function MiningSessions({
                     💡 建议准备至少 {selectedTools.length * FOOD_CONSUMPTION_RATE * 2} 单位粮食（2小时用量）
                   </p>
                 </div>
+              </div>
+            </>
+          ) : confirmAction === 'stopAll' ? (
+            <>
+              <div className="text-center py-4">
+                <div className="text-5xl mb-3">🛑</div>
+                <p className="text-sm text-gray-300 mb-2">
+                  您确定要停止所有挖矿会话吗？
+                </p>
+                <p className="text-xs text-yellow-400">
+                  将停止 {sessions?.length || 0} 个会话并自动收取产出
+                </p>
+              </div>
+              
+              {/* 停止警告 */}
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded p-3">
+                <p className="text-xs text-yellow-400">
+                  ⚠️ 挖矿时间不足1小时的会话仍会扣除1小时的耐久和粮食
+                </p>
               </div>
             </>
           ) : (
@@ -1173,10 +1331,19 @@ export function MiningSessions({
           <div className="flex gap-3">
             <PixelButton
               className="flex-1"
-              variant={confirmAction === 'stop' ? 'secondary' : 'primary'}
-              onClick={confirmAction === 'start' ? handleExecuteStart : handleExecuteStop}
+              variant={confirmAction === 'stop' || confirmAction === 'stopAll' ? 'secondary' : 'primary'}
+              onClick={
+                confirmAction === 'start' ? handleExecuteStart : 
+                confirmAction === 'stopAll' ? handleStopAll :
+                handleExecuteStop
+              }
+              disabled={confirmAction === 'stopAll' && stopAllLoading}
             >
-              确认{confirmAction === 'start' ? '开始' : '停止'}
+              {confirmAction === 'stopAll' && stopAllLoading ? (
+                '处理中...'
+              ) : (
+                `确认${confirmAction === 'start' ? '开始' : '停止'}`
+              )}
             </PixelButton>
             <PixelButton
               variant="secondary"
