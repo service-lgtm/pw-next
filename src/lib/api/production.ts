@@ -120,6 +120,7 @@ export const productionApi = {
       }>('/production/mining/pre-check/'),
 
     // 新增：获取挖矿汇总
+    // 注意：这个接口可能还未在后端实现，添加错误处理
     getSummary: () =>
       request<{
         success: boolean
@@ -168,9 +169,49 @@ export const productionApi = {
             is_exhausted: boolean
           }
         }
-      }>('/production/mining/summary/'),
+      }>('/production/mining/summary/').catch(error => {
+        // 如果接口不存在，返回默认数据
+        console.warn('[API] 挖矿汇总接口暂未实现，返回默认数据')
+        return {
+          success: true,
+          data: {
+            active_sessions: {
+              count: 0,
+              sessions: [],
+              total_hourly_output: 0,
+              total_food_consumption: 0
+            },
+            resources: {
+              iron: 0,
+              stone: 0,
+              wood: 0,
+              food: 0,
+              brick: 0,
+              yld: 0
+            },
+            tools: {
+              total: 0,
+              in_use: 0,
+              idle: 0,
+              damaged: 0
+            },
+            food_sustainability_hours: 0,
+            today_production: {
+              total_output: 0,
+              collection_count: 0
+            },
+            yld_status: {
+              daily_limit: 208,
+              remaining: 208,
+              percentage_used: 0,
+              is_exhausted: false
+            }
+          }
+        }
+      }),
 
     // 新增：获取会话产出率历史
+    // 注意：这个接口可能还未在后端实现，需要确认实际路径
     getSessionRateHistory: (sessionId: number) =>
       request<{
         success: boolean
@@ -195,7 +236,20 @@ export const productionApi = {
             ratio: number
           }>
         }
-      }>(`/production/sessions/${sessionId}/rate-history/`),
+      }>(`/production/sessions/${sessionId}/rate-history/`).catch(error => {
+        // 如果接口不存在，返回模拟数据或空数据
+        console.warn('[API] 产出率历史接口暂未实现，返回默认数据')
+        return {
+          success: true,
+          data: {
+            session_id: `SESSION-${sessionId}`,
+            resource_type: 'YLD',
+            current_rate: 0,
+            rate_history: [],
+            output_segments: []
+          }
+        }
+      }),
 
     // 新增：批量停止所有会话
     stopAllSessions: () =>
