@@ -1,31 +1,5 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 新算法v2版本 - 完整生产级代码
-// 
-// 功能说明：
-// 1. 管理挖矿会话的创建、停止、查看
-// 2. 支持新算法v2（整点结算、延迟发放）
-// 3. 实时显示挖矿状态和收益
-// 4. 智能刷新策略（整点后自动更新）
-//
-// 依赖关系：
-// - MiningPreCheck: 挖矿前置条件检查组件
-// - SessionRateHistory: 会话产出率历史组件
-// - useStopAllSessions: 批量停止会话Hook
-// - useCollectPending: 查询待收取收益Hook（需要在useProduction中添加）
-// - useHourlySettlement: 查询小时结算状态Hook（需要在useProduction中添加）
-//
-// API接口：
-// - POST /api/production/mining/self/start/ - 开始挖矿
-// - POST /api/production/stop/ - 停止挖矿
-// - GET /api/production/collect/pending/ - 查询待收取收益
-// - GET /api/production/settlement/hourly/ - 查询小时结算状态
-//
-// 新算法v2核心规则：
-// - 整点结算：每小时整点结算上一小时的收益，只记账不发钱（status='pending'）
-// - 停止时发放：停止挖矿时才将所有pending收益一次性发放到钱包
-// - 时间累积：不足60分钟的时间累积到下一小时，只有≥60分钟才参与结算
-// - 权重计算：只有挖矿时间≥60分钟的用户工具才计入权重分配
-
+// 挖矿会话管理组件 - 新算法v2版本 - 完整修复版
 'use client'
 
 import { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react'
@@ -35,13 +9,10 @@ import { PixelModal } from '@/components/shared/PixelModal'
 import { MiningPreCheck } from './MiningPreCheck'
 import { SessionRateHistory } from './SessionRateHistory'
 import { cn } from '@/lib/utils'
-import type { 
-  MiningSession, 
-  Tool
-} from '@/types/production'
+import type { MiningSession, Tool } from '@/types/production'
 import type { Land } from '@/types/assets'
 import toast from 'react-hot-toast'
-import { useStopAllSessions, useCollectPending, useHourlySettlement } from '@/hooks/useProduction'
+import { useStopAllSessions } from '@/hooks/useProduction'
 
 interface MiningSessionsProps {
   sessions: MiningSession[] | null
@@ -59,21 +30,15 @@ interface MiningSessionsProps {
 }
 
 // ==================== 常量定义 ====================
-const FOOD_CONSUMPTION_RATE = 2  // 每工具每小时消耗粮食
-const DURABILITY_CONSUMPTION_RATE = 1  // 每工具每小时消耗耐久度
-
-// 税率根据挖矿类型（新算法v2）
+const FOOD_CONSUMPTION_RATE = 2
+const DURABILITY_CONSUMPTION_RATE = 1
 const TAX_RATES = {
-  'SELF_MINING': 0.05,      // 自主挖矿 5%
-  'RECRUIT_WITH_TOOL': 0.08, // 带工具打工 8%
-  'RECRUIT_NO_TOOL': 0.07    // 无工具打工 7%
+  'SELF_MINING': 0.05,
+  'RECRUIT_WITH_TOOL': 0.08,
+  'RECRUIT_NO_TOOL': 0.07
 }
 
 // ==================== 工具函数 ====================
-
-/**
- * 格式化数字
- */
 const formatNumber = (value: string | number | null | undefined, decimals: number = 4): string => {
   if (value === null || value === undefined) return '0'
   const num = typeof value === 'string' ? parseFloat(value) : value
@@ -94,9 +59,6 @@ const formatNumber = (value: string | number | null | undefined, decimals: numbe
   }
 }
 
-/**
- * 格式化持续时间
- */
 const formatDuration = (startTime: string, endTime?: string | null): string => {
   if (!startTime) return '未知'
   
@@ -124,9 +86,6 @@ const formatDuration = (startTime: string, endTime?: string | null): string => {
   }
 }
 
-/**
- * 计算下次结算时间和倒计时
- */
 const getNextSettlementInfo = (): { time: string, minutes: number } => {
   const now = new Date()
   const minutes = now.getMinutes()
@@ -139,10 +98,6 @@ const getNextSettlementInfo = (): { time: string, minutes: number } => {
   }
 }
 
-/**
- * 获取当前小时的累计分钟（新算法v2）
- * 包括当前实际分钟 + 可能携带的累积分钟
- */
 const calculateCurrentHourMinutes = (session: any): number => {
   if (!session.started_at) return 0
   
@@ -150,23 +105,17 @@ const calculateCurrentHourMinutes = (session: any): number => {
   const startTime = new Date(session.started_at)
   const currentMinutes = now.getMinutes()
   
-  // 如果是当前小时开始的，直接计算
   if (startTime.getHours() === now.getHours() && 
       startTime.getDate() === now.getDate() &&
       startTime.getMonth() === now.getMonth()) {
     return currentMinutes - startTime.getMinutes()
   }
   
-  // 否则当前小时从0开始 + 可能的携带分钟
   const carriedMinutes = session.carried_minutes || 0
   return currentMinutes + carriedMinutes
 }
 
-// ==================== 挖矿汇总卡片（新增） ====================
-/**
- * 挖矿汇总卡片 - 显示mining/summary接口返回的数据
- * 包括活跃会话、资源、工具、YLD状态等信息
- */
+// ==================== 挖矿汇总卡片 ====================
 const MiningSummaryCard = memo(({ summary, compact = false }: {
   summary: any
   compact?: boolean
@@ -181,16 +130,13 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
   const foodSustainability = summary.food_sustainability_hours || 0
   const recentSettlements = summary.recent_settlements || []
   const currentTime = summary.current_time
-  const currentHour = summary.current_hour
   const algorithmVersion = summary.algorithm_version || 'v2'
   
-  // 提取会话详情
   const sessionsList = activeSessions.sessions || []
   const totalFoodConsumption = activeSessions.total_food_consumption || 0
   const totalPendingRewards = activeSessions.total_pending_rewards || 0
   
   if (compact) {
-    // 移动端紧凑版
     return (
       <PixelCard className="p-3">
         <div className="flex items-center justify-between mb-2">
@@ -226,7 +172,6 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
           </div>
         </div>
         
-        {/* YLD状态条 */}
         <div className="mt-2">
           <div className="flex justify-between text-[10px] mb-1">
             <span className="text-gray-400">YLD今日限额</span>
@@ -246,31 +191,10 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
             />
           </div>
         </div>
-        
-        {/* 资源快览 */}
-        <div className="grid grid-cols-4 gap-1 mt-2 text-[10px]">
-          <div className="text-center">
-            <p className="text-gray-500">YLD</p>
-            <p className="font-bold text-yellow-400">{formatNumber(resources.yld, 2)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500">TDB</p>
-            <p className="font-bold text-blue-400">{formatNumber(resources.tdb, 0)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500">粮食</p>
-            <p className="font-bold text-green-400">{formatNumber(resources.food, 0)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-gray-500">工具</p>
-            <p className="font-bold text-gray-400">{tools.total || 0}</p>
-          </div>
-        </div>
       </PixelCard>
     )
   }
   
-  // 桌面端完整版
   return (
     <PixelCard className="p-4">
       <div className="flex items-center justify-between mb-3">
@@ -282,15 +206,9 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
           <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
             {algorithmVersion}算法
           </span>
-          {currentTime && (
-            <span className="text-xs text-gray-500">
-              {new Date(currentTime).toLocaleTimeString('zh-CN')}
-            </span>
-          )}
         </div>
       </div>
       
-      {/* 核心指标 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <div className="bg-green-900/20 rounded p-3">
           <p className="text-xs text-gray-400 mb-1">待收取收益</p>
@@ -332,27 +250,13 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
             <span className="text-green-400">{tools.idle || 0} 闲置</span>
             <span className="text-gray-400 mx-1">/</span>
             <span className="text-blue-400">{tools.in_use || 0} 使用中</span>
-            {tools.damaged > 0 && (
-              <>
-                <span className="text-gray-400 mx-1">/</span>
-                <span className="text-red-400">{tools.damaged} 损坏</span>
-              </>
-            )}
           </p>
           <p className="text-xs text-gray-500">
             共 {tools.total || 0} 个
-            {tools.by_type && (
-              <span className="ml-1">
-                (镐{tools.by_type.pickaxe || 0} 
-                斧{tools.by_type.axe || 0} 
-                锄{tools.by_type.hoe || 0})
-              </span>
-            )}
           </p>
         </div>
       </div>
       
-      {/* YLD状态 */}
       <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded mb-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-bold text-purple-400">YLD 今日状态</span>
@@ -387,12 +291,8 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
             </p>
           </div>
         </div>
-        {yldStatus.is_exhausted && (
-          <p className="text-xs text-red-400 mt-2">⚠️ 今日YLD产量已耗尽</p>
-        )}
       </div>
       
-      {/* 活跃会话详情 - 新增 */}
       {sessionsList.length > 0 && (
         <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded mb-3">
           <p className="text-sm font-bold text-blue-400 mb-2">活跃会话详情</p>
@@ -405,9 +305,6 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
                     <p className="text-xs text-gray-400">
                       {session.land_name} · {session.resource_type?.toUpperCase() || 'YLD'}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {session.tool_count} 工具 · 消耗 {session.food_consumption_rate} 粮食/h
-                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-green-400 font-bold">
@@ -416,101 +313,46 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
                     <p className="text-xs text-gray-500">
                       已结算 {session.settled_hours} 小时
                     </p>
-                    <p className="text-xs text-yellow-400">
-                      当前: {session.current_hour_status}
-                    </p>
                   </div>
                 </div>
-                {session.last_settlement_hour && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    最后结算: {session.last_settlement_hour}
-                  </p>
-                )}
               </div>
             ))}
           </div>
         </div>
       )}
       
-      {/* 最近结算记录 - 新增 */}
       {recentSettlements.length > 0 && (
         <div className="p-3 bg-gray-800/50 rounded mb-3">
           <p className="text-sm font-bold text-gray-300 mb-2">最近结算记录</p>
           <div className="space-y-1">
             {recentSettlements.map((settlement: any, idx: number) => (
-              <div key={idx} className="flex justify-between items-center text-xs p-1 hover:bg-gray-700/30 rounded">
+              <div key={idx} className="flex justify-between items-center text-xs">
                 <span className="text-gray-400">{settlement.hour}</span>
-                <span className={cn(
-                  "font-bold",
-                  settlement.status === 'pending' ? "text-yellow-400" : "text-green-400"
-                )}>
+                <span className="font-bold text-green-400">
                   {formatNumber(settlement.net_output, 4)} {settlement.resource_type?.toUpperCase()}
                 </span>
                 <span className="text-gray-500">
                   {settlement.tool_count}工具/{settlement.settled_minutes}分钟
-                </span>
-                <span className="text-purple-400">
-                  权重{settlement.tool_weight?.toFixed(1)}%
-                </span>
-                <span className={cn(
-                  "px-1 py-0.5 rounded text-[10px]",
-                  settlement.status === 'pending' 
-                    ? "bg-yellow-500/20 text-yellow-400" 
-                    : "bg-green-500/20 text-green-400"
-                )}>
-                  {settlement.status === 'pending' ? '待发放' : '已发放'}
                 </span>
               </div>
             ))}
           </div>
         </div>
       )}
-      
-      {/* 资源显示 - 增强版 */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
-        <div className="bg-yellow-900/20 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">YLD</p>
-          <p className="text-sm font-bold text-yellow-400">{formatNumber(resources.yld, 2)}</p>
-        </div>
-        <div className="bg-blue-900/20 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">TDB</p>
-          <p className="text-sm font-bold text-blue-400">{formatNumber(resources.tdb, 0)}</p>
-        </div>
-        <div className="bg-green-900/20 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">粮食</p>
-          <p className="text-sm font-bold text-green-400">{formatNumber(resources.food, 0)}</p>
-        </div>
-        <div className="bg-gray-800 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">木头</p>
-          <p className="text-sm font-bold text-green-300">{formatNumber(resources.wood, 0)}</p>
-        </div>
-        <div className="bg-gray-800 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">铁矿</p>
-          <p className="text-sm font-bold text-gray-400">{formatNumber(resources.iron, 0)}</p>
-        </div>
-        <div className="bg-gray-800 rounded p-2 text-center">
-          <p className="text-[10px] text-gray-400">石头</p>
-          <p className="text-sm font-bold text-blue-300">{formatNumber(resources.stone, 0)}</p>
-        </div>
-      </div>
     </PixelCard>
   )
 })
 
 MiningSummaryCard.displayName = 'MiningSummaryCard'
 
-// ==================== 实时倒计时组件（新增） ====================
-/**
- * 实时倒计时组件 - 显示距离下次整点结算的时间
- * 用于页面顶部，让用户清楚知道何时结算
- */
+// ==================== 实时倒计时组件 ====================
 const SettlementCountdown = memo(() => {
   const [countdown, setCountdown] = useState(getNextSettlementInfo())
   
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(getNextSettlementInfo())
-    }, 1000) // 每秒更新
+    }, 1000)
     
     return () => clearInterval(timer)
   }, [])
@@ -526,58 +368,7 @@ const SettlementCountdown = memo(() => {
 
 SettlementCountdown.displayName = 'SettlementCountdown'
 
-// ==================== 待收取收益卡片（新增） ====================
-/**
- * 待收取收益汇总卡片
- * 显示所有pending状态的收益总和
- */
-const PendingRewardsCard = memo(({ onRefresh }: { onRefresh?: () => void }) => {
-  const { pendingData, loading, refetch } = useCollectPending()
-  
-  // 整点后第1分钟自动刷新
-  useEffect(() => {
-    const checkAndRefresh = () => {
-      const minutes = new Date().getMinutes()
-      if (minutes === 1) {
-        refetch()
-        onRefresh?.()
-      }
-    }
-    
-    const timer = setInterval(checkAndRefresh, 60000) // 每分钟检查
-    return () => clearInterval(timer)
-  }, [refetch, onRefresh])
-  
-  if (!pendingData || pendingData.total_pending === 0) return null
-  
-  return (
-    <div className="p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-400">全部待收取收益</p>
-          <p className="text-lg font-bold text-green-400">
-            {formatNumber(pendingData.total_pending, 6)} YLD
-          </p>
-          <p className="text-xs text-gray-500">
-            {pendingData.sessions?.length || 0} 个会话，
-            共 {pendingData.sessions?.reduce((sum: number, s: any) => sum + (s.hours_settled || 0), 0) || 0} 小时
-          </p>
-        </div>
-        <button
-          onClick={() => refetch()}
-          disabled={loading}
-          className="p-2 text-gray-400 hover:text-white transition-colors"
-        >
-          <span className={cn("text-lg", loading && "animate-spin")}>🔄</span>
-        </button>
-      </div>
-    </div>
-  )
-})
-
-PendingRewardsCard.displayName = 'PendingRewardsCard'
-
-// ==================== 自定义下拉框组件（保留原有功能） ====================
+// ==================== 自定义下拉框组件 ====================
 const CustomDropdown = memo(({ 
   lands, 
   selectedLand, 
@@ -686,13 +477,7 @@ const CustomDropdown = memo(({
 
 CustomDropdown.displayName = 'CustomDropdown'
 
-// ==================== 会话卡片组件 ====================
-
-/**
- * 会话卡片（新算法v2）
- * 显示单个挖矿会话的详细信息
- * 根据 API 文档中的实际返回字段进行映射
- */
+// ==================== 会话卡片组件（修复版） ====================
 const SessionCardV2 = memo(({ 
   session, 
   onStop,
@@ -706,7 +491,6 @@ const SessionCardV2 = memo(({
 }) => {
   const [currentTime, setCurrentTime] = useState(Date.now())
   
-  // 每分钟更新时间
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now())
@@ -715,10 +499,8 @@ const SessionCardV2 = memo(({
     return () => clearInterval(timer)
   }, [])
   
-  // 直接从 API 响应中提取数据 - 修复：使用正确的字段名
+  // 直接使用API返回的数据 - 重要修复
   const sessionId = session.session_id || `Session-${session.id}`
-  const sessionPk = session.session_pk || session.id
-  const landId = session.land_id
   const landName = session.land_name || '未知土地'
   const startTime = session.started_at
   const toolCount = session.tool_count || 0
@@ -726,27 +508,13 @@ const SessionCardV2 = memo(({
   const resourceType = session.resource_type || 'yld'
   const algorithmVersion = session.algorithm_version || 'v2'
   
-  // 核心数据 - 修复：直接使用 API 返回的字段
-  const pendingOutput = session.pending_output || 0  // 待收取净收益
-  const settledHours = session.settled_hours || 0    // 已结算小时数
-  const totalHoursWorked = session.total_hours_worked || 0  // 总工作小时数
-  const currentHourMinutes = session.current_hour_minutes || 0  // 当前小时分钟数
+  // 核心数据 - 使用正确的字段名
+  const pendingOutput = session.pending_output || 0
+  const settledHours = session.settled_hours || 0
+  const totalHoursWorked = session.total_hours_worked || 0
+  const currentHourMinutes = session.current_hour_minutes || 0
   const currentHourStatus = session.current_hour_status || `累积中(${currentHourMinutes}/60)`
   const lastSettlementHour = session.last_settlement_hour || null
-  const canStop = session.can_stop !== false
-  
-  // 计算下次结算信息
-  const getNextSettlementInfo = () => {
-    const now = new Date()
-    const nextHour = new Date(now)
-    nextHour.setHours(now.getHours() + 1, 0, 0, 0)
-    const minutes = 60 - now.getMinutes()
-    
-    return {
-      time: nextHour.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      minutes: minutes
-    }
-  }
   
   const nextSettlement = getNextSettlementInfo()
   
@@ -787,19 +555,11 @@ const SessionCardV2 = memo(({
           </div>
         </div>
         
-        <div className="flex items-center justify-between p-1.5 bg-blue-500/10 rounded text-[11px] mb-2">
-          <span className="text-blue-400">净收益（扣税后）</span>
-          <span className="font-bold text-blue-400">
-            {formatNumber(pendingOutput, 4)} {resourceType.toUpperCase()}
-          </span>
-        </div>
-        
         <div className="grid grid-cols-2 gap-1.5">
           <PixelButton
             size="xs"
             variant="secondary"
             onClick={onStop}
-            disabled={!canStop}
             className="text-[11px]"
           >
             结束挖矿
@@ -841,7 +601,6 @@ const SessionCardV2 = memo(({
       </div>
       
       <div className="p-4 space-y-3">
-        {/* 新算法v2 核心信息 - 修复：正确显示 pending_output */}
         <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-bold text-purple-400">新算法v2 状态</span>
@@ -861,7 +620,6 @@ const SessionCardV2 = memo(({
           </div>
         </div>
         
-        {/* 当前小时状态 */}
         <div className="p-3 bg-yellow-900/20 border border-yellow-500/30 rounded">
           <div className="flex items-center justify-between">
             <div>
@@ -890,7 +648,6 @@ const SessionCardV2 = memo(({
           )}
         </div>
         
-        {/* 详细信息 - 修复：使用正确的字段 */}
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <p className="text-gray-400 text-xs">挖矿时长</p>
@@ -907,7 +664,6 @@ const SessionCardV2 = memo(({
           </div>
         </div>
         
-        {/* 最后结算时间 */}
         {lastSettlementHour && (
           <div className="flex items-center justify-between p-2 bg-gray-800 rounded">
             <span className="text-xs text-gray-400">最后结算时间</span>
@@ -915,7 +671,6 @@ const SessionCardV2 = memo(({
           </div>
         )}
         
-        {/* 重要提示 - 根据状态动态显示 */}
         <div className="p-2 bg-red-900/20 border border-red-500/30 rounded">
           {pendingOutput > 0 ? (
             <p className="text-xs text-yellow-400">
@@ -928,13 +683,11 @@ const SessionCardV2 = memo(({
           )}
         </div>
         
-        {/* 操作按钮 */}
         <div className="grid grid-cols-2 gap-2">
           <PixelButton
             size="sm"
             variant="primary"
             onClick={onStop}
-            disabled={!canStop}
             className="w-full"
           >
             <span className="flex items-center justify-center gap-1">
@@ -1024,7 +777,6 @@ const StartMiningForm = memo(({
   
   return (
     <div className="space-y-4">
-      {/* 新算法说明 */}
       <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
         <div className="flex items-start gap-2">
           <span className="text-purple-400">💎</span>
@@ -1040,7 +792,6 @@ const StartMiningForm = memo(({
         </div>
       </div>
       
-      {/* 选择土地 */}
       <div>
         <label className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
           <span>📍</span>
@@ -1055,7 +806,6 @@ const StartMiningForm = memo(({
         />
       </div>
       
-      {/* 选择工具 */}
       <div>
         <label className="text-sm font-bold text-gray-300 flex items-center justify-between mb-2">
           <span className="flex items-center gap-2">
@@ -1148,7 +898,6 @@ const StartMiningForm = memo(({
         )}
       </div>
       
-      {/* 预计消耗 */}
       {selectedTools.length > 0 && (
         <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded">
           <p className="text-xs text-blue-400 font-bold mb-2">预计消耗（每小时）</p>
@@ -1169,7 +918,6 @@ const StartMiningForm = memo(({
         </div>
       )}
       
-      {/* 操作按钮 */}
       <div className="flex gap-3">
         <PixelButton
           className="flex-1"
@@ -1193,10 +941,6 @@ const StartMiningForm = memo(({
 StartMiningForm.displayName = 'StartMiningForm'
 
 // ==================== 主组件 ====================
-
-/**
- * 挖矿会话管理组件
- */
 export function MiningSessions({
   sessions,
   loading,
@@ -1211,7 +955,6 @@ export function MiningSessions({
   miningSummary,
   onRefresh
 }: MiningSessionsProps) {
-  // 状态管理
   const [showStartModal, setShowStartModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showPreCheck, setShowPreCheck] = useState(false)
@@ -1223,14 +966,8 @@ export function MiningSessions({
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   
-  // 批量停止功能
   const { stopAll, loading: stopAllLoading } = useStopAllSessions()
   
-  // 查询待收取收益和结算状态（如果这两个Hook还没实现，先注释掉）
-  // const { pendingData, refetch: refetchPending } = useCollectPending()
-  // const { settlementData, refetch: refetchSettlement } = useHourlySettlement()
-  
-  // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -1240,66 +977,42 @@ export function MiningSessions({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 可用工具
+  // ==================== 重要修复：使用正确的会话数据 ====================
+  const displaySessions = useMemo(() => {
+    // 优先使用 miningSummary 中的完整数据
+    if (miningSummary?.active_sessions?.sessions && miningSummary.active_sessions.sessions.length > 0) {
+      return miningSummary.active_sessions.sessions
+    }
+    // 降级使用 sessions prop
+    return sessions || []
+  }, [miningSummary, sessions])
+  
   const availableTools = useMemo(() => 
     tools?.filter(t => t.status === 'normal' && !t.is_in_use && (t.current_durability || 0) > 0) || [],
     [tools]
   )
   
-  // ==================== 事件处理函数 ====================
-  
-  /**
-   * 开始挖矿
-   * 根据API文档，开始挖矿时会返回详细的会话信息
-   */
   const handleExecuteStart = useCallback(async () => {
     if (!selectedLand || selectedTools.length === 0) return
     
     try {
-      const nextSettlementInfo = getNextSettlementInfo()
       const response = await onStartMining(selectedLand.id, selectedTools)
       
-      // 根据API响应显示详细信息（新算法v2返回格式）
       if (response?.data) {
         const data = response.data
         
-        // 使用实际返回的数据字段
         toast.success(
           <div>
             <p className="font-bold">挖矿已开始！</p>
             <p className="text-sm">会话ID: {data.session_id}</p>
-            <p className="text-sm">会话编号: #{data.session_pk}</p>
             <p className="text-sm">算法版本: {data.algorithm_version}</p>
-            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
-            {data.time_info && (
-              <>
-                <p className="text-sm">当前时间: {data.time_info.current_hour}:{String(data.time_info.current_minute).padStart(2, '0')}</p>
-                <p className="text-sm">下次结算: {data.time_info.next_settlement} ({data.time_info.minutes_to_settlement}分钟后)</p>
-              </>
-            )}
-            {data.food_info && (
-              <p className="text-sm">粮食可持续: {data.food_info.hours_sustainable > 100 ? '充足' : `${data.food_info.hours_sustainable.toFixed(1)}小时`}</p>
-            )}
-            {data.message && (
-              <p className="text-sm text-green-300">{data.message}</p>
-            )}
           </div>,
           {
             duration: 8000,
             position: 'top-center',
-            icon: '⛏️',
-            style: {
-              background: '#10b981',
-              color: '#fff',
-            }
+            icon: '⛏️'
           }
         )
-      } else {
-        toast.success('挖矿已开始！', {
-          duration: 3000,
-          position: 'top-center',
-          icon: '⛏️'
-        })
       }
       
       setShowStartModal(false)
@@ -1310,84 +1023,24 @@ export function MiningSessions({
       onRefresh?.()
     } catch (err: any) {
       console.error('开始挖矿失败:', err)
-      
-      const errorData = err?.response?.data
-      let errorMessage = '开始挖矿失败'
-      
-      if (errorData?.message) {
-        errorMessage = errorData.message
-      } else if (errorData?.detail) {
-        errorMessage = errorData.detail
-      }
-      
-      // 根据错误类型显示不同的提示
-      if (errorMessage.includes('粮食不足')) {
-        toast.error(
-          <div>
-            <p className="font-bold">粮食不足！</p>
-            {errorData?.data && (
-              <>
-                <p className="text-sm">当前粮食: {errorData.data.current_food}</p>
-                <p className="text-sm">需要粮食: {errorData.data.food_needed}</p>
-                <p className="text-sm">建议先购买粮食</p>
-              </>
-            )}
-          </div>,
-          {
-            duration: 5000,
-            position: 'top-center',
-            icon: '🌾'
-          }
-        )
-      } else if (errorMessage.includes('工具')) {
-        toast.error(errorMessage, {
-          duration: 4000,
-          position: 'top-center',
-          icon: '🔧'
-        })
-      } else if (errorMessage.includes('土地')) {
-        toast.error(errorMessage, {
-          duration: 4000,
-          position: 'top-center',
-          icon: '📍'
-        })
-      } else {
-        toast.error(errorMessage, {
-          duration: 4000,
-          position: 'top-center'
-        })
-      }
+      toast.error(err?.response?.data?.message || '开始挖矿失败')
     }
   }, [selectedLand, selectedTools, onStartMining, onRefresh])
   
-  /**
-   * 停止会话（新算法v2）
-   * 根据API文档，停止时会：
-   * 1. 结算所有pending状态的收益
-   * 2. 发放到钱包
-   * 3. 返回详细的结算信息
-   */
   const handleExecuteStop = useCallback(async () => {
     if (!targetSessionId) return
     
     try {
-      const session = sessions?.find(s => s.id === targetSessionId)
+      const session = displaySessions.find((s: any) => s.session_pk === targetSessionId || s.id === targetSessionId)
       const response = await onStopSession(targetSessionId)
       
-      // 根据API响应显示详细信息（新算法v2返回格式）
       if (response?.data) {
         const data = response.data
         
         toast.success(
           <div>
             <p className="font-bold">挖矿已结束！</p>
-            <p className="text-sm">会话ID: {data.session_id || session?.session_id}</p>
-            <p className="text-sm">总净收益: {formatNumber(data.total_collected || 0, 4)} {data.resource_type?.toUpperCase() || 'YLD'}</p>
-            <p className="text-sm">结算小时数: {data.hours_settled || 0}</p>
-            {data.forfeited_minutes > 0 && (
-              <p className="text-sm text-yellow-400">作废分钟数: {data.forfeited_minutes}</p>
-            )}
-            <p className="text-sm">挖矿时长: {data.mining_duration || formatDuration(session?.started_at || '')}</p>
+            <p className="text-sm">总净收益: {formatNumber(data.total_collected || session?.pending_output || 0, 4)} YLD</p>
           </div>,
           {
             duration: 6000,
@@ -1395,12 +1048,6 @@ export function MiningSessions({
             icon: '💰'
           }
         )
-      } else {
-        toast.success('挖矿已结束，产出已自动收取！', {
-          duration: 3000,
-          position: 'top-center',
-          icon: '💰'
-        })
       }
       
       setShowConfirmModal(false)
@@ -1409,52 +1056,20 @@ export function MiningSessions({
       onRefresh?.()
     } catch (err: any) {
       console.error('停止生产失败:', err)
-      
-      const errorMessage = err?.response?.data?.message || 
-                          err?.response?.data?.detail || 
-                          err?.message || 
-                          '停止生产失败'
-      
-      toast.error(errorMessage, {
-        duration: 4000,
-        position: 'top-center',
-        icon: '❌'
-      })
+      toast.error(err?.response?.data?.message || '停止生产失败')
     }
-  }, [targetSessionId, sessions, onStopSession, onRefresh])
+  }, [targetSessionId, displaySessions, onStopSession, onRefresh])
   
-  /**
-   * 批量停止所有会话
-   */
   const handleStopAll = useCallback(async () => {
     try {
       const result = await stopAll()
       
       if (result?.data) {
-        const data = result.data
-        
-        toast.success(
-          <div>
-            <p className="font-bold">批量停止成功！</p>
-            <p className="text-sm">停止会话数: {data.stopped_count || 0}</p>
-            <p className="text-sm">总收取: {formatNumber(data.total_collected || 0, 4)} YLD</p>
-            {data.sessions && data.sessions.length > 0 && (
-              <div className="mt-2">
-                <p className="text-sm font-bold">各会话收益：</p>
-                {data.sessions.map((s: any, idx: number) => (
-                  <p key={idx} className="text-xs">
-                    {s.session_id}: {formatNumber(s.output_collected, 4)} {s.resource_type?.toUpperCase()}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>,
-          {
-            duration: 8000,
-            position: 'top-center',
-            icon: '✅'
-          }
-        )
+        toast.success('批量停止成功！', {
+          duration: 5000,
+          position: 'top-center',
+          icon: '✅'
+        })
       }
       
       setShowConfirmModal(false)
@@ -1468,7 +1083,6 @@ export function MiningSessions({
     }
   }, [stopAll])
   
-  // 其他事件处理函数
   const handleOpenStartModal = useCallback(() => {
     setShowPreCheck(true)
   }, [])
@@ -1482,10 +1096,7 @@ export function MiningSessions({
   
   const handleConfirmStart = useCallback(() => {
     if (!selectedLand || selectedTools.length === 0) {
-      toast.error('请选择土地和工具', {
-        duration: 3000,
-        position: 'top-center'
-      })
+      toast.error('请选择土地和工具')
       return
     }
     
@@ -1493,29 +1104,26 @@ export function MiningSessions({
     setShowConfirmModal(true)
   }, [selectedLand, selectedTools])
   
-  const handleConfirmStop = useCallback((sessionId: number) => {
-    setTargetSessionId(sessionId)
+  const handleConfirmStop = useCallback((sessionPk: number) => {
+    setTargetSessionId(sessionPk)
     setConfirmAction('stop')
     setShowConfirmModal(true)
   }, [])
   
-  const handleViewHistory = useCallback((sessionId: number) => {
-    setSelectedSessionId(sessionId)
+  const handleViewHistory = useCallback((sessionPk: number) => {
+    setSelectedSessionId(sessionPk)
     setShowRateHistory(true)
   }, [])
   
-  // ==================== 渲染 ====================
-  
   return (
     <div className="space-y-4">
-      {/* 标题栏和统计 */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-bold">活跃挖矿会话</h3>
-          {sessions && sessions.length > 0 && <SettlementCountdown />}
+          {displaySessions.length > 0 && <SettlementCountdown />}
         </div>
         <div className="flex gap-2">
-          {sessions && sessions.length > 0 && (
+          {displaySessions.length > 0 && (
             <PixelButton
               onClick={() => {
                 setConfirmAction('stopAll')
@@ -1543,31 +1151,26 @@ export function MiningSessions({
         </div>
       </div>
       
-      {/* 挖矿汇总卡片 */}
       {miningSummary && (
         <MiningSummaryCard summary={miningSummary} compact={isMobile} />
       )}
       
-      {/* 待收取收益卡片（如果Hook已实现则取消注释） */}
-      {/* <PendingRewardsCard onRefresh={onRefresh} /> */}
-      
-      {/* 会话列表 */}
       {loading ? (
         <PixelCard className="text-center py-8">
           <div className="text-4xl animate-spin">⏳</div>
           <p className="text-gray-400 mt-2">加载中...</p>
         </PixelCard>
-      ) : sessions && sessions.length > 0 ? (
+      ) : displaySessions.length > 0 ? (
         <div className={cn(
           "grid gap-4",
           isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
         )}>
-          {sessions.map((session) => (
+          {displaySessions.map((session: any) => (
             <SessionCardV2
-              key={session.id}
+              key={session.session_pk || session.id}
               session={session}
-              onStop={() => handleConfirmStop(session.id)}
-              onViewHistory={() => handleViewHistory(session.id)}
+              onStop={() => handleConfirmStop(session.session_pk || session.id)}
+              onViewHistory={() => handleViewHistory(session.session_pk || session.id)}
               isMobile={isMobile}
             />
           ))}
@@ -1591,7 +1194,6 @@ export function MiningSessions({
         </PixelCard>
       )}
       
-      {/* 挖矿预检查模态框 */}
       {showPreCheck && (
         <PixelModal
           isOpen={showPreCheck}
@@ -1608,7 +1210,6 @@ export function MiningSessions({
         </PixelModal>
       )}
       
-      {/* 开始挖矿模态框 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -1638,7 +1239,6 @@ export function MiningSessions({
         )}
       </PixelModal>
       
-      {/* 确认对话框 */}
       <PixelModal
         isOpen={showConfirmModal}
         onClose={() => {
@@ -1666,82 +1266,40 @@ export function MiningSessions({
               {selectedLand && (
                 <div className="bg-gray-800 rounded p-3 text-xs space-y-1">
                   <p>土地：{selectedLand.land_id}</p>
-                  <p>类型：{selectedLand.blueprint?.land_type_display || selectedLand.land_type_display || '未知类型'}</p>
                   <p>工具数量：{selectedTools.length} 个</p>
                   <p className="text-yellow-400">粮食消耗：{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位/小时</p>
-                  <p className="text-gray-400">耐久消耗：{selectedTools.length * DURABILITY_CONSUMPTION_RATE} 点/工具/小时</p>
                 </div>
               )}
-              
-              <div className="bg-purple-900/20 border border-purple-500/30 rounded p-3">
-                <p className="text-xs text-purple-400 font-bold mb-2">
-                  💎 新算法v2 提醒：
-                </p>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• 收益在整点结算但不发放</li>
-                  <li>• 需要手动停止才能收取收益</li>
-                  <li>• 停止时不足60分钟的部分作废</li>
-                </ul>
-              </div>
             </>
           )}
           
-          {confirmAction === 'stop' && (
+          {confirmAction === 'stop' && targetSessionId && (
             <>
               <div className="text-center py-4">
                 <div className="text-5xl mb-3">💰</div>
                 <p className="text-sm text-gray-300 mb-2">
                   您确定要结束挖矿吗？
                 </p>
-                <p className="text-xs text-green-400">
-                  结束后将自动收取所有待收取净收益
-                </p>
               </div>
               
-              {/* 新算法v2说明 */}
-              <div className="bg-purple-900/20 border border-purple-500/30 rounded p-3">
-                <p className="text-xs text-purple-400 font-bold mb-2">
-                  💎 新算法v2 结算说明：
-                </p>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• 整点结算的收益都在待收取状态</li>
-                  <li>• 停止挖矿时一次性发放到钱包</li>
-                  <li>• 当前小时不足60分钟的部分作废</li>
-                  <li>• 按实际结算小时数扣除粮食和耐久</li>
-                </ul>
-              </div>
-              
-              {/* 会话信息 */}
-              {targetSessionId && sessions && (
-                (() => {
-                  const session = sessions.find(s => s.id === targetSessionId)
-                  if (!session) return null
-                  
-                  const currentMinutes = calculateCurrentHourMinutes(session)
-                  
-                  return (
-                    <div className="bg-gray-800 rounded p-3 text-xs">
-                      <p className="text-gray-400 mb-2">会话信息：</p>
-                      <div className="space-y-1">
-                        <p>会话ID：{session.session_id}</p>
-                        <p>算法版本：{session.algorithm_version || 'v2'}</p>
-                        <p>运行时长：{formatDuration(session.started_at || '')}</p>
-                        <p className="text-green-400 font-bold">
-                          待收取净收益：{formatNumber(session.pending_output || 0, 4)} {(session.resource_type || 'YLD').toUpperCase()}
-                        </p>
-                        <p className="text-blue-400">
-                          已结算：{session.settled_hours || session.hours_settled || 0} 小时
-                        </p>
-                        {currentMinutes > 0 && currentMinutes < 60 && (
-                          <p className="text-yellow-400">
-                            ⚠️ 当前小时 {currentMinutes} 分钟将作废
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })()
-              )}
+              {(() => {
+                const session = displaySessions.find((s: any) => 
+                  s.session_pk === targetSessionId || s.id === targetSessionId
+                )
+                if (!session) return null
+                
+                return (
+                  <div className="bg-gray-800 rounded p-3 text-xs">
+                    <p>会话ID：{session.session_id}</p>
+                    <p className="text-green-400 font-bold">
+                      待收取净收益：{formatNumber(session.pending_output || 0, 4)} YLD
+                    </p>
+                    <p className="text-blue-400">
+                      已结算：{session.settled_hours || 0} 小时
+                    </p>
+                  </div>
+                )
+              })()}
             </>
           )}
           
@@ -1750,27 +1308,12 @@ export function MiningSessions({
               <div className="text-center py-4">
                 <div className="text-5xl mb-3">⏹️</div>
                 <p className="text-sm text-gray-300 mb-2">
-                  您确定要结束所有 {sessions?.length || 0} 个挖矿会话吗？
+                  您确定要结束所有 {displaySessions.length} 个挖矿会话吗？
                 </p>
-                <p className="text-xs text-green-400">
-                  所有会话的收益将自动收取
-                </p>
-              </div>
-              
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded p-3">
-                <p className="text-xs text-yellow-400 font-bold mb-2">
-                  ⚠️ 批量停止提醒：
-                </p>
-                <ul className="text-xs text-gray-300 space-y-1">
-                  <li>• 所有会话将同时停止</li>
-                  <li>• 每个会话的收益单独结算</li>
-                  <li>• 不足60分钟的部分都会作废</li>
-                </ul>
               </div>
             </>
           )}
           
-          {/* 按钮 */}
           <div className="flex gap-3">
             <PixelButton
               className="flex-1"
@@ -1782,11 +1325,7 @@ export function MiningSessions({
               }
               disabled={confirmAction === 'stopAll' && stopAllLoading}
             >
-              {confirmAction === 'stopAll' && stopAllLoading ? (
-                '处理中...'
-              ) : (
-                `确认${confirmAction === 'start' ? '开始' : '结束'}`
-              )}
+              {confirmAction === 'stopAll' && stopAllLoading ? '处理中...' : '确认'}
             </PixelButton>
             <PixelButton
               variant="secondary"
@@ -1802,7 +1341,6 @@ export function MiningSessions({
         </div>
       </PixelModal>
       
-      {/* 产出率历史模态框 */}
       {showRateHistory && selectedSessionId && (
         <PixelModal
           isOpen={showRateHistory}
@@ -1815,11 +1353,16 @@ export function MiningSessions({
         >
           <SessionRateHistory
             sessionId={selectedSessionId}
-            sessionInfo={sessions?.find(s => s.id === selectedSessionId) ? {
-              session_id: sessions.find(s => s.id === selectedSessionId)!.session_id,
-              resource_type: sessions.find(s => s.id === selectedSessionId)!.resource_type || 'yld',
-              land_id: (sessions.find(s => s.id === selectedSessionId)!.land || sessions.find(s => s.id === selectedSessionId)!.land_info)?.land_id
-            } : undefined}
+            sessionInfo={(() => {
+              const session = displaySessions.find((s: any) => 
+                s.session_pk === selectedSessionId || s.id === selectedSessionId
+              )
+              return session ? {
+                session_id: session.session_id,
+                resource_type: session.resource_type || 'yld',
+                land_id: session.land_id
+              } : undefined
+            })()}
             onClose={() => {
               setShowRateHistory(false)
               setSelectedSessionId(null)
