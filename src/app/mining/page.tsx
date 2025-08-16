@@ -900,6 +900,7 @@ function MiningPage() {
                         onStopSession={handleStopSession}
                         onCollectOutput={handleCollectSessionOutput}
                         startMiningLoading={startMiningLoading}
+                        miningSummary={miningSummary}
                         onBuyFood={() => {
                           toast('购买粮食功能即将开放', { icon: '🌾' })
                         }}
