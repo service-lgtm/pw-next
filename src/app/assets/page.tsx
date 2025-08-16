@@ -190,7 +190,7 @@ export default function AssetsPage() {
               {assetSummary.tdbBalance.toLocaleString()} TDB
             </p>
             <p className="text-xs text-gray-400 mb-3">
-              稳定交易通证 · 1 TDB = 1 USD
+              稳定交易通证 · DB
             </p>
             <div className="flex gap-2">
               <button 
