@@ -590,10 +590,14 @@ const SessionCardV2 = memo(({
     return () => clearInterval(interval)
   }, [session])
   
-  // 从session中提取数据（根据实际API响应）
+  // 从session中提取数据（根据实际API响应）- 修复：添加所有需要的变量定义
+  const sessionId = session.session_id || `Session-${session.id}`
+  const sessionPk = session.id || session.session_pk
   const landInfo = session.land || session.land_info || {}
-  const startTime = session.started_at
-  const toolCount = session.tool_count || 0
+  const landName = landInfo.land_id || landInfo.name || '未知土地'
+  const landType = landInfo.land_type_display || landInfo.blueprint?.land_type_display || '未知类型'
+  const startTime = session.started_at || session.start_time
+  const toolCount = session.tool_count || session.tools?.length || 0
   const foodConsumption = session.food_consumption_rate || (toolCount * FOOD_CONSUMPTION_RATE)
   const resourceType = session.resource_type || 'yld'
   const algorithmVersion = session.algorithm_version || 'v2'
@@ -601,9 +605,22 @@ const SessionCardV2 = memo(({
   const taxRate = TAX_RATES[miningType] || 0.05
   
   // 新算法v2特有字段（根据API文档）
-  const pendingOutput = session.pending_output || 0 // 待收取净收益
-  const settledHours = session.settled_hours || session.hours_settled || 0  // 已结算小时数
+  const pendingOutput = session.pending_output || session.pending_rewards || 0
+  const settledHours = session.settled_hours || session.hours_settled || 0
   const lastSettlementHour = session.last_settlement_hour || session.last_settlement || null
+  
+  // 计算总工作小时数
+  const totalHoursWorked = (() => {
+    if (!startTime) return 0
+    try {
+      const start = new Date(startTime)
+      const now = new Date()
+      const diff = now.getTime() - start.getTime()
+      return diff / (1000 * 60 * 60)
+    } catch {
+      return 0
+    }
+  })()
   
   // 计算当前小时状态
   const currentHourStatus = currentHourMinutes >= 60 ? 
@@ -752,7 +769,7 @@ const SessionCardV2 = memo(({
           )}
         </div>
         
-        {/* 详细信息 - 使用实际API返回的字段 */}
+        {/* 详细信息 */}
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <p className="text-gray-400 text-xs">挖矿时长</p>
