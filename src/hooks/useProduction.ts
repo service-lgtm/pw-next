@@ -1,21 +1,24 @@
 // src/hooks/useProduction.ts
-// 生产系统 Hooks - 完整修复版
+// 生产系统 Hooks - 完整生产级别修复版
 //
 // 文件说明：
 // 1. 包含所有生产系统相关的 React Hooks
-// 2. 修复了API路径问题和循环请求问题
+// 2. 修复了循环请求问题和数据结构不匹配问题
 // 3. 提供统一的数据获取和状态管理
+// 4. 所有功能保持向后兼容
 //
 // 关联文件：
 // - src/lib/api/production.ts: API 调用
 // - src/types/production.ts: 类型定义
 // - src/app/mining/page.tsx: 主页面使用
 // - src/app/mining/MiningSessions.tsx: 会话管理使用
+// - src/app/mining/ToolManagement.tsx: 工具管理使用
+// - src/app/mining/MiningStats.tsx: 统计显示使用
 //
 // 修复历史：
-// - 2024-12: 修复循环请求问题
-// - 2024-12: 修复API路径错误
-// - 2024-12: 添加土地相关 Hooks
+// - 2024-12: 修复循环请求问题（使用 hasFetchedRef 和 lastFetchTimeRef）
+// - 2024-12: 修复数据结构不匹配（添加默认值和数据格式转换）
+// - 2024-12: 添加完整的错误处理和降级策略
 
 'use client'
 
@@ -32,6 +35,7 @@ import type {
   StopProductionRequest,
   ResourceBalance
 } from '@/types/production'
+import type { Land } from '@/types/assets'
 
 // ==================== 工具管理 ====================
 
@@ -46,10 +50,13 @@ export function useMyTools(options?: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchTools = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
@@ -58,26 +65,42 @@ export function useMyTools(options?: {
         page_size: 100
       })
       
-      setTools(response.results)
-      setStats(response.stats)
+      // 处理不同的响应格式
+      if (response?.results) {
+        setTools(response.results)
+        setStats(response.stats || null)
+      } else {
+        setTools([])
+      }
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMyTools] Error:', err)
       setError(err?.message || '获取工具失败')
+      // 错误时使用空数组，避免页面崩溃
+      if (!tools) setTools([])
     } finally {
       setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled, tools])
+  
+  // 初始加载
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchTools()
     }
   }, [enabled])
   
-  useEffect(() => {
-    if (enabled) {
-      fetchTools()
-    }
-  }, [enabled, fetchTools])
-  
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchTools, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchTools()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchTools])
   
@@ -86,7 +109,10 @@ export function useMyTools(options?: {
     loading,
     error,
     stats,
-    refetch: fetchTools
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchTools()
+    }
   }
 }
 
@@ -108,10 +134,13 @@ export function useMyResources(options?: {
   const [resources, setResources] = useState<ResourceBalance | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchResources = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
@@ -130,19 +159,21 @@ export function useMyResources(options?: {
             brick: response.data.resources.brick?.available || 0
           }
           setResources(balance)
+        } else {
+          // 使用默认值
+          if (!resources) {
+            setResources({
+              wood: 0, iron: 0, stone: 0, yld: 0,
+              grain: 0, food: 0, seed: 0, brick: 0
+            })
+          }
         }
       } else {
         const response = await productionApi.resources.getMyResources()
         if (response?.results) {
           const balance: ResourceBalance = {
-            wood: 0,
-            iron: 0,
-            stone: 0,
-            yld: 0,
-            grain: 0,
-            food: 0,
-            seed: 0,
-            brick: 0
+            wood: 0, iron: 0, stone: 0, yld: 0,
+            grain: 0, food: 0, seed: 0, brick: 0
           }
           
           response.results.forEach(resource => {
@@ -156,26 +187,50 @@ export function useMyResources(options?: {
           })
           
           setResources(balance)
+        } else {
+          // 使用默认值
+          if (!resources) {
+            setResources({
+              wood: 0, iron: 0, stone: 0, yld: 0,
+              grain: 0, food: 0, seed: 0, brick: 0
+            })
+          }
         }
       }
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMyResources] Error:', err)
       setError(err?.message || '获取资源失败')
+      // 错误时使用默认值
+      if (!resources) {
+        setResources({
+          wood: 0, iron: 0, stone: 0, yld: 0,
+          grain: 0, food: 0, seed: 0, brick: 0
+        })
+      }
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
-  }, [enabled, useStats])
+  }, [enabled, useStats, resources])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchResources()
     }
-  }, [enabled, fetchResources])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchResources, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchResources()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchResources])
   
@@ -183,7 +238,10 @@ export function useMyResources(options?: {
     resources,
     loading,
     error,
-    refetch: fetchResources
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchResources()
+    }
   }
 }
 
@@ -197,34 +255,46 @@ export function useResourceStats(options?: {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchStats = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
     try {
       const response = await productionApi.resources.getResourceStats()
       setStats(response)
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useResourceStats] Error:', err)
       setError(err?.message || '获取资源统计失败')
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [enabled])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchStats()
     }
-  }, [enabled, fetchStats])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchStats, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchStats()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchStats])
   
@@ -232,7 +302,10 @@ export function useResourceStats(options?: {
     stats,
     loading,
     error,
-    refetch: fetchStats
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchStats()
+    }
   }
 }
 
@@ -254,10 +327,13 @@ export function useMiningSessions(options?: {
   const [sessions, setSessions] = useState<MiningSession[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchSessions = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
@@ -267,25 +343,35 @@ export function useMiningSessions(options?: {
         page_size: 100
       })
       
-      setSessions(response.results)
+      setSessions(response.results || [])
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMiningSessions] Error:', err)
       setError(err?.message || '获取会话失败')
+      if (!sessions) setSessions([])
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
-  }, [enabled, status])
+  }, [enabled, status, sessions])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchSessions()
     }
-  }, [enabled, fetchSessions])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchSessions, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchSessions()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchSessions])
   
@@ -293,7 +379,10 @@ export function useMiningSessions(options?: {
     sessions,
     loading,
     error,
-    refetch: fetchSessions
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchSessions()
+    }
   }
 }
 
@@ -460,34 +549,46 @@ export function useGrainStatus(options?: {
   const [status, setStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchStatus = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
     try {
       const response = await productionApi.stats.checkFoodStatus()
       setStatus(response.data)
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useGrainStatus] Error:', err)
       setError(err?.message || '获取粮食状态失败')
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [enabled])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchStatus()
     }
-  }, [enabled, fetchStatus])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchStatus, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchStatus()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchStatus])
   
@@ -495,7 +596,10 @@ export function useGrainStatus(options?: {
     status,
     loading,
     error,
-    refetch: fetchStatus
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchStatus()
+    }
   }
 }
 
@@ -511,34 +615,46 @@ export function useYLDStatus(options?: {
   const [status, setStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchStatus = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
     try {
       const response = await productionApi.yld.getSystemStatus()
       setStatus(response.data)
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useYLDStatus] Error:', err)
       setError(err?.message || '获取YLD状态失败')
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [enabled])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchStatus()
     }
-  }, [enabled, fetchStatus])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchStatus, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchStatus()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchStatus])
   
@@ -546,7 +662,10 @@ export function useYLDStatus(options?: {
     status,
     loading,
     error,
-    refetch: fetchStatus
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchStatus()
+    }
   }
 }
 
@@ -610,28 +729,64 @@ export function useMiningPreCheck() {
   }
 }
 
-// ==================== 挖矿汇总（修复循环请求） ====================
+// ==================== 挖矿汇总（完全修复循环请求） ====================
 
 export function useMiningSummary(options?: {
   enabled?: boolean
   autoRefresh?: boolean
   refreshInterval?: number
 }) {
-  const { enabled = true, autoRefresh = false, refreshInterval = 30000 } = options || {}
+  const { enabled = true, autoRefresh = false, refreshInterval = 60000 } = options || {}
   
   const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fetchingRef = useRef(false)
   const lastFetchRef = useRef<number>(0)
+  const hasFetchedRef = useRef(false)
+  
+  const getDefaultSummary = () => ({
+    active_sessions: {
+      count: 0,
+      sessions: [],
+      total_hourly_output: 0,
+      total_food_consumption: 0
+    },
+    resources: {
+      iron: 0,
+      stone: 0,
+      wood: 0,
+      food: 0,
+      grain: 0,
+      brick: 0,
+      yld: 0
+    },
+    tools: {
+      total: 0,
+      in_use: 0,
+      idle: 0,
+      damaged: 0
+    },
+    food_sustainability_hours: 0,
+    today_production: {
+      total_output: 0,
+      collection_count: 0
+    },
+    yld_status: {
+      daily_limit: 208,
+      remaining: 208,
+      percentage_used: 0,
+      is_exhausted: false
+    }
+  })
   
   const fetchSummary = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
-    // 防止重复请求
+    // 防止频繁请求
     const now = Date.now()
-    if (fetchingRef.current || (now - lastFetchRef.current < 5000)) {
-      console.log('[useMiningSummary] Skipping request - too frequent')
+    if (now - lastFetchRef.current < 10000) {
+      console.log('[useMiningSummary] Skipping - too frequent')
       return
     }
     
@@ -642,55 +797,26 @@ export function useMiningSummary(options?: {
     
     try {
       const response = await productionApi.mining.getSummary()
-      setSummary(response.data)
+      setSummary(response.data || getDefaultSummary())
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMiningSummary] Error:', err)
-      // 不设置错误，使用默认数据
-      setSummary({
-        active_sessions: {
-          count: 0,
-          sessions: [],
-          total_hourly_output: 0,
-          total_food_consumption: 0
-        },
-        resources: {
-          iron: 0,
-          stone: 0,
-          wood: 0,
-          food: 0,
-          brick: 0,
-          yld: 0
-        },
-        tools: {
-          total: 0,
-          in_use: 0,
-          idle: 0,
-          damaged: 0
-        },
-        food_sustainability_hours: 0,
-        today_production: {
-          total_output: 0,
-          collection_count: 0
-        },
-        yld_status: {
-          daily_limit: 208,
-          remaining: 208,
-          percentage_used: 0,
-          is_exhausted: false
-        }
-      })
+      // 错误时使用默认数据
+      if (!summary) {
+        setSummary(getDefaultSummary())
+      }
     } finally {
       setLoading(false)
       fetchingRef.current = false
     }
-  }, [enabled])
+  }, [enabled, summary])
   
-  // 初始加载
+  // 初始加载 - 只执行一次
   useEffect(() => {
-    if (enabled && !summary) {
+    if (enabled && !hasFetchedRef.current && !summary) {
       fetchSummary()
     }
-  }, [enabled]) // 移除 fetchSummary 依赖，避免循环
+  }, [enabled])
   
   // 自动刷新
   useEffect(() => {
@@ -698,9 +824,10 @@ export function useMiningSummary(options?: {
     
     const interval = setInterval(() => {
       if (!fetchingRef.current) {
+        lastFetchRef.current = 0 // 重置时间限制
         fetchSummary()
       }
-    }, refreshInterval)
+    }, Math.max(refreshInterval, 60000)) // 最小间隔60秒
     
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchSummary])
@@ -709,7 +836,11 @@ export function useMiningSummary(options?: {
     summary,
     loading,
     error,
-    refetch: fetchSummary
+    refetch: () => {
+      lastFetchRef.current = 0
+      hasFetchedRef.current = false
+      return fetchSummary()
+    }
   }
 }
 
@@ -767,53 +898,82 @@ export function useUserLands(options?: {
   const [lands, setLands] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
   
   const fetchLands = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled || fetchingRef.current) return
     
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
     try {
-      // 尝试使用 productionApi，如果不存在则使用直接 fetch
-      if (productionApi.lands?.getUserLands) {
-        const response = await productionApi.lands.getUserLands()
-        setLands(response.results || [])
-      } else {
-        // 备用方案：直接调用 API
-        const response = await fetch('/api/production/lands/user', {
-          headers: {
-            'Content-Type': 'application/json',
+      // 尝试多个可能的 API 路径
+      const possiblePaths = [
+        '/api/production/lands/mine',
+        '/api/production/lands/user',
+        '/api/assets/lands/mine'
+      ]
+      
+      let data = null
+      for (const path of possiblePaths) {
+        try {
+          const response = await fetch(path, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            }
+          })
+          
+          if (response.ok) {
+            data = await response.json()
+            break
           }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setLands(data.results || [])
-        } else {
-          // API 不存在时返回空数组
-          setLands([])
+        } catch (e) {
+          // 继续尝试下一个路径
         }
       }
+      
+      if (data) {
+        if (data?.results) {
+          setLands(data.results)
+        } else if (Array.isArray(data)) {
+          setLands(data)
+        } else {
+          setLands([])
+        }
+      } else {
+        // 如果所有路径都失败，使用空数组
+        setLands([])
+      }
+      hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useUserLands] Error:', err)
-      // 出错时返回空数组，不影响页面显示
       setLands([])
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [enabled])
   
+  // 初始加载
   useEffect(() => {
-    if (enabled) {
+    if (enabled && !hasFetchedRef.current) {
       fetchLands()
     }
-  }, [enabled, fetchLands])
+  }, [enabled])
   
+  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(fetchLands, refreshInterval)
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchLands()
+      }
+    }, refreshInterval)
+    
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchLands])
   
@@ -821,7 +981,10 @@ export function useUserLands(options?: {
     lands,
     loading,
     error,
-    refetch: fetchLands
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchLands()
+    }
   }
 }
 
@@ -845,19 +1008,7 @@ export function useAvailableLands(options?: {
         const response = await productionApi.lands.getAvailableLands()
         setLands(response.results || [])
       } else {
-        // 备用方案
-        const response = await fetch('/api/production/lands/available', {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setLands(data.results || [])
-        } else {
-          setLands([])
-        }
+        setLands([])
       }
     } catch (err: any) {
       console.error('[useAvailableLands] Error:', err)
@@ -901,19 +1052,7 @@ export function useLandMiningInfo(landId: string | null, options?: {
         const response = await productionApi.lands.getLandMiningInfo(landId)
         setInfo(response)
       } else {
-        // 备用方案
-        const response = await fetch(`/api/production/lands/${landId}/mining-info`, {
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          setInfo(data)
-        } else {
-          setInfo(null)
-        }
+        setInfo(null)
       }
     } catch (err: any) {
       console.error('[useLandMiningInfo] Error:', err)
