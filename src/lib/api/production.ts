@@ -754,16 +754,3 @@ export function useSessionRateHistory(sessionId: number | null, options?: {
   }
 }
 
-// ==================== 土地相关（从 useMiningLands 导入） ====================
-
-import { 
-  useUserLands as useUserLandsImpl,
-  useAvailableLands as useAvailableLandsImpl
-} from './useMiningLands'
-
-export const useUserLands = useUserLandsImpl
-export const useAvailableLands = useAvailableLandsImpl
-
-// 如果已有 useLandMiningInfo 定义，保留原有的
-// 如果没有，从 useMiningLands 导入
-export { useLandMiningInfo } from './useMiningLands'
