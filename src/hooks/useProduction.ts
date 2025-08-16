@@ -959,48 +959,72 @@ export function useUserLands(options?: {
     try {
       console.log('[useUserLands] Fetching lands...')
       
-      // 尝试多个可能的 API 路径
-      const possiblePaths = [
-        '/api/production/lands/mine',
-        '/api/production/lands/user',
-        '/api/assets/lands/mine'
-      ]
-      
-      let data = null
-      for (const path of possiblePaths) {
+      // 使用 productionApi 调用正确的接口
+      try {
+        // 首先尝试使用 production API 的 getMyLands
+        const response = await productionApi.lands.getMyLands()
+        console.log('[useUserLands] Response from getMyLands:', response)
+        
+        if (response?.data?.results) {
+          setLands(response.data.results)
+        } else if (response?.results) {
+          setLands(response.results)
+        } else if (response?.data && Array.isArray(response.data)) {
+          setLands(response.data)
+        } else if (Array.isArray(response)) {
+          setLands(response)
+        } else {
+          // 如果第一个接口失败，尝试 getUserLands
+          const userLandsResponse = await productionApi.lands.getUserLands()
+          console.log('[useUserLands] Response from getUserLands:', userLandsResponse)
+          
+          if (userLandsResponse?.data?.results) {
+            setLands(userLandsResponse.data.results)
+          } else if (userLandsResponse?.results) {
+            setLands(userLandsResponse.results)
+          } else {
+            setLands([])
+          }
+        }
+      } catch (error) {
+        console.log('[useUserLands] Failed to fetch from production API, trying assets API...')
+        
+        // 如果 production API 失败，尝试从 assets API 获取
         try {
-          const response = await fetch(path, {
+          // 这里需要导入 assetsApi（如果存在）
+          // 暂时使用直接的 API 调用，但使用正确的基础URL
+          const API_BASE_URL = 'https://mg.pxsj.net.cn/api/v1'
+          const token = localStorage.getItem('access_token')
+          
+          const response = await fetch(`${API_BASE_URL}/assets/lands/mine/`, {
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+              'Authorization': token ? `Bearer ${token}` : ''
             }
           })
           
           if (response.ok) {
-            data = await response.json()
-            console.log('[useUserLands] Success from', path, data)
-            break
+            const data = await response.json()
+            console.log('[useUserLands] Success from assets API:', data)
+            
+            if (data?.results) {
+              setLands(data.results)
+            } else if (data?.data?.results) {
+              setLands(data.data.results)
+            } else if (data?.data && Array.isArray(data.data)) {
+              setLands(data.data)
+            } else if (Array.isArray(data)) {
+              setLands(data)
+            } else {
+              setLands([])
+            }
+          } else {
+            setLands([])
           }
         } catch (e) {
-          console.log('[useUserLands] Failed path:', path)
-        }
-      }
-      
-      if (data) {
-        // 处理不同的响应格式
-        if (data?.results) {
-          setLands(data.results)
-        } else if (data?.data?.results) {
-          setLands(data.data.results)
-        } else if (data?.data && Array.isArray(data.data)) {
-          setLands(data.data)
-        } else if (Array.isArray(data)) {
-          setLands(data)
-        } else {
+          console.error('[useUserLands] Failed to fetch from assets API:', e)
           setLands([])
         }
-      } else {
-        setLands([])
       }
       
       hasFetchedRef.current = true
