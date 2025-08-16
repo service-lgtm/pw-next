@@ -44,6 +44,7 @@ import { MiningStats } from './MiningStats'
 import { MiningMarket } from './MiningMarket'
 import { HiringMarket } from './HiringMarket'
 import { SynthesisSystem } from './SynthesisSystem'
+import { AutoRefreshSystem } from './AutoRefreshSystem'
 
 // Hooks 导入
 import { useAuth } from '@/hooks/useAuth'
@@ -578,6 +579,49 @@ function MiningPage() {
     <div className="min-h-screen bg-gray-900">
       {/* 内测横幅提醒 */}
       {hasMiningAccess && <BetaBanner />}
+      
+      {/* 自动刷新监控系统 */}
+      {hasMiningAccess && (
+        <AutoRefreshSystem
+          enabled={true}
+          sessions={sessions}
+          tools={tools}
+          grainStatus={grainStatus}
+          miningSummary={miningSummary}
+          yldStatus={yldSystemStatus}
+          onRefreshSessions={refetchSessions}
+          onRefreshTools={refetchTools}
+          onRefreshResources={() => {
+            refetchResources()
+            refetchResourceStats()
+          }}
+          onRefreshSummary={refetchMiningSummary}
+          config={{
+            sessionCheckInterval: 30000,      // 30秒检查会话
+            resourceCheckInterval: 60000,     // 60秒检查资源
+            grainWarningThreshold: 2,         // 粮食少于2小时警告
+            durabilityWarningThreshold: 100,  // 耐久度少于100警告
+            enableNotifications: true,        // 启用通知
+            enableAutoCollect: false          // 暂不自动收取
+          }}
+          onGrainLow={(hours) => {
+            console.log('[AutoRefresh] 粮食不足:', hours, '小时')
+          }}
+          onToolDamaged={(tool) => {
+            console.log('[AutoRefresh] 工具损坏:', tool.tool_id)
+          }}
+          onSessionComplete={(session) => {
+            console.log('[AutoRefresh] 会话可收取:', session.session_id)
+            // 可以在这里添加自动收取逻辑
+          }}
+          onYLDExhausted={() => {
+            console.log('[AutoRefresh] YLD已耗尽')
+            // 刷新所有数据
+            refetchSessions()
+            refetchYLDStatus()
+          }}
+        />
+      )}
       
       {/* 顶部状态栏 */}
       <div className="bg-gray-800 border-b border-gray-700">
