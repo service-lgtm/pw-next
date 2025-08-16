@@ -959,78 +959,47 @@ export function useUserLands(options?: {
     try {
       console.log('[useUserLands] Fetching lands...')
       
-      // 使用 productionApi 调用正确的接口
-      try {
-        // 首先尝试使用 production API 的 getMyLands
-        const response = await productionApi.lands.getMyLands()
-        console.log('[useUserLands] Response from getMyLands:', response)
-        
-        if (response?.data?.results) {
-          setLands(response.data.results)
-        } else if (response?.results) {
-          setLands(response.results)
-        } else if (response?.data && Array.isArray(response.data)) {
-          setLands(response.data)
-        } else if (Array.isArray(response)) {
-          setLands(response)
-        } else {
-          // 如果第一个接口失败，尝试 getUserLands
-          const userLandsResponse = await productionApi.lands.getUserLands()
-          console.log('[useUserLands] Response from getUserLands:', userLandsResponse)
-          
-          if (userLandsResponse?.data?.results) {
-            setLands(userLandsResponse.data.results)
-          } else if (userLandsResponse?.results) {
-            setLands(userLandsResponse.results)
-          } else {
-            setLands([])
-          }
-        }
-      } catch (error) {
-        console.log('[useUserLands] Failed to fetch from production API, trying assets API...')
-        
-        // 如果 production API 失败，尝试从 assets API 获取
-        try {
-          // 这里需要导入 assetsApi（如果存在）
-          // 暂时使用直接的 API 调用，但使用正确的基础URL
-          const API_BASE_URL = 'https://mg.pxsj.net.cn/api/v1'
-          const token = localStorage.getItem('access_token')
-          
-          const response = await fetch(`${API_BASE_URL}/assets/lands/mine/`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            console.log('[useUserLands] Success from assets API:', data)
-            
-            if (data?.results) {
-              setLands(data.results)
-            } else if (data?.data?.results) {
-              setLands(data.data.results)
-            } else if (data?.data && Array.isArray(data.data)) {
-              setLands(data.data)
-            } else if (Array.isArray(data)) {
-              setLands(data)
-            } else {
-              setLands([])
-            }
-          } else {
-            setLands([])
-          }
-        } catch (e) {
-          console.error('[useUserLands] Failed to fetch from assets API:', e)
-          setLands([])
-        }
+      // 根据API文档，使用正确的接口：/api/v1/production/lands/available/
+      // 参数 ownership=mine 获取自己的土地
+      const response = await productionApi.lands.getAvailableLands({
+        ownership: 'mine'
+      })
+      
+      console.log('[useUserLands] Response from getAvailableLands:', response)
+      
+      // 根据API文档，响应格式是 {success: true, data: {results: [...]}}
+      if (response?.data?.results) {
+        setLands(response.data.results)
+      } else if (response?.results) {
+        // 兼容直接返回 results 的情况
+        setLands(response.results)
+      } else if (Array.isArray(response)) {
+        setLands(response)
+      } else {
+        console.warn('[useUserLands] Unexpected response format:', response)
+        setLands([])
       }
       
       hasFetchedRef.current = true
     } catch (err: any) {
-      console.error('[useUserLands] Error:', err)
-      setLands([])
+      console.error('[useUserLands] Error fetching lands:', err)
+      
+      // 如果失败，尝试其他可能的接口
+      try {
+        console.log('[useUserLands] Trying alternate endpoint getUserLands...')
+        const alternateResponse = await productionApi.lands.getUserLands()
+        
+        if (alternateResponse?.data?.results) {
+          setLands(alternateResponse.data.results)
+        } else if (alternateResponse?.results) {
+          setLands(alternateResponse.results)
+        } else {
+          setLands([])
+        }
+      } catch (alternateErr) {
+        console.error('[useUserLands] All attempts failed:', alternateErr)
+        setLands([])
+      }
     } finally {
       setLoading(false)
       fetchingRef.current = false
