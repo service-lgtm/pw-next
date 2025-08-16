@@ -1,5 +1,5 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理组件 - 增强生产版（完整版）
+// 挖矿会话管理组件 - 修复生产版
 // 
 // 功能说明：
 // 1. 管理用户的挖矿会话（开始、停止、收取）
@@ -18,9 +18,9 @@
 // - 使用 ./SessionRateHistory 组件（产出率历史）
 // - 后端接口：/production/sessions/, /production/mining/self/start/ 等
 //
-// 更新历史：
-// - 2024-12: 集成预检查、产出率历史、批量操作等新功能
-// - 2024-12: 修复组件结构问题
+// 修复历史：
+// - 2024-12: 修复 isToolAvailable 函数导入问题
+// - 2024-12: 修复类型定义导入错误
 
 'use client'
 
@@ -33,27 +33,11 @@ import { SessionRateHistory } from './SessionRateHistory'
 import { cn } from '@/lib/utils'
 import type { 
   MiningSession, 
-  Tool,
-  getSessionTotalOutput,
-  getSessionStartTime,
-  getSessionToolCount,
-  getSessionFoodConsumption,
-  getToolDurability,
-  isToolAvailable
+  Tool
 } from '@/types/production'
 import type { Land } from '@/types/assets'
 import toast from 'react-hot-toast'
 import { useStopAllSessions } from '@/hooks/useProduction'
-
-// 导入辅助函数
-import {
-  getSessionTotalOutput as getTotalOutput,
-  getSessionStartTime as getStartTime,
-  getSessionToolCount as getToolCount,
-  getSessionFoodConsumption as getFoodConsumption,
-  getToolDurability as getDurability,
-  isToolAvailable as checkToolAvailable
-} from '@/types/production'
 
 interface MiningSessionsProps {
   sessions: MiningSession[] | null
@@ -74,6 +58,57 @@ const DURABILITY_CONSUMPTION_RATE = 1  // 每工具每小时消耗耐久度
 const MIN_COLLECT_HOURS = 1  // 最少收取小时数
 
 // ==================== 工具函数 ====================
+
+/**
+ * 获取会话总产出
+ */
+const getSessionTotalOutput = (session: MiningSession): number => {
+  // 兼容不同字段名
+  const output = session.total_output || 
+                  session.accumulated_output || 
+                  session.cumulative_output || 
+                  0
+  return typeof output === 'string' ? parseFloat(output) : output
+}
+
+/**
+ * 获取会话开始时间
+ */
+const getSessionStartTime = (session: MiningSession): string => {
+  return session.start_time || session.started_at || ''
+}
+
+/**
+ * 获取会话工具数量
+ */
+const getSessionToolCount = (session: MiningSession): number => {
+  if (session.tool_count) return session.tool_count
+  if (session.tools && Array.isArray(session.tools)) return session.tools.length
+  if (session.tool_ids && Array.isArray(session.tool_ids)) return session.tool_ids.length
+  return 0
+}
+
+/**
+ * 获取会话粮食消耗
+ */
+const getSessionFoodConsumption = (session: MiningSession): number => {
+  const toolCount = getSessionToolCount(session)
+  return toolCount * FOOD_CONSUMPTION_RATE
+}
+
+/**
+ * 获取工具耐久度
+ */
+const getToolDurability = (tool: Tool): number => {
+  return tool.current_durability || 0
+}
+
+/**
+ * 检查工具是否可用
+ */
+const isToolAvailable = (tool: Tool): boolean => {
+  return tool.status === 'normal' && !tool.is_in_use && (tool.current_durability || 0) > 0
+}
 
 /**
  * 格式化持续时间
@@ -270,10 +305,10 @@ const MobileSessionCard = memo(({
   onStop: () => void
   onViewHistory: () => void
 }) => {
-  const totalOutput = getTotalOutput(session)
-  const startTime = getStartTime(session)
-  const toolCount = getToolCount(session)
-  const foodConsumption = getFoodConsumption(session)
+  const totalOutput = getSessionTotalOutput(session)
+  const startTime = getSessionStartTime(session)
+  const toolCount = getSessionToolCount(session)
+  const foodConsumption = getSessionFoodConsumption(session)
   const collectableHours = calculateCollectableHours(startTime)
   const canCollect = collectableHours >= MIN_COLLECT_HOURS || (session.current_output && session.current_output > 0)
   
@@ -369,10 +404,10 @@ const DesktopSessionCard = memo(({
   onStop: () => void
   onViewHistory: () => void
 }) => {
-  const totalOutput = getTotalOutput(session)
-  const startTime = getStartTime(session)
-  const toolCount = getToolCount(session)
-  const foodConsumption = getFoodConsumption(session)
+  const totalOutput = getSessionTotalOutput(session)
+  const startTime = getSessionStartTime(session)
+  const toolCount = getSessionToolCount(session)
+  const foodConsumption = getSessionFoodConsumption(session)
   const collectableHours = calculateCollectableHours(startTime)
   const canCollect = collectableHours >= MIN_COLLECT_HOURS || (session.current_output && session.current_output > 0)
   
@@ -557,7 +592,7 @@ export function MiningSessions({
   
   // 可用工具
   const availableTools = useMemo(() => 
-    tools?.filter(t => checkToolAvailable(t)) || [],
+    tools?.filter(t => isToolAvailable(t)) || [],
     [tools]
   )
   
@@ -565,7 +600,7 @@ export function MiningSessions({
   const { totalOutput, totalHourlyOutput } = useMemo(() => {
     if (!sessions) return { totalOutput: 0, totalHourlyOutput: 0 }
     
-    const total = sessions.reduce((sum, session) => sum + getTotalOutput(session), 0)
+    const total = sessions.reduce((sum, session) => sum + getSessionTotalOutput(session), 0)
     const hourly = sessions.reduce((sum, session) => {
       const rate = parseFloat(session.output_rate || '0')
       return sum + rate
@@ -640,7 +675,7 @@ export function MiningSessions({
     
     // 检查工具耐久度
     const selectedToolObjects = availableTools.filter(t => selectedTools.includes(t.id))
-    const lowDurabilityTools = selectedToolObjects.filter(t => getDurability(t) < 100)
+    const lowDurabilityTools = selectedToolObjects.filter(t => getToolDurability(t) < 100)
     
     if (lowDurabilityTools.length > 0) {
       warning = `有 ${lowDurabilityTools.length} 个工具耐久度低于100，可能很快需要维修`
@@ -1104,11 +1139,11 @@ export function MiningSessions({
                             <div className="text-xs text-gray-400">耐久度</div>
                             <div className="text-xs">
                               <span className={cn(
-                                getDurability(tool) < 100 ? "text-red-400" :
-                                getDurability(tool) < 500 ? "text-yellow-400" :
+                                getToolDurability(tool) < 100 ? "text-red-400" :
+                                getToolDurability(tool) < 500 ? "text-yellow-400" :
                                 "text-green-400"
                               )}>
-                                {getDurability(tool)}
+                                {getToolDurability(tool)}
                               </span>
                               <span className="text-gray-500">/{tool.max_durability || 1500}</span>
                             </div>
@@ -1320,9 +1355,9 @@ export function MiningSessions({
                   const session = sessions.find(s => s.id === targetSessionId)
                   if (!session) return null
                   
-                  const startTime = getStartTime(session)
+                  const startTime = getSessionStartTime(session)
                   const duration = formatDuration(startTime)
-                  const totalOutput = getTotalOutput(session)
+                  const totalOutput = getSessionTotalOutput(session)
                   
                   return (
                     <div className="bg-gray-800 rounded p-3 text-xs">
