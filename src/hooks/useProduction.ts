@@ -1533,3 +1533,15 @@ export function useStartHiredMining() {
     error 
   }
 }
+
+// 导入土地相关 Hook
+import { 
+  useUserLands as useUserLandsFromMining,
+  useAvailableLands as useAvailableLandsFromMining,
+  useLandMiningInfo as useLandMiningInfoFromMining
+} from './useMiningLands'
+
+// 重新导出土地相关 Hook
+export const useUserLands = useUserLandsFromMining
+export const useAvailableLands = useAvailableLandsFromMining
+export const useLandMiningInfo = useLandMiningInfoFromMining
