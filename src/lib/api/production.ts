@@ -1,9 +1,9 @@
 // src/lib/api/production.ts
-// 挖矿生产系统 API - 修复版本
+// 挖矿生产系统 API - 增强完整版
 //
 // 文件说明：
 // 1. 本文件包含所有挖矿生产相关的 API 接口
-// 2. 包括自主挖矿、招募挖矿、打工挖矿、合成系统等
+// 2. 新增：YLD状态、挖矿预检查、产出率历史、批量操作等接口
 // 3. 使用 JWT 认证，自动处理 token
 // 4. 修复了资源统计接口，新增 getResourceStats 方法
 //
@@ -12,10 +12,10 @@
 // - src/types/production.ts: 生产系统类型定义
 // - src/hooks/useProduction.ts: 生产系统 Hook
 // - backend/production/urls.py: 后端路由定义
-// - backend/production/views.py: 后端视图，包含 ResourceStatsView
+// - backend/production/views.py: 后端视图
 //
 // 更新历史：
-// - 2024-01: 添加 getResourceStats 接口，对应后端 /production/resources/stats/
+// - 2024-12: 新增YLD系统监控、挖矿汇总、批量操作等接口
 
 import { request } from './index'
 import type {
@@ -70,6 +70,7 @@ export const productionApi = {
     // 获取我的挖矿会话列表
     getMySessions: (params?: {
       status?: 'active' | 'paused' | 'completed'
+      is_active?: boolean
       page?: number
       page_size?: number
     }) =>
@@ -97,6 +98,178 @@ export const productionApi = {
       }>('/production/stop/', {
         method: 'POST',
         body: data,
+      }),
+
+    // 新增：挖矿预检查
+    preCheck: () =>
+      request<{
+        success: boolean
+        data: {
+          can_mine: boolean
+          warnings: string[]
+          errors: string[]
+          idle_tools: number
+          food_amount: number
+          yld_status: {
+            remaining: number
+            percentage_used: number
+          }
+          active_sessions: number
+        }
+      }>('/production/mining/pre-check/'),
+
+    // 新增：获取挖矿汇总
+    getSummary: () =>
+      request<{
+        success: boolean
+        data: {
+          active_sessions: {
+            count: number
+            sessions: Array<{
+              session_id: string
+              resource_type: string
+              land_id: number
+              output_rate: number
+              tool_count: number
+              started_at: string
+              hours_worked: number
+              hours_collected: number
+              uncollected_hours: number
+              pending_output: number
+              can_collect: boolean
+            }>
+            total_hourly_output: number
+            total_food_consumption: number
+          }
+          resources: {
+            iron: number
+            stone: number
+            wood: number
+            food: number
+            brick: number
+            yld: number
+          }
+          tools: {
+            total: number
+            in_use: number
+            idle: number
+            damaged: number
+          }
+          food_sustainability_hours: number
+          today_production: {
+            total_output: number
+            collection_count: number
+          }
+          yld_status: {
+            daily_limit: number
+            remaining: number
+            percentage_used: number
+            is_exhausted: boolean
+          }
+        }
+      }>('/production/mining/summary/'),
+
+    // 新增：获取会话产出率历史
+    getSessionRateHistory: (sessionId: number) =>
+      request<{
+        success: boolean
+        data: {
+          session_id: string
+          resource_type: string
+          current_rate: number
+          rate_history: Array<{
+            time: string
+            start_hour: number
+            rate: number
+            tools: number
+            total_tools: number
+            ratio: number
+          }>
+          output_segments: Array<{
+            period: string
+            hours: number
+            rate: number
+            output: number
+            tools: number
+            ratio: number
+          }>
+        }
+      }>(`/production/sessions/${sessionId}/rate-history/`),
+
+    // 新增：批量停止所有会话
+    stopAllSessions: () =>
+      request<{
+        success: boolean
+        message: string
+        data: {
+          stopped_count: number
+          total_collected: number
+          sessions: Array<{
+            session_id: string
+            resource_type: string
+            status: string
+            output_collected: number
+          }>
+        }
+      }>('/production/stop-all/', {
+        method: 'POST',
+      }),
+  },
+
+  // ==================== YLD系统监控（新增） ====================
+  yld: {
+    // 获取YLD系统状态
+    getSystemStatus: () =>
+      request<{
+        success: boolean
+        data: {
+          daily_limit: number
+          produced_today: number
+          remaining: number
+          percentage_used: number
+          is_exhausted: boolean
+          active_sessions: number
+          total_tools: number
+          theoretical_hourly: number
+          actual_hourly: number
+          user_session?: {
+            session_id: string
+            output_rate: number
+            tool_count: number
+            started_at: string
+          }
+          warning?: string
+        }
+      }>('/production/yld/status/'),
+
+    // 检查挖矿前YLD状态
+    checkBeforeMining: () =>
+      request<{
+        can_mine: boolean
+        daily_limit: number
+        remaining: number
+        percentage_used: number
+        message: string
+      }>('/production/yld/check-before-mining/'),
+
+    // 处理YLD耗尽
+    handleExhausted: () =>
+      request<{
+        success: boolean
+        data: {
+          message: string
+          sessions_stopped: number
+          total_settled: number
+          settlement_details: Array<{
+            session_id: string
+            user: string
+            hours: number
+            should_get: number
+            actual_get: number
+          }>
+        }
+      }>('/production/yld/handle-exhausted/', {
+        method: 'POST',
       }),
   },
 
@@ -169,6 +342,7 @@ export const productionApi = {
       is_in_use?: boolean
       page?: number
       page_size?: number
+      ordering?: string
     }) =>
       request<ToolListResponse>('/production/tools/', { params }),
   },
@@ -186,7 +360,7 @@ export const productionApi = {
         }
       }>('/production/resources/'),
 
-    // 获取资源统计（增强版）- 新增
+    // 获取资源统计（增强版）
     // 对应后端 ResourceStatsView: /production/resources/stats/
     // 返回用户所有资源的当前库存、价值和统计信息
     getResourceStats: () =>
@@ -236,286 +410,32 @@ export const productionApi = {
           }>
         }
       }>('/production/resources/stats/'),
-  },
 
-  // ==================== 统计与分析 ====================
-  stats: {
-    // 获取生产统计
-    getProductionStats: () =>
-      request<ProductionStatsResponse>('/production/stats/'),
-
-    // 获取生产记录
-    getProductionRecords: (params?: {
-      resource_type?: string
-      session?: number
-      page?: number
-      page_size?: number
-    }) =>
+    // 新增：购买粮食
+    buyFood: (data: { amount: number }) =>
       request<{
-        count: number
-        results: Array<{
-          id: number
-          session_id: string
-          resource_type: string
-          amount: string
-          created_at: string
-        }>
-        stats?: {
-          total_collected: number
-          total_tax: number
-          total_hours: number
-          total_energy: number
+        success: boolean
+        message: string
+        data: {
+          amount_purchased: number
+          yld_spent: number
+          new_food_balance: number
+          new_yld_balance: number
         }
-      }>('/production/records/', { params }),
+      }>('/production/food/buy/', {
+        method: 'POST',
+        body: data,
+      }),
 
-    // 检查粮食状态
-    checkFoodStatus: () =>
+    // 新增：获取粮食购买状态
+    getFoodPurchaseStatus: () =>
       request<{
         success: boolean
         data: {
-          current_food: number
-          consumption_rate: number
-          hours_sustainable: number
-          warning: boolean
-          warning_message?: string
-          active_sessions_count: number
+          food_price: number
+          yld_balance: number
+          food_balance: number
+          can_purchase: boolean
+          max_purchasable: number
         }
-      }>('/production/food-status/'),
-  },
-
-  // ==================== 土地相关 ====================
-  lands: {
-    // 获取可用于挖矿的土地
-    getAvailableLands: (params?: {
-      ownership?: 'mine' | 'others' | 'all'
-      land_type?: string
-      has_tools?: boolean
-      page?: number
-      page_size?: number
-    }) =>
-      request<{
-        success: boolean
-        data: {
-          count: number
-          total_pages: number
-          current_page: number
-          page_size: number
-          results: Array<{
-            id: number
-            land_id: string
-            owner: {
-              id: number
-              username: string
-              nickname: string
-            }
-            is_mine: boolean
-            blueprint: {
-              id: number | null
-              land_type: string | null
-              land_type_display: string
-              output_resource: string | null
-              daily_output: number
-              size_sqm: number
-              remaining_reserves: number | null
-            }
-            region: {
-              id: number | null
-              name: string
-              display_name: string
-            }
-            is_producing: boolean
-            is_recruiting: boolean
-            deposited_tools: {
-              count: number
-              available: number
-              types: string[]
-            }
-            active_sessions: number
-            mining_options: Array<{
-              type: string
-              name: string
-              description: string
-            }>
-            created_at: string | null
-          }>
-        }
-      }>('/production/lands/available/', { params }),
-
-    // 获取土地挖矿详情
-    getLandMiningInfo: (landId: number) =>
-      request<{
-        success: boolean
-        data: {
-          land: {
-            id: number
-            land_id: string
-            owner: {
-              id: number
-              username: string
-              is_me: boolean
-            }
-            blueprint: {
-              land_type: string | null
-              land_type_display: string
-              output_resource: string | null
-              daily_output: number
-              size_sqm: number
-              energy_consumption_rate: number
-            }
-            region: {
-              name: string
-            }
-            is_producing: boolean
-            production_started_at: string | null
-          }
-          tools: {
-            total: number
-            available: number
-            in_use: number
-            details: Array<{
-              id: number
-              tool_id: string
-              owner_id: number
-              owner_username: string
-              is_mine: boolean
-              tool_type: string
-              tool_type_display: string
-              status: string
-              is_in_use: boolean
-              current_durability: number
-              max_durability: number
-              durability_percentage: number
-            }>
-          }
-          active_sessions: {
-            count: number
-            total_output_rate: number
-            total_food_consumption: number
-            sessions: Array<{
-              id: number
-              session_id: string
-              user: {
-                id: number
-                username: string
-                is_me: boolean
-              }
-              mining_type: string
-              resource_type: string
-              output_rate: number
-              started_at: string
-              total_output: number
-              tool_count: number
-              food_consumption_rate: number
-            }>
-          }
-          history: {
-            total_output: number
-            total_hours: number
-            total_sessions: number
-            total_workers: number
-            recent_records: Array<{
-              resource_type: string
-              amount: number
-              net_amount: number
-              tax_amount: number
-              created_at: string
-            }>
-          }
-          available_actions: Array<{
-            action: string
-            name: string
-            enabled: boolean
-          }>
-        }
-      }>(`/production/lands/${landId}/mining-info/`),
-
-    // 获取用户的土地列表
-    getUserLands: () =>
-      request<{
-        success: boolean
-        data: {
-          count: number
-          results: Array<{
-            id: number
-            land_id: string
-            blueprint: {
-              land_type: string | null
-              land_type_display: string
-              output_resource: string | null
-              daily_output: number
-            }
-            region: {
-              name: string
-            }
-            is_producing: boolean
-            deposited_tools_count: number
-            active_session: {
-              session_id: string
-              resource_type: string
-              output_rate: number
-              started_at: string
-              total_output: number
-            } | null
-          }>
-        }
-      }>('/production/lands/mine/'),
-  },
-}
-
-// ==================== 辅助函数 ====================
-
-/**
- * 格式化资源返回数据为 ResourceBalance
- * 用于将后端返回的资源数组转换为前端使用的对象格式
- */
-export function formatResourceBalance(resources: UserResource[]): ResourceBalance {
-  const balance: ResourceBalance = {
-    wood: 0,
-    iron: 0,
-    stone: 0,
-    yld: 0,
-    grain: 0,
-    seed: 0,
-    brick: 0
-  }
-
-  resources.forEach(resource => {
-    const key = resource.resource_type as keyof ResourceBalance
-    if (key in balance) {
-      balance[key] = parseFloat(resource.available_amount || resource.amount)
-    }
-  })
-
-  return balance
-}
-
-/**
- * 从资源统计数据中提取 ResourceBalance
- * 用于新的统计接口返回数据的转换
- */
-export function formatResourceStatsToBalance(stats: any): ResourceBalance {
-  const balance: ResourceBalance = {
-    wood: 0,
-    iron: 0,
-    stone: 0,
-    yld: 0,
-    grain: 0,
-    seed: 0,
-    brick: 0
-  }
-
-  if (stats?.resources) {
-    Object.entries(stats.resources).forEach(([key, resource]: [string, any]) => {
-      if (key in balance) {
-        balance[key as keyof ResourceBalance] = resource.available || resource.amount || 0
-      }
-    })
-  }
-
-  // 加上钱包中的 YLD
-  if (stats?.wallet?.yld_balance) {
-    balance.yld += stats.wallet.yld_balance
-  }
-
-  return balance
-}
+      }>('/production/food/purchase-status/'),
