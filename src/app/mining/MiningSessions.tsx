@@ -1036,10 +1036,27 @@ export function MiningSessions({
   const displaySessions = useMemo(() => {
     // 优先使用 miningSummary 中的完整数据
     if (miningSummary?.active_sessions?.sessions && miningSummary.active_sessions.sessions.length > 0) {
+      console.log('[MiningSessions] Using miningSummary sessions:', miningSummary.active_sessions.sessions)
       return miningSummary.active_sessions.sessions
     }
-    // 降级使用 sessions prop
-    return sessions || []
+    
+    // 如果没有 miningSummary，但有 sessions，尝试合并数据
+    if (sessions && sessions.length > 0) {
+      console.log('[MiningSessions] Using sessions prop:', sessions)
+      // 如果 sessions 缺少字段，尝试从 miningSummary 补充
+      if (miningSummary?.active_sessions?.sessions) {
+        return sessions.map((s: any) => {
+          const summarySession = miningSummary.active_sessions.sessions.find(
+            (ms: any) => ms.session_pk === s.id || ms.session_id === s.session_id
+          )
+          return summarySession ? { ...s, ...summarySession } : s
+        })
+      }
+      return sessions
+    }
+    
+    console.log('[MiningSessions] No sessions available')
+    return []
   }, [miningSummary, sessions])
   
   const availableTools = useMemo(() => 
