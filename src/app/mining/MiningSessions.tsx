@@ -454,7 +454,7 @@ const MobileSessionCard = memo(({
           onClick={onStop}
           className="text-[11px]"
         >
-          停止结算
+          结束挖矿
         </PixelButton>
         <PixelButton
           size="xs"
@@ -595,7 +595,7 @@ const DesktopSessionCard = memo(({
           >
             <span className="flex items-center justify-center gap-1">
               <span>💰</span>
-              <span>停止结算</span>
+              <span>结束挖矿</span>
             </span>
           </PixelButton>
           <PixelButton
@@ -878,7 +878,7 @@ export function MiningSessions({
     try {
       await onStopSession(targetSessionId)
       
-      toast.success('挖矿已停止，产出已自动结算！', {
+      toast.success('挖矿已结束，产出已自动收取！', {
         duration: 3000,
         position: 'top-center',
         icon: '💰'
@@ -1348,8 +1348,8 @@ export function MiningSessions({
         }}
         title={
           confirmAction === 'start' ? '确认开始挖矿' : 
-          confirmAction === 'stopAll' ? '确认停止所有会话' :
-          '确认停止生产'
+          confirmAction === 'stopAll' ? '确认结束所有会话' :
+          '确认结束挖矿'
         }
         size="small"
       >
@@ -1400,20 +1400,20 @@ export function MiningSessions({
               <div className="text-center py-4">
                 <div className="text-5xl mb-3">💰</div>
                 <p className="text-sm text-gray-300 mb-2">
-                  您确定要停止所有挖矿会话吗？
+                  您确定要结束所有挖矿会话吗？
                 </p>
                 <p className="text-xs text-green-400">
-                  将停止 {sessions?.length || 0} 个会话并自动结算所有产出
+                  将结束 {sessions?.length || 0} 个会话并自动收取所有产出
                 </p>
               </div>
               
-              {/* 停止提示 */}
+              {/* 批量结束说明 */}
               <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
                 <p className="text-xs text-blue-400">
-                  💡 批量停止将：
+                  💡 批量结束将：
                 </p>
                 <ul className="text-xs text-gray-300 mt-1 space-y-1">
-                  <li>• 自动结算所有会话的累计产出</li>
+                  <li>• 自动收取所有会话的累计产出</li>
                   <li>• 释放所有正在使用的工具</li>
                   <li>• 停止所有粮食消耗</li>
                   <li>• 不足1小时的会话仍按1小时扣除资源</li>
@@ -1425,23 +1425,23 @@ export function MiningSessions({
               <div className="text-center py-4">
                 <div className="text-5xl mb-3">💰</div>
                 <p className="text-sm text-gray-300 mb-2">
-                  您确定要停止挖矿并结算产出吗？
+                  您确定要结束挖矿吗？
                 </p>
                 <p className="text-xs text-green-400">
-                  停止后将自动结算所有累计产出
+                  结束后将自动收取所有累计产出
                 </p>
               </div>
               
-              {/* 停止提示 */}
+              {/* 结束挖矿说明 */}
               <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3">
                 <p className="text-xs text-blue-400">
-                  💡 停止挖矿将：
+                  💡 结束挖矿将：
                 </p>
                 <ul className="text-xs text-gray-300 mt-1 space-y-1">
-                  <li>• 自动结算所有累计产出到您的账户</li>
+                  <li>• 自动收取所有累计产出到您的账户</li>
                   <li>• 释放正在使用的工具</li>
                   <li>• 停止粮食消耗</li>
-                  <li>• 如果不足1小时，仍按1小时扣除资源</li>
+                  <li>• 注意：不足1小时仍按1小时扣除资源</li>
                 </ul>
               </div>
               
@@ -1464,7 +1464,7 @@ export function MiningSessions({
                         <p>土地：{landInfo.land_id || '未知'}</p>
                         <p>运行时长：{duration}</p>
                         <p className="text-green-400 font-bold">
-                          将结算产出：{formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
+                          将收取产出：{formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
                         </p>
                       </div>
                     </div>
@@ -1489,7 +1489,7 @@ export function MiningSessions({
               {confirmAction === 'stopAll' && stopAllLoading ? (
                 '处理中...'
               ) : (
-                `确认${confirmAction === 'start' ? '开始' : '停止'}`
+                `确认${confirmAction === 'start' ? '开始' : '结束'}`
               )}
             </PixelButton>
             <PixelButton
