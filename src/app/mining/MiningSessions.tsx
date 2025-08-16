@@ -162,6 +162,213 @@ const calculateCurrentHourMinutes = (session: any): number => {
   return currentMinutes + carriedMinutes
 }
 
+// ==================== 挖矿汇总卡片（新增） ====================
+/**
+ * 挖矿汇总卡片 - 显示mining/summary接口返回的数据
+ * 包括活跃会话、资源、工具、YLD状态等信息
+ */
+const MiningSummaryCard = memo(({ summary, compact = false }: {
+  summary: any
+  compact?: boolean
+}) => {
+  if (!summary) return null
+  
+  const activeSessions = summary.active_sessions || {}
+  const resources = summary.resources || {}
+  const tools = summary.tools || {}
+  const yldStatus = summary.yld_status || {}
+  const todayProduction = summary.today_production || {}
+  const foodSustainability = summary.food_sustainability_hours || 0
+  
+  if (compact) {
+    // 移动端紧凑版
+    return (
+      <PixelCard className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-sm font-bold">挖矿概况</h4>
+          <span className="text-xs text-gray-400">
+            {activeSessions.count || 0} 个会话
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="text-center">
+            <p className="text-gray-500">待收取</p>
+            <p className="font-bold text-green-400">
+              {formatNumber(activeSessions.total_pending_rewards || 0, 4)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-500">今日产出</p>
+            <p className="font-bold text-purple-400">
+              {formatNumber(todayProduction.total || 0, 4)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-500">粮食剩余</p>
+            <p className="font-bold text-yellow-400">
+              {foodSustainability.toFixed(1)}h
+            </p>
+          </div>
+        </div>
+        
+        {/* YLD状态条 */}
+        <div className="mt-2">
+          <div className="flex justify-between text-[10px] mb-1">
+            <span className="text-gray-400">YLD今日限额</span>
+            <span className="text-gray-400">
+              {formatNumber(yldStatus.remaining || 0, 0)}/{formatNumber(yldStatus.daily_limit || 208, 0)}
+            </span>
+          </div>
+          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full",
+                yldStatus.percentage_used >= 90 ? "bg-red-500" :
+                yldStatus.percentage_used >= 70 ? "bg-yellow-500" :
+                "bg-green-500"
+              )}
+              style={{ width: `${100 - (yldStatus.percentage_used || 0)}%` }}
+            />
+          </div>
+        </div>
+      </PixelCard>
+    )
+  }
+  
+  // 桌面端完整版
+  return (
+    <PixelCard className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-lg">挖矿汇总</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400">
+            {activeSessions.count || 0} 个活跃会话
+          </span>
+          <span className="text-xs text-gray-500">
+            {summary.algorithm_version}算法
+          </span>
+        </div>
+      </div>
+      
+      {/* 核心指标 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div className="bg-green-900/20 rounded p-3">
+          <p className="text-xs text-gray-400 mb-1">待收取收益</p>
+          <p className="text-lg font-bold text-green-400">
+            {formatNumber(activeSessions.total_pending_rewards || 0, 4)}
+          </p>
+          <p className="text-xs text-gray-500">停止时发放</p>
+        </div>
+        
+        <div className="bg-purple-900/20 rounded p-3">
+          <p className="text-xs text-gray-400 mb-1">今日产出</p>
+          <p className="text-lg font-bold text-purple-400">
+            {formatNumber(todayProduction.total || 0, 4)}
+          </p>
+          <p className="text-xs text-gray-500">
+            已发放{formatNumber(todayProduction.distributed?.amount || 0, 2)}
+          </p>
+        </div>
+        
+        <div className="bg-yellow-900/20 rounded p-3">
+          <p className="text-xs text-gray-400 mb-1">粮食可持续</p>
+          <p className="text-lg font-bold text-yellow-400">
+            {foodSustainability.toFixed(1)} 小时
+          </p>
+          <p className="text-xs text-gray-500">
+            消耗{activeSessions.total_food_consumption || 0}/小时
+          </p>
+        </div>
+        
+        <div className="bg-blue-900/20 rounded p-3">
+          <p className="text-xs text-gray-400 mb-1">工具状态</p>
+          <p className="text-sm">
+            <span className="text-green-400">{tools.idle || 0} 闲置</span>
+            <span className="text-gray-400 mx-1">/</span>
+            <span className="text-blue-400">{tools.in_use || 0} 使用中</span>
+          </p>
+          <p className="text-xs text-gray-500">
+            共{tools.total || 0}个
+          </p>
+        </div>
+      </div>
+      
+      {/* YLD状态 */}
+      <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-purple-400">YLD 今日状态</span>
+          <span className="text-xs text-gray-400">
+            速率: {formatNumber(yldStatus.current_hourly_rate || 0, 2)}/h
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-gray-400">已使用</span>
+              <span className="text-gray-400">
+                {formatNumber(yldStatus.daily_limit - yldStatus.remaining, 2)} / {formatNumber(yldStatus.daily_limit || 208, 0)}
+              </span>
+            </div>
+            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  yldStatus.percentage_used >= 90 ? "bg-red-500" :
+                  yldStatus.percentage_used >= 70 ? "bg-yellow-500" :
+                  "bg-green-500"
+                )}
+                style={{ width: `${yldStatus.percentage_used || 0}%` }}
+              />
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400">剩余</p>
+            <p className="text-sm font-bold text-yellow-400">
+              {formatNumber(yldStatus.remaining || 0, 2)}
+            </p>
+          </div>
+        </div>
+        {yldStatus.is_exhausted && (
+          <p className="text-xs text-red-400 mt-2">⚠️ 今日YLD产量已耗尽</p>
+        )}
+      </div>
+      
+      {/* 资源显示（可选） */}
+      {resources && Object.keys(resources).length > 0 && (
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {resources.wood !== undefined && (
+            <div className="bg-gray-800 rounded p-2 text-center">
+              <p className="text-[10px] text-gray-400">木头</p>
+              <p className="text-sm font-bold text-green-400">{formatNumber(resources.wood, 0)}</p>
+            </div>
+          )}
+          {resources.iron !== undefined && (
+            <div className="bg-gray-800 rounded p-2 text-center">
+              <p className="text-[10px] text-gray-400">铁矿</p>
+              <p className="text-sm font-bold text-gray-400">{formatNumber(resources.iron, 0)}</p>
+            </div>
+          )}
+          {resources.stone !== undefined && (
+            <div className="bg-gray-800 rounded p-2 text-center">
+              <p className="text-[10px] text-gray-400">石头</p>
+              <p className="text-sm font-bold text-blue-400">{formatNumber(resources.stone, 0)}</p>
+            </div>
+          )}
+          {resources.food !== undefined && (
+            <div className="bg-gray-800 rounded p-2 text-center">
+              <p className="text-[10px] text-gray-400">粮食</p>
+              <p className="text-sm font-bold text-yellow-400">{formatNumber(resources.food, 0)}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </PixelCard>
+  )
+})
+
+MiningSummaryCard.displayName = 'MiningSummaryCard'
+
 // ==================== 实时倒计时组件（新增） ====================
 /**
  * 实时倒计时组件 - 显示距离下次整点结算的时间
@@ -413,16 +620,20 @@ const SessionCardV2 = memo(({
         <div className="flex justify-between items-start mb-2">
           <div>
             <p className="font-bold text-sm text-gold-500">
-              {landInfo.land_id || `会话#${session.id}`}
+              {sessionId}
             </p>
             <p className="text-[10px] text-gray-400">
-              {landInfo.blueprint?.land_type_display || '未知类型'} 
-              · {formatDuration(startTime)}
+              {landName} · {formatDuration(startTime)}
             </p>
           </div>
-          <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded text-[10px]">
-            {algorithmVersion.toUpperCase()}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded text-[10px]">
+              {algorithmVersion.toUpperCase()}
+            </span>
+            <span className="bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded text-[10px]">
+              挖矿中
+            </span>
+          </div>
         </div>
         
         <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
@@ -475,11 +686,10 @@ const SessionCardV2 = memo(({
         <div className="flex justify-between items-start">
           <div>
             <h4 className="font-bold text-gold-500">
-              {landInfo.land_id || `会话 #${session.id}`}
+              {sessionId}
             </h4>
             <p className="text-xs text-gray-400 mt-1">
-              {landInfo.blueprint?.land_type_display || '未知类型'} 
-              · {landInfo.region_name || '未知区域'}
+              {landName} · {resourceType.toUpperCase()}矿山
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -542,11 +752,12 @@ const SessionCardV2 = memo(({
           )}
         </div>
         
-        {/* 详细信息 */}
+        {/* 详细信息 - 使用实际API返回的字段 */}
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <p className="text-gray-400 text-xs">挖矿时长</p>
             <p className="font-bold text-blue-400">{formatDuration(startTime)}</p>
+            <p className="text-xs text-gray-500">({totalHoursWorked.toFixed(2)}小时)</p>
           </div>
           <div>
             <p className="text-gray-400 text-xs">工具数量</p>
@@ -906,23 +1117,36 @@ export function MiningSessions({
       // 根据API响应显示详细信息（新算法v2返回格式）
       if (response?.data) {
         const data = response.data
-        const nextSettlement = data.time_info?.next_settlement || nextSettlementInfo.time
-        const minutesToSettlement = data.time_info?.minutes_to_settlement || nextSettlementInfo.minutes
         
+        // 使用实际返回的数据字段
         toast.success(
           <div>
             <p className="font-bold">挖矿已开始！</p>
             <p className="text-sm">会话ID: {data.session_id}</p>
+            <p className="text-sm">会话编号: #{data.session_pk}</p>
             <p className="text-sm">算法版本: {data.algorithm_version}</p>
-            <p className="text-sm">下次结算: {nextSettlement} ({minutesToSettlement}分钟后)</p>
+            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
+            {data.time_info && (
+              <>
+                <p className="text-sm">当前时间: {data.time_info.current_hour}:{String(data.time_info.current_minute).padStart(2, '0')}</p>
+                <p className="text-sm">下次结算: {data.time_info.next_settlement} ({data.time_info.minutes_to_settlement}分钟后)</p>
+              </>
+            )}
             {data.food_info && (
-              <p className="text-sm">粮食可持续: {data.food_info.hours_sustainable.toFixed(1)}小时</p>
+              <p className="text-sm">粮食可持续: {data.food_info.hours_sustainable > 100 ? '充足' : `${data.food_info.hours_sustainable.toFixed(1)}小时`}</p>
+            )}
+            {data.message && (
+              <p className="text-sm text-green-300">{data.message}</p>
             )}
           </div>,
           {
-            duration: 5000,
+            duration: 8000,
             position: 'top-center',
-            icon: '⛏️'
+            icon: '⛏️',
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            }
           }
         )
       } else {
@@ -1173,6 +1397,11 @@ export function MiningSessions({
           </PixelButton>
         </div>
       </div>
+      
+      {/* 挖矿汇总卡片 */}
+      {miningSummary && (
+        <MiningSummaryCard summary={miningSummary} compact={isMobile} />
+      )}
       
       {/* 待收取收益卡片（如果Hook已实现则取消注释） */}
       {/* <PendingRewardsCard onRefresh={onRefresh} /> */}
