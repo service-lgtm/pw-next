@@ -498,7 +498,7 @@ export const productionApi = {
 
   // ==================== 土地管理 ====================
   lands: {
-    // 获取用户土地列表
+    // 获取用户土地列表 - 修复API路径
     getUserLands: () =>
       request<{
         success: boolean
@@ -506,7 +506,35 @@ export const productionApi = {
           count: number
           results: any[]
         }
-      }>('/production/lands/user/'),
+        results?: any[]  // 兼容直接返回results的情况
+      }>('/assets/lands/mine/').catch(async (error) => {
+        // 如果资产系统失败，尝试生产系统的路径
+        console.warn('[API] Assets lands API failed, trying production API')
+        try {
+          return await request<{
+            success: boolean
+            data: {
+              count: number
+              results: any[]
+            }
+          }>('/production/lands/mine/')
+        } catch (prodError) {
+          // 如果都失败了，尝试最后一个可能的路径
+          console.warn('[API] Production lands API failed, trying available lands')
+          return await request<{
+            success: boolean
+            data: {
+              count: number
+              results: any[]
+            }
+          }>('/production/lands/available/', {
+            params: {
+              ownership: 'mine',
+              page_size: 100
+            }
+          })
+        }
+      }),
 
     // 获取可用土地列表（招募挖矿）
     getAvailableLands: (params?: {
