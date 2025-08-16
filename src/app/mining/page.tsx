@@ -164,6 +164,21 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningS
     return 0
   }
 
+  // 安全获取粮食剩余时间
+  const getFoodRemainingHours = () => {
+    if (grainStatus?.hours_remaining != null) {
+      return typeof grainStatus.hours_remaining === 'number' 
+        ? grainStatus.hours_remaining 
+        : parseFloat(grainStatus.hours_remaining) || 0
+    }
+    if (grainStatus?.hours_sustainable != null) {
+      return typeof grainStatus.hours_sustainable === 'number'
+        ? grainStatus.hours_sustainable
+        : parseFloat(grainStatus.hours_sustainable) || 0
+    }
+    return 0
+  }
+
   return (
     <div className="grid grid-cols-4 gap-1 mb-3 md:hidden">
       <div className="bg-gray-800 rounded p-2 text-center">
@@ -191,9 +206,9 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningS
             getResourceAmount('food') || getResourceAmount('grain')
           )}
         </p>
-        {grainStatus?.warning && grainStatus?.hours_remaining != null && (
+        {grainStatus?.warning && (
           <p className="text-[10px] text-red-400">
-            {safeFormatResource(grainStatus.hours_remaining, 0)}h
+            {safeFormatResource(getFoodRemainingHours(), 0)}h
           </p>
         )}
       </div>
