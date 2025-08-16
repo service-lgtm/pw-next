@@ -1,11 +1,22 @@
 // src/hooks/useProduction.ts
-// 生产系统 Hooks - 完全修复版（解决所有 undefined 错误）
+// 生产系统 Hooks - 完全修复版（解决所有 API 响应格式问题）
 //
 // 修复说明：
 // 1. 修复了所有 "Cannot read properties of undefined" 错误
-// 2. 正确处理 API 响应的数据结构
+// 2. 正确处理两种不同的 API 响应格式：
+//    - ListAPIView 格式：{results: [...], count: ..., stats: ...}
+//    - ProductionBaseView 格式：{success: true, data: {...}}
 // 3. 确保所有 Hook 返回正确的数据
 // 4. 添加详细的调试日志
+//
+// API 响应格式说明：
+// - tools.getMyTools: ListAPIView 格式，数据在 results 字段
+// - resources.getMyResources: ListAPIView 格式，数据在 results 字段
+// - resources.getResourceStats: BaseView 格式，数据在 data 字段
+// - mining.getMySessions: ListAPIView 格式，数据在 results 字段
+// - mining.getSummary: BaseView 格式，数据在 data 字段
+// - stats.checkFoodStatus: BaseView 格式，数据在 data 字段
+// - yld.getSystemStatus: BaseView 格式，数据在 data 字段
 //
 // 关联文件：
 // - src/lib/api/production.ts: API 调用
@@ -62,7 +73,7 @@ export function useMyTools(options?: {
       
       console.log('[useMyTools] Raw response:', response)
       
-      // 正确的数据访问路径
+      // ListAPIView 格式：数据直接在 results 字段
       if (response?.results) {
         setTools(response.results)
         setStats(response.stats || null)
@@ -149,17 +160,18 @@ export function useMyResources(options?: {
         const response = await productionApi.resources.getResourceStats()
         console.log('[useMyResources] Stats response:', response)
         
-        // 正确的数据访问路径 - response 直接包含数据
-        if (response?.resources) {
+        // ProductionBaseView 格式：数据在 data 字段中
+        const data = response?.data || response
+        if (data?.resources) {
           const balance: ResourceBalance = {
-            wood: response.resources.wood?.available || 0,
-            iron: response.resources.iron?.available || 0,
-            stone: response.resources.stone?.available || 0,
-            yld: response.wallet?.yld_balance || 0,
-            grain: response.resources.food?.available || response.resources.grain?.available || 0,
-            food: response.resources.food?.available || response.resources.grain?.available || 0,
-            seed: response.resources.seed?.available || 0,
-            brick: response.resources.brick?.available || 0
+            wood: data.resources.wood?.available || 0,
+            iron: data.resources.iron?.available || 0,
+            stone: data.resources.stone?.available || 0,
+            yld: data.wallet?.yld_balance || 0,
+            grain: data.resources.food?.available || data.resources.grain?.available || 0,
+            food: data.resources.food?.available || data.resources.grain?.available || 0,
+            seed: data.resources.seed?.available || 0,
+            brick: data.resources.brick?.available || 0
           }
           setResources(balance)
         } else {
@@ -175,6 +187,7 @@ export function useMyResources(options?: {
         const response = await productionApi.resources.getMyResources()
         console.log('[useMyResources] Resources response:', response)
         
+        // ListAPIView 格式：数据在 results 字段
         if (response?.results) {
           const balance: ResourceBalance = {
             wood: 0, iron: 0, stone: 0, yld: 0,
@@ -273,11 +286,8 @@ export function useResourceStats(options?: {
       const response = await productionApi.resources.getResourceStats()
       console.log('[useResourceStats] Raw response:', response)
       
-      // 直接使用响应数据
-      if (response) {
-        // 包装响应数据以保持兼容性
-        setStats({ data: response })
-      }
+      // ProductionBaseView 格式：数据在 data 字段中
+      setStats(response)
       
       hasFetchedRef.current = true
     } catch (err: any) {
@@ -355,7 +365,7 @@ export function useMiningSessions(options?: {
       
       console.log('[useMiningSessions] Raw response:', response)
       
-      // 正确的数据访问路径
+      // ListAPIView 格式：数据在 results 字段
       if (response?.results) {
         setSessions(response.results)
       } else if (Array.isArray(response)) {
@@ -584,12 +594,9 @@ export function useGrainStatus(options?: {
       const response = await productionApi.stats.checkFoodStatus()
       console.log('[useGrainStatus] Raw response:', response)
       
-      // 正确的数据访问路径
-      if (response) {
-        // API 可能返回 response 或 response.data
-        const data = response.data || response
-        setStatus(data)
-      }
+      // ProductionBaseView 格式：数据在 data 字段中
+      const data = response?.data || response
+      setStatus(data)
       
       hasFetchedRef.current = true
     } catch (err: any) {
@@ -657,12 +664,9 @@ export function useYLDStatus(options?: {
       const response = await productionApi.yld.getSystemStatus()
       console.log('[useYLDStatus] Raw response:', response)
       
-      // 正确的数据访问路径
-      if (response) {
-        // API 可能返回 response 或 response.data
-        const data = response.data || response
-        setStatus(data)
-      }
+      // ProductionBaseView 格式：数据在 data 字段中
+      const data = response?.data || response
+      setStatus(data)
       
       hasFetchedRef.current = true
     } catch (err: any) {
@@ -745,6 +749,7 @@ export function useMiningPreCheck() {
     
     try {
       const response = await productionApi.mining.preCheck()
+      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setCheckResult(data)
       return data
@@ -834,10 +839,9 @@ export function useMiningSummary(options?: {
       const response = await productionApi.mining.getSummary()
       console.log('[useMiningSummary] Raw response:', response)
       
-      // 正确的数据访问路径
-      if (response) {
-        // API 可能返回 response 或 response.data
-        const data = response.data || response
+      // ProductionBaseView 格式：数据在 data 字段中
+      const data = response?.data || response
+      if (data) {
         setSummary(data)
       } else {
         setSummary(getDefaultSummary())
@@ -905,6 +909,7 @@ export function useSessionRateHistory(sessionId: number | null, options?: {
     
     try {
       const response = await productionApi.mining.getSessionRateHistory(sessionId)
+      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setHistory(data)
     } catch (err: any) {
@@ -982,8 +987,13 @@ export function useUserLands(options?: {
       }
       
       if (data) {
+        // 处理不同的响应格式
         if (data?.results) {
           setLands(data.results)
+        } else if (data?.data?.results) {
+          setLands(data.data.results)
+        } else if (data?.data && Array.isArray(data.data)) {
+          setLands(data.data)
         } else if (Array.isArray(data)) {
           setLands(data)
         } else {
@@ -1050,7 +1060,16 @@ export function useAvailableLands(options?: {
     try {
       if (productionApi.lands?.getAvailableLands) {
         const response = await productionApi.lands.getAvailableLands()
-        setLands(response?.results || [])
+        // 处理不同的响应格式
+        if (response?.results) {
+          setLands(response.results)
+        } else if (response?.data?.results) {
+          setLands(response.data.results)
+        } else if (response?.data && Array.isArray(response.data)) {
+          setLands(response.data)
+        } else {
+          setLands([])
+        }
       } else {
         setLands([])
       }
@@ -1094,7 +1113,9 @@ export function useLandMiningInfo(landId: string | null, options?: {
     try {
       if (productionApi.lands?.getLandMiningInfo) {
         const response = await productionApi.lands.getLandMiningInfo(landId)
-        setInfo(response)
+        // 处理不同的响应格式
+        const data = response?.data || response
+        setInfo(data)
       } else {
         setInfo(null)
       }
