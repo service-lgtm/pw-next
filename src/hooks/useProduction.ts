@@ -1,9 +1,9 @@
 // src/hooks/useProduction.ts
-// 挖矿生产系统 Hook - 生产级完整版本
+// 挖矿生产系统 Hook - 增强生产版本
 //
 // 文件说明：
 // 1. 本文件提供挖矿生产相关的数据获取和操作 Hook
-// 2. 包括挖矿会话、工具、资源、合成等所有功能
+// 2. 新增：YLD状态监控、挖矿预检查、产出率历史、批量操作等功能
 // 3. 自动处理加载状态、错误处理和数据缓存
 // 4. 支持新的资源统计接口 /production/resources/stats/
 // 5. 修复粮食显示问题（grain vs food 字段映射）
@@ -13,12 +13,10 @@
 // - src/types/production.ts: 生产系统类型定义
 // - src/app/mining/page.tsx: 挖矿页面使用这些 Hook
 // - src/app/mining/MiningSessions.tsx: 挖矿会话管理组件
-// - backend/production/views.py: 后端 ResourceStatsView
+// - backend/production/views.py: 后端视图
 //
 // 更新历史：
-// - 2024-12: 修复粮食显示归零问题
-// - 2024-12: 完善错误处理和用户提示
-// - 2024-12: 添加数据字段兼容性处理
+// - 2024-12: 新增YLD系统状态、挖矿预检查、产出率历史等Hook
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { productionApi, formatResourceBalance, formatResourceStatsToBalance } from '@/lib/api/production'
@@ -72,7 +70,368 @@ function formatErrorMessage(error: any): string {
          '操作失败'
 }
 
-// ==================== 获取挖矿会话 ====================
+// ==================== 新增：YLD系统状态 ====================
+
+interface UseYLDStatusOptions {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+export function useYLDStatus(options?: UseYLDStatusOptions) {
+  const [status, setStatus] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { 
+    enabled = true,
+    autoRefresh = true,
+    refreshInterval = 60000 // 1分钟
+  } = options || {}
+
+  const fetchStatus = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useYLDStatus] 获取YLD系统状态...')
+      const response = await productionApi.yld.getSystemStatus()
+      
+      if (response.success && response.data) {
+        console.log('[useYLDStatus] 获取成功:', response.data)
+        setStatus(response.data)
+        
+        // 如果YLD即将耗尽，显示警告
+        if (response.data.percentage_used > 90) {
+          toast(`⚠️ YLD今日产量已使用 ${response.data.percentage_used.toFixed(1)}%`, {
+            duration: 5000,
+            style: {
+              background: '#f59e0b',
+              color: '#fff'
+            }
+          })
+        }
+      }
+    } catch (err: any) {
+      console.error('[useYLDStatus] Error:', err)
+      const errorMsg = formatErrorMessage(err)
+      setError(errorMsg)
+      setStatus(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    fetchStatus()
+    
+    let intervalId: NodeJS.Timeout | null = null
+    if (autoRefresh && enabled) {
+      intervalId = setInterval(fetchStatus, refreshInterval)
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [fetchStatus, autoRefresh, enabled, refreshInterval])
+
+  return { 
+    status, 
+    loading, 
+    error, 
+    refetch: fetchStatus 
+  }
+}
+
+// ==================== 新增：挖矿预检查 ====================
+
+export function useMiningPreCheck() {
+  const [checkResult, setCheckResult] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const performCheck = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useMiningPreCheck] 执行挖矿前检查...')
+      const response = await productionApi.mining.preCheck()
+      
+      if (response.success && response.data) {
+        console.log('[useMiningPreCheck] 检查结果:', response.data)
+        setCheckResult(response.data)
+        
+        // 显示警告信息
+        if (response.data.warnings && response.data.warnings.length > 0) {
+          response.data.warnings.forEach((warning: string) => {
+            toast(warning, { icon: '⚠️', duration: 4000 })
+          })
+        }
+        
+        // 显示错误信息
+        if (response.data.errors && response.data.errors.length > 0) {
+          response.data.errors.forEach((error: string) => {
+            toast.error(error, { duration: 5000 })
+          })
+        }
+        
+        return response.data
+      }
+    } catch (err: any) {
+      console.error('[useMiningPreCheck] Error:', err)
+      const errorMsg = formatErrorMessage(err)
+      setError(errorMsg)
+      setCheckResult(null)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { 
+    checkResult, 
+    loading, 
+    error, 
+    performCheck 
+  }
+}
+
+// ==================== 新增：产出率历史 ====================
+
+export function useSessionRateHistory(sessionId: number | null, options?: { enabled?: boolean }) {
+  const [history, setHistory] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { enabled = true } = options || {}
+
+  const fetchHistory = useCallback(async () => {
+    if (!enabled || !sessionId) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useSessionRateHistory] 获取产出率历史，会话ID:', sessionId)
+      const response = await productionApi.mining.getSessionRateHistory(sessionId)
+      
+      if (response.success && response.data) {
+        console.log('[useSessionRateHistory] 获取成功:', response.data)
+        setHistory(response.data)
+      }
+    } catch (err: any) {
+      console.error('[useSessionRateHistory] Error:', err)
+      const errorMsg = formatErrorMessage(err)
+      setError(errorMsg)
+      setHistory(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [sessionId, enabled])
+
+  useEffect(() => {
+    fetchHistory()
+  }, [fetchHistory])
+
+  return { 
+    history, 
+    loading, 
+    error, 
+    refetch: fetchHistory 
+  }
+}
+
+// ==================== 新增：批量停止所有会话 ====================
+
+export function useStopAllSessions() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const stopAll = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useStopAllSessions] 停止所有会话...')
+      const response = await productionApi.mining.stopAllSessions()
+      
+      if (response.success) {
+        const data = response.data
+        toast.success(`成功停止 ${data.stopped_count} 个会话`, {
+          duration: 3000,
+          icon: '⏹️'
+        })
+        
+        if (data.total_collected > 0) {
+          setTimeout(() => {
+            toast.success(`共收取产出: ${data.total_collected}`, {
+              duration: 4000,
+              icon: '💰'
+            })
+          }, 1000)
+        }
+        
+        return data
+      } else {
+        throw new Error(response.message || '批量停止失败')
+      }
+    } catch (err: any) {
+      const message = formatErrorMessage(err)
+      setError(message)
+      toast.error(message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { 
+    stopAll, 
+    loading, 
+    error 
+  }
+}
+
+// ==================== 新增：YLD耗尽处理 ====================
+
+export function useHandleYLDExhausted() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleExhausted = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useHandleYLDExhausted] 处理YLD耗尽...')
+      const response = await productionApi.yld.handleExhausted()
+      
+      if (response.success) {
+        const data = response.data
+        toast.success(data.message || 'YLD产量已耗尽，所有会话已停止', {
+          duration: 5000,
+          icon: '🛑'
+        })
+        
+        if (data.total_settled > 0) {
+          setTimeout(() => {
+            toast(`共结算 ${data.sessions_stopped} 个会话，产出 ${data.total_settled} YLD`, {
+              duration: 4000,
+              icon: '💰'
+            })
+          }, 1000)
+        }
+        
+        return data
+      } else {
+        throw new Error(response.message || '处理失败')
+      }
+    } catch (err: any) {
+      const message = formatErrorMessage(err)
+      setError(message)
+      toast.error(message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return { 
+    handleExhausted, 
+    loading, 
+    error 
+  }
+}
+
+// ==================== 新增：挖矿汇总信息 ====================
+
+interface UseMiningSummaryOptions {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}
+
+export function useMiningSummary(options?: UseMiningSummaryOptions) {
+  const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { 
+    enabled = true,
+    autoRefresh = true,
+    refreshInterval = 30000 // 30秒
+  } = options || {}
+
+  const fetchSummary = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useMiningSummary] 获取挖矿汇总...')
+      const response = await productionApi.mining.getSummary()
+      
+      if (response.success && response.data) {
+        console.log('[useMiningSummary] 获取成功:', response.data)
+        setSummary(response.data)
+        
+        // 检查粮食警告
+        if (response.data.food_sustainability_hours < 2) {
+          toast(`⚠️ 粮食仅可维持 ${response.data.food_sustainability_hours.toFixed(1)} 小时`, {
+            icon: '🌾',
+            duration: 5000,
+            style: {
+              background: '#f59e0b',
+              color: '#fff'
+            }
+          })
+        }
+      }
+    } catch (err: any) {
+      console.error('[useMiningSummary] Error:', err)
+      const errorMsg = formatErrorMessage(err)
+      setError(errorMsg)
+      setSummary(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    fetchSummary()
+    
+    let intervalId: NodeJS.Timeout | null = null
+    if (autoRefresh && enabled) {
+      intervalId = setInterval(fetchSummary, refreshInterval)
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [fetchSummary, autoRefresh, enabled, refreshInterval])
+
+  return { 
+    summary, 
+    loading, 
+    error, 
+    refetch: fetchSummary 
+  }
+}
+
+// ==================== 获取挖矿会话（保留原有） ====================
 
 interface UseMiningSessionsOptions {
   status?: 'active' | 'paused' | 'completed'
@@ -184,7 +543,7 @@ export function useMiningSessions(options?: UseMiningSessionsOptions) {
   }
 }
 
-// ==================== 获取工具 ====================
+// ==================== 获取工具（保留原有） ====================
 
 interface UseMyToolsOptions {
   tool_type?: 'pickaxe' | 'axe' | 'hoe'
@@ -259,7 +618,7 @@ export function useMyTools(options?: UseMyToolsOptions) {
   }
 }
 
-// ==================== 获取资源（修复粮食显示） ====================
+// ==================== 获取资源（保留原有并修复） ====================
 
 interface UseMyResourcesOptions {
   enabled?: boolean
@@ -418,7 +777,7 @@ export function useMyResources(options?: UseMyResourcesOptions) {
   }
 }
 
-// ==================== 获取资源统计（增强版） ====================
+// ==================== 获取资源统计（保留原有） ====================
 
 interface UseResourceStatsOptions {
   enabled?: boolean
@@ -499,7 +858,7 @@ export function useResourceStats(options?: UseResourceStatsOptions) {
   }
 }
 
-// ==================== 获取用户土地 ====================
+// ==================== 获取用户土地（保留原有） ====================
 
 interface UseUserLandsOptions {
   enabled?: boolean
@@ -555,7 +914,7 @@ export function useUserLands(options?: UseUserLandsOptions) {
   }
 }
 
-// ==================== 开始自主挖矿 ====================
+// ==================== 开始自主挖矿（保留原有） ====================
 
 export function useStartSelfMining() {
   const [loading, setLoading] = useState(false)
@@ -631,7 +990,7 @@ export function useStartSelfMining() {
   }
 }
 
-// ==================== 合成工具 ====================
+// ==================== 合成工具（保留原有） ====================
 
 export function useSynthesizeTool() {
   const [loading, setLoading] = useState(false)
@@ -686,7 +1045,7 @@ export function useSynthesizeTool() {
   }
 }
 
-// ==================== 停止生产 ====================
+// ==================== 停止生产（保留原有） ====================
 
 export function useStopProduction() {
   const [loading, setLoading] = useState(false)
@@ -742,7 +1101,7 @@ export function useStopProduction() {
   }
 }
 
-// ==================== 收取产出 ====================
+// ==================== 收取产出（保留原有） ====================
 
 export function useCollectOutput() {
   const [loading, setLoading] = useState(false)
@@ -796,7 +1155,7 @@ export function useCollectOutput() {
   }
 }
 
-// ==================== 检查粮食状态 ====================
+// ==================== 检查粮食状态（保留原有） ====================
 
 interface UseGrainStatusOptions {
   enabled?: boolean
@@ -881,7 +1240,7 @@ export function useGrainStatus(options?: UseGrainStatusOptions) {
   }
 }
 
-// ==================== 获取生产统计 ====================
+// ==================== 获取生产统计（保留原有） ====================
 
 interface UseProductionStatsOptions {
   enabled?: boolean
@@ -934,7 +1293,7 @@ export function useProductionStats(options?: UseProductionStatsOptions) {
   }
 }
 
-// ==================== 获取可用土地 ====================
+// ==================== 获取可用土地（保留原有） ====================
 
 interface UseAvailableLandsOptions {
   ownership?: 'mine' | 'others' | 'all'
@@ -1006,7 +1365,7 @@ export function useAvailableLands(options?: UseAvailableLandsOptions) {
   }
 }
 
-// ==================== 获取土地挖矿详情 ====================
+// ==================== 获取土地挖矿详情（保留原有） ====================
 
 export function useLandMiningInfo(landId: number | null, options?: { enabled?: boolean }) {
   const [landInfo, setLandInfo] = useState<any>(null)
@@ -1057,7 +1416,7 @@ export function useLandMiningInfo(landId: number | null, options?: { enabled?: b
   }
 }
 
-// ==================== 带工具打工 ====================
+// ==================== 带工具打工（保留原有） ====================
 
 export function useStartHiredMining() {
   const [loading, setLoading] = useState(false)
