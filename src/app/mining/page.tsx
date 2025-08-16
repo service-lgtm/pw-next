@@ -1,36 +1,27 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 生产级完整版（集成所有新功能）
+// 挖矿中心页面 - 简化重组版
 // 
 // 优化说明：
-// 1. 集成了 YLD 系统状态监控
-// 2. 添加了挖矿预检查功能
-// 3. 集成了产出率历史查看
-// 4. 添加了批量操作功能
-// 5. 保持了所有现有功能的兼容性
+// 1. 拆分了独立组件（矿山市场、招聘市场、合成系统）
+// 2. 合成系统提升为一级导航
+// 3. 简化了页面结构，提高可维护性
+// 4. 修复了 iPad 兼容性问题
+// 5. 更新了按钮文字（去挖矿）
 // 
 // 关联组件（同目录下）：
-// - ./BetaPasswordModal: 内测密码验证（已使用 safeStorage）
+// - ./BetaPasswordModal: 内测密码验证
 // - ./BetaNotice: 内测提示组件
 // - ./YLDMineList: YLD矿山列表
 // - ./MiningSessions: 挖矿会话管理
 // - ./ToolManagement: 工具管理
 // - ./MiningStats: 统计信息
-// - ./YLDSystemStatus: YLD系统状态监控（新增）
-// - ./MiningPreCheck: 挖矿预检查（新增）
-// - ./SessionRateHistory: 产出率历史（新增）
-// - ./RecruitmentMiningGuide: 招募挖矿说明
-// - @/utils/safeStorage: 安全存储工具
-//
-// API 接口：
-// - /production/resources/stats/: 资源统计接口
-// - /production/yld/status/: YLD系统状态接口（新增）
-// - /production/mining/summary/: 挖矿汇总接口（新增）
-// - /production/sessions/{id}/rate-history/: 产出率历史接口（新增）
+// - ./MiningMarket: 矿山市场（新拆分）
+// - ./HiringMarket: 招聘市场（新拆分）
+// - ./SynthesisSystem: 合成系统（新拆分）
+// - ./YLDSystemStatus: YLD系统状态监控
 //
 // 更新历史：
-// - 2024-01: 修复安卓兼容性，移除 sessionStorage
-// - 2024-01: 添加错误边界和全局错误处理
-// - 2024-12: 集成 YLD 监控、预检查、产出率历史等新功能
+// - 2024-12: 重组页面结构，拆分独立组件
 
 'use client'
 
@@ -40,7 +31,7 @@ import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { safeFormatYLD, safeFormatResource } from '@/utils/formatters'
 
-// 组件导入 - 从同目录导入
+// 组件导入
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -50,8 +41,9 @@ import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
 import { MiningStats } from './MiningStats'
-import { RecruitmentMiningGuide } from './RecruitmentMiningGuide'
-import { YLDSystemStatus } from './YLDSystemStatus'
+import { MiningMarket } from './MiningMarket'
+import { HiringMarket } from './HiringMarket'
+import { SynthesisSystem } from './SynthesisSystem'
 
 // Hooks 导入
 import { useAuth } from '@/hooks/useAuth'
@@ -66,7 +58,6 @@ import {
   useStopProduction,
   useCollectOutput,
   useGrainStatus,
-  useProductionStats,
   useUserLands,
   useYLDStatus,
   useMiningSummary
@@ -128,16 +119,6 @@ class ErrorBoundary extends Component<
                   返回上一页
                 </PixelButton>
               </div>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="mt-4 text-left">
-                  <summary className="text-xs text-gray-500 cursor-pointer">
-                    错误详情 (开发模式)
-                  </summary>
-                  <pre className="text-xs text-red-400 mt-2 p-2 bg-gray-800 rounded overflow-auto max-h-40">
-                    {this.state.error.stack}
-                  </pre>
-                </details>
-              )}
             </div>
           </div>
         )
@@ -148,9 +129,8 @@ class ErrorBoundary extends Component<
   }
 }
 
-// 移动端资源显示组件 - 使用安全格式化函数
+// 移动端资源显示组件
 const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningSummary }: any) => {
-  // 优先使用挖矿汇总的资源数据，其次是资源统计，最后是旧资源数据
   const getResourceAmount = (type: string) => {
     if (miningSummary?.resources?.[type] !== undefined) {
       return miningSummary.resources[type]
@@ -164,7 +144,6 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningS
     return 0
   }
 
-  // 安全获取粮食剩余时间
   const getFoodRemainingHours = () => {
     if (grainStatus?.hours_remaining != null) {
       return typeof grainStatus.hours_remaining === 'number' 
@@ -218,12 +197,11 @@ const MobileResourceBar = memo(({ resources, resourceStats, grainStatus, miningS
 
 MobileResourceBar.displayName = 'MobileResourceBar'
 
-// 挖矿汇总卡片组件（新增）
+// 挖矿汇总卡片组件
 const MiningSummaryCard = memo(({ summary, compact = false }: any) => {
   if (!summary) return null
 
   if (compact) {
-    // 移动端紧凑版
     return (
       <PixelCard className="p-3 mb-3">
         <div className="flex items-center justify-between mb-2">
@@ -256,7 +234,6 @@ const MiningSummaryCard = memo(({ summary, compact = false }: any) => {
     )
   }
 
-  // 桌面端完整版
   return (
     <PixelCard className="p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
@@ -295,7 +272,6 @@ const MiningSummaryCard = memo(({ summary, compact = false }: any) => {
         </div>
       </div>
       
-      {/* YLD 状态警告 */}
       {summary.yld_status && summary.yld_status.percentage_used > 80 && (
         <div className="mt-3 p-2 bg-yellow-900/20 border border-yellow-500/30 rounded">
           <div className="flex items-center gap-2">
@@ -315,27 +291,24 @@ MiningSummaryCard.displayName = 'MiningSummaryCard'
 
 // 主页面组件
 function MiningPage() {
-  // ========== 认证状态 ==========
+  // 认证状态
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   
-  // ========== 状态管理 ==========
-  const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring'>('myMines')
-  const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools' | 'synthesis'>('overview')
+  // 状态管理
+  const [activeTab, setActiveTab] = useState<'myMines' | 'market' | 'hiring' | 'synthesis'>('myMines')
+  const [miningSubTab, setMiningSubTab] = useState<'overview' | 'sessions' | 'tools'>('overview')
   const [showBetaModal, setShowBetaModal] = useState(false)
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  
-  // 替代 sessionStorage 的状态
   const [pendingMiningTab, setPendingMiningTab] = useState<string | null>(null)
   
-  // ========== 数据获取 - 优化：条件加载 ==========
+  // 数据获取
   const shouldFetchData = !authLoading && isAuthenticated
   const shouldFetchMiningData = shouldFetchData && hasMiningAccess
   
-  // 基础数据获取
   const { 
     mines: yldMines, 
     loading: yldMinesLoading, 
@@ -400,14 +373,13 @@ function MiningPage() {
     enabled: shouldFetchMiningData
   })
   
-  // 新增：YLD 系统状态和挖矿汇总
   const { 
     status: yldSystemStatus,
     refetch: refetchYLDStatus
   } = useYLDStatus({
     enabled: shouldFetchMiningData && miningSubTab === 'sessions',
     autoRefresh: true,
-    refreshInterval: 60000 // 1分钟
+    refreshInterval: 60000
   })
   
   const { 
@@ -416,10 +388,9 @@ function MiningPage() {
   } = useMiningSummary({
     enabled: shouldFetchMiningData && miningSubTab === 'sessions',
     autoRefresh: true,
-    refreshInterval: 30000 // 30秒
+    refreshInterval: 30000
   })
   
-  // 操作 Hooks
   const { 
     startMining, 
     loading: startMiningLoading
@@ -438,13 +409,10 @@ function MiningPage() {
     collectOutput
   } = useCollectOutput()
   
-  // ========== 副作用 ==========
-  
-  // 全局错误处理
+  // 副作用
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
       console.error('[MiningPage] Global error:', event.error)
-      
       if (event.error?.message?.includes('localStorage')) {
         console.warn('[MiningPage] localStorage error detected, using fallback')
         event.preventDefault()
@@ -453,7 +421,6 @@ function MiningPage() {
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error('[MiningPage] Unhandled promise rejection:', event.reason)
-      
       if (event.reason?.message) {
         toast.error(`操作失败: ${event.reason.message}`, {
           duration: 4000,
@@ -471,7 +438,6 @@ function MiningPage() {
     }
   }, [])
   
-  // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -481,7 +447,6 @@ function MiningPage() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 认证检查
   useEffect(() => {
     if (authLoading) return
     if (!isAuthenticated) {
@@ -490,13 +455,11 @@ function MiningPage() {
     }
   }, [authLoading, isAuthenticated, router])
   
-  // 检查内测权限
   useEffect(() => {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
   }, [])
   
-  // 处理待切换的标签页
   useEffect(() => {
     if (hasMiningAccess && pendingMiningTab) {
       setMiningSubTab(pendingMiningTab as any)
@@ -504,15 +467,7 @@ function MiningPage() {
     }
   }, [hasMiningAccess, pendingMiningTab])
   
-  // ========== 工具函数 ==========
-  const formatYLD = useCallback((value: string | number | null | undefined): string => {
-    return safeFormatYLD(value)
-  }, [])
-  
-  const formatResource = useCallback((value: string | number | null | undefined): string => {
-    return safeFormatResource(value)
-  }, [])
-  
+  // 事件处理
   const handleViewDetail = useCallback((mine: YLDMine) => {
     setSelectedMineId(mine.id)
     setShowDetailModal(true)
@@ -532,7 +487,6 @@ function MiningPage() {
         land_id: landId,
         tool_ids: toolIds
       })
-      // 刷新所有相关数据
       refetchSessions()
       refetchTools()
       refetchResourceStats()
@@ -547,7 +501,6 @@ function MiningPage() {
     try {
       await stopProduction(sessionId)
       toast.success('已停止生产')
-      // 刷新所有相关数据
       refetchSessions()
       refetchTools()
       refetchResources()
@@ -563,7 +516,6 @@ function MiningPage() {
     try {
       await collectOutput(sessionId)
       toast.success('收取成功！')
-      // 刷新所有相关数据
       refetchSessions()
       refetchResources()
       refetchResourceStats()
@@ -576,7 +528,7 @@ function MiningPage() {
   const handleSynthesize = useCallback(async (toolType: string, quantity: number) => {
     try {
       await synthesize({
-        tool_type: toolType,
+        tool_type: toolType as 'pickaxe' | 'axe' | 'hoe',
         quantity: quantity
       })
       refetchTools()
@@ -596,7 +548,7 @@ function MiningPage() {
     }
   }, [hasMiningAccess])
   
-  // ========== 渲染逻辑 ==========
+  // 渲染逻辑
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -627,7 +579,7 @@ function MiningPage() {
       {/* 内测横幅提醒 */}
       {hasMiningAccess && <BetaBanner />}
       
-      {/* 顶部状态栏 - 优化移动端显示 */}
+      {/* 顶部状态栏 */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="container mx-auto px-3 py-2 md:px-4 md:py-3">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -648,7 +600,7 @@ function MiningPage() {
                   <div className="text-center min-w-[80px]">
                     <div className="text-[10px] sm:text-xs text-gray-400">YLD总量</div>
                     <div className="text-xs sm:text-sm font-bold text-purple-500">
-                      {formatYLD(yldStats.total_yld_capacity)}
+                      {safeFormatYLD(yldStats.total_yld_capacity)}
                     </div>
                   </div>
                   <div className="text-center min-w-[60px]">
@@ -666,7 +618,7 @@ function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-6">
-        {/* 主标签切换 - 优化移动端 */}
+        {/* 主标签切换 - 添加合成系统 */}
         <div className="flex gap-1 mb-3 sm:gap-2 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('myMines')}
@@ -678,6 +630,17 @@ function MiningPage() {
             )}
           >
             我的矿山
+          </button>
+          <button
+            onClick={() => setActiveTab('synthesis')}
+            className={cn(
+              "px-3 py-1.5 sm:px-6 sm:py-2 rounded-lg font-bold transition-colors whitespace-nowrap text-xs sm:text-base",
+              activeTab === 'synthesis' 
+                ? "bg-green-500 text-white" 
+                : "bg-gray-800 text-gray-400"
+            )}
+          >
+            合成系统
           </button>
           <button
             onClick={() => setActiveTab('market')}
@@ -703,7 +666,7 @@ function MiningPage() {
           </button>
         </div>
 
-        {/* 内容区域 - 优化移动端布局 */}
+        {/* 内容区域 */}
         <div className={cn(
           "space-y-4",
           !isMobile && activeTab === 'myMines' && "lg:grid lg:grid-cols-12 lg:gap-6 lg:space-y-0"
@@ -734,7 +697,7 @@ function MiningPage() {
             {/* 我的矿山内容 */}
             {activeTab === 'myMines' && (
               <div className="space-y-3 sm:space-y-4">
-                {/* 子标签切换 - 优化移动端 */}
+                {/* 子标签切换 */}
                 <div className="flex gap-1 sm:gap-2 overflow-x-auto">
                   <button
                     onClick={() => setMiningSubTab('overview')}
@@ -769,17 +732,6 @@ function MiningPage() {
                   >
                     我的工具
                   </button>
-                  <button
-                    onClick={() => handleTabClick('synthesis')}
-                    className={cn(
-                      "px-2 py-1 sm:px-3 sm:py-1.5 rounded text-[11px] sm:text-sm font-bold transition-colors whitespace-nowrap",
-                      miningSubTab === 'synthesis' 
-                        ? "bg-gray-700 text-white" 
-                        : "bg-gray-800 text-gray-400"
-                    )}
-                  >
-                    合成系统
-                  </button>
                 </div>
 
                 {/* 移动端资源显示栏 */}
@@ -798,7 +750,7 @@ function MiningPage() {
                     <PixelCard className="p-2 text-center">
                       <p className="text-xs text-gray-400">木头</p>
                       <p className="text-sm font-bold text-green-400">
-                        {formatResource(
+                        {safeFormatResource(
                           miningSummary?.resources?.wood ||
                           resourceStats?.data?.resources?.wood?.available || 
                           resources?.wood || 0
@@ -808,7 +760,7 @@ function MiningPage() {
                     <PixelCard className="p-2 text-center">
                       <p className="text-xs text-gray-400">铁矿</p>
                       <p className="text-sm font-bold text-gray-400">
-                        {formatResource(
+                        {safeFormatResource(
                           miningSummary?.resources?.iron ||
                           resourceStats?.data?.resources?.iron?.available || 
                           resources?.iron || 0
@@ -818,7 +770,7 @@ function MiningPage() {
                     <PixelCard className="p-2 text-center">
                       <p className="text-xs text-gray-400">石头</p>
                       <p className="text-sm font-bold text-blue-400">
-                        {formatResource(
+                        {safeFormatResource(
                           miningSummary?.resources?.stone ||
                           resourceStats?.data?.resources?.stone?.available || 
                           resources?.stone || 0
@@ -828,7 +780,7 @@ function MiningPage() {
                     <PixelCard className="p-2 text-center">
                       <p className="text-xs text-gray-400">粮食</p>
                       <p className="text-sm font-bold text-yellow-400">
-                        {formatResource(
+                        {safeFormatResource(
                           miningSummary?.resources?.food || miningSummary?.resources?.grain ||
                           resourceStats?.data?.resources?.food?.available || 
                           resourceStats?.data?.resources?.grain?.available || 
@@ -868,7 +820,7 @@ function MiningPage() {
                 {miningSubTab === 'sessions' && (
                   hasMiningAccess ? (
                     <div className="space-y-4">
-                      {/* 新增：挖矿汇总卡片 */}
+                      {/* 挖矿汇总卡片 */}
                       {miningSummary && (
                         <MiningSummaryCard 
                           summary={miningSummary} 
@@ -876,7 +828,7 @@ function MiningPage() {
                         />
                       )}
                       
-                      {/* 新增：YLD 系统状态监控 - 暂时隐藏 */}
+                      {/* YLD 系统状态监控 - 暂时隐藏 */}
                       {/* <YLDSystemStatus 
                         compact={isMobile}
                         onRefresh={() => {
@@ -901,7 +853,7 @@ function MiningPage() {
                           toast('购买粮食功能即将开放', { icon: '🌾' })
                         }}
                         onSynthesizeTool={() => {
-                          setMiningSubTab('synthesis')
+                          setActiveTab('synthesis')
                         }}
                       />
                     </div>
@@ -937,56 +889,28 @@ function MiningPage() {
                     </PixelCard>
                   )
                 )}
-
-                {miningSubTab === 'synthesis' && (
-                  hasMiningAccess ? (
-                    <ToolManagement
-                      tools={tools}
-                      loading={toolsLoading}
-                      toolStats={toolStats}
-                      resources={resources || resourceStats?.data?.resources || miningSummary?.resources}
-                      onSynthesize={handleSynthesize}
-                      synthesizeLoading={synthesizeLoading}
-                      showOnlySynthesis={true}
-                    />
-                  ) : (
-                    <PixelCard className="text-center py-8 sm:py-12">
-                      <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
-                      <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">需要内测权限访问此功能</p>
-                      <PixelButton size={isMobile ? "sm" : "md"} onClick={() => setShowBetaModal(true)}>
-                        输入内测密码
-                      </PixelButton>
-                    </PixelCard>
-                  )
-                )}
               </div>
             )}
 
-            {/* 矿山市场 */}
+            {/* 合成系统 - 独立组件 */}
+            {activeTab === 'synthesis' && (
+              <SynthesisSystem 
+                className="w-full"
+                isMobile={isMobile}
+              />
+            )}
+
+            {/* 矿山市场 - 独立组件 */}
             {activeTab === 'market' && (
-              <PixelCard className="text-center py-8 sm:py-12">
-                <span className="text-4xl sm:text-6xl block mb-3 sm:mb-4">🗺️</span>
-                <p className="text-sm sm:text-base text-gray-400 mb-2">矿山市场即将开放</p>
-                <p className="text-xs sm:text-sm text-gray-500">
-                  届时您可以在这里交易矿山 NFT
-                </p>
-              </PixelCard>
+              <MiningMarket className="w-full" />
             )}
 
-            {/* 招聘市场 */}
+            {/* 招聘市场 - 独立组件 */}
             {activeTab === 'hiring' && (
-              <div className="space-y-4">
-                {/* 暂时隐藏招募挖矿说明 */}
-                {/* <RecruitmentMiningGuide /> */}
-                
-                <PixelCard className="text-center py-8 sm:py-12">
-                  <span className="text-4xl sm:text-6xl block mb-3 sm:mb-4">👷</span>
-                  <p className="text-sm sm:text-base text-gray-400 mb-2">招募挖矿功能即将开放</p>
-                  <p className="text-xs sm:text-sm text-gray-500">
-                    届时您可以招募矿工或成为矿工赚取收益
-                  </p>
-                </PixelCard>
-              </div>
+              <HiringMarket 
+                className="w-full"
+                showGuide={false} // 暂时隐藏招募说明
+              />
             )}
           </div>
         </div>
@@ -1034,7 +958,6 @@ function MiningPage() {
           setHasMiningAccess(true)
           setShowBetaModal(false)
           
-          // 如果有待切换的标签页，切换到对应页面
           if (pendingMiningTab && pendingMiningTab !== 'overview') {
             setMiningSubTab(pendingMiningTab as any)
             setPendingMiningTab(null)
@@ -1049,10 +972,10 @@ function MiningPage() {
         }}
       />
       
-      {/* 内测提示弹窗 - 只在有权限时显示 */}
+      {/* 内测提示弹窗 */}
       {hasMiningAccess && <BetaNotice compact={isMobile} />}
       
-      {/* 矿山详情模态框 - 优化移动端 */}
+      {/* 矿山详情模态框 */}
       <PixelModal
         isOpen={showDetailModal}
         onClose={() => {
@@ -1099,13 +1022,13 @@ function MiningPage() {
                 <div>
                   <p className="text-gray-400">YLD 数量</p>
                   <p className="font-bold text-purple-400 text-base sm:text-lg">
-                    {formatYLD(selectedMine.yld_capacity || 0)}
+                    {safeFormatYLD(selectedMine.yld_capacity || 0)}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-400">累计产出</p>
                   <p className="font-bold text-green-400 text-base sm:text-lg">
-                    {formatYLD(selectedMine.accumulated_output || 0)}
+                    {safeFormatYLD(selectedMine.accumulated_output || 0)}
                   </p>
                 </div>
                 <div>
