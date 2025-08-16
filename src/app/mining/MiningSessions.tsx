@@ -1034,24 +1034,45 @@ export function MiningSessions({
   
   // ==================== 重要修复：使用正确的会话数据 ====================
   const displaySessions = useMemo(() => {
+    console.log('[MiningSessions] Data sources:', {
+      hasSessions: !!sessions,
+      sessionsLength: sessions?.length || 0,
+      hasMiningSummary: !!miningSummary,
+      summarySessionsPath: miningSummary?.active_sessions?.sessions,
+      summarySessionsLength: miningSummary?.active_sessions?.sessions?.length || 0,
+      fullMiningSummary: miningSummary
+    })
+    
+    // 如果两个数据源都存在，合并它们
+    if (sessions && sessions.length > 0 && miningSummary?.active_sessions?.sessions?.length > 0) {
+      console.log('[MiningSessions] Merging sessions with summary data')
+      // 以 sessions 为基础，用 miningSummary 的数据补充/覆盖
+      const merged = sessions.map((s: any) => {
+        const summarySession = miningSummary.active_sessions.sessions.find(
+          (ms: any) => 
+            ms.session_pk === s.id || 
+            ms.session_pk === s.session_pk ||
+            ms.session_id === s.session_id
+        )
+        if (summarySession) {
+          console.log('[MiningSessions] Merging session:', s.session_id, 'with summary:', summarySession)
+          // 合并数据，summary 数据优先（因为更完整）
+          return { ...s, ...summarySession }
+        }
+        return s
+      })
+      return merged
+    }
+    
     // 优先使用 miningSummary 中的完整数据
     if (miningSummary?.active_sessions?.sessions && miningSummary.active_sessions.sessions.length > 0) {
-      console.log('[MiningSessions] Using miningSummary sessions:', miningSummary.active_sessions.sessions)
+      console.log('[MiningSessions] Using miningSummary sessions only:', miningSummary.active_sessions.sessions)
       return miningSummary.active_sessions.sessions
     }
     
-    // 如果没有 miningSummary，但有 sessions，尝试合并数据
+    // 降级使用 sessions prop
     if (sessions && sessions.length > 0) {
-      console.log('[MiningSessions] Using sessions prop:', sessions)
-      // 如果 sessions 缺少字段，尝试从 miningSummary 补充
-      if (miningSummary?.active_sessions?.sessions) {
-        return sessions.map((s: any) => {
-          const summarySession = miningSummary.active_sessions.sessions.find(
-            (ms: any) => ms.session_pk === s.id || ms.session_id === s.session_id
-          )
-          return summarySession ? { ...s, ...summarySession } : s
-        })
-      }
+      console.log('[MiningSessions] Using sessions prop only:', sessions)
       return sessions
     }
     
