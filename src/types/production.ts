@@ -1,27 +1,26 @@
-// src/types/production.ts
-// 挖矿生产系统类型定义 - 完整生产版本
+// src/lib/api/production.ts
+// 生产系统 API 接口 - 修复路径版本
 //
-// 文件说明：
-// 1. 本文件包含所有挖矿生产相关的类型定义
-// 2. 包括工具、资源、挖矿会话等核心数据结构
-// 3. 与后端 API 返回的数据结构保持一致
-// 4. 处理了字段兼容性问题（如 total_output vs accumulated_output）
+// 修复说明：
+// 1. 修正了 API 基础路径为 https://mg.pxsj.net.cn/api/v1/
+// 2. 所有生产系统接口路径加上 /api/v1/production/ 前缀
+// 3. 导入正确的 request 函数
+// 4. 保持与后端 production.urls 的路径一致
+//
+// API 路径结构：
+// - 基础路径: https://mg.pxsj.net.cn/api/v1/
+// - 生产系统: /api/v1/production/
+// - 认证系统: /api/v1/auth/
+// - 资产系统: /api/v1/assets/
+// - 商店系统: /api/v1/shop/
 //
 // 关联文件：
-// - src/lib/api/production.ts: 生产系统 API 接口调用
-// - src/hooks/useProduction.ts: 生产系统 React Hook
-// - src/app/mining/page.tsx: 挖矿页面主组件
-// - src/app/mining/MiningSessions.tsx: 挖矿会话管理组件
-// - backend/production/models.py: 后端数据模型
-// - backend/production/serializers.py: 后端序列化器
-//
-// 更新历史：
-// - 2024-12: 添加字段兼容性处理
-// - 2024-12: 完善错误类型定义
-// - 2024-12: 添加详细注释说明
-// - 2024-12: 移除错误的导入
+// - src/lib/api/index.ts: API 基础配置和 request 函数
+// - src/hooks/useProduction.ts: 使用这些 API 的 Hooks
+// - src/types/production.ts: 类型定义
+// - backend/production/urls.py: 后端路由配置
 
-// ==================== 工具相关类型 ====================
+import { request } from '@/lib/api'
 import type {
   Tool,
   UserResource,
@@ -47,26 +46,29 @@ import type {
   ResourceBalance
 } from '@/types/production'
 
+// API 基础路径常量
+const API_PREFIX = '/api/v1/production'
+
 export const productionApi = {
   // ==================== 自主挖矿 ====================
   mining: {
     // 开始自主挖矿
     startSelfMining: (data: StartSelfMiningRequest) =>
-      request<StartMiningResponse>('/production/mining/self/start/', {
+      request<StartMiningResponse>(`${API_PREFIX}/mining/self/start/`, {
         method: 'POST',
         body: data,
       }),
 
     // 添加工具到挖矿
     addTools: (data: AddToolToMiningRequest) =>
-      request<AddToolResponse>('/production/mining/self/add-tools/', {
+      request<AddToolResponse>(`${API_PREFIX}/mining/self/add-tools/`, {
         method: 'POST',
         body: data,
       }),
 
     // 从挖矿移除工具
     removeTools: (data: RemoveToolFromMiningRequest) =>
-      request<RemoveToolResponse>('/production/mining/self/remove-tools/', {
+      request<RemoveToolResponse>(`${API_PREFIX}/mining/self/remove-tools/`, {
         method: 'POST',
         body: data,
       }),
@@ -78,11 +80,11 @@ export const productionApi = {
       page?: number
       page_size?: number
     }) =>
-      request<MiningSessionListResponse>('/production/sessions/', { params }),
+      request<MiningSessionListResponse>(`${API_PREFIX}/sessions/`, { params }),
 
     // 收取产出
     collectOutput: (data: CollectOutputRequest) =>
-      request<CollectOutputResponse>('/production/collect/', {
+      request<CollectOutputResponse>(`${API_PREFIX}/collect/`, {
         method: 'POST',
         body: data,
       }),
@@ -99,12 +101,12 @@ export const productionApi = {
           total_hours?: number
           auto_collected?: number
         }
-      }>('/production/stop/', {
+      }>(`${API_PREFIX}/stop/`, {
         method: 'POST',
         body: data,
       }),
 
-    // 新增：挖矿预检查
+    // 挖矿预检查
     preCheck: () =>
       request<{
         success: boolean
@@ -120,9 +122,9 @@ export const productionApi = {
           }
           active_sessions: number
         }
-      }>('/production/mining/pre-check/'),
+      }>(`${API_PREFIX}/mining/pre-check/`),
 
-    // 新增：获取挖矿汇总
+    // 获取挖矿汇总
     getSummary: () =>
       request<{
         success: boolean
@@ -171,10 +173,9 @@ export const productionApi = {
             is_exhausted: boolean
           }
         }
-      }>('/production/mining/summary/'),
+      }>(`${API_PREFIX}/mining/summary/`),
 
-    // 新增：获取会话产出率历史
-    // 注意：这个接口可能还未在后端实现，需要确认实际路径
+    // 获取会话产出率历史
     getSessionRateHistory: (sessionId: number) =>
       request<{
         success: boolean
@@ -199,7 +200,7 @@ export const productionApi = {
             ratio: number
           }>
         }
-      }>(`/production/sessions/${sessionId}/rate-history/`).catch(error => {
+      }>(`${API_PREFIX}/sessions/${sessionId}/rate-history/`).catch(error => {
         // 如果接口不存在，返回模拟数据或空数据
         console.warn('[API] 产出率历史接口暂未实现，返回默认数据')
         return {
@@ -214,7 +215,7 @@ export const productionApi = {
         }
       }),
 
-    // 新增：批量停止所有会话
+    // 批量停止所有会话
     stopAllSessions: () =>
       request<{
         success: boolean
@@ -229,12 +230,12 @@ export const productionApi = {
             output_collected: number
           }>
         }
-      }>('/production/stop-all/', {
+      }>(`${API_PREFIX}/stop-all/`, {
         method: 'POST',
       }),
   },
 
-  // ==================== YLD系统监控（新增） ====================
+  // ==================== YLD系统监控 ====================
   yld: {
     // 获取YLD系统状态
     getSystemStatus: () =>
@@ -258,7 +259,7 @@ export const productionApi = {
           }
           warning?: string
         }
-      }>('/production/yld/status/'),
+      }>(`${API_PREFIX}/yld/status/`),
 
     // 检查挖矿前YLD状态
     checkBeforeMining: () =>
@@ -268,7 +269,7 @@ export const productionApi = {
         remaining: number
         percentage_used: number
         message: string
-      }>('/production/yld/check-before-mining/'),
+      }>(`${API_PREFIX}/yld/check-before-mining/`),
 
     // 处理YLD耗尽
     handleExhausted: () =>
@@ -286,7 +287,7 @@ export const productionApi = {
             actual_get: number
           }>
         }
-      }>('/production/yld/handle-exhausted/', {
+      }>(`${API_PREFIX}/yld/handle-exhausted/`, {
         method: 'POST',
       }),
   },
@@ -302,21 +303,21 @@ export const productionApi = {
           deposited_tools: number
           land_id: string
         }
-      }>('/production/mining/recruit/deposit-tools/', {
+      }>(`${API_PREFIX}/mining/recruit/deposit-tools/`, {
         method: 'POST',
         body: data,
       }),
 
     // 带工具打工
     startWithTools: (data: StartHiredMiningWithToolRequest) =>
-      request<StartMiningResponse>('/production/mining/work/with-tools/', {
+      request<StartMiningResponse>(`${API_PREFIX}/mining/work/with-tools/`, {
         method: 'POST',
         body: data,
       }),
 
     // 无工具打工（借用工具）
     startWithoutTools: (data: StartHiredMiningWithoutToolRequest) =>
-      request<StartMiningResponse>('/production/mining/work/without-tools/', {
+      request<StartMiningResponse>(`${API_PREFIX}/mining/work/without-tools/`, {
         method: 'POST',
         body: data,
       }),
@@ -326,14 +327,14 @@ export const productionApi = {
   synthesis: {
     // 合成工具
     synthesizeTool: (data: SynthesizeToolRequest) =>
-      request<SynthesisResponse>('/production/synthesis/tool/', {
+      request<SynthesisResponse>(`${API_PREFIX}/synthesis/tool/`, {
         method: 'POST',
         body: data,
       }),
 
     // 合成砖头
     synthesizeBricks: (data: SynthesizeBrickRequest) =>
-      request<SynthesisResponse>('/production/synthesis/bricks/', {
+      request<SynthesisResponse>(`${API_PREFIX}/synthesis/bricks/`, {
         method: 'POST',
         body: data,
       }),
@@ -343,12 +344,20 @@ export const productionApi = {
       request<{
         success: boolean
         data: {
-          pickaxe?: { name: string; materials: any; yld_cost: number; durability: number }
-          axe?: { name: string; materials: any; yld_cost: number; durability: number }
-          hoe?: { name: string; materials: any; yld_cost: number; durability: number }
-          brick?: { name: string; materials: any; yld_cost: number; output: number }
+          recipes: {
+            pickaxe?: { name: string; materials: any; yld_cost: number; durability: number }
+            axe?: { name: string; materials: any; yld_cost: number; durability: number }
+            hoe?: { name: string; materials: any; yld_cost: number; durability: number }
+            brick?: { name: string; materials: any; yld_cost: number; output: number }
+          }
+          user_resources?: {
+            wood: number
+            iron: number
+            stone: number
+            yld: number
+          }
         }
-      }>('/production/synthesis/recipes/'),
+      }>(`${API_PREFIX}/synthesis/recipes/`),
   },
 
   // ==================== 工具管理 ====================
@@ -362,7 +371,7 @@ export const productionApi = {
       page_size?: number
       ordering?: string
     }) =>
-      request<ToolListResponse>('/production/tools/', { params }),
+      request<ToolListResponse>(`${API_PREFIX}/tools/`, { params }),
   },
 
   // ==================== 资源管理 ====================
@@ -376,60 +385,52 @@ export const productionApi = {
           total_value: number
           total_amount: { [key: string]: number }
         }
-      }>('/production/resources/'),
+      }>(`${API_PREFIX}/resources/`),
 
     // 获取资源统计（增强版）
-    // 对应后端 ResourceStatsView: /production/resources/stats/
-    // 返回用户所有资源的当前库存、价值和统计信息
     getResourceStats: () =>
       request<{
         success: boolean
         data: {
-          // 资源库存信息
           resources: {
             [key: string]: {
-              display_name: string      // 显示名称
-              amount: number            // 总数量
-              frozen: number            // 冻结数量
-              available: number         // 可用数量
-              total_produced: number    // 累计生产
-              total_consumed: number    // 累计消耗
-              value?: number           // 总价值
-              unit_price?: number      // 单价
+              display_name: string
+              amount: number
+              frozen: number
+              available: number
+              total_produced: number
+              total_consumed: number
+              value?: number
+              unit_price?: number
             }
           }
-          // 钱包信息（YLD 和 TDB）
           wallet: {
-            yld_balance: number         // YLD 余额
-            tdb_balance: number         // TDB 余额
-            yld_value?: number         // YLD 价值
-            yld_unit_price?: number    // YLD 单价
-            tdb_value?: number         // TDB 价值
+            yld_balance: number
+            tdb_balance: number
+            yld_value?: number
+            yld_unit_price?: number
+            tdb_value?: number
           }
-          // 价格信息
           prices: {
-            [key: string]: number       // 各资源的当前价格
+            [key: string]: number
           }
-          // 总价值
           total_value: number
-          // 摘要信息
           summary: {
-            total_resources: number     // 资源总量
-            total_in_wallet: number    // 钱包总额
-            total_value: number        // 总价值
-            resource_types: number     // 资源种类数
+            total_resources: number
+            total_in_wallet: number
+            total_value: number
+            resource_types: number
           }
-          // 资源分布
           distribution: Array<{
-            type: string               // 资源类型
-            name: string               // 资源名称
-            value: number              // 价值
-            percentage: number         // 占比
+            type: string
+            name: string
+            value: number
+            percentage: number
           }>
         }
-      }>('/production/resources/stats/'),
+      }>(`${API_PREFIX}/resources/stats/`),
 
-    // 新增：购买粮食
+    // 购买粮食
     buyFood: (data: { amount: number }) =>
       request<{
         success: boolean
@@ -440,12 +441,12 @@ export const productionApi = {
           new_food_balance: number
           new_yld_balance: number
         }
-      }>('/production/food/buy/', {
+      }>(`${API_PREFIX}/food/buy/`, {
         method: 'POST',
         body: data,
       }),
 
-    // 新增：获取粮食购买状态
+    // 获取粮食购买状态
     getFoodPurchaseStatus: () =>
       request<{
         success: boolean
@@ -456,7 +457,22 @@ export const productionApi = {
           can_purchase: boolean
           max_purchasable: number
         }
-      }>('/production/food/purchase-status/'),
+      }>(`${API_PREFIX}/food/purchase-status/`),
+
+    // 获取材料价格
+    getPrices: () =>
+      request<{
+        success: boolean
+        data: {
+          prices: {
+            [key: string]: number
+          }
+          exchange_rates?: {
+            yld_to_tdb?: number
+            tdb_to_yld?: number
+          }
+        }
+      }>(`${API_PREFIX}/prices/`),
   },
 
   // ==================== 土地管理 ====================
@@ -469,7 +485,17 @@ export const productionApi = {
           count: number
           results: any[]
         }
-      }>('/production/lands/user/'),
+      }>(`${API_PREFIX}/lands/user/`),
+
+    // 获取可用土地列表（自己的土地）
+    getMyLands: () =>
+      request<{
+        success: boolean
+        data: {
+          count: number
+          results: any[]
+        }
+      }>(`${API_PREFIX}/lands/mine/`),
 
     // 获取可用土地列表（招募挖矿）
     getAvailableLands: (params?: {
@@ -488,21 +514,21 @@ export const productionApi = {
           current_page?: number
           page_size?: number
         }
-      }>('/production/lands/available/', { params }),
+      }>(`${API_PREFIX}/lands/available/`, { params }),
 
     // 获取土地挖矿详情
-    getLandMiningInfo: (landId: number) =>
+    getLandMiningInfo: (landId: number | string) =>
       request<{
         success: boolean
         data: any
-      }>(`/production/lands/${landId}/mining-info/`),
+      }>(`${API_PREFIX}/lands/${landId}/mining-info/`),
   },
 
   // ==================== 统计数据 ====================
   stats: {
     // 获取生产统计
     getProductionStats: () =>
-      request<ProductionStatsResponse>('/production/stats/'),
+      request<ProductionStatsResponse>(`${API_PREFIX}/stats/`),
 
     // 检查粮食状态
     checkFoodStatus: () =>
@@ -512,12 +538,13 @@ export const productionApi = {
           current_food: number
           consumption_rate: number
           hours_sustainable: number
+          hours_remaining?: number  // 兼容字段
           hours_sustainable_display: string
           warning: boolean
           warning_message: string | null
           active_sessions_count: number
         }
-      }>('/production/food-status/'),
+      }>(`${API_PREFIX}/food-status/`),
   },
 }
 
@@ -535,6 +562,7 @@ export function formatResourceBalance(resources: UserResource[]): ResourceBalanc
     stone: 0,
     yld: 0,
     grain: 0,
+    food: 0,
     seed: 0,
     brick: 0
   }
@@ -566,6 +594,7 @@ export function formatResourceStatsToBalance(stats: any): ResourceBalance {
     stone: 0,
     yld: 0,
     grain: 0,
+    food: 0,
     seed: 0,
     brick: 0
   }
