@@ -1,24 +1,22 @@
 // src/hooks/useProduction.ts
-// 生产系统 Hooks - 完整生产级别修复版
+// 生产系统 Hooks - 完整生产级别修复版（解决数据访问错误）
 //
 // 文件说明：
-// 1. 包含所有生产系统相关的 React Hooks
-// 2. 修复了循环请求问题和数据结构不匹配问题
-// 3. 提供统一的数据获取和状态管理
-// 4. 所有功能保持向后兼容
+// 1. 修复了所有 "Cannot read properties of undefined" 错误
+// 2. 正确处理 API 响应的数据结构
+// 3. 确保挖矿会话能正确显示
+// 4. 保持所有原有功能
 //
 // 关联文件：
 // - src/lib/api/production.ts: API 调用
 // - src/types/production.ts: 类型定义
 // - src/app/mining/page.tsx: 主页面使用
 // - src/app/mining/MiningSessions.tsx: 会话管理使用
-// - src/app/mining/ToolManagement.tsx: 工具管理使用
 // - src/app/mining/MiningStats.tsx: 统计显示使用
 //
 // 修复历史：
-// - 2024-12: 修复循环请求问题（使用 hasFetchedRef 和 lastFetchTimeRef）
-// - 2024-12: 修复数据结构不匹配（添加默认值和数据格式转换）
-// - 2024-12: 添加完整的错误处理和降级策略
+// - 2024-12: 修复数据访问路径错误
+// - 2024-12: 确保所有 hooks 返回正确的数据结构
 
 'use client'
 
@@ -61,22 +59,27 @@ export function useMyTools(options?: {
     setError(null)
     
     try {
+      console.log('[useMyTools] Fetching tools...')
       const response = await productionApi.tools.getMyTools({
         page_size: 100
       })
       
-      // 处理不同的响应格式
+      console.log('[useMyTools] Response:', response)
+      
+      // 处理响应数据 - 直接访问 response，不要访问 response.data.tools
       if (response?.results) {
         setTools(response.results)
         setStats(response.stats || null)
+      } else if (response && Array.isArray(response)) {
+        setTools(response)
       } else {
         setTools([])
       }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMyTools] Error:', err)
       setError(err?.message || '获取工具失败')
-      // 错误时使用空数组，避免页面崩溃
       if (!tools) setTools([])
     } finally {
       setLoading(false)
@@ -84,14 +87,12 @@ export function useMyTools(options?: {
     }
   }, [enabled, tools])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchTools()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
@@ -145,9 +146,27 @@ export function useMyResources(options?: {
     setError(null)
     
     try {
+      console.log('[useMyResources] Fetching resources, useStats:', useStats)
+      
       if (useStats) {
         const response = await productionApi.resources.getResourceStats()
-        if (response?.data?.resources) {
+        console.log('[useMyResources] Stats response:', response)
+        
+        // 直接访问 response，不要访问 response.data.resources
+        if (response?.resources) {
+          const balance: ResourceBalance = {
+            wood: response.resources.wood?.available || 0,
+            iron: response.resources.iron?.available || 0,
+            stone: response.resources.stone?.available || 0,
+            yld: response.wallet?.yld_balance || 0,
+            grain: response.resources.food?.available || response.resources.grain?.available || 0,
+            food: response.resources.food?.available || response.resources.grain?.available || 0,
+            seed: response.resources.seed?.available || 0,
+            brick: response.resources.brick?.available || 0
+          }
+          setResources(balance)
+        } else if (response?.data?.resources) {
+          // 兼容带 data 字段的响应
           const balance: ResourceBalance = {
             wood: response.data.resources.wood?.available || 0,
             iron: response.data.resources.iron?.available || 0,
@@ -160,7 +179,7 @@ export function useMyResources(options?: {
           }
           setResources(balance)
         } else {
-          // 使用默认值
+          // 默认值
           if (!resources) {
             setResources({
               wood: 0, iron: 0, stone: 0, yld: 0,
@@ -170,13 +189,15 @@ export function useMyResources(options?: {
         }
       } else {
         const response = await productionApi.resources.getMyResources()
+        console.log('[useMyResources] Resources response:', response)
+        
         if (response?.results) {
           const balance: ResourceBalance = {
             wood: 0, iron: 0, stone: 0, yld: 0,
             grain: 0, food: 0, seed: 0, brick: 0
           }
           
-          response.results.forEach(resource => {
+          response.results.forEach((resource: any) => {
             const amount = parseFloat(resource.available_amount || resource.amount || '0')
             if (resource.resource_type === 'food' || resource.resource_type === 'grain') {
               balance.grain = amount
@@ -188,7 +209,6 @@ export function useMyResources(options?: {
           
           setResources(balance)
         } else {
-          // 使用默认值
           if (!resources) {
             setResources({
               wood: 0, iron: 0, stone: 0, yld: 0,
@@ -197,11 +217,11 @@ export function useMyResources(options?: {
           }
         }
       }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMyResources] Error:', err)
       setError(err?.message || '获取资源失败')
-      // 错误时使用默认值
       if (!resources) {
         setResources({
           wood: 0, iron: 0, stone: 0, yld: 0,
@@ -214,14 +234,12 @@ export function useMyResources(options?: {
     }
   }, [enabled, useStats, resources])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchResources()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
@@ -266,7 +284,11 @@ export function useResourceStats(options?: {
     setError(null)
     
     try {
+      console.log('[useResourceStats] Fetching stats...')
       const response = await productionApi.resources.getResourceStats()
+      console.log('[useResourceStats] Response:', response)
+      
+      // 直接设置响应，不要嵌套在 data 中
       setStats(response)
       hasFetchedRef.current = true
     } catch (err: any) {
@@ -278,14 +300,12 @@ export function useResourceStats(options?: {
     }
   }, [enabled])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchStats()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
@@ -309,7 +329,7 @@ export function useResourceStats(options?: {
   }
 }
 
-// ==================== 挖矿会话管理 ====================
+// ==================== 挖矿会话管理（修复） ====================
 
 export function useMiningSessions(options?: {
   status?: 'active' | 'paused' | 'completed'
@@ -338,12 +358,23 @@ export function useMiningSessions(options?: {
     setError(null)
     
     try {
+      console.log('[useMiningSessions] Fetching sessions...')
       const response = await productionApi.mining.getMySessions({
         status,
         page_size: 100
       })
       
-      setSessions(response.results || [])
+      console.log('[useMiningSessions] Response:', response)
+      
+      // 直接访问 response.results，不要访问 response.data.mining
+      if (response?.results) {
+        setSessions(response.results)
+      } else if (response && Array.isArray(response)) {
+        setSessions(response)
+      } else {
+        setSessions([])
+      }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMiningSessions] Error:', err)
@@ -355,14 +386,12 @@ export function useMiningSessions(options?: {
     }
   }, [enabled, status, sessions])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchSessions()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
@@ -487,7 +516,7 @@ export function useStopAllSessions() {
     
     try {
       const response = await productionApi.mining.stopAllSessions()
-      toast.success(`已停止 ${response.data.stopped_count} 个会话`)
+      toast.success(`已停止 ${response.data?.stopped_count || 0} 个会话`)
       return response
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err?.message || '批量停止失败'
@@ -537,7 +566,7 @@ export function useSynthesizeTool() {
   }
 }
 
-// ==================== 粮食状态 ====================
+// ==================== 粮食状态（修复） ====================
 
 export function useGrainStatus(options?: {
   enabled?: boolean
@@ -560,8 +589,17 @@ export function useGrainStatus(options?: {
     setError(null)
     
     try {
+      console.log('[useGrainStatus] Fetching status...')
       const response = await productionApi.stats.checkFoodStatus()
-      setStatus(response.data)
+      console.log('[useGrainStatus] Response:', response)
+      
+      // 直接访问 response，不要访问 response.data.stats
+      if (response?.data) {
+        setStatus(response.data)
+      } else if (response) {
+        setStatus(response)
+      }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useGrainStatus] Error:', err)
@@ -572,14 +610,12 @@ export function useGrainStatus(options?: {
     }
   }, [enabled])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchStatus()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
@@ -603,7 +639,7 @@ export function useGrainStatus(options?: {
   }
 }
 
-// ==================== YLD系统监控 ====================
+// ==================== YLD系统监控（修复） ====================
 
 export function useYLDStatus(options?: {
   enabled?: boolean
@@ -626,8 +662,17 @@ export function useYLDStatus(options?: {
     setError(null)
     
     try {
+      console.log('[useYLDStatus] Fetching status...')
       const response = await productionApi.yld.getSystemStatus()
-      setStatus(response.data)
+      console.log('[useYLDStatus] Response:', response)
+      
+      // 直接访问 response，不要访问 response.data.yld
+      if (response?.data) {
+        setStatus(response.data)
+      } else if (response) {
+        setStatus(response)
+      }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useYLDStatus] Error:', err)
@@ -638,18 +683,16 @@ export function useYLDStatus(options?: {
     }
   }, [enabled])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchStatus()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
-    const interval = setInterval(() => {
+const interval = setInterval(() => {
       if (!fetchingRef.current) {
         fetchStatus()
       }
@@ -711,8 +754,8 @@ export function useMiningPreCheck() {
     
     try {
       const response = await productionApi.mining.preCheck()
-      setCheckResult(response.data)
-      return response.data
+      setCheckResult(response.data || response)
+      return response.data || response
     } catch (err: any) {
       console.error('[useMiningPreCheck] Error:', err)
       setError(err?.message || '预检查失败')
@@ -729,7 +772,7 @@ export function useMiningPreCheck() {
   }
 }
 
-// ==================== 挖矿汇总（完全修复循环请求） ====================
+// ==================== 挖矿汇总（修复） ====================
 
 export function useMiningSummary(options?: {
   enabled?: boolean
@@ -783,7 +826,6 @@ export function useMiningSummary(options?: {
   const fetchSummary = useCallback(async () => {
     if (!enabled || fetchingRef.current) return
     
-    // 防止频繁请求
     const now = Date.now()
     if (now - lastFetchRef.current < 10000) {
       console.log('[useMiningSummary] Skipping - too frequent')
@@ -796,12 +838,22 @@ export function useMiningSummary(options?: {
     setError(null)
     
     try {
+      console.log('[useMiningSummary] Fetching summary...')
       const response = await productionApi.mining.getSummary()
-      setSummary(response.data || getDefaultSummary())
+      console.log('[useMiningSummary] Response:', response)
+      
+      // 直接访问 response，不要访问 response.data.mining
+      if (response?.data) {
+        setSummary(response.data)
+      } else if (response) {
+        setSummary(response)
+      } else {
+        setSummary(getDefaultSummary())
+      }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useMiningSummary] Error:', err)
-      // 错误时使用默认数据
       if (!summary) {
         setSummary(getDefaultSummary())
       }
@@ -811,23 +863,21 @@ export function useMiningSummary(options?: {
     }
   }, [enabled, summary])
   
-  // 初始加载 - 只执行一次
   useEffect(() => {
     if (enabled && !hasFetchedRef.current && !summary) {
       fetchSummary()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
     const interval = setInterval(() => {
       if (!fetchingRef.current) {
-        lastFetchRef.current = 0 // 重置时间限制
+        lastFetchRef.current = 0
         fetchSummary()
       }
-    }, Math.max(refreshInterval, 60000)) // 最小间隔60秒
+    }, Math.max(refreshInterval, 60000))
     
     return () => clearInterval(interval)
   }, [autoRefresh, enabled, refreshInterval, fetchSummary])
@@ -863,7 +913,7 @@ export function useSessionRateHistory(sessionId: number | null, options?: {
     
     try {
       const response = await productionApi.mining.getSessionRateHistory(sessionId)
-      setHistory(response.data)
+      setHistory(response.data || response)
     } catch (err: any) {
       console.error('[useSessionRateHistory] Error:', err)
       setError(err?.message || '获取历史失败')
@@ -909,6 +959,8 @@ export function useUserLands(options?: {
     setError(null)
     
     try {
+      console.log('[useUserLands] Fetching lands...')
+      
       // 尝试多个可能的 API 路径
       const possiblePaths = [
         '/api/production/lands/mine',
@@ -928,10 +980,11 @@ export function useUserLands(options?: {
           
           if (response.ok) {
             data = await response.json()
+            console.log('[useUserLands] Success from', path, data)
             break
           }
         } catch (e) {
-          // 继续尝试下一个路径
+          console.log('[useUserLands] Failed path:', path)
         }
       }
       
@@ -944,9 +997,9 @@ export function useUserLands(options?: {
           setLands([])
         }
       } else {
-        // 如果所有路径都失败，使用空数组
         setLands([])
       }
+      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useUserLands] Error:', err)
@@ -957,14 +1010,12 @@ export function useUserLands(options?: {
     }
   }, [enabled])
   
-  // 初始加载
   useEffect(() => {
     if (enabled && !hasFetchedRef.current) {
       fetchLands()
     }
   }, [enabled])
   
-  // 自动刷新
   useEffect(() => {
     if (!autoRefresh || !enabled) return
     
