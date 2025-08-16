@@ -46,8 +46,8 @@ import type {
   ResourceBalance
 } from '@/types/production'
 
-// API 基础路径常量
-const API_PREFIX = '/api/v1/production'
+// API 基础路径常量 - 注意：不需要 /api/v1 前缀，因为 request 函数已经包含了
+const API_PREFIX = '/production'
 
 export const productionApi = {
   // ==================== 自主挖矿 ====================
