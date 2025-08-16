@@ -61,32 +61,54 @@ const MIN_COLLECT_HOURS = 1  // 最少收取小时数
 // ==================== 工具函数 ====================
 
 /**
- * 计算实时累计产出
- * 根据工作时间和产出率计算
+ * 计算实时累计产出（毛收益）
+ * 根据实际经过的时间和产出率计算
+ * 注意：total_output 字段只在停止时更新，活跃会话需要实时计算
  */
 const calculateTotalOutput = (session: any): number => {
-  // 优先使用 total_output 字段（如果存在）
-  if (session.total_output !== undefined && session.total_output !== null) {
-    const output = typeof session.total_output === 'string' ? parseFloat(session.total_output) : session.total_output
-    if (!isNaN(output) && output > 0) return output
+  // 获取开始时间
+  const startedAt = session.started_at
+  if (!startedAt) return 0
+  
+  try {
+    // 计算已经过去的时间（小时）
+    const now = new Date()
+    const startTime = new Date(startedAt)
+    const hoursElapsed = (now.getTime() - startTime.getTime()) / (1000 * 60 * 60)
+    
+    // 如果时间为负数（时间错误），返回0
+    if (hoursElapsed < 0) return 0
+    
+    // 获取产出率
+    const outputRate = session.output_rate || 0
+    const rate = typeof outputRate === 'string' ? parseFloat(outputRate) : outputRate
+    
+    // 计算累计毛产出 = 产出率 × 经过的时间
+    const grossOutput = rate * hoursElapsed
+    
+    // 返回毛产出（未扣税）
+    return grossOutput
+  } catch (error) {
+    console.error('[calculateTotalOutput] Error:', error)
+    
+    // 如果计算失败，尝试使用备用方案
+    const hoursWorked = session.hours_worked || session.total_hours || 0
+    const outputRate = session.output_rate || 0
+    
+    const hours = typeof hoursWorked === 'string' ? parseFloat(hoursWorked) : hoursWorked
+    const rate = typeof outputRate === 'string' ? parseFloat(outputRate) : outputRate
+    
+    return hours * rate
   }
-  
-  // 使用 hours_worked * output_rate 计算
-  const hoursWorked = session.hours_worked || 0
-  const outputRate = session.output_rate || 0
-  
-  // 将字符串转换为数字
-  const hours = typeof hoursWorked === 'string' ? parseFloat(hoursWorked) : hoursWorked
-  const rate = typeof outputRate === 'string' ? parseFloat(outputRate) : outputRate
-  
-  // 计算累计产出
-  const calculated = hours * rate
-  
-  // 加上待收取的产出（如果有）
-  const pending = session.pending_output || 0
-  const pendingNum = typeof pending === 'string' ? parseFloat(pending) : pending
-  
-  return calculated + (isNaN(pendingNum) ? 0 : pendingNum)
+}
+
+/**
+ * 计算净产出（扣税后）
+ */
+const calculateNetOutput = (session: any): number => {
+  const grossOutput = calculateTotalOutput(session)
+  const taxRate = getTaxRate(session)
+  return grossOutput * (1 - taxRate)
 }
 
 /**
@@ -390,17 +412,28 @@ const MobileSessionCard = memo(({
   onStop: () => void
   onViewHistory: () => void
 }) => {
+  // 使用状态来定期更新累计产出（每10秒更新一次）
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 10000) // 每10秒更新
+    
+    return () => clearInterval(interval)
+  }, [])
+  
   const landInfo = getLandInfo(session)
   const totalOutput = calculateTotalOutput(session)
+  const netOutput = calculateNetOutput(session)
   const startTime = getSessionStartTime(session)
   const toolCount = getSessionToolCount(session)
   const foodConsumption = getSessionFoodConsumption(session)
-  const collectableHours = calculateCollectableHours(session)
-  const canCollect = session.can_collect || collectableHours >= MIN_COLLECT_HOURS
   const outputRate = getOutputRate(session)
   const resourceType = getResourceType(session)
   const status = getSessionStatus(session)
   const statusDisplay = getSessionStatusDisplay(session)
+  const taxRate = getTaxRate(session)
   
   return (
     <div className="bg-gray-800 rounded-lg p-3">
@@ -426,24 +459,24 @@ const MobileSessionCard = memo(({
       
       <div className="grid grid-cols-3 gap-2 mb-2 text-[11px]">
         <div>
-          <p className="text-gray-500">累计</p>
+          <p className="text-gray-500">毛产出</p>
           <p className="font-bold text-purple-400">{formatNumber(totalOutput, 4)}</p>
         </div>
         <div>
-          <p className="text-gray-500">速率</p>
-          <p className="font-bold text-green-400">{formatNumber(outputRate, 4)}/h</p>
+          <p className="text-gray-500">净产出</p>
+          <p className="font-bold text-green-400">{formatNumber(netOutput, 4)}</p>
         </div>
         <div>
-          <p className="text-gray-500">工具</p>
-          <p className="font-bold text-yellow-400">{toolCount}个</p>
+          <p className="text-gray-500">速率</p>
+          <p className="font-bold text-yellow-400">{formatNumber(outputRate, 4)}/h</p>
         </div>
       </div>
       
       {/* 显示当前累计产出提示 */}
       <div className="flex items-center justify-between p-1.5 bg-blue-500/10 rounded text-[11px] mb-2">
-        <span className="text-blue-400">当前累计</span>
+        <span className="text-blue-400">实时累计（税率{(taxRate * 100).toFixed(0)}%）</span>
         <span className="font-bold text-blue-400">
-          {formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
+          净收益: {formatNumber(netOutput, 4)} {resourceType.toUpperCase()}
         </span>
       </div>
       
@@ -485,20 +518,32 @@ const DesktopSessionCard = memo(({
   onStop: () => void
   onViewHistory: () => void
 }) => {
+  // 使用状态来定期更新累计产出（每10秒更新一次）
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 10000) // 每10秒更新
+    
+    return () => clearInterval(interval)
+  }, [])
+  
   const landInfo = getLandInfo(session)
   const totalOutput = calculateTotalOutput(session)
+  const netOutput = calculateNetOutput(session)
   const startTime = getSessionStartTime(session)
   const toolCount = getSessionToolCount(session)
   const foodConsumption = getSessionFoodConsumption(session)
-  const collectableHours = calculateCollectableHours(session)
-  const canCollect = session.can_collect || collectableHours >= MIN_COLLECT_HOURS
   const outputRate = getOutputRate(session)
   const resourceType = getResourceType(session)
   const status = getSessionStatus(session)
   const statusDisplay = getSessionStatusDisplay(session)
   const taxRate = getTaxRate(session)
   const miningDuration = formatDuration(startTime)
-  const hoursWorked = session.hours_worked || 0
+  
+  // 计算实际经过的小时数
+  const hoursElapsed = startTime ? (Date.now() - new Date(startTime).getTime()) / (1000 * 60 * 60) : 0
   
   return (
     <PixelCard className="overflow-hidden">
@@ -528,14 +573,14 @@ const DesktopSessionCard = memo(({
         {/* 产出信息 */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-purple-900/20 rounded p-2">
-            <p className="text-gray-400 text-xs">累计产出</p>
+            <p className="text-gray-400 text-xs">毛产出（未扣税）</p>
             <p className="font-bold text-purple-400 text-lg">{formatNumber(totalOutput, 6)}</p>
             <p className="text-xs text-gray-500">{resourceType.toUpperCase()}</p>
           </div>
           <div className="bg-green-900/20 rounded p-2">
-            <p className="text-gray-400 text-xs">产出速率</p>
-            <p className="font-bold text-green-400 text-lg">{formatNumber(outputRate, 4)}</p>
-            <p className="text-xs text-gray-500">每小时</p>
+            <p className="text-gray-400 text-xs">净产出（扣税后）</p>
+            <p className="font-bold text-green-400 text-lg">{formatNumber(netOutput, 6)}</p>
+            <p className="text-xs text-gray-500">税率 {(taxRate * 100).toFixed(0)}%</p>
           </div>
         </div>
         
@@ -544,17 +589,19 @@ const DesktopSessionCard = memo(({
           <div>
             <p className="text-gray-400 text-xs">挖矿时长</p>
             <p className="font-bold text-blue-400">{miningDuration}</p>
-            <p className="text-xs text-gray-500">({formatNumber(hoursWorked, 2)}小时)</p>
+            <p className="text-xs text-gray-500">({formatNumber(hoursElapsed, 2)}小时)</p>
           </div>
           <div>
-            <p className="text-gray-400 text-xs">工具数量</p>
-            <p className="font-bold text-yellow-400">{toolCount} 个</p>
+            <p className="text-gray-400 text-xs">产出速率</p>
+            <p className="font-bold text-yellow-400">{formatNumber(outputRate, 4)}/h</p>
+            <p className="text-xs text-gray-500">{toolCount} 个工具</p>
           </div>
           <div>
-            <p className="text-gray-400 text-xs">税率</p>
+            <p className="text-gray-400 text-xs">税费扣除</p>
             <p className="font-bold text-red-400">
-              {(taxRate * 100).toFixed(0)}%
+              -{formatNumber(totalOutput * taxRate, 4)}
             </p>
+            <p className="text-xs text-gray-500">{(taxRate * 100).toFixed(0)}% 税率</p>
           </div>
         </div>
         
@@ -568,9 +615,9 @@ const DesktopSessionCard = memo(({
         
         {/* 累计产出提示 */}
         <div className="flex items-center justify-between p-2 bg-blue-500/10 rounded">
-          <span className="text-xs text-blue-400">💎 当前累计产出</span>
+          <span className="text-xs text-blue-400">💎 实时净收益</span>
           <span className="text-sm font-bold text-blue-400">
-            {formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
+            {formatNumber(netOutput, 6)} {resourceType.toUpperCase()}
           </span>
         </div>
         
@@ -578,10 +625,12 @@ const DesktopSessionCard = memo(({
         {process.env.NODE_ENV === 'development' && (
           <div className="p-2 bg-gray-900/50 rounded text-xs text-gray-500">
             <p>调试信息：</p>
-            <p>hours_worked: {session.hours_worked}</p>
+            <p>started_at: {session.started_at}</p>
+            <p>实际经过: {formatNumber(hoursElapsed, 4)} 小时</p>
             <p>output_rate: {session.output_rate}</p>
-            <p>pending_output: {session.pending_output}</p>
-            <p>计算的累计: {formatNumber(totalOutput, 6)}</p>
+            <p>毛产出: {formatNumber(totalOutput, 6)}</p>
+            <p>净产出: {formatNumber(netOutput, 6)}</p>
+            <p>total_output字段: {session.total_output || '0'}</p>
           </div>
         )}
         
@@ -679,34 +728,36 @@ export function MiningSessions({
     [tools]
   )
   
-  // 统计数据 - 修复累计产出计算
-  const { totalOutput, totalHourlyOutput } = useMemo(() => {
-    if (!sessions) return { totalOutput: 0, totalHourlyOutput: 0 }
+  // 统计数据 - 使用实时计算
+  const { totalOutput, totalNetOutput, totalHourlyOutput } = useMemo(() => {
+    if (!sessions) return { totalOutput: 0, totalNetOutput: 0, totalHourlyOutput: 0 }
     
     const total = sessions.reduce((sum, session) => {
       const output = calculateTotalOutput(session)
       return sum + output
     }, 0)
     
+    const netTotal = sessions.reduce((sum, session) => {
+      const netOutput = calculateNetOutput(session)
+      return sum + netOutput
+    }, 0)
+    
     const hourly = sessions.reduce((sum, session) => sum + getOutputRate(session), 0)
     
-    return { totalOutput: total, totalHourlyOutput: hourly }
+    return { totalOutput: total, totalNetOutput: netTotal, totalHourlyOutput: hourly }
   }, [sessions])
   
-  // 调试日志
+  // 添加定时器来刷新数据
   useEffect(() => {
-    if (sessions && sessions.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log('🔍 会话数据调试:', sessions)
-      sessions.forEach((session, index) => {
-        console.log(`会话 ${index}:`, {
-          原始数据: session,
-          计算的累计产出: calculateTotalOutput(session),
-          hours_worked: session.hours_worked,
-          output_rate: session.output_rate,
-          pending_output: session.pending_output
-        })
-      })
-    }
+    if (!sessions || sessions.length === 0) return
+    
+    // 每30秒刷新一次累计产出显示
+    const refreshInterval = setInterval(() => {
+      // 强制组件重新渲染以更新时间相关的计算
+      setIsMobile(prev => prev)
+    }, 30000)
+    
+    return () => clearInterval(refreshInterval)
   }, [sessions])
   
   // ==================== 事件处理函数 ====================
@@ -993,8 +1044,9 @@ export function MiningSessions({
           {sessions && sessions.length > 0 && (
             <div className="flex gap-4 mt-1">
               <p className="text-sm text-gray-400">共 {sessions.length} 个</p>
-              <p className="text-sm text-purple-400">累计: {formatNumber(totalOutput, 4)}</p>
-              <p className="text-sm text-green-400">速率: {formatNumber(totalHourlyOutput, 4)}/h</p>
+              <p className="text-sm text-purple-400">毛产出: {formatNumber(totalOutput, 4)}</p>
+              <p className="text-sm text-green-400">净收益: {formatNumber(totalNetOutput, 4)}</p>
+              <p className="text-sm text-yellow-400">速率: {formatNumber(totalHourlyOutput, 4)}/h</p>
             </div>
           )}
         </div>
@@ -1454,6 +1506,7 @@ export function MiningSessions({
                   const startTime = getSessionStartTime(session)
                   const duration = formatDuration(startTime)
                   const totalOutput = calculateTotalOutput(session)
+                  const netOutput = calculateNetOutput(session)
                   const resourceType = getResourceType(session)
                   const landInfo = getLandInfo(session)
                   
@@ -1463,8 +1516,11 @@ export function MiningSessions({
                       <div className="space-y-1">
                         <p>土地：{landInfo.land_id || '未知'}</p>
                         <p>运行时长：{duration}</p>
+                        <p className="text-purple-400">
+                          毛产出：{formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
+                        </p>
                         <p className="text-green-400 font-bold">
-                          将收取产出：{formatNumber(totalOutput, 4)} {resourceType.toUpperCase()}
+                          将收取净收益：{formatNumber(netOutput, 4)} {resourceType.toUpperCase()}
                         </p>
                       </div>
                     </div>
