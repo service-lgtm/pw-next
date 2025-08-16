@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import type { MiningSession, Tool } from '@/types/production'
 import type { Land } from '@/types/assets'
 import toast from 'react-hot-toast'
-import { useStopAllSessions } from '@/hooks/useProduction'
+import { useStopAllSessions, useCollectPending, useHourlySettlement } from '@/hooks/useProduction'
 
 interface MiningSessionsProps {
   sessions: MiningSession[] | null
@@ -344,6 +344,57 @@ const MiningSummaryCard = memo(({ summary, compact = false }: {
 })
 
 MiningSummaryCard.displayName = 'MiningSummaryCard'
+
+// ==================== 待收取收益卡片（新增） ====================
+/**
+ * 待收取收益汇总卡片
+ * 显示所有pending状态的收益总和
+ */
+const PendingRewardsCard = memo(({ onRefresh }: { onRefresh?: () => void }) => {
+  const { pendingData, loading, refetch } = useCollectPending()
+  
+  // 整点后第1分钟自动刷新
+  useEffect(() => {
+    const checkAndRefresh = () => {
+      const minutes = new Date().getMinutes()
+      if (minutes === 1) {
+        refetch()
+        onRefresh?.()
+      }
+    }
+    
+    const timer = setInterval(checkAndRefresh, 60000) // 每分钟检查
+    return () => clearInterval(timer)
+  }, [refetch, onRefresh])
+  
+  if (!pendingData || pendingData.total_pending === 0) return null
+  
+  return (
+    <div className="p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-gray-400">全部待收取收益</p>
+          <p className="text-lg font-bold text-green-400">
+            {formatNumber(pendingData.total_pending, 6)} YLD
+          </p>
+          <p className="text-xs text-gray-500">
+            {pendingData.sessions?.length || 0} 个会话，
+            共 {pendingData.sessions?.reduce((sum: number, s: any) => sum + (s.hours_settled || 0), 0) || 0} 小时
+          </p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          disabled={loading}
+          className="p-2 text-gray-400 hover:text-white transition-colors"
+        >
+          <span className={cn("text-lg", loading && "animate-spin")}>🔄</span>
+        </button>
+      </div>
+    </div>
+  )
+})
+
+PendingRewardsCard.displayName = 'PendingRewardsCard'
 
 // ==================== 实时倒计时组件 ====================
 const SettlementCountdown = memo(() => {
@@ -968,6 +1019,10 @@ export function MiningSessions({
   
   const { stopAll, loading: stopAllLoading } = useStopAllSessions()
   
+  // 查询待收取收益和结算状态（如果这两个Hook已实现则取消注释）
+  // const { pendingData, refetch: refetchPending } = useCollectPending()
+  // const { settlementData, refetch: refetchSettlement } = useHourlySettlement()
+  
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
@@ -996,23 +1051,50 @@ export function MiningSessions({
     if (!selectedLand || selectedTools.length === 0) return
     
     try {
+      const nextSettlementInfo = getNextSettlementInfo()
       const response = await onStartMining(selectedLand.id, selectedTools)
       
+      // 根据API响应显示详细信息（新算法v2返回格式）
       if (response?.data) {
         const data = response.data
         
+        // 使用实际返回的数据字段
         toast.success(
           <div>
             <p className="font-bold">挖矿已开始！</p>
             <p className="text-sm">会话ID: {data.session_id}</p>
+            <p className="text-sm">会话编号: #{data.session_pk}</p>
             <p className="text-sm">算法版本: {data.algorithm_version}</p>
+            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
+            {data.time_info && (
+              <>
+                <p className="text-sm">当前时间: {data.time_info.current_hour}:{String(data.time_info.current_minute).padStart(2, '0')}</p>
+                <p className="text-sm">下次结算: {data.time_info.next_settlement} ({data.time_info.minutes_to_settlement}分钟后)</p>
+              </>
+            )}
+            {data.food_info && (
+              <p className="text-sm">粮食可持续: {data.food_info.hours_sustainable > 100 ? '充足' : `${data.food_info.hours_sustainable.toFixed(1)}小时`}</p>
+            )}
+            {data.message && (
+              <p className="text-sm text-green-300">{data.message}</p>
+            )}
           </div>,
           {
             duration: 8000,
             position: 'top-center',
-            icon: '⛏️'
+            icon: '⛏️',
+            style: {
+              background: '#10b981',
+              color: '#fff',
+            }
           }
         )
+      } else {
+        toast.success('挖矿已开始！', {
+          duration: 3000,
+          position: 'top-center',
+          icon: '⛏️'
+        })
       }
       
       setShowStartModal(false)
@@ -1023,7 +1105,53 @@ export function MiningSessions({
       onRefresh?.()
     } catch (err: any) {
       console.error('开始挖矿失败:', err)
-      toast.error(err?.response?.data?.message || '开始挖矿失败')
+      
+      const errorData = err?.response?.data
+      let errorMessage = '开始挖矿失败'
+      
+      if (errorData?.message) {
+        errorMessage = errorData.message
+      } else if (errorData?.detail) {
+        errorMessage = errorData.detail
+      }
+      
+      // 根据错误类型显示不同的提示
+      if (errorMessage.includes('粮食不足')) {
+        toast.error(
+          <div>
+            <p className="font-bold">粮食不足！</p>
+            {errorData?.data && (
+              <>
+                <p className="text-sm">当前粮食: {errorData.data.current_food}</p>
+                <p className="text-sm">需要粮食: {errorData.data.food_needed}</p>
+                <p className="text-sm">建议先购买粮食</p>
+              </>
+            )}
+          </div>,
+          {
+            duration: 5000,
+            position: 'top-center',
+            icon: '🌾'
+          }
+        )
+      } else if (errorMessage.includes('工具')) {
+        toast.error(errorMessage, {
+          duration: 4000,
+          position: 'top-center',
+          icon: '🔧'
+        })
+      } else if (errorMessage.includes('土地')) {
+        toast.error(errorMessage, {
+          duration: 4000,
+          position: 'top-center',
+          icon: '📍'
+        })
+      } else {
+        toast.error(errorMessage, {
+          duration: 4000,
+          position: 'top-center'
+        })
+      }
     }
   }, [selectedLand, selectedTools, onStartMining, onRefresh])
   
@@ -1034,13 +1162,20 @@ export function MiningSessions({
       const session = displaySessions.find((s: any) => s.session_pk === targetSessionId || s.id === targetSessionId)
       const response = await onStopSession(targetSessionId)
       
+      // 根据API响应显示详细信息（新算法v2返回格式）
       if (response?.data) {
         const data = response.data
         
         toast.success(
           <div>
             <p className="font-bold">挖矿已结束！</p>
-            <p className="text-sm">总净收益: {formatNumber(data.total_collected || session?.pending_output || 0, 4)} YLD</p>
+            <p className="text-sm">会话ID: {data.session_id || session?.session_id}</p>
+            <p className="text-sm">总净收益: {formatNumber(data.total_collected || 0, 4)} {data.resource_type?.toUpperCase() || 'YLD'}</p>
+            <p className="text-sm">结算小时数: {data.hours_settled || 0}</p>
+            {data.forfeited_minutes > 0 && (
+              <p className="text-sm text-yellow-400">作废分钟数: {data.forfeited_minutes}</p>
+            )}
+            <p className="text-sm">挖矿时长: {data.mining_duration || formatDuration(session?.started_at || '')}</p>
           </div>,
           {
             duration: 6000,
@@ -1048,6 +1183,12 @@ export function MiningSessions({
             icon: '💰'
           }
         )
+      } else {
+        toast.success('挖矿已结束，产出已自动收取！', {
+          duration: 3000,
+          position: 'top-center',
+          icon: '💰'
+        })
       }
       
       setShowConfirmModal(false)
@@ -1056,7 +1197,17 @@ export function MiningSessions({
       onRefresh?.()
     } catch (err: any) {
       console.error('停止生产失败:', err)
-      toast.error(err?.response?.data?.message || '停止生产失败')
+      
+      const errorMessage = err?.response?.data?.message || 
+                          err?.response?.data?.detail || 
+                          err?.message || 
+                          '停止生产失败'
+      
+      toast.error(errorMessage, {
+        duration: 4000,
+        position: 'top-center',
+        icon: '❌'
+      })
     }
   }, [targetSessionId, displaySessions, onStopSession, onRefresh])
   
@@ -1154,6 +1305,9 @@ export function MiningSessions({
       {miningSummary && (
         <MiningSummaryCard summary={miningSummary} compact={isMobile} />
       )}
+      
+      {/* 待收取收益卡片（如果Hook已实现则取消注释） */}
+      {/* <PendingRewardsCard onRefresh={onRefresh} /> */}
       
       {loading ? (
         <PixelCard className="text-center py-8">
