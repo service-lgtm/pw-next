@@ -124,6 +124,238 @@ export function useMyTools(options?: {
     }
   }
 }
+// ==================== 待收取收益查询（新增） ====================
+/**
+ * 查询待收取收益
+ * 对应 API: /api/production/collect/pending/
+ * 用于显示用户所有pending状态的收益
+ * 
+ * 使用场景：
+ * - 显示所有会话的待收取收益总和
+ * - 整点结算后查询最新的待收取金额
+ * 
+ * @param options - 配置选项
+ * @param options.resourceType - 资源类型过滤（可选）
+ * @param options.enabled - 是否启用查询
+ */
+export function useCollectPending(options?: {
+  resourceType?: string
+  enabled?: boolean
+}) {
+  const { resourceType, enabled = true } = options || {}
+  
+  const [pendingData, setPendingData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+  
+  const fetchPending = useCallback(async () => {
+    if (!enabled || fetchingRef.current) return
+    
+    fetchingRef.current = true
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useCollectPending] Fetching pending rewards...')
+      
+      // 构建查询参数
+      const params = resourceType ? { resource_type: resourceType } : {}
+      
+      // 调用 API - 如果 productionApi 中没有这个方法，直接使用 request
+      const response = await request<{
+        success: boolean
+        data: {
+          total_pending: number
+          sessions: Array<{
+            session_id: string
+            resource_type: string
+            hours_settled: number
+            total_pending: number
+            last_settlement: string
+          }>
+          can_collect: boolean
+          update_time: string
+          message: string
+          summary: {
+            active_sessions: number
+            total_hours_settled: number
+          }
+        }
+      }>(`/production/collect/pending/`, { params })
+      
+      console.log('[useCollectPending] Response:', response)
+      
+      // ProductionBaseView 格式：数据在 data 字段中
+      const data = response?.data || response
+      setPendingData(data)
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useCollectPending] Error:', err)
+      setError(err?.message || '获取待收取收益失败')
+      // 即使失败也设置空数据，避免界面卡住
+      if (!pendingData) {
+        setPendingData({
+          total_pending: 0,
+          sessions: [],
+          can_collect: false,
+          summary: {
+            active_sessions: 0,
+            total_hours_settled: 0
+          }
+        })
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled, resourceType, pendingData])
+  
+  // 初始加载
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchPending()
+    }
+  }, [enabled])
+  
+  return {
+    pendingData,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchPending()
+    }
+  }
+}
+
+// ==================== 小时结算状态查询（新增） ====================
+/**
+ * 查询小时结算状态
+ * 对应 API: /api/production/settlement/hourly/
+ * 用于显示最近的结算记录和全网状态
+ * 
+ * 使用场景：
+ * - 查看最近24小时的结算记录
+ * - 查看当前小时的全网挖矿状态
+ * - 了解自己的工具权重占比
+ * 
+ * @param options - 配置选项
+ * @param options.hours - 查询最近几小时，默认24
+ * @param options.resourceType - 资源类型，默认yld
+ * @param options.enabled - 是否启用查询
+ */
+export function useHourlySettlement(options?: {
+  hours?: number
+  resourceType?: string
+  enabled?: boolean
+}) {
+  const { hours = 24, resourceType = 'yld', enabled = true } = options || {}
+  
+  const [settlementData, setSettlementData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+  
+  const fetchSettlement = useCallback(async () => {
+    if (!enabled || fetchingRef.current) return
+    
+    fetchingRef.current = true
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useHourlySettlement] Fetching settlement status...')
+      
+      // 调用 API - 如果 productionApi 中没有这个方法，直接使用 request
+      const response = await request<{
+        success: boolean
+        data: {
+          resource_type: string
+          snapshots: Array<{
+            hour: string
+            hourly_rate: number
+            total_tools: number
+            metadata: {
+              tool_distribution: {
+                total_tools: number
+                session_count: number
+                details: Array<{
+                  session_id: number
+                  user: string
+                  tools: number
+                  weight_percent: number
+                  minutes: number
+                }>
+              }
+            }
+          }>
+          current_hour: {
+            hour: string
+            hourly_rate: number
+            active_sessions: number
+            minutes_passed: number
+            minutes_remaining: number
+          }
+          user_settlements: Array<{
+            hour: string
+            status: 'pending' | 'distributed'
+            net_output: number
+            tool_weight: number
+          }>
+          query_hours: number
+        }
+      }>(`/production/settlement/hourly/`, { 
+        params: { 
+          hours, 
+          resource_type: resourceType 
+        }
+      })
+      
+      console.log('[useHourlySettlement] Response:', response)
+      
+      // ProductionBaseView 格式：数据在 data 字段中
+      const data = response?.data || response
+      setSettlementData(data)
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useHourlySettlement] Error:', err)
+      setError(err?.message || '获取结算状态失败')
+      // 即使失败也设置空数据
+      if (!settlementData) {
+        setSettlementData({
+          resource_type: resourceType,
+          snapshots: [],
+          current_hour: null,
+          user_settlements: [],
+          query_hours: hours
+        })
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled, hours, resourceType, settlementData])
+  
+  // 初始加载
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchSettlement()
+    }
+  }, [enabled])
+  
+  return {
+    settlementData,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchSettlement()
+    }
+  }
+}
 
 // ==================== 资源管理 ====================
 
