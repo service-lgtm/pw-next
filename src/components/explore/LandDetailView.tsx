@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Coins } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
+import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
 import type { LandDetail } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
   const { user } = useAuth()
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
+  const [showBetaPassword, setShowBetaPassword] = useState(false)
   
   // 格式化价格
   const formatPrice = (price: string | number) => {
@@ -32,6 +34,13 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
       window.location.href = '/login'
       return
     }
+    
+    // 显示内测密码验证弹窗
+    setShowBetaPassword(true)
+  }
+  
+  const handleBetaPasswordConfirm = async () => {
+    setShowBetaPassword(false)
     
     try {
       setPurchasing(true)
@@ -323,6 +332,15 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
           </motion.div>
         )}
       </div>
+      
+      {/* 内测密码验证弹窗 */}
+      <BetaPasswordModal
+        isOpen={showBetaPassword}
+        onClose={() => setShowBetaPassword(false)}
+        onConfirm={handleBetaPasswordConfirm}
+        landPrice={Number(land.current_price)}
+        landId={land.land_id}
+      />
     </div>
   )
 }
