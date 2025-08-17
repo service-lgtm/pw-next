@@ -1,11 +1,11 @@
 // src/components/explore/LandDetailView.tsx
-// 土地详情视图组件（用于独立页面）
+// 土地详情视图组件（用于独立页面）- 已移除支付密码，使用TDB单位
 
 'use client'
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2 } from 'lucide-react'
+import { MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Coins } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
 import type { LandDetail } from '@/types/assets'
@@ -19,9 +19,13 @@ interface LandDetailViewProps {
 export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps) {
   const { user } = useAuth()
   const [purchasing, setPurchasing] = useState(false)
-  const [paymentPassword, setPaymentPassword] = useState('')
-  const [showPasswordInput, setShowPasswordInput] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
+  
+  // 格式化价格
+  const formatPrice = (price: string | number) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  }
   
   const handlePurchase = async () => {
     if (!user) {
@@ -29,23 +33,13 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
       return
     }
     
-    if (!showPasswordInput) {
-      setShowPasswordInput(true)
-      return
-    }
-    
-    if (!paymentPassword) {
-      setPurchaseError('请输入支付密码')
-      return
-    }
-    
     try {
       setPurchasing(true)
       setPurchaseError('')
       
+      // 直接调用购买API，不需要支付密码
       const response = await assetsApi.lands.buy({
         land_id: land.id,
-        payment_password: paymentPassword,
       })
       
       if (response.success) {
@@ -105,7 +99,7 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">建设成本</span>
-                  <span className="font-medium">¥{Number(land.blueprint.construction_cost_per_floor)}/层</span>
+                  <span className="font-medium">{formatPrice(land.blueprint.construction_cost_per_floor)} TDB/层</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">能源消耗</span>
@@ -154,7 +148,7 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
           </motion.div>
         )}
         
-        {/* 交易历史 */}
+        {/* 交易历史 - 使用TDB */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -174,10 +168,14 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
                     <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-gold-500">
-                      ¥{Number(tx.price).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-400">手续费: ¥{Number(tx.fee).toLocaleString()}</p>
+                    <div className="flex items-center justify-end gap-1">
+                      <Coins className="w-4 h-4 text-gold-500" />
+                      <p className="text-lg font-bold text-gold-500">
+                        {formatPrice(tx.price)}
+                      </p>
+                      <span className="text-sm text-gold-400">TDB</span>
+                    </div>
+                    <p className="text-xs text-gray-400">手续费: {formatPrice(tx.fee)} TDB</p>
                   </div>
                 </div>
               ))}
@@ -190,28 +188,35 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
       
       {/* 右侧 - 购买信息 */}
       <div className="space-y-6">
-        {/* 价格卡片 */}
+        {/* 价格卡片 - 使用TDB */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-xl p-6 border border-gold-500/30"
         >
-          <h3 className="font-bold mb-4">价格信息</h3>
+          <h3 className="font-bold mb-4 flex items-center gap-2">
+            <Coins className="w-5 h-5 text-gold-400" />
+            价格信息
+          </h3>
           
           <div className="text-center mb-6">
             <p className="text-sm text-gray-400 mb-2">当前价格</p>
-            <p className="text-4xl font-bold text-gold-500">
-              ¥{Number(land.current_price).toLocaleString()}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <Coins className="w-8 h-8 text-gold-500" />
+              <p className="text-4xl font-bold text-gold-500">
+                {formatPrice(land.current_price)}
+              </p>
+              <span className="text-xl text-gold-400">TDB</span>
+            </div>
             <p className="text-sm text-gray-400 mt-2">
-              单价: ¥{Math.round(Number(land.current_price) / land.size_sqm)}/㎡
+              单价: {Math.round(Number(land.current_price) / land.size_sqm)} TDB/㎡
             </p>
           </div>
           
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">初始价格</span>
-              <span>¥{Number(land.initial_price).toLocaleString()}</span>
+              <span>{formatPrice(land.initial_price)} TDB</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">历史涨幅</span>
@@ -225,7 +230,7 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">总交易额</span>
-              <span>¥{Number(land.total_transaction_volume).toLocaleString()}</span>
+              <span>{formatPrice(land.total_transaction_volume)} TDB</span>
             </div>
           </div>
         </motion.div>
@@ -280,70 +285,41 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
           </div>
         </motion.div>
         
-        {/* 购买按钮 */}
+        {/* 购买按钮 - 移除支付密码输入 */}
         {land.status === 'unowned' && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            {showPasswordInput ? (
-              <div className="space-y-3">
-                <input
-                  type="password"
-                  placeholder="请输入支付密码"
-                  value={paymentPassword}
-                  onChange={(e) => setPaymentPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-800 rounded-lg"
-                  disabled={purchasing}
-                />
-                {purchaseError && (
-                  <p className="text-sm text-red-500">{purchaseError}</p>
-                )}
-                <div className="flex gap-3">
-                  <button
-                    onClick={handlePurchase}
-                    disabled={purchasing}
-                    className={cn(
-                      "flex-1 py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2",
-                      "bg-gradient-to-r from-gold-500 to-yellow-600 text-black",
-                      "hover:shadow-lg hover:shadow-gold-500/25",
-                      purchasing && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {purchasing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        处理中...
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="w-4 h-4" />
-                        确认购买
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowPasswordInput(false)
-                      setPaymentPassword('')
-                      setPurchaseError('')
-                    }}
-                    className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-                  >
-                    取消
-                  </button>
-                </div>
+            {purchaseError && (
+              <div className="mb-3 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <p className="text-sm text-red-400">{purchaseError}</p>
               </div>
-            ) : (
-              <button
-                onClick={handlePurchase}
-                className="w-full py-3 bg-gradient-to-r from-gold-500 to-yellow-600 text-black rounded-lg font-bold hover:shadow-lg hover:shadow-gold-500/25 transition-all flex items-center justify-center gap-2"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                立即购买
-              </button>
             )}
+            
+            <button
+              onClick={handlePurchase}
+              disabled={purchasing}
+              className={cn(
+                "w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2",
+                "bg-gradient-to-r from-gold-500 to-yellow-600 text-black",
+                "hover:shadow-lg hover:shadow-gold-500/25",
+                purchasing && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {purchasing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  处理中...
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-5 h-5" />
+                  立即购买
+                </>
+              )}
+            </button>
           </motion.div>
         )}
       </div>
