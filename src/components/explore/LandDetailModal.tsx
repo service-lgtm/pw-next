@@ -13,6 +13,7 @@ import {
 import { useLandDetail } from '@/hooks/useLands'
 import { assetsApi } from '@/lib/api/assets'
 import { useRequireAuth } from '@/hooks/useAuth'
+import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
 import { cn } from '@/lib/utils'
 import confetti from 'canvas-confetti'
 
@@ -34,12 +35,14 @@ export function LandDetailModal({
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseSuccess, setPurchaseSuccess] = useState(false)
+  const [showBetaPassword, setShowBetaPassword] = useState(false)
   
   useEffect(() => {
     if (!isOpen) {
       setPurchaseSuccess(false)
       setPurchasing(false)
       setPurchaseError(null)
+      setShowBetaPassword(false)
     }
   }, [isOpen])
   
@@ -48,6 +51,13 @@ export function LandDetailModal({
     if (!requireAuth()) {
       return // requireAuth 会自动跳转到登录页
     }
+    
+    // 显示内测密码验证弹窗
+    setShowBetaPassword(true)
+  }
+  
+  const handleBetaPasswordConfirm = async () => {
+    setShowBetaPassword(false)
     
     try {
       setPurchasing(true)
@@ -311,5 +321,15 @@ export function LandDetailModal({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+    
+    {/* 内测密码验证弹窗 */}
+    <BetaPasswordModal
+      isOpen={showBetaPassword}
+      onClose={() => setShowBetaPassword(false)}
+      onConfirm={handleBetaPasswordConfirm}
+      landPrice={land ? Number(land.current_price) : undefined}
+      landId={land?.land_id}
+    />
+  </>
   )
 }
