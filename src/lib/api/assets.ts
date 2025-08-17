@@ -1,17 +1,24 @@
-// src/lib/api/assets.ts
-// 资产 API - 包含 YLD 矿山接口
-// 
-// 文件说明：
-// 1. 本文件包含所有资产相关的 API 接口
-// 2. 包括区域、土地蓝图、土地、YLD矿山等
-// 3. 使用 JWT 认证，自动处理 token
-// 4. 支持公开和需要认证的端点
-//
-// 关联文件：
-// - src/lib/api/index.ts: 基础请求函数和认证管理
-// - src/types/assets.ts: 资产相关类型定义
-// - src/hooks/useLands.ts: 土地相关的 Hook
-// - src/hooks/useYLDMines.ts: YLD矿山相关的 Hook（需创建）
+/**
+ * 文件: /src/lib/api/assets.ts
+ * 描述: 资产 API - 包含 YLD 矿山接口
+ * 
+ * 修改历史：
+ * - 2025-01-27: 修复土地购买接口，移除 payment_password 参数
+ *   - buy 方法现在只需要 land_id
+ *   - transfer 方法保留 payment_password（如果需要可以后续移除）
+ * 
+ * 文件说明：
+ * 1. 本文件包含所有资产相关的 API 接口
+ * 2. 包括区域、土地蓝图、土地、YLD矿山等
+ * 3. 使用 JWT 认证，自动处理 token
+ * 4. 支持公开和需要认证的端点
+ *
+ * 关联文件：
+ * - src/lib/api/index.ts: 基础请求函数和认证管理
+ * - src/types/assets.ts: 资产相关类型定义
+ * - src/hooks/useLands.ts: 土地相关的 Hook
+ * - src/hooks/useYLDMines.ts: YLD矿山相关的 Hook（需创建）
+ */
 
 import { API_BASE_URL, request, ApiError } from './index'
 import type { 
@@ -184,10 +191,10 @@ export const assetsApi = {
     // 获取土地详情
     get: (id: number) => assetsRequest<LandDetail>(`/assets/lands/${id}/`),
     
-    // 购买土地
+    // 购买土地 - 已移除 payment_password 参数
+    // 内测密码验证在前端完成，后端只需要 land_id
     buy: (data: {
       land_id: number
-      payment_password: string
     }) => assetsRequest<{
       success: boolean
       message: string
@@ -197,7 +204,7 @@ export const assetsApi = {
       body: JSON.stringify(data),
     }),
     
-    // 转让土地
+    // 转让土地 - 保留 payment_password（如果需要可以后续移除）
     transfer: (data: {
       land_id: number
       to_user_id: number
