@@ -1,360 +1,376 @@
-/**
- * 文件: /src/components/common/BetaPasswordModal.tsx
- * 描述: 内测密码确认弹窗组件 - 不显示密码版本
- * 
- * 修改历史：
- * - 2025-01-27: 移除密码显示，用户需要自己知道内测密码
- * - 保留密码验证逻辑
- * - 优化UI提示文案
- * 
- * 功能：
- * - 内测阶段的访问控制
- * - 密码验证（密码：myland888，但不对外显示）
- * - 购买前的身份确认
- */
+// src/app/mining/BetaPasswordModal.tsx
+// 内测密码验证模态框组件 - 安卓兼容版
+// 
+// 功能说明：
+// 1. 用于验证用户是否有权限访问内测功能
+// 2. 密码验证成功后会保存到安全存储（自动降级处理）
+// 3. 提供密码验证状态管理
+// 4. 兼容安卓设备的 localStorage 问题
+// 
+// 使用方式：
+// import { BetaPasswordModal, hasBetaAccess } from '@/app/mining/BetaPasswordModal'
+// 
+// 关联文件：
+// - 被 @/app/mining/page.tsx 使用（挖矿中心主页面）
+// - 使用 @/components/shared/PixelModal（像素风格模态框）
+// - 使用 @/components/shared/PixelButton（像素风格按钮）
+// - 使用 @/utils/safeStorage（安全存储工具）
+// 
+// 更新历史：
+// - 2024-01: 修复安卓设备 localStorage 兼容性问题
+// - 2024-01: 使用 safeStorage 替代直接的 localStorage 调用
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  X, Lock, AlertCircle, CheckCircle, 
-  Info, Shield, Sparkles, Eye, EyeOff,
-  KeyRound
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import confetti from 'canvas-confetti'
+import { useState, useEffect } from 'react'
+import { PixelModal } from '@/components/shared/PixelModal'
+import { PixelButton } from '@/components/shared/PixelButton'
+import toast from 'react-hot-toast'
+import { safeStorage, safeJSONParse, safeJSONStringify } from '@/utils/safeStorage'
+
+// 内测密码常量
+const BETA_PASSWORD = '888888'
+const STORAGE_KEY = 'mining_beta_access'
+const ACCESS_DURATION = 7 * 24 * 60 * 60 * 1000 // 7天有效期
 
 interface BetaPasswordModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
-  landPrice?: number
-  landId?: string
+  onSuccess: () => void
+  title?: string
 }
 
-// 内测密码（硬编码在前端，但不显示）
-const BETA_PASSWORD = 'myland888'
+// 定义存储数据的类型
+interface BetaAccessData {
+  hasAccess: boolean
+  timestamp: number
+  expiry: number
+}
 
+/**
+ * 检查用户是否已有内测权限
+ * @returns {boolean} 是否有权限
+ */
+export function hasBetaAccess(): boolean {
+  // 服务端渲染时返回 false
+  if (typeof window === 'undefined') return false
+  
+  try {
+    // 使用安全存储获取数据
+    const stored = safeStorage.getItem(STORAGE_KEY)
+    if (!stored) {
+      console.log('[BetaPasswordModal] No stored access data found')
+      return false
+    }
+    
+    // 安全解析 JSON
+    const data = safeJSONParse<BetaAccessData | null>(stored, null)
+    if (!data) {
+      console.warn('[BetaPasswordModal] Failed to parse stored data, clearing...')
+      safeStorage.removeItem(STORAGE_KEY)
+      return false
+    }
+    
+    const now = Date.now()
+    
+    // 检查是否过期
+    if (data.expiry && now > data.expiry) {
+      console.log('[BetaPasswordModal] Access expired, clearing...')
+      safeStorage.removeItem(STORAGE_KEY)
+      return false
+    }
+    
+    // 验证数据完整性
+    if (typeof data.hasAccess !== 'boolean') {
+      console.warn('[BetaPasswordModal] Invalid data structure, clearing...')
+      safeStorage.removeItem(STORAGE_KEY)
+      return false
+    }
+    
+    return data.hasAccess === true
+  } catch (error) {
+    console.error('[BetaPasswordModal] Error checking beta access:', error)
+    // 出错时保守处理，返回 false
+    return false
+  }
+}
+
+/**
+ * 保存内测权限
+ * @param hasAccess - 是否有权限
+ */
+function saveBetaAccess(hasAccess: boolean): void {
+  try {
+    const data: BetaAccessData = {
+      hasAccess,
+      timestamp: Date.now(),
+      expiry: Date.now() + ACCESS_DURATION
+    }
+    
+    // 使用安全存储保存数据
+    const serialized = safeJSONStringify(data)
+    if (serialized) {
+      safeStorage.setItem(STORAGE_KEY, serialized)
+      console.log('[BetaPasswordModal] Access saved successfully')
+    } else {
+      console.error('[BetaPasswordModal] Failed to serialize access data')
+    }
+  } catch (error) {
+    console.error('[BetaPasswordModal] Error saving beta access:', error)
+    // 即使保存失败，也不影响当前会话的使用
+    toast.error('权限保存失败，可能需要重新验证', {
+      duration: 4000,
+      position: 'top-center'
+    })
+  }
+}
+
+/**
+ * 清除内测权限
+ */
+export function clearBetaAccess(): void {
+  try {
+    safeStorage.removeItem(STORAGE_KEY)
+    console.log('[BetaPasswordModal] Access cleared')
+  } catch (error) {
+    console.error('[BetaPasswordModal] Error clearing beta access:', error)
+  }
+}
+
+/**
+ * 内测密码验证模态框组件
+ */
 export function BetaPasswordModal({
   isOpen,
   onClose,
-  onConfirm,
-  landPrice,
-  landId
+  onSuccess,
+  title = '内测功能验证'
 }: BetaPasswordModalProps) {
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [isValidating, setIsValidating] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [attempts, setAttempts] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  
+  // 确保组件已挂载（解决 SSR 问题）
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // 重置状态
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) {
       setPassword('')
       setError('')
-      setSuccess(false)
-      setShowPassword(false)
-      // 延迟聚焦，确保动画完成
-      setTimeout(() => {
-        inputRef.current?.focus()
-      }, 300)
+      setIsVerifying(false)
     }
   }, [isOpen])
   
+  // 检查锁定状态
+  useEffect(() => {
+    if (attempts >= 5) {
+      setIsLocked(true)
+      setError('尝试次数过多，请稍后再试')
+      
+      // 30秒后解锁
+      const timer = setTimeout(() => {
+        setIsLocked(false)
+        setAttempts(0)
+        setError('')
+      }, 30000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [attempts])
+  
   // 处理密码验证
-  const handleSubmit = () => {
-    if (!password.trim()) {
-      setError('请输入内测密码')
+  const handleVerify = async () => {
+    // 防止重复点击
+    if (isVerifying) return
+    
+    if (isLocked) {
+      toast.error('请稍后再试')
       return
     }
     
-    setIsValidating(true)
+    if (!password.trim()) {
+      setError('请输入密码')
+      return
+    }
+    
+    setIsVerifying(true)
     setError('')
     
-    // 模拟验证延迟，增加真实感
-    setTimeout(() => {
+    try {
+      // 模拟异步验证过程
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       if (password === BETA_PASSWORD) {
-        setSuccess(true)
-        
-        // 播放成功动画
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.7 },
-          colors: ['#FFD700', '#FFA500', '#FF6347']
+        // 验证成功
+        saveBetaAccess(true)
+        toast.success('验证成功！欢迎参与内测', {
+          duration: 3000,
+          position: 'top-center',
+          style: {
+            background: '#10b981',
+            color: '#fff',
+            fontSize: '14px',
+            borderRadius: '8px',
+            padding: '12px 20px'
+          }
         })
         
-        // 延迟关闭并触发购买
+        // 延迟一下再调用成功回调，让用户看到成功提示
         setTimeout(() => {
-          onConfirm()
-        }, 800)
+          onSuccess()
+        }, 300)
       } else {
-        setError('内测密码错误，请重新输入')
+        // 验证失败
+        setAttempts(prev => prev + 1)
+        const remainingAttempts = Math.max(0, 5 - attempts - 1)
+        setError(`密码错误，剩余尝试次数：${remainingAttempts}`)
         setPassword('')
-        inputRef.current?.focus()
+        
+        if (attempts >= 4) {
+          toast.error('尝试次数过多，请30秒后再试', {
+            duration: 5000,
+            position: 'top-center'
+          })
+        }
       }
-      setIsValidating(false)
-    }, 500)
-  }
-  
-  // 处理键盘事件
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isValidating) {
-      handleSubmit()
+    } catch (error) {
+      console.error('[BetaPasswordModal] Verification error:', error)
+      setError('验证过程出错，请重试')
+    } finally {
+      setIsVerifying(false)
     }
   }
   
-  if (!isOpen) return null
+  // 处理回车键
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isVerifying && !isLocked) {
+      e.preventDefault()
+      handleVerify()
+    }
+  }
+  
+  // 处理表单提交（防止默认行为）
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isVerifying && !isLocked) {
+      handleVerify()
+    }
+  }
+  
+  // 如果组件还未挂载，不渲染（避免 SSR 问题）
+  if (!mounted) {
+    return null
+  }
   
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          transition={{ type: "spring", duration: 0.5 }}
-          className={cn(
-            "bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl",
-            "w-full max-w-md border border-gray-700 shadow-2xl",
-            "max-h-[90vh] overflow-y-auto"
-          )}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 头部 - 渐变背景 */}
-          <div className="relative bg-gradient-to-r from-purple-600/30 to-pink-600/30 p-6 border-b border-gray-700">
-            {/* 关闭按钮 */}
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 p-2 hover:bg-white/10 rounded-lg transition-all"
-              disabled={isValidating || success}
-            >
-              <X className="w-5 h-5 text-gray-400 hover:text-white" />
-            </button>
-            
-            {/* 标题和图标 */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <Sparkles className="w-4 h-4 text-gold-500 absolute -top-1 -right-1" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  内测验证
-                  <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full">
-                    BETA
-                  </span>
-                </h3>
-                <p className="text-sm text-gray-400">请输入内测密码以继续</p>
-              </div>
+    <PixelModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      size="small"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 说明文字 */}
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-500 text-xl">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm text-yellow-400 font-bold mb-1">内测功能</p>
+              <p className="text-xs text-gray-400">
+                该功能目前处于内测阶段，需要输入内测密码才能访问。
+                如果您是内测用户，请输入您收到的密码。
+              </p>
             </div>
           </div>
+        </div>
+        
+        {/* 密码输入框 */}
+        <div>
+          <label htmlFor="beta-password" className="block text-sm font-bold text-gray-300 mb-2">
+            内测密码
+          </label>
+          <input
+            id="beta-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="请输入6位数字密码"
+            disabled={isVerifying || isLocked}
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            maxLength={6}
+            autoComplete="off"
+            autoFocus
+          />
           
-          {/* 主体内容 */}
-          <div className="p-6 space-y-6">
-            {/* 提示信息 - 不显示密码 */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl p-4 border border-blue-500/20"
-            >
-              <div className="flex gap-3">
-                <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-300">
-                    当前处于 <span className="text-gold-400 font-bold">内测阶段</span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    仅限受邀用户参与，请输入您收到的内测密码
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <KeyRound className="w-3 h-3" />
-                    <span>如未收到密码，请联系管理员</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* 土地信息（如果有） */}
-            {landPrice && (
-              <div className="bg-gray-800/50 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">土地价格</span>
-                  <span className="text-lg font-bold text-gold-500">
-                    {landPrice.toLocaleString()} TDB
-                  </span>
-                </div>
-                {landId && (
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-sm text-gray-400">土地编号</span>
-                    <span className="text-sm font-mono">{landId}</span>
-                  </div>
-                )}
-              </div>
+          {/* 错误提示 */}
+          {error && (
+            <p className="mt-2 text-xs text-red-400 flex items-center gap-1">
+              <span>❌</span>
+              <span>{error}</span>
+            </p>
+          )}
+          
+          {/* 提示信息 */}
+          {!error && (
+            <p className="mt-2 text-xs text-gray-500">
+              提示：内测密码为6位数字
+            </p>
+          )}
+        </div>
+        
+        {/* 按钮区域 */}
+        <div className="flex gap-3">
+          <PixelButton
+            type="submit"
+            disabled={isVerifying || isLocked || !password.trim()}
+            className="flex-1"
+          >
+            {isVerifying ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="animate-spin">⏳</span>
+                <span>验证中...</span>
+              </span>
+            ) : isLocked ? (
+              <span>请稍后再试</span>
+            ) : (
+              <span>验证密码</span>
             )}
-            
-            {/* 密码输入框 */}
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-300">
-                内测密码
-              </label>
-              <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                  <Lock className="w-5 h-5 text-gray-400" />
-                </div>
-                <input
-                  ref={inputRef}
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value)
-                    setError('')
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder="请输入内测密码"
-                  disabled={isValidating || success}
-                  className={cn(
-                    "w-full pl-10 pr-12 py-3 bg-gray-800/50 rounded-xl",
-                    "border-2 transition-all duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-purple-500/20",
-                    "placeholder-gray-500",
-                    error 
-                      ? "border-red-500 animate-shake" 
-                      : success
-                        ? "border-green-500"
-                        : "border-gray-700 focus:border-purple-500",
-                    (isValidating || success) && "opacity-50 cursor-not-allowed"
-                  )}
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-700 rounded transition-all"
-                  disabled={isValidating || success}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5 text-gray-400" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-              
-              {/* 错误提示 */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-2 text-red-400 text-sm"
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                    <span>{error}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {/* 成功提示 */}
-              <AnimatePresence>
-                {success && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-2 text-green-400 text-sm"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>验证成功！正在处理购买...</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            
-            {/* 操作按钮 */}
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                disabled={isValidating || success}
-                className={cn(
-                  "flex-1 py-3 rounded-xl font-medium transition-all",
-                  "bg-gray-700 hover:bg-gray-600",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
-                )}
-              >
-                取消
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={isValidating || success || !password}
-                className={cn(
-                  "flex-1 py-3 rounded-xl font-bold transition-all",
-                  "bg-gradient-to-r from-purple-600 to-pink-600",
-                  "hover:shadow-lg hover:shadow-purple-500/25",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
-                  "flex items-center justify-center gap-2"
-                )}
-              >
-                {isValidating ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>验证中...</span>
-                  </>
-                ) : success ? (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    <span>验证成功</span>
-                  </>
-                ) : (
-                  <>
-                    <Shield className="w-4 h-4" />
-                    <span>确认验证</span>
-                  </>
-                )}
-              </button>
-            </div>
-            
-            {/* 底部说明 */}
-            <div className="text-center space-y-2">
-              <p className="text-xs text-gray-500">
-                内测期间仅限受邀用户参与
-              </p>
-              <p className="text-xs text-gray-600">
-                忘记密码？请联系客服或您的邀请人
-              </p>
-            </div>
+          </PixelButton>
+          
+          <PixelButton
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={isVerifying}
+          >
+            取消
+          </PixelButton>
+        </div>
+        
+        {/* 底部说明 */}
+        <div className="pt-3 border-t border-gray-800">
+          <p className="text-xs text-gray-500 text-center">
+            如需获取内测资格，请联系管理员
+          </p>
+        </div>
+        
+        {/* 调试信息（仅开发环境） */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="pt-2 text-xs text-gray-600">
+            <p>Debug: Storage available: {safeStorage.getStorageInfo().localStorageAvailable ? 'Yes' : 'No (using memory)'}</p>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        )}
+      </form>
+    </PixelModal>
   )
 }
 
-// 添加动画样式
-if (typeof document !== 'undefined' && !document.getElementById('beta-modal-styles')) {
-  const styleSheet = document.createElement('style')
-  styleSheet.id = 'beta-modal-styles'
-  styleSheet.textContent = `
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-      20%, 40%, 60%, 80% { transform: translateX(2px); }
-    }
-    
-    .animate-shake {
-      animation: shake 0.5s ease-in-out;
-    }
-  `
-  document.head.appendChild(styleSheet)
-}
+// 导出默认组件
+export default BetaPasswordModal
