@@ -67,7 +67,7 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   }
   
   return (
-    <>
+    <div>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -327,6 +327,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
         landPrice={Number(land.current_price)}
         landId={land.land_id}
       />
-    </>
+    </div>
   )
 }
