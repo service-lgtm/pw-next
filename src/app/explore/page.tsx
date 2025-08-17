@@ -1,5 +1,12 @@
-// src/app/explore/page.tsx
-// Web3 风格的探索页面 - 符合顶级 VC 审美
+/**
+ * 文件: /src/app/explore/page.tsx
+ * 描述: Web3 风格的探索页面 - 符合顶级 VC 审美
+ * 
+ * 修改历史：
+ * - 2025-01-27: 移除统计数据模块（总区域数、活跃用户、锁定价值、日交易量）
+ *   - 删除了标题区下方的统计网格
+ *   - 保留其他所有功能和样式
+ */
 
 'use client'
 
@@ -75,7 +82,7 @@ export default function ExplorePage() {
           >
             <Sparkles className="w-12 h-12 text-gold-500 mx-auto mb-4" />
           </motion.div>
-                      <p className="text-gray-400 font-medium">加载元宇宙中...</p>
+          <p className="text-gray-400 font-medium">加载元宇宙中...</p>
         </div>
       </div>
     )
@@ -247,7 +254,7 @@ export default function ExplorePage() {
       
       {/* 主内容区 */}
       <div className="relative container mx-auto px-4 py-8 md:py-16">
-        {/* 标题区 - Web3 风格 */}
+        {/* 标题区 - Web3 风格（移除了统计数据） */}
         <motion.div
           className="text-center mb-12 md:mb-16"
           initial={{ opacity: 0, y: -20 }}
@@ -279,28 +286,6 @@ export default function ExplorePage() {
             探索、投资并建设全球首个去中心化虚拟地产生态系统。
             由真实价值支撑，区块链技术驱动。
           </p>
-          
-          {/* 统计数据 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mt-10 max-w-4xl mx-auto">
-            {[
-              { label: '总区域数', value: regions.length || '0', icon: Globe },
-              { label: '活跃用户', value: '5万+', icon: Users },
-              { label: '锁定价值', value: '¥8,500万', icon: Shield },
-              { label: '日交易量', value: '¥580万', icon: Activity },
-            ].map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 md:p-6 border border-white/10 hover:border-purple-500/30 transition-all"
-              >
-                <stat.icon className="w-6 h-6 md:w-8 md:h-8 text-purple-400 mb-2 md:mb-3" />
-                <p className="text-2xl md:text-3xl font-black text-white mb-1">{stat.value}</p>
-                <p className="text-xs md:text-sm text-gray-400">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
         </motion.div>
         
         {/* 区域展示 */}
