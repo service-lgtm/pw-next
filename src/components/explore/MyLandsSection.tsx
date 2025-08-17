@@ -1,11 +1,11 @@
 // src/components/explore/MyLandsSection.tsx
-// 我的土地展示区域组件
+// 我的土地展示区域组件 - 使用TDB单位
 
 'use client'
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { Crown, MapPin, TrendingUp, ChevronRight, Sparkles, Star } from 'lucide-react'
+import { Crown, MapPin, TrendingUp, ChevronRight, Sparkles, Star, Coins } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +23,12 @@ export function MyLandsSection({
   regionName
 }: MyLandsSectionProps) {
   console.log('[MyLandsSection] Rendering with lands:', lands.length)
+  
+  // 格式化价格
+  const formatPrice = (price: string | number) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  }
   
   if (loading) {
     return (
@@ -112,9 +118,13 @@ export function MyLandsSection({
                 <div className="pt-3 border-t border-gray-700">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">当前价值</span>
-                    <span className="text-gold-500 font-bold">
-                      ¥{Number(land.current_price).toLocaleString()}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <Coins className="w-3 h-3 text-gold-500" />
+                      <span className="text-gold-500 font-bold">
+                        {formatPrice(land.current_price)}
+                      </span>
+                      <span className="text-xs text-gold-400">TDB</span>
+                    </div>
                   </div>
                   {land.transaction_count > 0 && (
                     <div className="flex items-center justify-between mt-1">
