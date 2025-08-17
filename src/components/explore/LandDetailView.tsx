@@ -1,6 +1,3 @@
-// src/components/explore/LandDetailModal.tsx
-// 土地详情弹窗组件 - 已移除支付密码，使用TDB单位
-
 'use client'
 
 import { useState } from 'react'
@@ -27,7 +24,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   
   if (!land) return null
   
-  // 格式化价格
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
@@ -38,8 +34,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
       window.location.href = '/login'
       return
     }
-    
-    // 显示内测密码验证弹窗
     setShowBetaPassword(true)
   }
   
@@ -50,7 +44,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
       setPurchasing(true)
       setPurchaseError('')
       
-      // 直接调用购买API，不需要支付密码
       const response = await assetsApi.lands.buy({
         land_id: land.id,
       })
@@ -67,7 +60,7 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   }
   
   return (
-    <div>
+    <>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -84,7 +77,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-gray-900 rounded-2xl shadow-2xl"
             >
-              {/* 关闭按钮 */}
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 z-10 p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
@@ -92,7 +84,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                 <X className="w-5 h-5" />
               </button>
               
-              {/* 头部信息 */}
               <div className="relative h-48 bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-t-2xl">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
@@ -104,7 +95,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
               </div>
               
               <div className="p-6 space-y-6">
-                {/* 价格和购买区域 - 使用TDB */}
                 {land.status === 'unowned' && (
                   <div className="bg-gradient-to-r from-gold-500/10 to-yellow-500/10 rounded-xl p-6 border border-gold-500/30">
                     <div className="flex items-center justify-between mb-4">
@@ -157,7 +147,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                   </div>
                 )}
                 
-                {/* 基本信息 */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300">基本信息</h3>
@@ -209,7 +198,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                   </div>
                 </div>
                 
-                {/* 产出信息 */}
                 {land.blueprint.daily_output !== '0.0000' && (
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300">产出信息</h3>
@@ -239,7 +227,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                   </div>
                 )}
                 
-                {/* 价格历史 - 使用TDB */}
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <h3 className="font-bold mb-3 text-gray-300">价格历史</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -264,7 +251,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                   </div>
                 </div>
                 
-                {/* 交易历史 - 使用TDB */}
                 {land.recent_transactions && land.recent_transactions.length > 0 && (
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300">最近交易</h3>
@@ -294,7 +280,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                   </div>
                 )}
                 
-                {/* 所有者信息 */}
                 {land.owner_username && (
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300">所有者信息</h3>
@@ -326,6 +311,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
         landPrice={Number(land.current_price)}
         landId={land.land_id}
       />
-    </div>
+    </>
   )
 }
