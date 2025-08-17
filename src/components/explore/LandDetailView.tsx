@@ -319,7 +319,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
         )}
       </AnimatePresence>
       
-      {/* 内测密码验证弹窗 */}
       <BetaPasswordModal
         isOpen={showBetaPassword}
         onClose={() => setShowBetaPassword(false)}
