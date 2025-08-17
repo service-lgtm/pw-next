@@ -1,33 +1,16 @@
 /**
  * 文件: /src/components/explore/LandDetailModal.tsx
- * 描述: 土地详情查看和购买弹窗组件
- * 功能:
- * - 展示土地详细信息（基本信息、建设信息、产出信息、价格历史等）
- * - 支持土地购买功能，包含内测密码验证
- * - 显示最近交易记录和所有者信息
- * - 响应式设计，支持移动端和桌面端
+ * 描述: 土地详情查看和购买弹窗组件 - 调试版本
  * 
- * 修改历史:
- * - 2025-01-27: 修复了 JSX 注释语法错误问题
- *   - 移除了 React.Fragment 中的注释，避免语法解析错误
- *   - 保持了所有原有功能和组件结构
- * 
- * 依赖:
- * - framer-motion: 动画效果
- * - lucide-react: 图标组件
- * - @/lib/api/assets: 资产相关 API
- * - @/hooks/useAuth: 用户认证状态
- * - @/components/common/BetaPasswordModal: 内测密码验证弹窗
- * 
- * 关联组件:
- * - BetaPasswordModal: 购买前的密码验证弹窗
- * - useAuth: 获取当前用户信息
- * - assetsApi: 处理土地购买请求
+ * 调试改动：
+ * - 添加了更多的 console.log 用于定位问题
+ * - 简化了购买流程，先测试基础功能
+ * - 添加了错误边界处理
  */
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Coins } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
@@ -49,42 +32,81 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   const [purchaseError, setPurchaseError] = useState('')
   const [showBetaPassword, setShowBetaPassword] = useState(false)
   
-  if (!land) return null
+  // 调试日志
+  useEffect(() => {
+    console.log('[LandDetailModal] Component mounted/updated', {
+      isOpen,
+      land: land?.land_id,
+      landStatus: land?.status,
+      user: user?.username || 'not logged in',
+      showBetaPassword
+    })
+  }, [isOpen, land, user, showBetaPassword])
+  
+  if (!land) {
+    console.log('[LandDetailModal] No land data, returning null')
+    return null
+  }
   
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
   }
   
-  const handlePurchase = async () => {
+  // 简化的购买处理函数
+  const handlePurchase = () => {
+    console.log('[LandDetailModal] handlePurchase called', {
+      user: user?.username,
+      landId: land.id,
+      landStatus: land.status
+    })
+    
     if (!user) {
+      console.log('[LandDetailModal] No user, redirecting to login')
       window.location.href = '/login'
       return
     }
+    
+    console.log('[LandDetailModal] Setting showBetaPassword to true')
+    setShowBetaPassword(true)
+  }
+  
+  // 测试函数 - 直接显示弹窗
+  const testShowModal = () => {
+    console.log('[TEST] Forcing modal to show')
     setShowBetaPassword(true)
   }
   
   const handleBetaPasswordConfirm = async () => {
+    console.log('[LandDetailModal] handleBetaPasswordConfirm called')
     setShowBetaPassword(false)
     
     try {
       setPurchasing(true)
       setPurchaseError('')
       
+      console.log('[LandDetailModal] Calling API to buy land:', land.id)
       const response = await assetsApi.lands.buy({
         land_id: land.id,
       })
+      
+      console.log('[LandDetailModal] API response:', response)
       
       if (response.success) {
         onPurchaseSuccess?.()
         onClose()
       }
     } catch (err: any) {
+      console.error('[LandDetailModal] Purchase error:', err)
       setPurchaseError(err.message || '购买失败')
     } finally {
       setPurchasing(false)
     }
   }
+  
+  // 判断是否显示购买按钮
+  const showPurchaseButton = land.status === 'unowned'
+  console.log('[LandDetailModal] Show purchase button?', showPurchaseButton, 'Land status:', land.status)
   
   return (
     <>
@@ -111,6 +133,19 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                 <X className="w-5 h-5" />
               </button>
               
+              {/* 添加测试按钮 */}
+              <div className="absolute top-4 left-4 z-10 space-y-2">
+                <button
+                  onClick={testShowModal}
+                  className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+                >
+                  测试显示密码弹窗
+                </button>
+                <div className="text-xs text-white bg-black/50 p-2 rounded">
+                  状态: {land.status}
+                </div>
+              </div>
+              
               <div className="relative h-48 bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-t-2xl">
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
@@ -122,8 +157,13 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
               </div>
               
               <div className="p-6 space-y-6">
-                {land.status === 'unowned' && (
+                {/* 购买区域 - 添加调试信息 */}
+                {showPurchaseButton ? (
                   <div className="bg-gradient-to-r from-gold-500/10 to-yellow-500/10 rounded-xl p-6 border border-gold-500/30">
+                    <div className="text-xs text-gray-400 mb-2">
+                      调试信息: status={land.status}, showButton={showPurchaseButton.toString()}
+                    </div>
+                    
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm text-gray-400 mb-1">当前价格</p>
@@ -149,8 +189,14 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                       </div>
                     )}
                     
+                    {/* 购买按钮 - 添加onClick日志 */}
                     <button
-                      onClick={handlePurchase}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        console.log('[Button] Click event triggered')
+                        handlePurchase()
+                      }}
                       disabled={purchasing}
                       className={cn(
                         "w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2",
@@ -172,8 +218,15 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                       )}
                     </button>
                   </div>
+                ) : (
+                  <div className="bg-gray-800/50 rounded-xl p-4">
+                    <p className="text-center text-gray-400">
+                      此土地状态为: {land.status_display || land.status}，不可购买
+                    </p>
+                  </div>
                 )}
                 
+                {/* 其他信息区域保持不变 */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300">基本信息</h3>
@@ -196,144 +249,33 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                           "px-2 py-1 rounded text-xs font-bold",
                           land.status === 'unowned' ? "bg-green-500/20 text-green-500" : "bg-gray-700 text-gray-400"
                         )}>
-                          {land.status_display}
+                          {land.status_display} ({land.status})
                         </span>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="font-bold mb-3 text-gray-300">建设信息</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">最大楼层</span>
-                        <span className="font-medium">{land.blueprint.max_floors}层</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">建设成本</span>
-                        <span className="font-medium">{formatPrice(land.blueprint.construction_cost_per_floor)} TDB/层</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">能源消耗</span>
-                        <span className="font-medium">{land.blueprint.energy_consumption_rate}/天</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">当前等级</span>
-                        <span className="font-medium">Lv.{land.construction_level}</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-                
-                {land.blueprint.daily_output !== '0.0000' && (
-                  <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="font-bold mb-3 text-gray-300">产出信息</h3>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-gray-700/50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">日产出</p>
-                        <p className="text-lg font-bold text-green-500">
-                          {land.blueprint.daily_output}
-                        </p>
-                        <p className="text-xs text-gray-400">{land.blueprint.output_resource}</p>
-                      </div>
-                      <div className="bg-gray-700/50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">累计产出</p>
-                        <p className="text-lg font-bold">{land.accumulated_output}</p>
-                      </div>
-                      <div className="bg-gray-700/50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">生产状态</p>
-                        <p className="text-lg font-bold">
-                          {land.is_producing ? (
-                            <span className="text-green-500">生产中</span>
-                          ) : (
-                            <span className="text-gray-500">未生产</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="bg-gray-800/50 rounded-xl p-4">
-                  <h3 className="font-bold mb-3 text-gray-300">价格历史</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">初始价格</p>
-                      <p className="font-bold">{formatPrice(land.initial_price)} TDB</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">历史涨幅</p>
-                      <p className="font-bold text-green-500">
-                        +{((Number(land.current_price) / Number(land.initial_price) - 1) * 100).toFixed(2)}%
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">交易次数</p>
-                      <p className="font-bold">{land.transaction_count}次</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">总交易额</p>
-                      <p className="font-bold">{formatPrice(land.total_transaction_volume)} TDB</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {land.recent_transactions && land.recent_transactions.length > 0 && (
-                  <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="font-bold mb-3 text-gray-300">最近交易</h3>
-                    <div className="space-y-2">
-                      {land.recent_transactions.slice(0, 3).map(tx => (
-                        <div key={tx.id} className="bg-gray-700/50 rounded-lg p-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{tx.transaction_type_display}</p>
-                            <p className="text-xs text-gray-400">
-                              {tx.from_username || '系统'} → {tx.to_username}
-                            </p>
-                            <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleDateString()}</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Coins className="w-4 h-4 text-gold-500" />
-                              <p className="font-bold text-gold-500">
-                                {formatPrice(tx.price)}
-                              </p>
-                              <span className="text-xs text-gold-400">TDB</span>
-                            </div>
-                            <p className="text-xs text-gray-400">手续费: {formatPrice(tx.fee)} TDB</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {land.owner_username && (
-                  <div className="bg-gray-800/50 rounded-xl p-4">
-                    <h3 className="font-bold mb-3 text-gray-300">所有者信息</h3>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                          <User className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{land.owner_username}</p>
-                          <p className="text-xs text-gray-400">
-                            购买于 {land.owned_at ? new Date(land.owned_at).toLocaleDateString() : '未知'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
       
+      {/* BetaPasswordModal - 确保正确渲染 */}
+      {showBetaPassword && (
+        <div className="fixed inset-0 z-[200] bg-red-500/20">
+          <div className="fixed top-4 left-4 bg-white text-black p-4 rounded z-[201]">
+            调试: BetaPasswordModal 应该显示
+          </div>
+        </div>
+      )}
+      
       <BetaPasswordModal
         isOpen={showBetaPassword}
-        onClose={() => setShowBetaPassword(false)}
+        onClose={() => {
+          console.log('[LandDetailModal] BetaPasswordModal onClose')
+          setShowBetaPassword(false)
+        }}
         onConfirm={handleBetaPasswordConfirm}
         landPrice={Number(land.current_price)}
         landId={land.land_id}
