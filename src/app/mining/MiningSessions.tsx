@@ -1142,49 +1142,177 @@ export function MiningSessions({
       setConfirmAction(null)
       onRefresh?.()
     } catch (err: any) {
-      console.error('开始挖矿失败:', err)
+      console.error('[handleExecuteStart] 开始挖矿失败:', err)
+      console.error('[handleExecuteStart] 错误响应:', err?.response)
       
-      const errorData = err?.response?.data
-      let errorMessage = '开始挖矿失败'
+      // 详细处理错误响应
+      const errorResponse = err?.response
+      const errorData = errorResponse?.data
+      const statusCode = errorResponse?.status
       
-      if (errorData?.message) {
-        errorMessage = errorData.message
-      } else if (errorData?.detail) {
-        errorMessage = errorData.detail
-      }
+      console.log('[handleExecuteStart] 状态码:', statusCode)
+      console.log('[handleExecuteStart] 错误数据:', errorData)
       
-      // 根据错误类型显示不同的提示
-      if (errorMessage.includes('粮食不足')) {
-        toast.error(
-          <div>
-            <p className="font-bold">粮食不足！</p>
-            {errorData?.data && (
-              <>
-                <p className="text-sm">当前粮食: {errorData.data.current_food}</p>
-                <p className="text-sm">需要粮食: {errorData.data.food_needed}</p>
-                <p className="text-sm">建议先购买粮食</p>
-              </>
-            )}
-          </div>,
-          {
-            duration: 5000,
-            position: 'top-center',
-            icon: '🌾'
+      // 处理400错误 - 土地类型不支持挖矿
+      if (statusCode === 400 && errorData) {
+        // 检查是否是土地类型不支持的错误
+        if (errorData.message?.includes('土地类型不支持') || 
+            errorData.message?.includes('不支持挖矿')) {
+          
+          const landType = errorData.data?.land_type || '未知'
+          const landName = errorData.data?.land_name || selectedLand?.land_id || '未知土地'
+          const supportedTypes = errorData.data?.supported_types || []
+          
+          // 土地类型映射（英文到中文）
+          const landTypeMap: { [key: string]: string } = {
+            'urban': '城市用地',
+            'iron_mine': '铁矿山',
+            'stone_mine': '石矿山',
+            'forest': '森林',
+            'farm': '农场',
+            'yld_mine': 'YLD矿山'
           }
-        )
-      } else if (errorMessage.includes('工具')) {
-        toast.error(errorMessage, {
+          
+          toast.error(
+            <div>
+              <p className="font-bold mb-2">⚠️ 该土地不支持挖矿</p>
+              <div className="text-xs space-y-1">
+                <p>土地编号: {landName}</p>
+                <p>土地类型: {landTypeMap[landType] || landType}</p>
+                {supportedTypes.length > 0 && (
+                  <>
+                    <p className="mt-2">支持挖矿的土地类型：</p>
+                    <ul className="ml-2">
+                      {supportedTypes.map((type: string) => (
+                        <li key={type}>• {landTypeMap[type] || type}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                <p className="mt-2 text-yellow-300">
+                  请选择支持挖矿的土地类型
+                </p>
+              </div>
+            </div>,
+            {
+              duration: 8000,
+              position: 'top-center',
+              icon: '🚫',
+              style: {
+                maxWidth: '400px'
+              }
+            }
+          )
+          
+          // 不关闭模态框，让用户重新选择
+          return
+        }
+        
+        // 其他400错误
+        const errorMessage = errorData?.message || errorData?.detail || '请求参数错误'
+        
+        // 根据错误类型显示不同的提示
+        if (errorMessage.includes('粮食不足')) {
+          toast.error(
+            <div>
+              <p className="font-bold">粮食不足！</p>
+              {errorData?.data && (
+                <>
+                  <p className="text-sm">当前粮食: {errorData.data.current_food || 0}</p>
+                  <p className="text-sm">需要粮食: {errorData.data.food_needed || '未知'}</p>
+                  <p className="text-sm">建议先购买粮食</p>
+                </>
+              )}
+            </div>,
+            {
+              duration: 5000,
+              position: 'top-center',
+              icon: '🌾'
+            }
+          )
+        } else if (errorMessage.includes('工具')) {
+          toast.error(
+            <div>
+              <p className="font-bold">工具问题</p>
+              <p className="text-sm">{errorMessage}</p>
+              {errorData?.data?.available_tools !== undefined && (
+                <p className="text-sm">可用工具: {errorData.data.available_tools} 个</p>
+              )}
+            </div>,
+            {
+              duration: 5000,
+              position: 'top-center',
+              icon: '🔧'
+            }
+          )
+        } else if (errorMessage.includes('土地')) {
+          toast.error(
+            <div>
+              <p className="font-bold">土地问题</p>
+              <p className="text-sm">{errorMessage}</p>
+            </div>,
+            {
+              duration: 5000,
+              position: 'top-center',
+              icon: '📍'
+            }
+          )
+        } else if (errorMessage.includes('YLD')) {
+          toast.error(
+            <div>
+              <p className="font-bold">YLD限额问题</p>
+              <p className="text-sm">{errorMessage}</p>
+              {errorData?.data && (
+                <>
+                  <p className="text-sm">剩余限额: {errorData.data.remaining_yld || 0}</p>
+                  <p className="text-sm">今日已产: {errorData.data.produced_today || 0}</p>
+                </>
+              )}
+            </div>,
+            {
+              duration: 5000,
+              position: 'top-center',
+              icon: '💎'
+            }
+          )
+        } else {
+          toast.error(errorMessage, {
+            duration: 5000,
+            position: 'top-center'
+          })
+        }
+      } 
+      // 处理401未授权
+      else if (statusCode === 401) {
+        toast.error('登录已过期，请重新登录', {
           duration: 4000,
           position: 'top-center',
-          icon: '🔧'
+          icon: '🔒'
         })
-      } else if (errorMessage.includes('土地')) {
-        toast.error(errorMessage, {
+        // 可以在这里触发重新登录
+      }
+      // 处理403禁止访问
+      else if (statusCode === 403) {
+        toast.error('没有权限执行此操作', {
           duration: 4000,
           position: 'top-center',
-          icon: '📍'
+          icon: '🚫'
         })
-      } else {
+      }
+      // 处理500服务器错误
+      else if (statusCode >= 500) {
+        toast.error('服务器错误，请稍后重试', {
+          duration: 4000,
+          position: 'top-center',
+          icon: '⚠️'
+        })
+      }
+      // 其他错误
+      else {
+        const errorMessage = errorData?.message || 
+                           errorData?.detail || 
+                           err?.message || 
+                           '开始挖矿失败'
         toast.error(errorMessage, {
           duration: 4000,
           position: 'top-center'
