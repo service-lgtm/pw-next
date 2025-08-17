@@ -1,5 +1,5 @@
 // src/components/explore/FilterPanel.tsx
-// 筛选面板组件 - 优化交互体验
+// 筛选面板组件 - 使用TDB单位
 
 'use client'
 
@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Filter, ChevronDown, X, Sparkles, TrendingUp, 
-  Package, DollarSign, RotateCcw, Check
+  Package, Coins, RotateCcw, Check
 } from 'lucide-react'
 import type { FilterState } from '@/types/assets'
 import { cn } from '@/lib/utils'
@@ -29,12 +29,13 @@ const landTypes = [
   { value: 'yld_mine', label: 'YLD矿', icon: '💎', color: 'from-purple-500 to-pink-500' },
 ]
 
+// 价格区间改为 TDB
 const priceRanges = [
   { value: 'all', label: '不限价格', min: undefined, max: undefined },
-  { value: '0-10k', label: '1万以下', min: 0, max: 10000 },
-  { value: '10k-50k', label: '1-5万', min: 10000, max: 50000 },
-  { value: '50k-100k', label: '5-10万', min: 50000, max: 100000 },
-  { value: '100k+', label: '10万以上', min: 100000, max: undefined },
+  { value: '0-10k', label: '1万 TDB 以下', min: 0, max: 10000 },
+  { value: '10k-50k', label: '1-5万 TDB', min: 10000, max: 50000 },
+  { value: '50k-100k', label: '5-10万 TDB', min: 50000, max: 100000 },
+  { value: '100k+', label: '10万 TDB 以上', min: 100000, max: undefined },
 ]
 
 const sortOptions = [
@@ -102,7 +103,7 @@ export function FilterPanel({
   
   return (
     <div className="space-y-4">
-      {/* 统计信息卡片 - 美化设计 */}
+      {/* 统计信息卡片 - 使用TDB */}
       {stats && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
@@ -124,9 +125,13 @@ export function FilterPanel({
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-400">平均价格</span>
-              <span className="text-lg font-bold text-gold-500">
-                ¥{Math.round(stats.average_price).toLocaleString()}
-              </span>
+              <div className="flex items-center gap-1">
+                <Coins className="w-4 h-4 text-gold-500" />
+                <span className="text-lg font-bold text-gold-500">
+                  {Math.round(stats.average_price).toLocaleString()}
+                </span>
+                <span className="text-sm text-gold-400">TDB</span>
+              </div>
             </div>
             
             {/* 进度条 */}
@@ -207,15 +212,15 @@ export function FilterPanel({
         </AnimatePresence>
       </div>
       
-      {/* 价格区间 - 改进的交互 */}
+      {/* 价格区间 - 使用TDB单位 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('price')}
           className="w-full flex items-center justify-between mb-3 group"
         >
           <h3 className="font-bold flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-gold-400" />
-            价格区间
+            <Coins className="w-5 h-5 text-gold-400" />
+            价格区间 (TDB)
             {(filters.priceRange.min !== undefined || filters.priceRange.max !== undefined) && (
               <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full">
                 已设置
