@@ -131,30 +131,53 @@ export function MiningSessions({
   // ==================== 业务逻辑处理 ====================
   
   /**
-   * 处理其他类型错误
+   * 执行开始挖矿
    */
-  const handleOtherErrors = useCallback((errorData: any) => {
-    const errorMessage = errorData?.message || errorData?.detail || '请求参数错误'
+  const handleExecuteStart = useCallback(async () => {
+    if (!selectedLand || selectedTools.length === 0) return
     
-    if (errorMessage.includes(ERROR_TYPES.INSUFFICIENT_FOOD)) {
-      toast.error(
-        <div>
-          <p className="font-bold">粮食不足！</p>
-          <p className="text-sm">建议先购买粮食</p>
-        </div>,
-        {
-          duration: TOAST_DURATION.MEDIUM,
+    try {
+      const response = await onStartMining(selectedLand.id, selectedTools)
+      
+      // 成功提示
+      if (response?.data) {
+        const data = response.data
+        toast.success(
+          <div>
+            <p className="font-bold">挖矿已开始！</p>
+            <p className="text-sm">会话ID: {data.session_id}</p>
+            <p className="text-sm">算法版本: {data.algorithm_version}</p>
+            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
+          </div>
+  )
+}
+
+export default MiningSessions,
+          {
+            duration: TOAST_DURATION.LONG,
+            position: 'top-center',
+            icon: '⛏️'
+          }
+        )
+      } else {
+        toast.success('挖矿已开始！', {
+          duration: TOAST_DURATION.SHORT,
           position: 'top-center',
-          icon: '🌾'
-        }
-      )
-    } else {
-      toast.error(errorMessage, {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center'
-      })
+          icon: '⛏️'
+        })
+      }
+      
+      // 关闭模态框并刷新
+      setShowStartModal(false)
+      setShowConfirmModal(false)
+      setSelectedLand(null)
+      setSelectedTools([])
+      setConfirmAction(null)
+      onRefresh?.()
+    } catch (err: any) {
+      handleStartMiningError(err)
     }
-  }, [])
+  }, [selectedLand, selectedTools, onStartMining, onRefresh])
   
   /**
    * 处理开始挖矿错误
@@ -227,52 +250,33 @@ export function MiningSessions({
         position: 'top-center'
       })
     }
-  }, [selectedLand, handleOtherErrors])
+  }, [selectedLand])
   
   /**
-   * 执行开始挖矿
+   * 处理其他类型错误
    */
-  const handleExecuteStart = useCallback(async () => {
-    if (!selectedLand || selectedTools.length === 0) return
+  const handleOtherErrors = useCallback((errorData: any) => {
+    const errorMessage = errorData?.message || errorData?.detail || '请求参数错误'
     
-    try {
-      const response = await onStartMining(selectedLand.id, selectedTools)
-      
-      // 成功提示
-      if (response?.data) {
-        const data = response.data
-        toast.success(
-          <div>
-            <p className="font-bold">挖矿已开始！</p>
-            <p className="text-sm">会话ID: {data.session_id}</p>
-            <p className="text-sm">算法版本: {data.algorithm_version}</p>
-            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
-          </div>,
-          {
-            duration: TOAST_DURATION.LONG,
-            position: 'top-center',
-            icon: '⛏️'
-          }
-        )
-      } else {
-        toast.success('挖矿已开始！', {
-          duration: TOAST_DURATION.SHORT,
+    if (errorMessage.includes(ERROR_TYPES.INSUFFICIENT_FOOD)) {
+      toast.error(
+        <div>
+          <p className="font-bold">粮食不足！</p>
+          <p className="text-sm">建议先购买粮食</p>
+        </div>,
+        {
+          duration: TOAST_DURATION.MEDIUM,
           position: 'top-center',
-          icon: '⛏️'
-        })
-      }
-      
-      // 关闭模态框并刷新
-      setShowStartModal(false)
-      setShowConfirmModal(false)
-      setSelectedLand(null)
-      setSelectedTools([])
-      setConfirmAction(null)
-      onRefresh?.()
-    } catch (err: any) {
-      handleStartMiningError(err)
+          icon: '🌾'
+        }
+      )
+    } else {
+      toast.error(errorMessage, {
+        duration: TOAST_DURATION.MEDIUM,
+        position: 'top-center'
+      })
     }
-  }, [selectedLand, selectedTools, onStartMining, onRefresh, handleStartMiningError])
+  }, [])
   
   /**
    * 执行停止会话
@@ -661,7 +665,3 @@ export function MiningSessions({
         </PixelModal>
       )}
     </div>
-  )
-}
-
-export default MiningSessions
