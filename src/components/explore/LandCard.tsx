@@ -1,10 +1,10 @@
 // src/components/explore/LandCard.tsx
-// 土地卡片组件
+// 土地卡片组件 - 使用TDB单位
 
 'use client'
 
 import { motion } from 'framer-motion'
-import { MapPin, TrendingUp, Building2, Lock } from 'lucide-react'
+import { MapPin, TrendingUp, Building2, Lock, Coins } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +34,12 @@ const landTypeIcons = {
 export function LandCard({ land, onClick }: LandCardProps) {
   const isAvailable = land.status === 'unowned'
   const bgGradient = landTypeColors[land.land_type as keyof typeof landTypeColors] || landTypeColors.urban
+  
+  // 格式化价格
+  const formatPrice = (price: string | number) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  }
   
   return (
     <motion.div
@@ -76,15 +82,19 @@ export function LandCard({ land, onClick }: LandCardProps) {
           </div>
         </div>
         
-        {/* 价格 */}
+        {/* 价格 - 使用TDB */}
         <div className="pt-3 border-t border-gray-700">
           {isAvailable ? (
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400">当前价格</p>
-                <p className="text-lg font-bold text-gold-500">
-                  ¥{Number(land.current_price).toLocaleString()}
-                </p>
+                <div className="flex items-center gap-1">
+                  <Coins className="w-4 h-4 text-gold-500" />
+                  <p className="text-lg font-bold text-gold-500">
+                    {formatPrice(land.current_price)}
+                  </p>
+                  <span className="text-xs text-gold-400">TDB</span>
+                </div>
               </div>
               <div className="bg-green-500 text-black px-3 py-1 rounded-full text-xs font-bold">
                 可购买
