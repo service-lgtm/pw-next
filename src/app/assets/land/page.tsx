@@ -1,5 +1,18 @@
-// src/app/assets/land/page.tsx
-// 土地资产页面
+/**
+ * 文件: /src/app/assets/land/page.tsx
+ * 描述: 土地资产页面
+ * 
+ * 修改历史：
+ * - 2025-01-27: 修复路由链接
+ *   - 将 /explore/lands 改为 /explore
+ *   - 确保所有跳转链接正确
+ * 
+ * 功能：
+ * - 显示用户拥有的所有土地
+ * - 支持搜索、筛选和排序
+ * - 显示土地统计信息
+ * - 提供快速操作入口
+ */
 
 'use client'
 
@@ -11,6 +24,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useMyLands } from '@/hooks/useLands'
 import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 type SortOption = 'created_at' | 'current_price' | 'size_sqm' | 'land_type'
 type FilterOption = 'all' | 'urban' | 'farm' | 'forest' | 'mine'
@@ -325,7 +339,7 @@ export default function LandAssetsPage() {
         className="mt-8 flex justify-center gap-4"
       >
         <PixelButton
-          onClick={() => router.push('/explore/lands')}
+          onClick={() => router.push('/explore')}
           variant="secondary"
         >
           购买更多土地
@@ -340,6 +354,3 @@ export default function LandAssetsPage() {
     </div>
   )
 }
-
-// 需要导入 cn
-import { cn } from '@/lib/utils'
