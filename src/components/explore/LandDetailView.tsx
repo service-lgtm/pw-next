@@ -1,3 +1,30 @@
+/**
+ * 文件: /src/components/explore/LandDetailModal.tsx
+ * 描述: 土地详情查看和购买弹窗组件
+ * 功能:
+ * - 展示土地详细信息（基本信息、建设信息、产出信息、价格历史等）
+ * - 支持土地购买功能，包含内测密码验证
+ * - 显示最近交易记录和所有者信息
+ * - 响应式设计，支持移动端和桌面端
+ * 
+ * 修改历史:
+ * - 2025-01-27: 修复了 JSX 注释语法错误问题
+ *   - 移除了 React.Fragment 中的注释，避免语法解析错误
+ *   - 保持了所有原有功能和组件结构
+ * 
+ * 依赖:
+ * - framer-motion: 动画效果
+ * - lucide-react: 图标组件
+ * - @/lib/api/assets: 资产相关 API
+ * - @/hooks/useAuth: 用户认证状态
+ * - @/components/common/BetaPasswordModal: 内测密码验证弹窗
+ * 
+ * 关联组件:
+ * - BetaPasswordModal: 购买前的密码验证弹窗
+ * - useAuth: 获取当前用户信息
+ * - assetsApi: 处理土地购买请求
+ */
+
 'use client'
 
 import { useState } from 'react'
@@ -60,7 +87,7 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   }
   
   return (
-    <React.Fragment>
+    <>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -133,15 +160,15 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                       )}
                     >
                       {purchasing ? (
-                        <React.Fragment>
+                        <>
                           <Loader2 className="w-5 h-5 animate-spin" />
                           处理中...
-                        </React.Fragment>
+                        </>
                       ) : (
-                        <React.Fragment>
+                        <>
                           <ShoppingBag className="w-5 h-5" />
                           立即购买
-                        </React.Fragment>
+                        </>
                       )}
                     </button>
                   </div>
@@ -311,6 +338,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
         landPrice={Number(land.current_price)}
         landId={land.land_id}
       />
-    </React.Fragment>
+    </>
   )
 }
