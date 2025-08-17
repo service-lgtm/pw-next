@@ -1,5 +1,17 @@
-// src/components/common/BetaPasswordModal.tsx
-// 内测密码确认弹窗组件 - 移动端优化
+/**
+ * 文件: /src/components/common/BetaPasswordModal.tsx
+ * 描述: 内测密码确认弹窗组件 - 不显示密码版本
+ * 
+ * 修改历史：
+ * - 2025-01-27: 移除密码显示，用户需要自己知道内测密码
+ * - 保留密码验证逻辑
+ * - 优化UI提示文案
+ * 
+ * 功能：
+ * - 内测阶段的访问控制
+ * - 密码验证（密码：myland888，但不对外显示）
+ * - 购买前的身份确认
+ */
 
 'use client'
 
@@ -7,7 +19,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Lock, AlertCircle, CheckCircle, 
-  Info, Shield, Sparkles, Eye, EyeOff 
+  Info, Shield, Sparkles, Eye, EyeOff,
+  KeyRound
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import confetti from 'canvas-confetti'
@@ -20,7 +33,7 @@ interface BetaPasswordModalProps {
   landId?: string
 }
 
-// 内测密码（硬编码在前端）
+// 内测密码（硬编码在前端，但不显示）
 const BETA_PASSWORD = 'myland888'
 
 export function BetaPasswordModal({
@@ -94,14 +107,6 @@ export function BetaPasswordModal({
     }
   }
   
-  // 复制密码提示
-  const copyPasswordHint = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(BETA_PASSWORD)
-      // 可以添加一个小提示
-    }
-  }
-  
   if (!isOpen) return null
   
   return (
@@ -151,14 +156,14 @@ export function BetaPasswordModal({
                     BETA
                   </span>
                 </h3>
-                <p className="text-sm text-gray-400">请输入内测密码以继续购买</p>
+                <p className="text-sm text-gray-400">请输入内测密码以继续</p>
               </div>
             </div>
           </div>
           
           {/* 主体内容 */}
           <div className="p-6 space-y-6">
-            {/* 提示信息 */}
+            {/* 提示信息 - 不显示密码 */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -171,15 +176,12 @@ export function BetaPasswordModal({
                     当前处于 <span className="text-gold-400 font-bold">内测阶段</span>
                   </p>
                   <p className="text-sm text-gray-400">
-                    内测密码：
-                    <button
-                      onClick={copyPasswordHint}
-                      className="ml-2 px-3 py-1 bg-gray-700/50 hover:bg-gray-700 rounded-lg font-mono font-bold text-gold-400 transition-all"
-                    >
-                      {BETA_PASSWORD}
-                    </button>
-                    <span className="ml-2 text-xs text-gray-500">点击复制</span>
+                    仅限受邀用户参与，请输入您收到的内测密码
                   </p>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <KeyRound className="w-3 h-3" />
+                    <span>如未收到密码，请联系管理员</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -205,7 +207,7 @@ export function BetaPasswordModal({
             {/* 密码输入框 */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-300">
-                请输入内测密码
+                内测密码
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2">
@@ -220,7 +222,7 @@ export function BetaPasswordModal({
                     setError('')
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="输入内测密码"
+                  placeholder="请输入内测密码"
                   disabled={isValidating || success}
                   className={cn(
                     "w-full pl-10 pr-12 py-3 bg-gray-800/50 rounded-xl",
@@ -324,9 +326,14 @@ export function BetaPasswordModal({
             </div>
             
             {/* 底部说明 */}
-            <p className="text-xs text-center text-gray-500 pt-2">
-              内测期间仅限受邀用户参与
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-gray-500">
+                内测期间仅限受邀用户参与
+              </p>
+              <p className="text-xs text-gray-600">
+                忘记密码？请联系客服或您的邀请人
+              </p>
+            </div>
           </div>
         </motion.div>
       </motion.div>
