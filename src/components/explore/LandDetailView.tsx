@@ -330,7 +330,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
           </motion.div>
         )}
       </AnimatePresence>
-      
       <BetaPasswordModal
         isOpen={showBetaPassword}
         onClose={() => setShowBetaPassword(false)}
