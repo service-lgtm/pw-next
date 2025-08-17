@@ -60,7 +60,7 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
   }
   
   return (
-    <>
+    <React.Fragment>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -133,15 +133,15 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
                       )}
                     >
                       {purchasing ? (
-                        <>
+                        <React.Fragment>
                           <Loader2 className="w-5 h-5 animate-spin" />
                           处理中...
-                        </>
+                        </React.Fragment>
                       ) : (
-                        <>
+                        <React.Fragment>
                           <ShoppingBag className="w-5 h-5" />
                           立即购买
-                        </>
+                        </React.Fragment>
                       )}
                     </button>
                   </div>
@@ -311,6 +311,6 @@ export function LandDetailModal({ isOpen, onClose, land, onPurchaseSuccess }: La
         landPrice={Number(land.current_price)}
         landId={land.land_id}
       />
-    </>
+    </React.Fragment>
   )
 }
