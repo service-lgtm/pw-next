@@ -1,31 +1,12 @@
-// src/app/mining/MiningSessions.tsx
-// 挖矿会话管理主组件 - 精简重构版
+/ src/app/mining/MiningSessions.tsx
+// 挖矿会话管理主组件 - 修复 yldSystemStatus 未定义错误
 // 
 // 文件说明：
 // 这是挖矿会话管理的主组件，负责协调各个子组件，处理业务逻辑
-// 经过重构，将展示组件和工具函数拆分到独立文件中
 // 
-// 重构说明：
-// - 原文件2000+行，现在精简到800行左右
-// - 拆分出的组件：LandSelector, SessionCard, SessionSummary, StartMiningForm
-// - 拆分出的工具：miningConstants, miningUtils
-// - 保持所有原有功能不变，完全向后兼容
-// 
-// 主要功能：
-// 1. 管理挖矿会话的生命周期（开始、停止、收取）
-// 2. 处理用户交互和业务逻辑
-// 3. 协调各个子组件的数据流
-// 4. 处理错误和显示提示
-// 
-// 关联文件：
-// - 子组件: ./LandSelector, ./SessionCard, ./SessionSummary, ./StartMiningForm
-// - 工具函数: ./miningUtils, ./miningConstants
-// - 其他组件: ./MiningPreCheck, ./SessionRateHistory
-// - 被调用: @/app/mining/page.tsx
-// 
-// 更新历史：
-// - 2025-01: 重构拆分，从2000+行精简到800行
-// - 2025-01: 保持所有功能不变，完全向后兼容
+// 修复历史：
+// - 2025-01-18: 修复 yldSystemStatus 未定义错误
+// - 2025-01-18: 添加 yldStatus 属性传递给 SessionSummary
 
 'use client'
 
@@ -68,6 +49,7 @@ interface MiningSessionsProps {
   onSynthesizeTool?: () => void
   startMiningLoading?: boolean
   miningSummary?: any
+  yldStatus?: any  // 添加 YLD 状态属性
   onRefresh?: () => void
 }
 
@@ -87,6 +69,7 @@ export function MiningSessions({
   onSynthesizeTool,
   startMiningLoading = false,
   miningSummary,
+  yldStatus,  // 接收 YLD 状态
   onRefresh
 }: MiningSessionsProps) {
   // ==================== 状态管理 ====================
@@ -421,11 +404,11 @@ export function MiningSessions({
         </div>
       </div>
       
-      {/* 挖矿汇总信息 */}
+      {/* 挖矿汇总信息 - 修复：传递 yldStatus */}
       {miningSummary && (
         <SessionSummary 
           summary={miningSummary} 
-          yldStatus={yldSystemStatus}  // 添加这一行
+          yldStatus={yldStatus}  // 传递 YLD 状态
           compact={isMobile} 
         />
       )}
