@@ -733,6 +733,7 @@ function MiningPage() {
                         onCollectOutput={handleCollectSessionOutput}
                         startMiningLoading={startMiningLoading}
                         miningSummary={miningSummary}
+                        yldStatus={yldSystemStatus} 
                         onRefresh={() => {
                           refetchSessions()
                           refetchTools()
