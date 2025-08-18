@@ -1,21 +1,5 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 简化重组版（删除挖矿汇总）
-// 
-// 更新说明：
-// 1. 删除了 MiningSummaryCard 组件和相关显示
-// 2. 保留 miningSummary 数据传递给 MiningSessions 组件
-// 
-// 关联组件（同目录下）：
-// - ./BetaPasswordModal: 内测密码验证
-// - ./BetaNotice: 内测提示组件
-// - ./YLDMineList: YLD矿山列表
-// - ./MiningSessions: 挖矿会话管理
-// - ./ToolManagement: 工具管理
-// - ./MiningStats: 统计信息
-// - ./MiningMarket: 矿山市场（新拆分）
-// - ./HiringMarket: 招聘市场（新拆分）
-// - ./SynthesisSystem: 合成系统（新拆分）
-// - ./YLDSystemStatus: YLD系统状态监控
+// 挖矿中心页面 - 修复所有错误的完整版本
 
 'use client'
 
@@ -314,34 +298,6 @@ function MiningPage() {
   
   // 副作用
   useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      console.error('[MiningPage] Global error:', event.error)
-      if (event.error?.message?.includes('localStorage')) {
-        console.warn('[MiningPage] localStorage error detected, using fallback')
-        event.preventDefault()
-      }
-    }
-
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('[MiningPage] Unhandled promise rejection:', event.reason)
-      if (event.reason?.message) {
-        toast.error(`操作失败: ${event.reason.message}`, {
-          duration: 4000,
-          position: 'top-center'
-        })
-      }
-    }
-
-    window.addEventListener('error', handleError)
-    window.addEventListener('unhandledrejection', handleUnhandledRejection)
-
-    return () => {
-      window.removeEventListener('error', handleError)
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-    }
-  }, [])
-  
-  useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768)
     }
@@ -497,35 +453,28 @@ function MiningPage() {
             refetchResources()
             refetchResourceStats()
           }}
-          // 不传递 onRefreshSummary，避免循环请求
-          // onRefreshSummary={refetchMiningSummary}
           config={{
-            sessionCheckInterval: 60000,      // 60秒检查会话（增加间隔）
-            resourceCheckInterval: 120000,    // 120秒检查资源（增加间隔）
-            grainWarningThreshold: 2,         // 粮食少于2小时警告
-            durabilityWarningThreshold: 100,  // 耐久度少于100警告
-            enableNotifications: true,        // 启用通知
-            enableAutoCollect: false          // 暂不自动收取
+            sessionCheckInterval: 60000,
+            resourceCheckInterval: 120000,
+            grainWarningThreshold: 2,
+            durabilityWarningThreshold: 100,
+            enableNotifications: true,
+            enableAutoCollect: false
           }}
           onGrainLow={(hours) => {
             console.log('[AutoRefresh] 粮食不足:', hours, '小时')
-            // 粮食不足时刷新界面
             refetchResources()
             refetchResourceStats()
-            refetchGrainStatus()
           }}
           onToolDamaged={(tool) => {
             console.log('[AutoRefresh] 工具损坏:', tool.tool_id)
-            // 工具损坏时刷新工具列表
             refetchTools()
           }}
           onSessionComplete={(session) => {
             console.log('[AutoRefresh] 会话可收取:', session.session_id)
-            // 可以在这里添加自动收取逻辑
           }}
           onYLDExhausted={() => {
             console.log('[AutoRefresh] YLD已耗尽')
-            // 刷新所有数据
             refetchSessions()
             refetchYLDStatus()
           }}
@@ -571,7 +520,7 @@ function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-6">
-        {/* 主标签切换 - 添加合成系统 */}
+        {/* 主标签切换 */}
         <div className="flex gap-1 mb-3 sm:gap-2 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('myMines')}
@@ -850,7 +799,7 @@ function MiningPage() {
             {activeTab === 'hiring' && (
               <HiringMarket 
                 className="w-full"
-                showGuide={false} // 暂时隐藏招募说明
+                showGuide={false}
               />
             )}
           </div>
