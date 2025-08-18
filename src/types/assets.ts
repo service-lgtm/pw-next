@@ -1,10 +1,17 @@
 // src/types/assets.ts
-// 资产相关类型定义 - 与API保持一致
+// 资产相关类型定义 - 支持新的 API 结构
 // 
 // 文件说明：
 // 1. 本文件包含所有资产相关的类型定义
 // 2. 包括区域、土地蓝图、土地、YLD矿山等
-// 3. 所有类型与后端 API 返回的数据结构保持一致
+// 3. 支持新的 API 结构（YLD转换矿山和普通矿山）
+// 4. 保持向后兼容性
+//
+// 更新历史：
+// - 2025-01-19: 更新支持新的矿山 API 结构
+//   - 添加 MineLand 类型（所有可挖矿土地）
+//   - 区分 YLD 转换矿山和普通 YLD 矿山
+//   - 更新字段映射（yld_capacity, yld_reserves等）
 //
 // 关联文件：
 // - src/lib/api/assets.ts: 资产相关的 API 接口
@@ -114,17 +121,21 @@ export interface LandTransaction {
   created_at: string
 }
 
-// ==================== YLD 矿山相关类型 ====================
-// 对应后端的 YLDMineSerializer
+// ==================== 新的矿山类型定义 ====================
 
-export interface YLDMine {
+// 通用的可挖矿土地（包括所有类型的矿山）
+export interface MineLand {
   id: number
   land_id: string
+  blueprint_id: number
   blueprint_name: string
-  land_type: string
+  blueprint_info?: LandBlueprint
+  land_type: string  // 'yld_mine' | 'iron_mine' | 'stone_mine' | 'forest'
   land_type_display: string
   size_sqm: number
+  region_id: number
   region_name: string
+  region_info?: Region
   coordinate_x: number
   coordinate_y: number
   owner: number
@@ -132,16 +143,18 @@ export interface YLDMine {
   status: string
   status_display: string
   current_price: string
-  initial_price: string  // YLD 数量
+  initial_price?: string  // YLD转换矿山的储量在这里
   is_special: boolean
-  special_type: 'yld_converted'
+  special_type?: string  // 'yld_converted' 表示是转换来的
   is_producing: boolean
   production_started_at: string | null
   accumulated_output: string
   metadata: {
     batch_id?: string
     conversion_date?: string
+    converted_at?: string  // 新API使用这个字段
     yld_amount?: string
+    yld_reserves?: string  // 普通YLD矿山的储量在这里
     daily_output?: string
     [key: string]: any
   }
@@ -149,7 +162,17 @@ export interface YLDMine {
   owned_at: string
 }
 
-// 对应后端的 YLDMineDetailSerializer
+// YLD 矿山（兼容旧版本）
+export interface YLDMine extends MineLand {
+  // YLD 储量的统一访问器（兼容两种类型）
+  yld_capacity?: string | number  // 向后兼容字段
+  
+  // 批次信息（转换矿山特有）
+  batch_id?: string
+  converted_at?: string
+}
+
+// YLD 矿山详情
 export interface YLDMineDetail extends YLDMine {
   blueprint: LandBlueprint
   region: Region
@@ -167,7 +190,27 @@ export interface YLDMineDetail extends YLDMine {
   recent_transactions: LandTransaction[]
 }
 
-// YLD 矿山统计信息
+// 矿山统计信息
+export interface MineStats {
+  total_mines: number
+  total_yld_capacity?: number  // YLD矿山特有
+  total_accumulated_output: number
+  producing_count: number
+  by_type?: {
+    [key: string]: {
+      count: number
+      producing: number
+      total_output: number
+    }
+  }
+  by_batch?: Array<{
+    batch_id: string
+    count: number
+    total_yld: number
+  }>
+}
+
+// YLD 矿山统计信息（向后兼容）
 export interface YLDMineStats {
   total_stats: {
     total_mines: number
@@ -190,7 +233,12 @@ export interface YLDMineStats {
   }>
 }
 
-// YLD 矿山列表响应（包含统计信息）
+// 矿山列表响应
+export interface MineListResponse extends PaginatedResponse<MineLand> {
+  stats?: MineStats
+}
+
+// YLD 矿山列表响应（向后兼容）
 export interface YLDMineListResponse extends PaginatedResponse<YLDMine> {
   stats: {
     total_mines: number
@@ -226,3 +274,14 @@ export interface FilterState {
   page_size: number
   region_id?: number
 }
+
+// ==================== 辅助函数类型 ====================
+
+// 获取 YLD 储量的辅助函数类型
+export type GetYLDCapacity = (mine: MineLand | YLDMine) => number
+
+// 判断是否为 YLD 矿山
+export type IsYLDMine = (mine: MineLand) => boolean
+
+// 判断是否为转换矿山
+export type IsConvertedMine = (mine: MineLand) => boolean
