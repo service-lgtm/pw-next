@@ -249,27 +249,45 @@ export function YLDMineList({
         {mines.map((mine) => {
           // 基本信息
           const landId = mine.land_id || `矿山#${mine.id}`
-          const regionName = ('region_info' in mine && mine.region_info?.name) || 
-                            mine.region_name || '中国'
+          
+          // 获取区域名称（兼容不同数据结构）
+          const regionName = mine.region_info?.name || mine.region_name || '中国'
+          
+          // 获取矿山类型
           const mineType = getMineTypeDisplay(mine)
           const mineTypeColor = getMineTypeColor(mine)
           const isProducing = mine.is_producing || false
           
           // YLD相关信息（仅 YLD 矿山显示）
-          const isYLDMine = mine.land_type === 'yld_mine'
-          const yldAmount = isYLDMine ? getYLDCapacity(mine) : 0
+          const isYLDMine = mine.land_type === 'yld_mine' || 
+                           mine.blueprint_info?.land_type === 'yld_mine' ||
+                           mine.special_type === 'yld_converted'
+          
+          // 获取 YLD 储量（剩余储量）
+          const yldAmount = isYLDMine ? (mine.remaining_reserves || mine.yld_capacity || 0) : 0
+          
+          // 获取初始储量
+          const initialAmount = isYLDMine ? (mine.initial_reserves || 0) : 0
           
           // 累计产出
-          const accumulatedOutput = mine.accumulated_output || 0
+          const accumulatedOutput = mine.accumulated_output || '0'
           
           // 批次ID（仅转换矿山有）
           const isConverted = mine.special_type === 'yld_converted'
-          const batchId = mine.metadata?.batch_id || '未知'
+          const batchId = mine.batch_id || mine.metadata?.batch_id || '未知'
           
           // 转换/创建日期
-          const creationDate = mine.metadata?.converted_at || 
+          const creationDate = mine.converted_at || 
+                              mine.metadata?.converted_at || 
                               mine.metadata?.conversion_date || 
                               mine.created_at
+          
+          // 消耗百分比和预计剩余天数
+          const depletionPercentage = mine.depletion_percentage || 0
+          const estimatedDaysRemaining = mine.estimated_days_remaining || 0
+          
+          // 日产出
+          const dailyOutput = mine.daily_output || mine.metadata?.daily_output || '0'
           
           return (
             <PixelCard 
@@ -287,6 +305,12 @@ export function YLDMineList({
                     <p className="text-xs sm:text-sm text-gray-400">
                       {regionName} · <span className={mineTypeColor}>{mineType}</span>
                     </p>
+                    {/* 显示拥有者信息 */}
+                    {mine.owner_info && (
+                      <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
+                        矿主: {mine.owner_info.nickname || mine.owner_info.username}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className={cn(
@@ -297,18 +321,36 @@ export function YLDMineList({
                     )}>
                       {isProducing ? '生产中' : '闲置'}
                     </span>
+                    {/* 显示消耗进度 */}
+                    {isYLDMine && depletionPercentage > 0 && (
+                      <div className="mt-1">
+                        <span className="text-[10px] sm:text-xs text-orange-400">
+                          已消耗 {depletionPercentage.toFixed(2)}%
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
                 {/* 矿山数据 - 移动端优化 */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
                   {isYLDMine && (
-                    <div>
-                      <p className="text-gray-400 text-[10px] sm:text-xs">YLD 储量</p>
-                      <p className="font-bold text-purple-400">
-                        {formatYLD(yldAmount)}
-                      </p>
-                    </div>
+                    <>
+                      <div>
+                        <p className="text-gray-400 text-[10px] sm:text-xs">剩余储量</p>
+                        <p className="font-bold text-purple-400">
+                          {formatYLD(yldAmount)}
+                        </p>
+                      </div>
+                      {initialAmount > 0 && (
+                        <div>
+                          <p className="text-gray-400 text-[10px] sm:text-xs">初始储量</p>
+                          <p className="font-bold text-purple-300">
+                            {formatYLD(initialAmount)}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div>
                     <p className="text-gray-400 text-[10px] sm:text-xs">累计产出</p>
@@ -316,11 +358,19 @@ export function YLDMineList({
                       {formatYLD(accumulatedOutput)}
                     </p>
                   </div>
+                  {isYLDMine && dailyOutput !== '0' && (
+                    <div>
+                      <p className="text-gray-400 text-[10px] sm:text-xs">日产出</p>
+                      <p className="font-bold text-yellow-400">
+                        {formatYLD(dailyOutput)}
+                      </p>
+                    </div>
+                  )}
                   {isConverted && (
                     <div className="hidden sm:block">
                       <p className="text-gray-400 text-[10px] sm:text-xs">批次</p>
                       <p className="font-bold text-blue-400 text-[10px] sm:text-xs truncate" title={batchId}>
-                        {batchId}
+                        {batchId.substring(0, 12)}...
                       </p>
                     </div>
                   )}
@@ -333,6 +383,15 @@ export function YLDMineList({
                     </p>
                   </div>
                 </div>
+                
+                {/* 显示预计剩余天数 */}
+                {isYLDMine && estimatedDaysRemaining > 0 && (
+                  <div className="mt-2 text-[10px] sm:text-xs text-gray-400">
+                    预计还可开采 <span className="text-cyan-400 font-bold">
+                      {estimatedDaysRemaining.toFixed(1)}
+                    </span> 天
+                  </div>
+                )}
                 
                 {/* 操作按钮 - 优化移动端触摸 */}
                 <div className="mt-3 sm:mt-4 flex gap-2">
