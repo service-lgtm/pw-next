@@ -1,5 +1,20 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 修复所有错误的完整版本
+// 挖矿中心页面 - 移除 MiningStats 模块版本
+// 
+// 文件说明：
+// 挖矿中心的主页面，管理YLD矿山、挖矿会话、工具、合成等功能
+// 
+// 修改历史：
+// - 2025-01-18: 移除 MiningStats 模块，避免信息重复显示
+// - 2025-01-18: 简化页面布局，移除左侧统计栏
+// - 2025-01-18: 保留所有核心功能，优化界面布局
+// 
+// 关联文件：
+// - 子组件: ./YLDMineList, ./MiningSessions, ./ToolManagement, ./SynthesisSystem 等
+// - Hooks: @/hooks/useAuth, @/hooks/useProduction, @/hooks/useYLDMines
+// - API: 通过 hooks 调用后端接口
+// 
+// 注意：MiningStats.tsx 文件可以删除，因为不再使用
 
 'use client'
 
@@ -9,7 +24,7 @@ import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { safeFormatYLD, safeFormatResource } from '@/utils/formatters'
 
-// 组件导入
+// 组件导入（移除了 MiningStats）
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -18,7 +33,7 @@ import { BetaNotice, BetaBanner } from './BetaNotice'
 import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
-import { MiningStats } from './MiningStats'
+// import { MiningStats } from './MiningStats'  // 已移除
 import { MiningMarket } from './MiningMarket'
 import { HiringMarket } from './HiringMarket'
 import { SynthesisSystem } from './SynthesisSystem'
@@ -52,7 +67,7 @@ interface ErrorBoundaryState {
   errorInfo?: ErrorInfo
 }
 
-class ErrorBoundary extends Component<
+class ErrorBoundary extends Component
   { children: ReactNode; fallback?: ReactNode },
   ErrorBoundaryState
 > {
@@ -453,13 +468,18 @@ function MiningPage() {
             refetchResources()
             refetchResourceStats()
           }}
+          onRefreshSummary={refetchMiningSummary}
+          onRefreshYLDStatus={refetchYLDStatus}
           config={{
             sessionCheckInterval: 60000,
             resourceCheckInterval: 120000,
             grainWarningThreshold: 2,
             durabilityWarningThreshold: 100,
             enableNotifications: true,
-            enableAutoCollect: false
+            enableAutoCollect: false,
+            enableHourlySettlementAlert: true,
+            pendingRewardsThreshold: 100,
+            yldWarningThreshold: 90
           }}
           onGrainLow={(hours) => {
             console.log('[AutoRefresh] 粮食不足:', hours, '小时')
@@ -472,11 +492,22 @@ function MiningPage() {
           }}
           onSessionComplete={(session) => {
             console.log('[AutoRefresh] 会话可收取:', session.session_id)
+            refetchSessions()
           }}
           onYLDExhausted={() => {
             console.log('[AutoRefresh] YLD已耗尽')
             refetchSessions()
             refetchYLDStatus()
+          }}
+          onPendingRewardsHigh={(amount) => {
+            console.log('[AutoRefresh] 待收取收益较高:', amount)
+          }}
+          onHourlySettlement={() => {
+            console.log('[AutoRefresh] 整点结算完成')
+            refetchSessions()
+            refetchMiningSummary()
+            refetchYLDStatus()
+            refetchResourceStats()
           }}
         />
       )}
@@ -568,34 +599,10 @@ function MiningPage() {
           </button>
         </div>
 
-        {/* 内容区域 */}
-        <div className={cn(
-          "space-y-4",
-          !isMobile && activeTab === 'myMines' && "lg:grid lg:grid-cols-12 lg:gap-6 lg:space-y-0"
-        )}>
-          {/* 左侧统计信息 - 桌面端显示 */}
-          {!isMobile && activeTab === 'myMines' && (
-            <div className="lg:col-span-4">
-              <MiningStats
-                yldStats={yldStats}
-                resources={resources}
-                resourceStats={resourceStats?.data}
-                grainStatus={grainStatus}
-                hasMiningAccess={hasMiningAccess}
-                sessions={sessions}
-                onRefresh={() => {
-                  refetchYLDMines()
-                  refetchResourceStats()
-                }}
-                onOpenMining={handleOpenMiningFeature}
-              />
-            </div>
-          )}
-
-          {/* 右侧主内容 */}
-          <div className={cn(
-            !isMobile && activeTab === 'myMines' && "lg:col-span-8"
-          )}>
+        {/* 内容区域 - 移除了左侧统计栏，现在是全宽 */}
+        <div className="space-y-4">
+          {/* 主内容 */}
+          <div>
             {/* 我的矿山内容 */}
             {activeTab === 'myMines' && (
               <div className="space-y-3 sm:space-y-4">
@@ -722,33 +729,33 @@ function MiningPage() {
                 {miningSubTab === 'sessions' && (
                   hasMiningAccess ? (
                     <div className="space-y-4">
-                    {/* 挖矿会话管理 */}
-                    <MiningSessions
-                      sessions={sessions}
-                      loading={sessionsLoading}
-                      userLands={userLands}
-                      tools={tools}
-                      onStartMining={handleStartSelfMining}
-                      onStopSession={handleStopSession}
-                      onCollectOutput={handleCollectSessionOutput}
-                      startMiningLoading={startMiningLoading}
-                      miningSummary={miningSummary}
-                      yldStatus={yldSystemStatus}  // 添加这一行，传递 YLD 状态
-                      onRefresh={() => {
-                        refetchSessions()
-                        refetchTools()
-                        refetchResourceStats()
-                        refetchMiningSummary()
-                        refetchYLDStatus()  // 添加刷新 YLD 状态
-                      }}
-                      onBuyFood={() => {
-                        toast('购买粮食功能即将开放', { icon: '🌾' })
-                      }}
-                      onSynthesizeTool={() => {
-                        setActiveTab('synthesis')
-                      }}
-                    />
-                  </div>
+                      {/* 挖矿会话管理 */}
+                      <MiningSessions
+                        sessions={sessions}
+                        loading={sessionsLoading}
+                        userLands={userLands}
+                        tools={tools}
+                        onStartMining={handleStartSelfMining}
+                        onStopSession={handleStopSession}
+                        onCollectOutput={handleCollectSessionOutput}
+                        startMiningLoading={startMiningLoading}
+                        miningSummary={miningSummary}
+                        yldStatus={yldSystemStatus}
+                        onRefresh={() => {
+                          refetchSessions()
+                          refetchTools()
+                          refetchResourceStats()
+                          refetchMiningSummary()
+                          refetchYLDStatus()
+                        }}
+                        onBuyFood={() => {
+                          toast('购买粮食功能即将开放', { icon: '🌾' })
+                        }}
+                        onSynthesizeTool={() => {
+                          setActiveTab('synthesis')
+                        }}
+                      />
+                    </div>
                   ) : (
                     <PixelCard className="text-center py-8 sm:py-12">
                       <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
@@ -806,25 +813,6 @@ function MiningPage() {
             )}
           </div>
         </div>
-
-        {/* 移动端显示统计信息 */}
-        {isMobile && activeTab === 'myMines' && miningSubTab === 'overview' && (
-          <div className="mt-4">
-            <MiningStats
-              yldStats={yldStats}
-              resources={resources}
-              resourceStats={resourceStats?.data}
-              grainStatus={grainStatus}
-              hasMiningAccess={hasMiningAccess}
-              sessions={sessions}
-              onRefresh={() => {
-                refetchYLDMines()
-                refetchResourceStats()
-              }}
-              onOpenMining={handleOpenMiningFeature}
-            />
-          </div>
-        )}
 
         {/* 底部提示 */}
         <div className="mt-4 sm:mt-8">
