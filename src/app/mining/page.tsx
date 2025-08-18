@@ -273,6 +273,8 @@ function MiningPage() {
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showWelcomeGuide, setShowWelcomeGuide] = useState(false)
+  const [filterType, setFilterType] = useState<'all' | 'yld' | 'iron' | 'stone' | 'forest'>('all')
   
   // 数据获取
   const shouldFetchData = !authLoading && isAuthenticated
@@ -378,12 +380,55 @@ function MiningPage() {
     collectOutput
   } = useCollectOutput()
   
+  // 获取过滤后的矿山
+  const filteredMines = useMemo(() => {
+    if (!yldMines) return []
+    if (filterType === 'all') return yldMines
+    
+    return yldMines.filter(mine => {
+      const landType = mine.blueprint_info?.land_type || mine.land_type
+      switch (filterType) {
+        case 'yld':
+          return landType === 'yld_mine' || mine.special_type === 'yld_converted'
+        case 'iron':
+          return landType === 'iron_mine'
+        case 'stone':
+          return landType === 'stone_mine'
+        case 'forest':
+          return landType === 'forest'
+        default:
+          return true
+      }
+    })
+  }, [yldMines, filterType])
+  
   // 计算统计数据
   const stats = useMemo(() => {
     const activeSessions = sessions?.length || 0
     const totalTools = tools?.length || 0
     const damagedTools = tools?.filter(t => t.durability < 100).length || 0
     const collectibleSessions = sessions?.filter(s => s.can_collect).length || 0
+    
+    // 按类型统计矿山
+    const minesByType = {
+      yld: 0,
+      iron: 0,
+      stone: 0,
+      forest: 0
+    }
+    
+    yldMines?.forEach(mine => {
+      const landType = mine.blueprint_info?.land_type || mine.land_type
+      if (landType === 'yld_mine' || mine.special_type === 'yld_converted') {
+        minesByType.yld++
+      } else if (landType === 'iron_mine') {
+        minesByType.iron++
+      } else if (landType === 'stone_mine') {
+        minesByType.stone++
+      } else if (landType === 'forest') {
+        minesByType.forest++
+      }
+    })
     
     return {
       activeSessions,
@@ -393,9 +438,10 @@ function MiningPage() {
       totalMines: yldTotalCount || 0,
       producingMines: yldStats?.producing_count || 0,
       totalCapacity: yldStats?.total_yld_capacity || 0,
-      totalOutput: yldStats?.total_accumulated_output || 0
+      totalOutput: yldStats?.total_accumulated_output || 0,
+      minesByType
     }
-  }, [sessions, tools, yldTotalCount, yldStats])
+  }, [sessions, tools, yldTotalCount, yldStats, yldMines])
   
   // 获取资源数据
   const getResourceAmount = useCallback((type: string) => {
@@ -432,6 +478,13 @@ function MiningPage() {
   useEffect(() => {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
+    
+    // 检查是否是新用户
+    const hasSeenGuide = localStorage.getItem('mining_guide_seen')
+    if (access && !hasSeenGuide) {
+      setShowWelcomeGuide(true)
+      localStorage.setItem('mining_guide_seen', 'true')
+    }
   }, [])
   
   // 事件处理
@@ -667,11 +720,13 @@ function MiningPage() {
               onClick={handleQuickStartMining}
             />
             <QuickActionCard
-              title="一键收取"
-              description={stats.collectibleSessions > 0 ? `${stats.collectibleSessions} 个会话可收取` : '暂无可收取'}
+              title="查看收益"
+              description={stats.collectibleSessions > 0 ? `${stats.collectibleSessions} 个会话可收取` : '暂无待收取'}
               icon={<IconCoin />}
-              onClick={handleQuickCollect}
-              disabled={stats.collectibleSessions === 0}
+              onClick={() => {
+                setActiveTab('production')
+                setProductionSubTab('sessions')
+              }}
               badge={stats.collectibleSessions > 0 ? stats.collectibleSessions.toString() : undefined}
             />
             <QuickActionCard
@@ -768,16 +823,48 @@ function MiningPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-white">我的矿山</h3>
-                  <PixelButton 
-                    size="sm" 
-                    variant="secondary"
-                    onClick={refetchYLDMines}
-                  >
-                    刷新
-                  </PixelButton>
+                  <div className="flex items-center gap-2">
+                    {/* 矿山类型筛选 */}
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value as any)}
+                      className="bg-gray-800 text-white text-sm px-3 py-1.5 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
+                    >
+                      <option value="all">全部 ({stats.totalMines})</option>
+                      <option value="yld">YLD矿山 ({stats.minesByType.yld})</option>
+                      <option value="iron">铁矿 ({stats.minesByType.iron})</option>
+                      <option value="stone">石矿 ({stats.minesByType.stone})</option>
+                      <option value="forest">森林 ({stats.minesByType.forest})</option>
+                    </select>
+                    <PixelButton 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={refetchYLDMines}
+                    >
+                      刷新
+                    </PixelButton>
+                  </div>
                 </div>
+                
+                {/* 筛选结果提示 */}
+                {filterType !== 'all' && filteredMines.length === 0 && (
+                  <PixelCard className="text-center py-6 mb-4">
+                    <p className="text-gray-400">
+                      没有找到{filterType === 'yld' ? 'YLD矿山' : 
+                              filterType === 'iron' ? '铁矿' :
+                              filterType === 'stone' ? '石矿' : '森林'}
+                    </p>
+                    <button
+                      onClick={() => setFilterType('all')}
+                      className="text-gold-500 hover:text-gold-400 text-sm mt-2"
+                    >
+                      查看全部矿山
+                    </button>
+                  </PixelCard>
+                )}
+                
                 <YLDMineList
-                  mines={yldMines}
+                  mines={filteredMines}
                   loading={yldMinesLoading}
                   error={yldMinesError}
                   onViewDetail={handleViewDetail}
@@ -915,19 +1002,31 @@ function MiningPage() {
           {activeTab === 'market' && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <PixelCard 
-                  className="p-6 cursor-pointer hover:border-gold-500 transition-all"
-                  onClick={() => toast('矿山市场即将开放', { icon: '⛰️' })}
-                >
-                  <h3 className="text-lg font-bold text-white mb-2">矿山市场</h3>
-                  <p className="text-sm text-gray-400">购买和出售矿山</p>
+                <PixelCard className="p-6 relative overflow-hidden">
+                  <div className="absolute top-2 right-2 bg-gray-700 text-xs px-2 py-1 rounded">
+                    暂未开放
+                  </div>
+                  <div className="opacity-50">
+                    <h3 className="text-lg font-bold text-white mb-2">矿山市场</h3>
+                    <p className="text-sm text-gray-400 mb-3">购买和出售矿山</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>⏰</span>
+                      <span>即将上线</span>
+                    </div>
+                  </div>
                 </PixelCard>
-                <PixelCard 
-                  className="p-6 cursor-pointer hover:border-gold-500 transition-all"
-                  onClick={() => toast('招聘市场即将开放', { icon: '👥' })}
-                >
-                  <h3 className="text-lg font-bold text-white mb-2">招聘市场</h3>
-                  <p className="text-sm text-gray-400">雇佣矿工帮助生产</p>
+                <PixelCard className="p-6 relative overflow-hidden">
+                  <div className="absolute top-2 right-2 bg-gray-700 text-xs px-2 py-1 rounded">
+                    暂未开放
+                  </div>
+                  <div className="opacity-50">
+                    <h3 className="text-lg font-bold text-white mb-2">招聘市场</h3>
+                    <p className="text-sm text-gray-400 mb-3">雇佣矿工帮助生产</p>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>⏰</span>
+                      <span>即将上线</span>
+                    </div>
+                  </div>
                 </PixelCard>
               </div>
             </div>
@@ -951,6 +1050,68 @@ function MiningPage() {
       
       {/* 内测提示 */}
       {hasMiningAccess && <BetaNotice compact={isMobile} />}
+      
+      {/* 新手引导弹窗 */}
+      {showWelcomeGuide && (
+        <PixelModal
+          isOpen={showWelcomeGuide}
+          onClose={() => setShowWelcomeGuide(false)}
+          title="🎉 欢迎来到挖矿中心"
+          size="medium"
+        >
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <div className="text-6xl mb-4">⛏️</div>
+              <h3 className="text-lg font-bold text-white mb-2">挖矿系统已开放</h3>
+              <p className="text-sm text-gray-400">让我们开始您的挖矿之旅！</p>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="text-gold-500 mt-1">1️⃣</span>
+                <div>
+                  <p className="font-bold text-white">查看矿山</p>
+                  <p className="text-xs text-gray-400">在总览页面查看您的所有矿山资源</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-gold-500 mt-1">2️⃣</span>
+                <div>
+                  <p className="font-bold text-white">开始挖矿</p>
+                  <p className="text-xs text-gray-400">点击"快速挖矿"开始新的生产会话</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-gold-500 mt-1">3️⃣</span>
+                <div>
+                  <p className="font-bold text-white">收取产出</p>
+                  <p className="text-xs text-gray-400">定期收取挖矿产出，获得资源奖励</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-gold-500 mt-1">4️⃣</span>
+                <div>
+                  <p className="font-bold text-white">合成工具</p>
+                  <p className="text-xs text-gray-400">使用资源合成和修复挖矿工具</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-3">
+              <p className="text-xs text-yellow-400">
+                💡 提示：保持充足的粮食储备，确保挖矿持续进行
+              </p>
+            </div>
+            
+            <PixelButton 
+              className="w-full"
+              onClick={() => setShowWelcomeGuide(false)}
+            >
+              开始挖矿
+            </PixelButton>
+          </div>
+        </PixelModal>
+      )}
       
       {/* 矿山详情模态框 */}
       <PixelModal
