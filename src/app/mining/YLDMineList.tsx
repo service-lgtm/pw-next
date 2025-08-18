@@ -75,6 +75,22 @@ function getMineTypeDisplay(mine: YLDMine | MineLand): string {
     return 'YLD转换矿山'
   }
   
+  // 优先使用 blueprint_info
+  if (mine.blueprint_info?.land_type) {
+    switch (mine.blueprint_info.land_type) {
+      case 'yld_mine':
+        return mine.blueprint_info.name || 'YLD矿山'
+      case 'iron_mine':
+        return '铁矿'
+      case 'stone_mine':
+        return '石矿'
+      case 'forest':
+        return '森林'
+      default:
+        return mine.blueprint_info.name || '矿山'
+    }
+  }
+  
   // 根据 land_type 返回显示名称
   switch (mine.land_type) {
     case 'yld_mine':
@@ -94,7 +110,9 @@ function getMineTypeDisplay(mine: YLDMine | MineLand): string {
  * 获取矿山类型颜色
  */
 function getMineTypeColor(mine: YLDMine | MineLand): string {
-  switch (mine.land_type) {
+  const landType = mine.blueprint_info?.land_type || mine.land_type
+  
+  switch (landType) {
     case 'yld_mine':
       return 'text-purple-400'
     case 'iron_mine':
@@ -234,9 +252,9 @@ export function YLDMineList({
     return (
       <PixelCard className="text-center py-8 sm:py-12">
         <span className="text-5xl sm:text-6xl block mb-3 sm:mb-4">🏔️</span>
-        <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">您还没有矿山</p>
+        <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">您还没有任何矿山</p>
         <p className="text-xs sm:text-sm text-gray-500">
-          YLD 矿山由 YLD 代币转换而来，其他矿山可以在市场购买
+          可以通过 YLD 代币转换获得 YLD 矿山，或在市场购买其他类型矿山
         </p>
       </PixelCard>
     )
