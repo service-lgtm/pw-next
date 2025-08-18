@@ -33,7 +33,6 @@ interface AutoRefreshSystemProps {
   onRefreshSummary?: () => void
   onRefreshPending?: () => void
   onRefreshYLDStatus?: () => void  // 新增：刷新 YLD 状态
-  onRefreshYLDStatus={refetchYLDStatus}
   config?: {
     sessionCheckInterval?: number
     resourceCheckInterval?: number
@@ -52,6 +51,7 @@ interface AutoRefreshSystemProps {
   onPendingRewardsHigh?: (amount: number) => void
   onHourlySettlement?: () => void
 }
+
 
 /**
  * 获取距离下一个整点的毫秒数
