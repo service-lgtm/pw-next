@@ -5,6 +5,7 @@
 // 挖矿中心的主页面，管理YLD矿山、挖矿会话、工具、合成等功能
 // 
 // 修改历史：
+// - 2025-01-18: 修复 ErrorBoundary 类定义语法错误
 // - 2025-01-18: 移除 MiningStats 模块，避免信息重复显示
 // - 2025-01-18: 简化页面布局，移除左侧统计栏
 // - 2025-01-18: 保留所有核心功能，优化界面布局
@@ -60,18 +61,21 @@ import {
 // 类型导入
 import type { YLDMine } from '@/types/assets'
 
-// 错误边界组件
+// 错误边界组件的属性和状态类型定义
+interface ErrorBoundaryProps {
+  children: ReactNode
+  fallback?: ReactNode
+}
+
 interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
   errorInfo?: ErrorInfo
 }
 
-class ErrorBoundary extends Component
-  { children: ReactNode; fallback?: ReactNode },
-  ErrorBoundaryState
-> {
-  constructor(props: any) {
+// 错误边界组件 - 修复语法错误
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
   }
