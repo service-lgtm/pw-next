@@ -33,6 +33,7 @@ interface AutoRefreshSystemProps {
   onRefreshSummary?: () => void
   onRefreshPending?: () => void
   onRefreshYLDStatus?: () => void  // 新增：刷新 YLD 状态
+  onRefreshYLDStatus={refetchYLDStatus}
   config?: {
     sessionCheckInterval?: number
     resourceCheckInterval?: number
