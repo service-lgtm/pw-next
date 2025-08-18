@@ -423,7 +423,11 @@ export function MiningSessions({
       
       {/* 挖矿汇总信息 */}
       {miningSummary && (
-        <SessionSummary summary={miningSummary} compact={isMobile} />
+        <SessionSummary 
+          summary={miningSummary} 
+          yldStatus={yldSystemStatus}  // 添加这一行
+          compact={isMobile} 
+        />
       )}
       
       {/* 会话列表或空状态 */}
