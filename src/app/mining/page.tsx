@@ -310,7 +310,7 @@ function MiningPage() {
     refetch: refetchSessions
   } = useMiningSessions({
     status: 'active',
-    enabled: shouldFetchMiningData
+    enabled: shouldFetchMiningData  // 有内测权限就获取数据
   })
   
   const { 
@@ -479,6 +479,13 @@ function MiningPage() {
     const access = hasBetaAccess()
     setHasMiningAccess(access)
     
+    // 如果有权限，立即刷新会话数据
+    if (access) {
+      refetchSessions()
+      refetchTools()
+      refetchResourceStats()
+    }
+    
     // 检查是否是新用户
     const hasSeenGuide = localStorage.getItem('mining_guide_seen')
     if (access && !hasSeenGuide) {
@@ -577,9 +584,13 @@ function MiningPage() {
   }, [sessions, stats.collectibleSessions, handleCollectSessionOutput])
   
   const handleQuickSynthesis = useCallback(() => {
-    setActiveTab('production')
-    setProductionSubTab('synthesis')
-  }, [])
+    if (!hasMiningAccess) {
+      setShowBetaModal(true)
+    } else {
+      setActiveTab('production')
+      setProductionSubTab('synthesis')
+    }
+  }, [hasMiningAccess])
   
   // 渲染逻辑
   if (authLoading) {
@@ -711,33 +722,49 @@ function MiningPage() {
         )}
         
         {/* 快捷操作区（新增） */}
-        {hasMiningAccess && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 sm:mb-6">
-            <QuickActionCard
-              title="快速挖矿"
-              description="开始新的挖矿会话"
-              icon={<IconPickaxe />}
-              onClick={handleQuickStartMining}
-            />
-            <QuickActionCard
-              title="查看收益"
-              description={stats.collectibleSessions > 0 ? `${stats.collectibleSessions} 个会话可收取` : '暂无待收取'}
-              icon={<IconCoin />}
-              onClick={() => {
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 sm:mb-6">
+          <QuickActionCard
+            title="快速挖矿"
+            description={hasMiningAccess ? "开始新的挖矿会话" : "需要内测权限"}
+            icon={<IconPickaxe />}
+            onClick={handleQuickStartMining}
+          />
+          <QuickActionCard
+            title="查看收益"
+            description={
+              hasMiningAccess 
+                ? (stats.collectibleSessions > 0 
+                    ? `${stats.collectibleSessions} 个会话可收取` 
+                    : sessionsLoading 
+                      ? '加载中...' 
+                      : '暂无待收取')
+                : "需要内测权限"
+            }
+            icon={<IconCoin />}
+            onClick={() => {
+              if (hasMiningAccess) {
                 setActiveTab('production')
                 setProductionSubTab('sessions')
-              }}
-              badge={stats.collectibleSessions > 0 ? stats.collectibleSessions.toString() : undefined}
-            />
-            <QuickActionCard
-              title="合成工具"
-              description={stats.damagedTools > 0 ? `${stats.damagedTools} 个工具需修复` : '合成新工具'}
-              icon={<IconTool />}
-              onClick={handleQuickSynthesis}
-              badge={stats.damagedTools > 0 ? stats.damagedTools.toString() : undefined}
-            />
-          </div>
-        )}
+              } else {
+                setShowBetaModal(true)
+              }
+            }}
+            badge={hasMiningAccess && stats.collectibleSessions > 0 ? stats.collectibleSessions.toString() : undefined}
+          />
+          <QuickActionCard
+            title="合成工具"
+            description={
+              hasMiningAccess 
+                ? (stats.damagedTools > 0 
+                    ? `${stats.damagedTools} 个工具需修复` 
+                    : '合成新工具')
+                : "需要内测权限"
+            }
+            icon={<IconTool />}
+            onClick={handleQuickSynthesis}
+            badge={hasMiningAccess && stats.damagedTools > 0 ? stats.damagedTools.toString() : undefined}
+          />
+        </div>
         
         {/* 主标签导航（优化版） */}
         <div className="flex gap-2 mb-4 sm:mb-6 border-b border-gray-700">
@@ -1042,9 +1069,13 @@ function MiningPage() {
           setHasMiningAccess(true)
           setShowBetaModal(false)
           toast.success('验证成功！欢迎进入挖矿系统')
+          // 立即获取所有挖矿相关数据
+          refetchSessions()
+          refetchTools()
           refetchResourceStats()
           refetchMiningSummary()
           refetchYLDStatus()
+          refetchResources()
         }}
       />
       
