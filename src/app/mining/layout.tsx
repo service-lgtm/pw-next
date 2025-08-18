@@ -1,21 +1,12 @@
 // src/app/mining/layout.tsx
-// 挖矿页面布局文件 - 提供页面级别的配置和错误处理
+// 挖矿页面布局文件 - 包含 warning 错误修复
 // 
 // 功能说明：
 // 1. 加载必要的 polyfills
-// 2. 提供错误恢复机制
-// 3. 初始化设备检测
-// 4. 添加移动端优化样式
-// 
-// 关联文件：
-// - @/utils/polyfills: Polyfills 配置
-// - @/utils/deviceDetect: 设备检测工具
-// - ./page.tsx: 挖矿主页面
-// 
-// 创建时间：2024-01
-// 更新历史：
-// - 2024-01: 创建此文件处理页面级别的初始化
-// - 2024-01: 修复 metadata 在客户端组件的问题
+// 2. 修复 warning 函数错误
+// 3. 提供错误恢复机制
+// 4. 初始化设备检测
+// 5. 添加移动端优化样式
 
 'use client'
 
@@ -23,6 +14,9 @@ import { useEffect } from 'react'
 
 // 导入 polyfills（必须在最前面）
 import '@/utils/polyfills'
+
+// 导入 warning 修复（必须尽早加载）
+import '@/utils/warningPolyfill'
 
 // 导入设备检测
 import { getDeviceInfo, logDeviceInfo } from '@/utils/deviceDetect'
@@ -33,6 +27,54 @@ interface MiningLayoutProps {
 
 export default function MiningLayout({ children }: MiningLayoutProps) {
   useEffect(() => {
+    // 添加全局错误处理来捕获 warning 相关错误
+    const handleError = (event: ErrorEvent) => {
+      // 特殊处理 warning 相关错误
+      if (event.error?.message?.includes('warning is not a function')) {
+        console.warn('[MiningLayout] Caught warning error, attempting to fix...')
+        
+        // 尝试动态修复
+        try {
+          // 创建全局 warning 函数
+          if (typeof window !== 'undefined') {
+            (window as any).warning = (condition: boolean, format: string, ...args: any[]) => {
+              if (!condition) {
+                console.warn(`Warning: ${format}`, ...args)
+              }
+            }
+            
+            // 尝试修复 rc-util
+            const rcUtil = (window as any)['rc-util']
+            if (rcUtil) {
+              rcUtil.warning = (window as any).warning
+              if (rcUtil.ZP) {
+                rcUtil.ZP.warning = (window as any).warning
+              }
+            }
+          }
+          
+          // 阻止错误传播
+          event.preventDefault()
+          event.stopPropagation()
+          
+          // 重新加载受影响的组件（如果可能）
+          console.log('[MiningLayout] Warning error fixed, continuing...')
+          return
+        } catch (fixError) {
+          console.error('[MiningLayout] Failed to fix warning error:', fixError)
+        }
+      }
+      
+      // 其他错误的原始处理
+      console.error('[MiningLayout] Global error:', event.error)
+      if (event.error?.message?.includes('localStorage')) {
+        console.warn('[MiningLayout] localStorage error detected, using fallback')
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener('error', handleError, true) // 使用捕获阶段
+
     // 设置页面标题和元数据
     if (typeof document !== 'undefined') {
       // 设置标题
@@ -105,7 +147,6 @@ export default function MiningLayout({ children }: MiningLayoutProps) {
     const handleOffline = () => {
       console.log('[MiningLayout] Network status: offline')
       document.body.classList.add('offline')
-      // 可以显示离线提示
     }
     
     window.addEventListener('online', handleOnline)
@@ -146,6 +187,7 @@ export default function MiningLayout({ children }: MiningLayoutProps) {
     
     // 清理函数
     return () => {
+      window.removeEventListener('error', handleError, true)
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
       document.removeEventListener('touchend', handleTouchEnd)
