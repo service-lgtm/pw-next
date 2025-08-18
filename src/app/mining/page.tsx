@@ -731,15 +731,7 @@ function MiningPage() {
           />
           <QuickActionCard
             title="查看收益"
-            description={
-              hasMiningAccess 
-                ? (stats.collectibleSessions > 0 
-                    ? `${stats.collectibleSessions} 个会话可收取` 
-                    : sessionsLoading 
-                      ? '加载中...' 
-                      : '暂无待收取')
-                : "需要内测权限"
-            }
+            description={hasMiningAccess ? "点击查看挖矿收益" : "需要内测权限"}
             icon={<IconCoin />}
             onClick={() => {
               if (hasMiningAccess) {
