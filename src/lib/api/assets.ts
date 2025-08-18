@@ -322,7 +322,7 @@ export const assetsApi = {
   
   // ==================== YLD 矿山相关（向后兼容） ====================
   yldMines: {
-    // 获取我的 YLD 矿山列表（兼容旧接口）
+    // 获取我的 YLD 矿山列表（使用新 API）
     list: async (params?: {
       search?: string
       ordering?: string
@@ -330,66 +330,38 @@ export const assetsApi = {
       page_size?: number
     }) => {
       try {
-        // 首先尝试新的 API
-        const [convertedResponse, normalResponse] = await Promise.all([
-          assetsApi.mines.yldConverted(params),
-          assetsApi.mines.yldNormal(params)
-        ])
+        // 直接使用 yld-converted 接口（大部分用户只有转换矿山）
+        const response = await assetsApi.mines.yldConverted(params)
         
-        // 合并结果
-        const allMines = [
-          ...convertedResponse.results,
-          ...normalResponse.results
-        ]
-        
-        // 转换为 YLD 矿山格式
-        const yldMines = allMines.map(convertMineToYLDMine)
-        
-        // 计算统计信息
-        const stats = {
-          total_mines: yldMines.length,
-          total_yld_capacity: yldMines.reduce((sum, mine) => {
-            const capacity = typeof mine.yld_capacity === 'string' 
-              ? parseFloat(mine.yld_capacity) || 0 
-              : mine.yld_capacity || 0
-            return sum + capacity
-          }, 0),
-          total_accumulated_output: yldMines.reduce((sum, mine) => {
-            const output = parseFloat(mine.accumulated_output) || 0
-            return sum + output
-          }, 0),
-          producing_count: yldMines.filter(m => m.is_producing).length,
-          by_batch: [] as any[]
+        // 数据已经是正确格式，直接返回
+        // API 返回的 stats 格式已经包含了所需信息
+        const stats = response.stats ? {
+          total_mines: response.stats.total_mines,
+          total_yld_capacity: response.stats.total_initial_reserves || 0,
+          total_accumulated_output: response.stats.total_accumulated_output || 0,
+          producing_count: response.stats.producing_count || 0,
+          by_batch: response.stats.by_batch?.map(batch => ({
+            batch_id: batch.batch_id,
+            count: batch.count,
+            total_yld: batch.total_initial_reserves
+          })) || []
+        } : {
+          total_mines: response.results.length,
+          total_yld_capacity: 0,
+          total_accumulated_output: 0,
+          producing_count: 0,
+          by_batch: []
         }
         
-        // 按批次统计（仅转换矿山）
-        const batchMap = new Map<string, { count: number; total_yld: number }>()
-        yldMines.forEach(mine => {
-          if (mine.batch_id) {
-            const batch = batchMap.get(mine.batch_id) || { count: 0, total_yld: 0 }
-            batch.count++
-            const capacity = typeof mine.yld_capacity === 'string' 
-              ? parseFloat(mine.yld_capacity) || 0 
-              : mine.yld_capacity || 0
-            batch.total_yld += capacity
-            batchMap.set(mine.batch_id, batch)
-          }
-        })
-        
-        stats.by_batch = Array.from(batchMap.entries()).map(([batch_id, data]) => ({
-          batch_id,
-          ...data
-        }))
-        
-        const response: YLDMineListResponse = {
-          count: yldMines.length,
-          next: null,
-          previous: null,
-          results: yldMines,
+        const result: YLDMineListResponse = {
+          count: response.count,
+          next: response.next,
+          previous: response.previous,
+          results: response.results as YLDMine[],
           stats
         }
         
-        return response
+        return result
       } catch (error) {
         // 如果新 API 失败，尝试旧的 API（如果存在）
         console.warn('[yldMines.list] 新 API 失败，尝试旧接口:', error)
@@ -475,36 +447,71 @@ export const assetsApi = {
 
 // ==================== 辅助函数导出 ====================
 
-// 获取 YLD 储量
+// 获取 YLD 储量（使用正确的字段）
 export function getYLDCapacity(mine: MineLand | YLDMine): number {
-  // 如果已经有 yld_capacity 字段（向后兼容）
-  if ('yld_capacity' in mine && mine.yld_capacity) {
+  // 1. 首先检查 remaining_reserves（剩余储量）
+  if (mine.remaining_reserves !== undefined) {
+    return mine.remaining_reserves
+  }
+  
+  // 2. 检查 yld_capacity（当前储量）
+  if (mine.yld_capacity !== undefined) {
     return typeof mine.yld_capacity === 'string' 
       ? parseFloat(mine.yld_capacity) || 0 
       : mine.yld_capacity
   }
   
-  // 转换矿山：储量在 initial_price
-  if (mine.special_type === 'yld_converted' && mine.initial_price) {
+  // 3. 检查 metadata 中的储量
+  if (mine.metadata?.remaining_reserves !== undefined) {
+    return mine.metadata.remaining_reserves
+  }
+  
+  if (mine.metadata?.yld_reserves !== undefined) {
+    return mine.metadata.yld_reserves
+  }
+  
+  // 4. 向后兼容：检查 initial_price（旧版本可能用这个）
+  if (mine.initial_price) {
     return parseFloat(mine.initial_price) || 0
-  }
-  
-  // 普通 YLD 矿山：储量在 metadata.yld_reserves
-  if (mine.metadata?.yld_reserves) {
-    return parseFloat(mine.metadata.yld_reserves) || 0
-  }
-  
-  // 兼容旧字段
-  if (mine.metadata?.yld_amount) {
-    return parseFloat(mine.metadata.yld_amount) || 0
   }
   
   return 0
 }
 
+// 获取初始 YLD 储量
+export function getInitialYLDCapacity(mine: MineLand | YLDMine): number {
+  // 1. 首先检查 initial_reserves
+  if (mine.initial_reserves !== undefined) {
+    return mine.initial_reserves
+  }
+  
+  // 2. 检查 metadata 中的原始容量
+  if (mine.metadata?.yld_capacity) {
+    return parseFloat(mine.metadata.yld_capacity) || 0
+  }
+  
+  // 3. 使用当前储量作为后备
+  return getYLDCapacity(mine)
+}
+
 // 判断是否为 YLD 矿山
 export function isYLDMine(mine: MineLand): boolean {
-  return mine.land_type === 'yld_mine'
+  // 检查 blueprint_info
+  if (mine.blueprint_info?.land_type === 'yld_mine') {
+    return true
+  }
+  
+  // 检查 land_type
+  if (mine.land_type === 'yld_mine') {
+    return true
+  }
+  
+  // 检查是否为转换矿山
+  if (mine.special_type === 'yld_converted') {
+    return true
+  }
+  
+  return false
 }
 
 // 判断是否为转换矿山
