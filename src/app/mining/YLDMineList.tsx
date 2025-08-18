@@ -1,20 +1,26 @@
 // src/app/mining/YLDMineList.tsx
-// YLD 矿山列表组件 - 修复版
+// YLD 矿山列表组件 - 支持新 API
 // 
 // 修复说明：
 // 1. 修复了"开始生产（内测）"按钮在安卓手机上无法点击的问题
 // 2. 使用 onTouchEnd 替代 onClick 确保移动端兼容性
 // 3. 增加了按钮的点击区域
 // 4. 优化了事件处理逻辑
+// 5. 支持新的 API 数据结构
+//
+// 更新历史：
+// - 2025-01-19: 支持新的矿山 API 结构
+//   - 兼容 YLD 转换矿山和普通 YLD 矿山
+//   - 使用 getYLDCapacity 辅助函数获取储量
+//   - 支持显示所有类型的矿山（不仅仅是 YLD）
+// - 2024-01: 修复安卓点击问题，优化触摸事件处理
 //
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
 // - 使用 @/types/assets 中的 YLDMine 类型
 // - 使用 @/components/shared 中的组件
 // - 使用 ./BetaPasswordModal 进行密码验证
-//
-// 更新历史：
-// - 2024-01: 修复安卓点击问题，优化触摸事件处理
+// - 使用 @/lib/api/assets 中的辅助函数
 
 'use client'
 
@@ -22,15 +28,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
+import { getYLDCapacity } from '@/lib/api/assets'
 import { cn } from '@/lib/utils'
-import type { YLDMine } from '@/types/assets'
+import type { YLDMine, MineLand } from '@/types/assets'
 import toast from 'react-hot-toast'
 
 interface YLDMineListProps {
-  mines: YLDMine[] | null
+  mines: (YLDMine | MineLand)[] | null
   loading: boolean
   error: string | null
-  onViewDetail: (mine: YLDMine) => void
+  onViewDetail: (mine: YLDMine | MineLand) => void
   onRefresh: () => void
   onStartProduction?: (mineId: number) => void
   onSwitchToSessions?: () => void
@@ -56,6 +63,48 @@ function formatDate(dateStr: string | null | undefined): string {
     return date.toLocaleDateString('zh-CN')
   } catch {
     return '未知'
+  }
+}
+
+/**
+ * 获取矿山类型显示名称
+ */
+function getMineTypeDisplay(mine: YLDMine | MineLand): string {
+  // 如果是 YLD 转换矿山
+  if (mine.special_type === 'yld_converted') {
+    return 'YLD转换矿山'
+  }
+  
+  // 根据 land_type 返回显示名称
+  switch (mine.land_type) {
+    case 'yld_mine':
+      return 'YLD矿山'
+    case 'iron_mine':
+      return '铁矿'
+    case 'stone_mine':
+      return '石矿'
+    case 'forest':
+      return '森林'
+    default:
+      return mine.land_type_display || mine.blueprint_name || '矿山'
+  }
+}
+
+/**
+ * 获取矿山类型颜色
+ */
+function getMineTypeColor(mine: YLDMine | MineLand): string {
+  switch (mine.land_type) {
+    case 'yld_mine':
+      return 'text-purple-400'
+    case 'iron_mine':
+      return 'text-gray-400'
+    case 'stone_mine':
+      return 'text-blue-400'
+    case 'forest':
+      return 'text-green-400'
+    default:
+      return 'text-gray-400'
   }
 }
 
@@ -96,6 +145,7 @@ export function YLDMineList({
   useEffect(() => {
     if (mines && mines.length > 0) {
       console.log('[YLDMineList] 矿山数据示例:', mines[0])
+      console.log('[YLDMineList] YLD储量:', getYLDCapacity(mines[0]))
     }
   }, [mines])
   
@@ -150,7 +200,7 @@ export function YLDMineList({
   }, [])
   
   // 查看详情 - 优化移动端点击
-  const handleViewDetailClick = useCallback((e: React.MouseEvent | React.TouchEvent, mine: YLDMine) => {
+  const handleViewDetailClick = useCallback((e: React.MouseEvent | React.TouchEvent, mine: YLDMine | MineLand) => {
     e.preventDefault()
     e.stopPropagation()
     onViewDetail(mine)
@@ -184,9 +234,9 @@ export function YLDMineList({
     return (
       <PixelCard className="text-center py-8 sm:py-12">
         <span className="text-5xl sm:text-6xl block mb-3 sm:mb-4">🏔️</span>
-        <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">您还没有 YLD 矿山</p>
+        <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">您还没有矿山</p>
         <p className="text-xs sm:text-sm text-gray-500">
-          YLD 矿山由 YLD 代币转换而来
+          YLD 矿山由 YLD 代币转换而来，其他矿山可以在市场购买
         </p>
       </PixelCard>
     )
@@ -197,23 +247,29 @@ export function YLDMineList({
     <>
       <div className="grid gap-3 sm:gap-4">
         {mines.map((mine) => {
-          // 使用实际的字段名
+          // 基本信息
           const landId = mine.land_id || `矿山#${mine.id}`
-          const regionName = mine.region_info?.name || mine.region_name || '中国'
-          const landType = mine.blueprint_info?.name || mine.land_type_display || 'YLD矿山'
+          const regionName = ('region_info' in mine && mine.region_info?.name) || 
+                            mine.region_name || '中国'
+          const mineType = getMineTypeDisplay(mine)
+          const mineTypeColor = getMineTypeColor(mine)
           const isProducing = mine.is_producing || false
           
-          // YLD数量 - 使用 yld_capacity 字段
-          const yldAmount = mine.yld_capacity || mine.current_price || 0
+          // YLD相关信息（仅 YLD 矿山显示）
+          const isYLDMine = mine.land_type === 'yld_mine'
+          const yldAmount = isYLDMine ? getYLDCapacity(mine) : 0
           
           // 累计产出
           const accumulatedOutput = mine.accumulated_output || 0
           
-          // 批次ID
-          const batchId = mine.batch_id || mine.metadata?.batch_id || '未知'
+          // 批次ID（仅转换矿山有）
+          const isConverted = mine.special_type === 'yld_converted'
+          const batchId = mine.metadata?.batch_id || '未知'
           
-          // 转换日期 - 使用 converted_at
-          const conversionDate = mine.converted_at || mine.metadata?.converted_at || mine.created_at
+          // 转换/创建日期
+          const creationDate = mine.metadata?.converted_at || 
+                              mine.metadata?.conversion_date || 
+                              mine.created_at
           
           return (
             <PixelCard 
@@ -229,7 +285,7 @@ export function YLDMineList({
                       {landId}
                     </h4>
                     <p className="text-xs sm:text-sm text-gray-400">
-                      {regionName} · {landType}
+                      {regionName} · <span className={mineTypeColor}>{mineType}</span>
                     </p>
                   </div>
                   <div className="text-right">
@@ -246,28 +302,34 @@ export function YLDMineList({
                 
                 {/* 矿山数据 - 移动端优化 */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
-                  <div>
-                    <p className="text-gray-400 text-[10px] sm:text-xs">YLD 数量</p>
-                    <p className="font-bold text-purple-400">
-                      {formatYLD(yldAmount)}
-                    </p>
-                  </div>
+                  {isYLDMine && (
+                    <div>
+                      <p className="text-gray-400 text-[10px] sm:text-xs">YLD 储量</p>
+                      <p className="font-bold text-purple-400">
+                        {formatYLD(yldAmount)}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-gray-400 text-[10px] sm:text-xs">累计产出</p>
                     <p className="font-bold text-green-400">
                       {formatYLD(accumulatedOutput)}
                     </p>
                   </div>
-                  <div className="hidden sm:block">
-                    <p className="text-gray-400 text-[10px] sm:text-xs">批次</p>
-                    <p className="font-bold text-blue-400 text-[10px] sm:text-xs truncate" title={batchId}>
-                      {batchId}
+                  {isConverted && (
+                    <div className="hidden sm:block">
+                      <p className="text-gray-400 text-[10px] sm:text-xs">批次</p>
+                      <p className="font-bold text-blue-400 text-[10px] sm:text-xs truncate" title={batchId}>
+                        {batchId}
+                      </p>
+                    </div>
+                  )}
+                  <div className={isYLDMine ? "hidden sm:block" : ""}>
+                    <p className="text-gray-400 text-[10px] sm:text-xs">
+                      {isConverted ? '转换日期' : '创建日期'}
                     </p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <p className="text-gray-400 text-[10px] sm:text-xs">转换日期</p>
                     <p className="font-bold text-gray-300 text-xs">
-                      {formatDate(conversionDate)}
+                      {formatDate(creationDate)}
                     </p>
                   </div>
                 </div>
