@@ -1,21 +1,22 @@
 // src/app/mining/AutoRefreshSystem.tsx
-// 自动刷新监控系统 - 修复 toast.warning 错误版本
+// 自动刷新监控系统 - 完全修复版
 // 
 // 文件说明：
-// 此文件用于监控挖矿系统状态并自动刷新
-// 注意：根据最新需求，挖矿会话页面已不再使用此组件
-// 保留此文件仅供其他页面可能需要使用
+// 监控挖矿系统状态并自动刷新，支持新算法v2的整点结算监控
 // 
 // 修复历史：
-// - 2025-01: 修复 toast.warning 不存在的问题，改用 toast 配合警告图标
-// - 2025-01: 标记为已废弃，挖矿会话不再使用此组件
+// - 2025-01-18: 修复 toast.warning 不存在的问题
+// - 2025-01-18: 修复 YLD 状态数据处理，确保正确显示 percentage_used
+// - 2025-01-18: 优化数据结构处理，兼容 API 返回的 data 字段
 // 
-// ⚠️ 注意：此组件已废弃，挖矿会话页面不再使用
-// 如果其他页面需要使用，请确保测试所有功能
+// 关联文件：
+// - 被 @/app/mining/page.tsx 使用
+// - 从 @/hooks/useProduction 获取 YLD 状态数据
+// - 调用 /api/v1/production/yld/status/ 接口
 
 'use client'
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import type { MiningSession, Tool } from '@/types/production'
 
@@ -31,6 +32,7 @@ interface AutoRefreshSystemProps {
   onRefreshResources?: () => void
   onRefreshSummary?: () => void
   onRefreshPending?: () => void
+  onRefreshYLDStatus?: () => void  // 新增：刷新 YLD 状态
   config?: {
     sessionCheckInterval?: number
     resourceCheckInterval?: number
@@ -40,6 +42,7 @@ interface AutoRefreshSystemProps {
     enableAutoCollect?: boolean
     enableHourlySettlementAlert?: boolean
     pendingRewardsThreshold?: number
+    yldWarningThreshold?: number  // 新增：YLD 警告阈值
   }
   onGrainLow?: (hours: number) => void
   onToolDamaged?: (tool: Tool) => void
@@ -70,7 +73,9 @@ const isJustPastHour = (): boolean => {
 /**
  * 格式化数字
  */
-const formatNumber = (value: number, decimals: number = 4): string => {
+const formatNumber = (value: number | undefined | null, decimals: number = 4): string => {
+  if (value == null || isNaN(value)) return '0'
+  
   if (value >= 1000000) {
     return (value / 1000000).toFixed(2) + 'M'
   } else if (value >= 1000) {
@@ -82,7 +87,6 @@ const formatNumber = (value: number, decimals: number = 4): string => {
 
 /**
  * 自动刷新监控系统组件
- * @deprecated 此组件已废弃，挖矿会话页面不再使用
  */
 export function AutoRefreshSystem({
   enabled,
@@ -96,6 +100,7 @@ export function AutoRefreshSystem({
   onRefreshResources,
   onRefreshSummary,
   onRefreshPending,
+  onRefreshYLDStatus,
   config = {},
   onGrainLow,
   onToolDamaged,
@@ -112,9 +117,11 @@ export function AutoRefreshSystem({
     enableNotifications = true,
     enableAutoCollect = false,
     enableHourlySettlementAlert = true,
-    pendingRewardsThreshold = 100
+    pendingRewardsThreshold = 100,
+    yldWarningThreshold = 90  // YLD 使用超过90%时警告
   } = config
   
+  // 状态引用
   const lastGrainWarningRef = useRef<number>(0)
   const lastToolWarningRef = useRef<Set<string>>(new Set())
   const lastSessionCompleteRef = useRef<Set<string>>(new Set())
@@ -125,6 +132,7 @@ export function AutoRefreshSystem({
     sessions?: NodeJS.Timeout
     resources?: NodeJS.Timeout
     summary?: NodeJS.Timeout
+    yld?: NodeJS.Timeout
     hourly?: NodeJS.Timeout
   }>({})
   
@@ -135,12 +143,15 @@ export function AutoRefreshSystem({
     const now = Date.now()
     const currentHour = new Date().getHours()
     
+    // 确保每小时只触发一次
     if (now - lastHourlySettlementRef.current < 3600000) return
     lastHourlySettlementRef.current = now
     
     console.log('[AutoRefresh] Hourly settlement detected at', new Date().toLocaleTimeString())
     
+    // 整点后延迟2秒刷新，确保后端已完成结算
     setTimeout(() => {
+      // 刷新所有相关数据
       if (onRefreshSessions) {
         console.log('[AutoRefresh] Refreshing sessions after settlement')
         onRefreshSessions()
@@ -153,7 +164,12 @@ export function AutoRefreshSystem({
         console.log('[AutoRefresh] Refreshing summary after settlement')
         onRefreshSummary()
       }
+      if (onRefreshYLDStatus) {
+        console.log('[AutoRefresh] Refreshing YLD status after settlement')
+        onRefreshYLDStatus()
+      }
       
+      // 发送通知
       if (enableNotifications && sessions && sessions.length > 0) {
         toast.success(
           `⏰ 整点结算完成！${currentHour}:00 的收益已记录`,
@@ -165,6 +181,7 @@ export function AutoRefreshSystem({
         )
       }
       
+      // 触发回调
       if (onHourlySettlement) {
         onHourlySettlement()
       }
@@ -177,6 +194,7 @@ export function AutoRefreshSystem({
     onRefreshSessions,
     onRefreshPending,
     onRefreshSummary,
+    onRefreshYLDStatus,
     onHourlySettlement
   ])
   
@@ -184,16 +202,18 @@ export function AutoRefreshSystem({
   const checkPendingRewards = useCallback(() => {
     if (!sessions || !enableNotifications) return
     
+    // 计算总待收取收益
     const totalPending = sessions.reduce((sum, session) => {
       return sum + (session.pending_output || session.pending_rewards || 0)
     }, 0)
     
     if (totalPending > pendingRewardsThreshold) {
       const now = Date.now()
+      // 每10分钟最多提醒一次
       if (now - lastPendingWarningRef.current > 600000) {
         lastPendingWarningRef.current = now
         
-        // 修复：使用 toast 替代 toast.warning
+        // 修复：使用 toast 配合警告图标
         toast(
           <div>
             <p className="font-bold">💰 待收取收益较高！</p>
@@ -224,6 +244,7 @@ export function AutoRefreshSystem({
     
     if (hoursRemaining < grainWarningThreshold && hoursRemaining > 0) {
       const now = Date.now()
+      // 动态调整提醒频率
       const reminderInterval = hoursRemaining < 1 ? 180000 : 300000
       
       if (now - lastGrainWarningRef.current > reminderInterval) {
@@ -339,15 +360,29 @@ export function AutoRefreshSystem({
     })
   }, [sessions, enableNotifications, onSessionComplete])
   
-  // 检查YLD状态
+  // 检查YLD状态（修复版）
   const checkYLDStatus = useCallback(() => {
     if (!yldStatus || !enableNotifications) return
     
-    const percentageUsed = yldStatus.percentage_used || 
-                           ((yldStatus.daily_limit - yldStatus.remaining) / yldStatus.daily_limit * 100) || 0
+    console.log('[AutoRefresh] Checking YLD status:', yldStatus)
     
-    if (yldStatus.is_exhausted) {
+    // 处理嵌套的 data 结构
+    const statusData = yldStatus.data || yldStatus
+    
+    // 获取百分比使用率
+    let percentageUsed = statusData.percentage_used
+    
+    // 如果没有 percentage_used，手动计算
+    if (percentageUsed == null && statusData.daily_limit && statusData.remaining != null) {
+      percentageUsed = ((statusData.daily_limit - statusData.remaining) / statusData.daily_limit * 100)
+    }
+    
+    console.log('[AutoRefresh] YLD percentage used:', percentageUsed)
+    
+    // 检查是否耗尽
+    if (statusData.is_exhausted) {
       const now = Date.now()
+      // 每30分钟最多提醒一次
       if (now - lastYLDWarningRef.current > 1800000) {
         lastYLDWarningRef.current = now
         
@@ -366,17 +401,18 @@ export function AutoRefreshSystem({
           onYLDExhausted()
         }
       }
-    } else if (percentageUsed > 90) {
+    } else if (percentageUsed != null && percentageUsed > yldWarningThreshold) {
       const now = Date.now()
+      // 每10分钟最多提醒一次
       if (now - lastYLDWarningRef.current > 600000) {
         lastYLDWarningRef.current = now
         
-        // 修复：使用 toast 替代 toast.warning
+        // 修复：使用 toast 配合警告图标
         toast(
           <div>
             <p className="font-bold">⚠️ YLD产量即将耗尽</p>
             <p className="text-sm">已使用: {percentageUsed.toFixed(1)}%</p>
-            <p className="text-sm">剩余: {formatNumber(yldStatus.remaining || 0, 2)} YLD</p>
+            <p className="text-sm">剩余: {formatNumber(statusData.remaining, 2)} YLD</p>
           </div>,
           {
             duration: 5000,
@@ -386,7 +422,25 @@ export function AutoRefreshSystem({
         )
       }
     }
-  }, [yldStatus, enableNotifications, onYLDExhausted])
+    
+    // 处理 API 返回的 warning 字段
+    if (statusData.warning && enableNotifications) {
+      const now = Date.now()
+      // 每10分钟最多提醒一次
+      if (now - lastYLDWarningRef.current > 600000) {
+        lastYLDWarningRef.current = now
+        
+        toast(
+          statusData.warning,
+          {
+            duration: 5000,
+            position: 'top-center',
+            icon: '⚠️'
+          }
+        )
+      }
+    }
+  }, [yldStatus, enableNotifications, yldWarningThreshold, onYLDExhausted])
   
   // 设置整点刷新定时器
   useEffect(() => {
@@ -430,6 +484,7 @@ export function AutoRefreshSystem({
     const hasActiveSessions = sessions && sessions.length > 0
     
     if (hasActiveSessions) {
+      // 会话刷新
       if (onRefreshSessions && !refreshTimersRef.current.sessions) {
         const interval = isJustPastHour() ? 10000 : sessionCheckInterval
         console.log('[AutoRefresh] Starting session refresh timer with interval:', interval)
@@ -440,6 +495,7 @@ export function AutoRefreshSystem({
         }, interval)
       }
       
+      // 资源刷新
       if (onRefreshResources && !refreshTimersRef.current.resources) {
         console.log('[AutoRefresh] Starting resource refresh timer')
         refreshTimersRef.current.resources = setInterval(() => {
@@ -448,6 +504,16 @@ export function AutoRefreshSystem({
         }, resourceCheckInterval)
       }
       
+      // YLD 状态刷新（新增）
+      if (onRefreshYLDStatus && !refreshTimersRef.current.yld) {
+        console.log('[AutoRefresh] Starting YLD status refresh timer')
+        refreshTimersRef.current.yld = setInterval(() => {
+          console.log('[AutoRefresh] Refreshing YLD status')
+          onRefreshYLDStatus()
+        }, 60000) // 每分钟刷新一次 YLD 状态
+      }
+      
+      // 汇总刷新
       if (onRefreshSummary && !refreshTimersRef.current.summary) {
         console.log('[AutoRefresh] Starting summary refresh timer')
         refreshTimersRef.current.summary = setInterval(() => {
@@ -468,6 +534,10 @@ export function AutoRefreshSystem({
       if (refreshTimersRef.current.summary) {
         clearInterval(refreshTimersRef.current.summary)
         delete refreshTimersRef.current.summary
+      }
+      if (refreshTimersRef.current.yld) {
+        clearInterval(refreshTimersRef.current.yld)
+        delete refreshTimersRef.current.yld
       }
       
       if (onRefreshResources && !refreshTimersRef.current.resources) {
@@ -493,7 +563,8 @@ export function AutoRefreshSystem({
     resourceCheckInterval,
     onRefreshSessions,
     onRefreshResources,
-    onRefreshSummary
+    onRefreshSummary,
+    onRefreshYLDStatus
   ])
   
   // 监控状态变化
@@ -517,6 +588,20 @@ export function AutoRefreshSystem({
     checkYLDStatus,
     checkPendingRewards
   ])
+  
+  // 显示 YLD 状态调试信息
+  useEffect(() => {
+    if (yldStatus) {
+      const statusData = yldStatus.data || yldStatus
+      console.log('[AutoRefresh] YLD Status Update:', {
+        daily_limit: statusData.daily_limit,
+        remaining: statusData.remaining,
+        percentage_used: statusData.percentage_used,
+        is_exhausted: statusData.is_exhausted,
+        warning: statusData.warning
+      })
+    }
+  }, [yldStatus])
   
   return null
 }
