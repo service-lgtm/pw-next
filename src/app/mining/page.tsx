@@ -1,23 +1,100 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 简化重组版（删除挖矿汇总）
+// 挖矿中心页面 - 包含 warning 错误修复和调试
 // 
 // 更新说明：
-// 1. 删除了 MiningSummaryCard 组件和相关显示
-// 2. 保留 miningSummary 数据传递给 MiningSessions 组件
-// 
-// 关联组件（同目录下）：
-// - ./BetaPasswordModal: 内测密码验证
-// - ./BetaNotice: 内测提示组件
-// - ./YLDMineList: YLD矿山列表
-// - ./MiningSessions: 挖矿会话管理
-// - ./ToolManagement: 工具管理
-// - ./MiningStats: 统计信息
-// - ./MiningMarket: 矿山市场（新拆分）
-// - ./HiringMarket: 招聘市场（新拆分）
-// - ./SynthesisSystem: 合成系统（新拆分）
-// - ./YLDSystemStatus: YLD系统状态监控
+// 1. 添加了 warning 函数修复
+// 2. 添加了调试日志
+// 3. 删除了 MiningSummaryCard 组件
+// 4. 保留 miningSummary 数据传递给 MiningSessions 组件
 
 'use client'
+
+// ============ 警告修复代码 - 必须在最前面 ============
+if (typeof window !== 'undefined') {
+  // 创建全局 warning 函数
+  const warningFunc = function(condition: boolean, format: string, ...args: any[]) {
+    if (!condition && process.env.NODE_ENV !== 'production') {
+      console.warn(`Warning: ${format}`, ...args)
+    }
+  }
+  
+  // 设置到 window
+  (window as any).warning = warningFunc
+  
+  // 修复可能的库
+  const fixLibraries = () => {
+    const libs = ['rc-util', 'rc-field-form', 'rc-table', 'rc-select', 'rc-tree', 'rc-upload', 'antd']
+    libs.forEach(libName => {
+      try {
+        const lib = (window as any)[libName]
+        if (lib) {
+          if (!lib.warning) lib.warning = warningFunc
+          if (lib.ZP && !lib.ZP.warning) lib.ZP.warning = warningFunc
+          if (lib.default && !lib.default.warning) lib.default.warning = warningFunc
+        }
+      } catch (e) {
+        // 忽略错误
+      }
+    })
+    
+    // 特殊处理 r.ZP
+    Object.keys(window).forEach(key => {
+      try {
+        const value = (window as any)[key]
+        if (value && typeof value === 'object' && value.ZP && !value.ZP.warning) {
+          value.ZP.warning = warningFunc
+        }
+      } catch (e) {
+        // 忽略
+      }
+    })
+  }
+  
+  // 立即修复
+  fixLibraries()
+  
+  // DOM 加载后再修复一次
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fixLibraries)
+  } else {
+    setTimeout(fixLibraries, 0)
+  }
+  
+  // 定期修复（前5秒）
+  let fixCount = 0
+  const fixInterval = setInterval(() => {
+    fixCount++
+    fixLibraries()
+    if (fixCount >= 5) clearInterval(fixInterval)
+  }, 1000)
+}
+
+// ============ 调试代码 ============
+if (process.env.NODE_ENV === 'development' || typeof window !== 'undefined') {
+  console.log('%c🔍 Mining Page Debug Mode', 'color: orange; font-size: 16px; font-weight: bold;')
+  
+  if (typeof window !== 'undefined') {
+    // 拦截 console.error 以获取更多信息
+    const originalError = console.error
+    console.error = function(...args: any[]) {
+      if (args[0]?.toString?.().includes('warning is not a function')) {
+        console.log('%c⚠️ Warning Error Caught!', 'color: red; font-weight: bold;')
+        console.log('Error details:', args[0])
+        console.trace('Stack trace')
+      }
+      originalError.apply(console, args)
+    }
+    
+    // 监控全局错误
+    window.addEventListener('error', (event) => {
+      if (event.error?.message?.includes('warning')) {
+        console.log('%c🚨 Warning Error Event', 'color: red; font-weight: bold;')
+        console.log('Event:', event)
+        event.preventDefault() // 阻止错误传播
+      }
+    }, true)
+  }
+}
 
 import { useState, useEffect, useCallback, useMemo, memo, Component, ReactNode, ErrorInfo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -83,6 +160,30 @@ class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[MiningPage ErrorBoundary] Caught error:', error, errorInfo)
+    
+    // 如果是 warning 错误，尝试修复
+    if (error.message.includes('warning is not a function')) {
+      console.log('[ErrorBoundary] Attempting to fix warning error...')
+      
+      // 再次尝试修复
+      if (typeof window !== 'undefined') {
+        const warningFunc = (condition: boolean, format: string, ...args: any[]) => {
+          if (!condition) console.warn(`Warning: ${format}`, ...args)
+        }
+        (window as any).warning = warningFunc
+        
+        // 修复所有可能的库
+        ['rc-util', 'antd'].forEach(lib => {
+          try {
+            const libObj = (window as any)[lib]
+            if (libObj) {
+              if (!libObj.warning) libObj.warning = warningFunc
+              if (libObj.ZP && !libObj.ZP.warning) libObj.ZP.warning = warningFunc
+            }
+          } catch (e) {}
+        })
+      }
+    }
   }
 
   render() {
@@ -194,6 +295,14 @@ MobileResourceBar.displayName = 'MobileResourceBar'
 
 // 主页面组件
 function MiningPage() {
+  // 调试日志
+  useEffect(() => {
+    console.log('[MiningPage] Component mounted')
+    return () => {
+      console.log('[MiningPage] Component unmounting')
+    }
+  }, [])
+  
   // 认证状态
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -207,6 +316,11 @@ function MiningPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [pendingMiningTab, setPendingMiningTab] = useState<string | null>(null)
+  
+  // 监控 tab 切换
+  useEffect(() => {
+    console.log('[MiningPage] Tab changed:', { activeTab, miningSubTab })
+  }, [activeTab, miningSubTab])
   
   // 数据获取
   const shouldFetchData = !authLoading && isAuthenticated
@@ -319,6 +433,18 @@ function MiningPage() {
       if (event.error?.message?.includes('localStorage')) {
         console.warn('[MiningPage] localStorage error detected, using fallback')
         event.preventDefault()
+      }
+      if (event.error?.message?.includes('warning')) {
+        console.warn('[MiningPage] warning error detected, attempting fix')
+        event.preventDefault()
+        
+        // 尝试修复
+        if (typeof window !== 'undefined') {
+          const warningFunc = (condition: boolean, format: string, ...args: any[]) => {
+            if (!condition) console.warn(`Warning: ${format}`, ...args)
+          }
+          (window as any).warning = warningFunc
+        }
       }
     }
 
@@ -497,35 +623,28 @@ function MiningPage() {
             refetchResources()
             refetchResourceStats()
           }}
-          // 不传递 onRefreshSummary，避免循环请求
-          // onRefreshSummary={refetchMiningSummary}
           config={{
-            sessionCheckInterval: 60000,      // 60秒检查会话（增加间隔）
-            resourceCheckInterval: 120000,    // 120秒检查资源（增加间隔）
-            grainWarningThreshold: 2,         // 粮食少于2小时警告
-            durabilityWarningThreshold: 100,  // 耐久度少于100警告
-            enableNotifications: true,        // 启用通知
-            enableAutoCollect: false          // 暂不自动收取
+            sessionCheckInterval: 60000,
+            resourceCheckInterval: 120000,
+            grainWarningThreshold: 2,
+            durabilityWarningThreshold: 100,
+            enableNotifications: true,
+            enableAutoCollect: false
           }}
           onGrainLow={(hours) => {
             console.log('[AutoRefresh] 粮食不足:', hours, '小时')
-            // 粮食不足时刷新界面
             refetchResources()
             refetchResourceStats()
-            refetchGrainStatus()
           }}
           onToolDamaged={(tool) => {
             console.log('[AutoRefresh] 工具损坏:', tool.tool_id)
-            // 工具损坏时刷新工具列表
             refetchTools()
           }}
           onSessionComplete={(session) => {
             console.log('[AutoRefresh] 会话可收取:', session.session_id)
-            // 可以在这里添加自动收取逻辑
           }}
           onYLDExhausted={() => {
             console.log('[AutoRefresh] YLD已耗尽')
-            // 刷新所有数据
             refetchSessions()
             refetchYLDStatus()
           }}
@@ -571,7 +690,7 @@ function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-6">
-        {/* 主标签切换 - 添加合成系统 */}
+        {/* 主标签切换 */}
         <div className="flex gap-1 mb-3 sm:gap-2 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('myMines')}
@@ -773,6 +892,17 @@ function MiningPage() {
                 {miningSubTab === 'sessions' && (
                   hasMiningAccess ? (
                     <div className="space-y-4">
+                      {(() => {
+                        console.log('[MiningPage] Rendering MiningSessions with:', {
+                          sessions: sessions?.length || 0,
+                          loading: sessionsLoading,
+                          userLands: userLands?.length || 0,
+                          tools: tools?.length || 0,
+                          miningSummary: !!miningSummary
+                        })
+                        return null
+                      })()}
+                      
                       {/* 挖矿会话管理 */}
                       <MiningSessions
                         sessions={sessions}
@@ -850,7 +980,7 @@ function MiningPage() {
             {activeTab === 'hiring' && (
               <HiringMarket 
                 className="w-full"
-                showGuide={false} // 暂时隐藏招募说明
+                showGuide={false}
               />
             )}
           </div>
