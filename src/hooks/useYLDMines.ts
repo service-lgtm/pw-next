@@ -1,10 +1,17 @@
 // src/hooks/useYLDMines.ts
-// YLD 矿山数据 Hook
+// YLD 矿山数据 Hook - 支持新 API
 //
 // 文件说明：
 // 1. 本文件提供 YLD 矿山相关的数据获取 Hook
 // 2. 包括列表获取、详情获取、生产操作等
 // 3. 自动处理加载状态、错误处理和数据缓存
+// 4. 支持新的 API 结构，同时保持向后兼容
+//
+// 更新历史：
+// - 2025-01-19: 更新支持新的矿山 API
+//   - 添加 useAllMines Hook 获取所有类型矿山
+//   - 保持 useMyYLDMines 向后兼容
+//   - 优化 YLD 储量获取逻辑
 //
 // 关联文件：
 // - src/lib/api/assets.ts: YLD 矿山 API 接口
@@ -12,11 +19,106 @@
 // - src/app/mining/page.tsx: 挖矿页面使用这些 Hook
 
 import { useState, useEffect, useCallback } from 'react'
-import { assetsApi } from '@/lib/api/assets'
+import { assetsApi, getYLDCapacity } from '@/lib/api/assets'
 import { ApiError } from '@/lib/api'
-import type { YLDMine, YLDMineDetail, YLDMineListResponse } from '@/types/assets'
+import type { 
+  YLDMine, 
+  YLDMineDetail, 
+  YLDMineListResponse,
+  MineLand,
+  MineListResponse 
+} from '@/types/assets'
 
-// ==================== 获取我的 YLD 矿山列表 ====================
+// ==================== 获取所有可挖矿土地 ====================
+export function useAllMines(params?: {
+  land_type?: string  // 筛选特定类型：'yld_mine' | 'iron_mine' | 'stone_mine' | 'forest'
+  search?: string
+  ordering?: string
+  page?: number
+  page_size?: number
+} | null) {
+  const [mines, setMines] = useState<MineLand[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<MineListResponse['stats'] | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  
+  const fetchMines = useCallback(async () => {
+    // 如果 params 为 null，说明不应该获取数据（比如未登录）
+    if (params === null) {
+      setMines([])
+      setLoading(false)
+      return
+    }
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('[useAllMines] 开始获取矿山列表')
+      
+      const response = await assetsApi.mines.all({
+        land_type: params?.land_type,
+        page: params?.page || 1,
+        page_size: params?.page_size || 20,
+        search: params?.search,
+        ordering: params?.ordering || '-created_at',
+      })
+      
+      console.log('[useAllMines] 获取成功:', {
+        count: response.count,
+        results: response.results.length,
+        stats: response.stats
+      })
+      
+      setMines(response.results)
+      setTotalCount(response.count)
+      setHasMore(!!response.next)
+      
+      if (response.stats) {
+        setStats(response.stats)
+      }
+    } catch (err) {
+      console.error('[useAllMines] 获取失败:', err)
+      
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          setError('请先登录')
+        } else if (err.status === 403) {
+          setError('无权限查看')
+        } else if (err.status === 404) {
+          // 404 可能表示没有矿山，这不是错误
+          setMines([])
+          setTotalCount(0)
+          setError(null)
+        } else {
+          setError(err.message || '加载失败')
+        }
+      } else {
+        setError('网络错误，请稍后重试')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [params?.land_type, params?.page, params?.page_size, params?.search, params?.ordering])
+  
+  useEffect(() => {
+    fetchMines()
+  }, [fetchMines])
+  
+  return {
+    mines,
+    loading,
+    error,
+    stats,
+    totalCount,
+    hasMore,
+    refetch: fetchMines
+  }
+}
+
+// ==================== 获取我的 YLD 矿山列表（向后兼容） ====================
 export function useMyYLDMines(params?: {
   search?: string
   ordering?: string
@@ -155,7 +257,7 @@ export function useYLDMineDetail(id: number | null) {
   return { mine, loading, error }
 }
 
-// ==================== 开始矿山生产（预留接口） ====================
+// ==================== 开始矿山生产 ====================
 export function useStartMineProduction() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -205,7 +307,7 @@ export function useStartMineProduction() {
   }
 }
 
-// ==================== 收取矿山产出（预留接口） ====================
+// ==================== 收取矿山产出 ====================
 export function useCollectMineOutput() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -255,7 +357,7 @@ export function useCollectMineOutput() {
   }
 }
 
-// ==================== 获取 YLD 矿山统计信息（管理员功能） ====================
+// ==================== 获取 YLD 矿山统计信息 ====================
 export function useYLDMineStats() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -289,4 +391,10 @@ export function useYLDMineStats() {
   }, [])
   
   return { stats, loading, error }
+}
+
+// ==================== 辅助 Hook：获取 YLD 储量 ====================
+export function useYLDCapacity(mine: MineLand | YLDMine | null): number {
+  if (!mine) return 0
+  return getYLDCapacity(mine)
 }
