@@ -1,12 +1,12 @@
 // src/app/mining/SessionSummary.tsx
-// 挖矿会话汇总组件 - 修复 YLD 状态显示
+// 挖矿会话汇总组件 - 修复 YLD 耗尽显示
 // 
 // 文件说明：
 // 本组件显示挖矿会话的汇总统计信息，包括待收取收益、今日产出、资源状态等
 // 
 // 修复历史：
-// - 2025-01-18: 修复 YLD 今日状态显示，正确处理 percentage_used
-// - 2025-01-18: 优化数据结构处理，兼容不同的 API 响应格式
+// - 2025-01-18: 修复 YLD 耗尽时显示为 100%，而不是负数或超过100%的值
+// - 2025-01-18: 优化 YLD 状态显示，耗尽时显示特殊提示
 
 'use client'
 
@@ -69,7 +69,7 @@ export const SessionSummary = memo(({
   const recentSettlements = summary.recent_settlements || []
   const algorithmVersion = summary.algorithm_version || 'v2'
   
-  // 处理 YLD 状态数据 - 优先使用外部传入的，其次使用 summary 中的
+  // 处理 YLD 状态数据
   let yldStatus = externalYldStatus || summary.yld_status || {}
   
   // 如果 yldStatus 有 data 字段，说明是完整的 API 响应
@@ -77,13 +77,24 @@ export const SessionSummary = memo(({
     yldStatus = yldStatus.data
   }
   
-  // 计算 YLD 使用情况
+  // 计算 YLD 使用情况 - 修复：限制最大为100%
   const dailyLimit = yldStatus.daily_limit || 208
-  const remaining = yldStatus.remaining != null ? yldStatus.remaining : dailyLimit
-  const percentageUsed = yldStatus.percentage_used != null 
-    ? yldStatus.percentage_used 
-    : ((dailyLimit - remaining) / dailyLimit * 100)
-  const used = dailyLimit - remaining
+  const remaining = Math.max(0, yldStatus.remaining || 0)
+  
+  // 如果 percentage_used 超过 100，说明已耗尽，显示为 100%
+  let percentageUsed = 0
+  if (yldStatus.percentage_used != null) {
+    percentageUsed = yldStatus.percentage_used >= 100 ? 100 : yldStatus.percentage_used
+  } else {
+    const calculated = ((dailyLimit - remaining) / dailyLimit * 100)
+    percentageUsed = calculated >= 100 ? 100 : calculated
+  }
+  
+  // 计算已使用量，最大为 dailyLimit
+  const used = remaining <= 0 ? dailyLimit : (dailyLimit - remaining)
+  
+  // 判断是否耗尽
+  const isExhausted = yldStatus.is_exhausted || remaining <= 0 || percentageUsed >= 100
   
   // 调试日志
   console.log('[SessionSummary] YLD Status:', {
@@ -91,7 +102,8 @@ export const SessionSummary = memo(({
     dailyLimit,
     remaining,
     used,
-    percentageUsed
+    percentageUsed,
+    isExhausted
   })
   
   const sessionsList = activeSessions.sessions || []
@@ -125,7 +137,7 @@ export const SessionSummary = memo(({
           <div className="text-center">
             <p className="text-gray-500">今日产出</p>
             <p className="font-bold text-purple-400">
-              {formatNumber(todayProduction.total || 0, 4)}
+              {formatNumber(todayProduction.total || used || 0, 4)}
             </p>
           </div>
           <div className="text-center">
@@ -139,32 +151,32 @@ export const SessionSummary = memo(({
         {/* YLD限额进度条 */}
         <div className="mt-2">
           <div className="flex justify-between text-[10px] mb-1">
-            <span className="text-gray-400">YLD今日限额</span>
-            <span className={cn(
-              "font-bold",
-              percentageUsed >= 90 ? "text-red-400" :
-              percentageUsed >= 70 ? "text-yellow-400" :
-              "text-green-400"
-            )}>
-              {formatNumber(used, 1)}/{formatNumber(dailyLimit, 0)}
-            </span>
+            <span className="text-gray-400">YLD今日剩余</span>
+            {isExhausted ? (
+              <span className="text-red-400 font-bold">已耗尽 100%</span>
+            ) : (
+              <span className={cn(
+                "font-bold",
+                percentageUsed >= 90 ? "text-red-400" :
+                percentageUsed >= 70 ? "text-yellow-400" :
+                "text-green-400"
+              )}>
+                {formatNumber(remaining, 1)} / {formatNumber(dailyLimit, 0)}
+              </span>
+            )}
           </div>
           <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all",
+                isExhausted ? "bg-red-500" :
                 percentageUsed >= 90 ? "bg-red-500" :
                 percentageUsed >= 70 ? "bg-yellow-500" :
                 "bg-green-500"
               )}
-              style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+              style={{ width: `${percentageUsed}%` }}
             />
           </div>
-          {percentageUsed > 0 && (
-            <p className="text-[10px] text-gray-500 mt-1">
-              已使用 {percentageUsed.toFixed(1)}%
-            </p>
-          )}
         </div>
       </PixelCard>
     )
@@ -200,10 +212,10 @@ export const SessionSummary = memo(({
         <div className="bg-purple-900/20 rounded p-3">
           <p className="text-xs text-gray-400 mb-1">今日产出</p>
           <p className="text-lg font-bold text-purple-400">
-            {formatNumber(todayProduction.total || used, 4)}
+            {formatNumber(todayProduction.total || used || 0, 4)}
           </p>
           <div className="text-xs text-gray-500">
-            <p>已发放: {formatNumber(todayProduction.distributed?.amount || used, 2)}</p>
+            <p>已发放: {formatNumber(todayProduction.distributed?.amount || used || 0, 2)}</p>
             <p>待发放: {formatNumber(todayProduction.pending?.amount || 0, 2)}</p>
           </div>
         </div>
@@ -237,8 +249,8 @@ export const SessionSummary = memo(({
       {/* YLD状态 - 修复显示逻辑 */}
       <div className={cn(
         "p-3 border rounded mb-3",
-        percentageUsed >= 90 ? "bg-red-900/20 border-red-500/30" :
-        percentageUsed >= 70 ? "bg-yellow-900/20 border-yellow-500/30" :
+        isExhausted ? "bg-red-900/20 border-red-500/30" :
+        percentageUsed >= 90 ? "bg-yellow-900/20 border-yellow-500/30" :
         "bg-purple-900/20 border-purple-500/30"
       )}>
         <div className="flex items-center justify-between mb-2">
@@ -247,56 +259,71 @@ export const SessionSummary = memo(({
             速率: {formatNumber(yldStatus.current_hourly_rate || 0, 2)}/h
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-gray-400">
-                已使用 {percentageUsed.toFixed(1)}%
-              </span>
-              <span className={cn(
-                "font-bold",
-                percentageUsed >= 90 ? "text-red-400" :
-                percentageUsed >= 70 ? "text-yellow-400" :
-                "text-green-400"
-              )}>
-                {formatNumber(used, 2)} / {formatNumber(dailyLimit, 0)}
-              </span>
+        
+        {isExhausted ? (
+          // 耗尽状态显示
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-2 bg-red-900/30 border border-red-500/30 rounded">
+              <div>
+                <p className="text-sm font-bold text-red-400">已耗尽 100%</p>
+                <p className="text-xs text-gray-400">剩余: 0.00 YLD</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-400">今日已产出</p>
+                <p className="text-sm font-bold text-gray-300">{formatNumber(dailyLimit, 0)} YLD</p>
+              </div>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full rounded-full transition-all",
-                  percentageUsed >= 90 ? "bg-red-500" :
-                  percentageUsed >= 70 ? "bg-yellow-500" :
-                  "bg-green-500"
-                )}
-                style={{ width: `${Math.min(percentageUsed, 100)}%` }}
-              />
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">剩余</p>
-            <p className={cn(
-              "text-sm font-bold",
-              remaining < 20 ? "text-red-400" :
-              remaining < 50 ? "text-yellow-400" :
-              "text-green-400"
-            )}>
-              {formatNumber(remaining, 2)}
+            <p className="text-xs text-yellow-400">
+              ⚠️ 继续挖矿将消耗粮食但无YLD收益，建议挖矿其他资源或等待明日0点恢复
             </p>
           </div>
-        </div>
-        
-        {/* 警告信息 */}
-        {yldStatus.warning && (
-          <div className="mt-2 p-2 bg-yellow-900/30 border border-yellow-500/30 rounded">
-            <p className="text-xs text-yellow-400">⚠️ {yldStatus.warning}</p>
+        ) : (
+          // 正常状态显示
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-400">
+                  已使用 {percentageUsed.toFixed(1)}%
+                </span>
+                <span className={cn(
+                  "font-bold",
+                  percentageUsed >= 90 ? "text-red-400" :
+                  percentageUsed >= 70 ? "text-yellow-400" :
+                  "text-green-400"
+                )}>
+                  {formatNumber(used, 2)} / {formatNumber(dailyLimit, 0)}
+                </span>
+              </div>
+              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    percentageUsed >= 90 ? "bg-red-500" :
+                    percentageUsed >= 70 ? "bg-yellow-500" :
+                    "bg-green-500"
+                  )}
+                  style={{ width: `${percentageUsed}%` }}
+                />
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400">剩余</p>
+              <p className={cn(
+                "text-sm font-bold",
+                remaining < 20 ? "text-red-400" :
+                remaining < 50 ? "text-yellow-400" :
+                "text-green-400"
+              )}>
+                {formatNumber(remaining, 2)}
+              </p>
+            </div>
           </div>
         )}
         
-        {yldStatus.is_exhausted && (
-          <div className="mt-2 p-2 bg-red-900/30 border border-red-500/30 rounded">
-            <p className="text-xs text-red-400">🛑 今日YLD产量已耗尽，明日0点后恢复</p>
+        {/* 警告信息 */}
+        {yldStatus.warning && !isExhausted && (
+          <div className="mt-2 p-2 bg-yellow-900/30 border border-yellow-500/30 rounded">
+            <p className="text-xs text-yellow-400">⚠️ {yldStatus.warning}</p>
           </div>
         )}
       </div>
