@@ -322,7 +322,7 @@ export const assetsApi = {
   
   // ==================== YLD 矿山相关（向后兼容） ====================
   yldMines: {
-    // 获取我的 YLD 矿山列表（使用新 API）
+    // 获取我的所有矿山列表（不仅仅是 YLD）
     list: async (params?: {
       search?: string
       ordering?: string
@@ -330,11 +330,10 @@ export const assetsApi = {
       page_size?: number
     }) => {
       try {
-        // 直接使用 yld-converted 接口（大部分用户只有转换矿山）
-        const response = await assetsApi.mines.yldConverted(params)
+        // 使用 /api/assets/mines/all/ 获取所有类型的矿山
+        const response = await assetsApi.mines.all(params)
         
-        // 数据已经是正确格式，直接返回
-        // API 返回的 stats 格式已经包含了所需信息
+        // 转换统计信息格式
         const stats = response.stats ? {
           total_mines: response.stats.total_mines,
           total_yld_capacity: response.stats.total_initial_reserves || 0,
@@ -347,9 +346,19 @@ export const assetsApi = {
           })) || []
         } : {
           total_mines: response.results.length,
-          total_yld_capacity: 0,
-          total_accumulated_output: 0,
-          producing_count: 0,
+          total_yld_capacity: response.results.reduce((sum, mine) => {
+            // 只计算 YLD 矿山的储量
+            if (mine.land_type === 'yld_mine' || mine.special_type === 'yld_converted') {
+              const capacity = mine.initial_reserves || 
+                             parseFloat(mine.yld_capacity || '0') || 0
+              return sum + capacity
+            }
+            return sum
+          }, 0),
+          total_accumulated_output: response.results.reduce((sum, mine) => {
+            return sum + (parseFloat(mine.accumulated_output || '0') || 0)
+          }, 0),
+          producing_count: response.results.filter(m => m.is_producing).length,
           by_batch: []
         }
         
