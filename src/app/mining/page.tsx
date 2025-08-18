@@ -722,32 +722,33 @@ function MiningPage() {
                 {miningSubTab === 'sessions' && (
                   hasMiningAccess ? (
                     <div className="space-y-4">
-                      {/* 挖矿会话管理 */}
-                      <MiningSessions
-                        sessions={sessions}
-                        loading={sessionsLoading}
-                        userLands={userLands}
-                        tools={tools}
-                        onStartMining={handleStartSelfMining}
-                        onStopSession={handleStopSession}
-                        onCollectOutput={handleCollectSessionOutput}
-                        startMiningLoading={startMiningLoading}
-                        miningSummary={miningSummary}
-                        yldStatus={yldSystemStatus} 
-                        onRefresh={() => {
-                          refetchSessions()
-                          refetchTools()
-                          refetchResourceStats()
-                          refetchMiningSummary()
-                        }}
-                        onBuyFood={() => {
-                          toast('购买粮食功能即将开放', { icon: '🌾' })
-                        }}
-                        onSynthesizeTool={() => {
-                          setActiveTab('synthesis')
-                        }}
-                      />
-                    </div>
+                    {/* 挖矿会话管理 */}
+                    <MiningSessions
+                      sessions={sessions}
+                      loading={sessionsLoading}
+                      userLands={userLands}
+                      tools={tools}
+                      onStartMining={handleStartSelfMining}
+                      onStopSession={handleStopSession}
+                      onCollectOutput={handleCollectSessionOutput}
+                      startMiningLoading={startMiningLoading}
+                      miningSummary={miningSummary}
+                      yldStatus={yldSystemStatus}  // 添加这一行，传递 YLD 状态
+                      onRefresh={() => {
+                        refetchSessions()
+                        refetchTools()
+                        refetchResourceStats()
+                        refetchMiningSummary()
+                        refetchYLDStatus()  // 添加刷新 YLD 状态
+                      }}
+                      onBuyFood={() => {
+                        toast('购买粮食功能即将开放', { icon: '🌾' })
+                      }}
+                      onSynthesizeTool={() => {
+                        setActiveTab('synthesis')
+                      }}
+                    />
+                  </div>
                   ) : (
                     <PixelCard className="text-center py-8 sm:py-12">
                       <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
