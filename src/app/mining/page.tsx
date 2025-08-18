@@ -535,7 +535,7 @@ function MiningPage() {
               {yldStats && (
                 <>
                   <div className="text-center min-w-[80px]">
-                    <div className="text-[10px] sm:text-xs text-gray-400">YLD总量</div>
+                    <div className="text-[10px] sm:text-xs text-gray-400">总储量</div>
                     <div className="text-xs sm:text-sm font-bold text-purple-500">
                       {safeFormatYLD(yldStats.total_yld_capacity)}
                     </div>
@@ -621,7 +621,7 @@ function MiningPage() {
                         : "bg-gray-800 text-gray-400"
                     )}
                   >
-                    YLD矿山
+                    我的矿山
                   </button>
                   <button
                     onClick={() => handleTabClick('sessions')}
@@ -824,7 +824,7 @@ function MiningPage() {
             <div className="flex items-center gap-2 sm:gap-3">
               <span className="text-xl sm:text-2xl">💡</span>
               <p className="text-[11px] sm:text-sm text-gray-300">
-                YLD 矿山系统和挖矿生产系统正在持续优化中，更多功能即将开放。
+                矿山系统和挖矿生产系统正在持续优化中，支持多种矿山类型。
               </p>
             </div>
           </PixelCard>
