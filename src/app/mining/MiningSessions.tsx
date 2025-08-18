@@ -1,12 +1,27 @@
-/ src/app/mining/MiningSessions.tsx
-// 挖矿会话管理主组件 - 修复 yldSystemStatus 未定义错误
+// src/app/mining/MiningSessions.tsx
+// 挖矿会话管理主组件 - 完整修复版
 // 
 // 文件说明：
 // 这是挖矿会话管理的主组件，负责协调各个子组件，处理业务逻辑
+// 经过重构，将展示组件和工具函数拆分到独立文件中
 // 
 // 修复历史：
 // - 2025-01-18: 修复 yldSystemStatus 未定义错误
-// - 2025-01-18: 添加 yldStatus 属性传递给 SessionSummary
+// - 2025-01-18: 添加 yldStatus 属性并传递给 SessionSummary
+// - 2025-01-18: 确保所有功能完全兼容
+// 
+// 主要功能：
+// 1. 管理挖矿会话的生命周期（开始、停止、收取）
+// 2. 处理用户交互和业务逻辑
+// 3. 协调各个子组件的数据流
+// 4. 处理错误和显示提示
+// 
+// 关联文件：
+// - 子组件: ./LandSelector, ./SessionCard, ./SessionSummary, ./StartMiningForm
+// - 工具函数: ./miningUtils, ./miningConstants
+// - 其他组件: ./MiningPreCheck, ./SessionRateHistory
+// - 被调用: @/app/mining/page.tsx (主页面)
+// - API调用: 通过 props 传入的回调函数与后端交互
 
 'use client'
 
@@ -49,7 +64,7 @@ interface MiningSessionsProps {
   onSynthesizeTool?: () => void
   startMiningLoading?: boolean
   miningSummary?: any
-  yldStatus?: any  // 添加 YLD 状态属性
+  yldStatus?: any  // 新增：YLD 状态数据（来自 /api/v1/production/yld/status/）
   onRefresh?: () => void
 }
 
@@ -95,6 +110,13 @@ export function MiningSessions({
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+  
+  // 调试：打印 YLD 状态
+  useEffect(() => {
+    if (yldStatus) {
+      console.log('[MiningSessions] YLD Status received:', yldStatus)
+    }
+  }, [yldStatus])
   
   // ==================== 数据处理 ====================
   // 合并会话数据（优先使用 miningSummary 中的完整数据）
@@ -404,11 +426,11 @@ export function MiningSessions({
         </div>
       </div>
       
-      {/* 挖矿汇总信息 - 修复：传递 yldStatus */}
+      {/* 挖矿汇总信息 - 传递 yldStatus */}
       {miningSummary && (
         <SessionSummary 
           summary={miningSummary} 
-          yldStatus={yldStatus}  // 传递 YLD 状态
+          yldStatus={yldStatus}  // 传递 YLD 状态数据
           compact={isMobile} 
         />
       )}
