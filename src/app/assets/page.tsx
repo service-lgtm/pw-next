@@ -164,20 +164,7 @@ function TokenCard({
               </>
             ) : (
               <>
-                <button 
-                  onClick={() => onAction?.('stake')}
-                  className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 text-sm rounded transition-all opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  质押
-                </button>
-                <button 
-                  onClick={() => onAction?.('governance')}
-                  className="px-3 py-2 bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 text-sm rounded transition-all opacity-50 cursor-not-allowed"
-                  disabled
-                >
-                  治理
-                </button>
+                
               </>
             )}
           </div>
