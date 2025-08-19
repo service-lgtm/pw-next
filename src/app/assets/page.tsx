@@ -48,7 +48,7 @@ const TOKEN_CONFIG = {
     color: 'from-yellow-500 to-orange-500',
     textColor: 'text-yellow-400',
     description: '稳定交易通证',
-    features: ['1:1锚定美元', '游戏内通用货币', '可兑换现实资产']
+    features: ['游戏内通用货币', '可兑换现实资产']
   },
   yld: {
     name: '陨石通证',
