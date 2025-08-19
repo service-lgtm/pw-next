@@ -408,7 +408,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                         <button
                           onClick={() => {
-                            window.open('https://www.pxsj.net.cn/mining', '_blank')
+                            window.open('/mining', '_blank')
                             setShowUserDropdown(false)
                           }}
                           className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-800 hover:text-white rounded transition-colors"
