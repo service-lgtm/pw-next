@@ -243,16 +243,26 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
       return
     }
     
-    const result = await synthesizeTool({
-      tool_type: selectedTool,
-      quantity: toolQuantity
-    })
-    
-    if (result) {
-      setToolQuantity(1)
-      if (activeTab === 'history') {
-        refetchHistory()
+    try {
+      const result = await synthesizeTool({
+        tool_type: selectedTool,
+        quantity: toolQuantity
+      })
+      
+      if (result) {
+        setToolQuantity(1) // 重置数量
+        refetch() // 刷新配方和资源数据
+        
+        // 如果在历史记录页面，也刷新历史
+        if (activeTab === 'history') {
+          refetchHistory()
+        }
+        
+        // 额外的成功提示（可选，因为 Hook 里已经有了）
+        console.log('[SynthesisSystem] 合成成功:', result)
       }
+    } catch (error) {
+      console.error('[SynthesisSystem] 合成失败:', error)
     }
   }
   
