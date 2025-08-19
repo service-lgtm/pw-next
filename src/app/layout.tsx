@@ -1,11 +1,11 @@
 // src/app/layout.tsx
-
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import Script from 'next/script' // 1. 在这里导入 Script 组件
+import Script from 'next/script'
 import './globals.css'
 import { ClientLayout } from '@/components/layout/ClientLayout'
 import { AuthProvider } from '@/hooks/useAuth'
+import { ToasterProvider } from '@/components/providers/ToasterProvider' // 添加这行导入
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,7 +27,13 @@ export default function RootLayout({
           <ClientLayout>{children}</ClientLayout>
         </AuthProvider>
         
-        <Script src="https://plugin-code.salesmartly.com/js/project_408373_419884_1753852401.js" strategy="afterInteractive" />
+        {/* 添加 ToasterProvider 组件 */}
+        <ToasterProvider />
+        
+        <Script 
+          src="https://plugin-code.salesmartly.com/js/project_408373_419884_1753852401.js" 
+          strategy="afterInteractive" 
+        />
       </body>
     </html>
   )
