@@ -171,162 +171,6 @@ export interface SynthesisErrorResponse {
   }
 }
 
-// ==================== API 接口 ====================
-
-export const synthesisApi = {
-  /**
-   * 合成工具
-   * POST /api/production/synthesis/tool/
-   * 
-   * @param data - 合成请求参数
-   * @returns 合成结果，包含新工具信息和消耗的资源
-   */
-  synthesizeTool: async (data: SynthesizeToolRequest): Promise<SynthesizeToolResponse> => {
-    try {
-      const response = await request<SynthesizeToolResponse>(`${API_PREFIX}/synthesis/tool/`, {
-        method: 'POST',
-        body: data,
-      })
-      return response
-    } catch (error: any) {
-      // 如果是资源不足错误，返回详细信息
-      if (error?.response?.status === 400) {
-        throw error.response.data
-      }
-      throw error
-    }
-  },
-
-  /**
-   * 合成砖头
-   * POST /api/production/synthesis/bricks/
-   * 
-   * @param data - 合成批次数量
-   * @returns 合成结果，包含产出的砖头数量
-   */
-  synthesizeBricks: async (data: SynthesizeBrickRequest): Promise<SynthesizeBrickResponse> => {
-    try {
-      const response = await request<SynthesizeBrickResponse>(`${API_PREFIX}/synthesis/bricks/`, {
-        method: 'POST',
-        body: data,
-      })
-      return response
-    } catch (error: any) {
-      if (error?.response?.status === 400) {
-        throw error.response.data
-      }
-      throw error
-    }
-  },
-
-  /**
-   * 获取合成配方
-   * GET /api/production/synthesis/recipes/
-   * 
-   * @returns 所有合成配方和用户当前资源
-   */
-  getRecipes: async (): Promise<SynthesisRecipesResponse> => {
-    const response = await request<SynthesisRecipesResponse>(`${API_PREFIX}/synthesis/recipes/`)
-    return response
-  },
-
-  /**
-   * 计算可合成数量（客户端辅助函数）
-   * 
-   * @param recipe - 配方信息
-   * @param resources - 用户资源
-   * @returns 可合成的最大数量
-   */
-  calculateMaxSynthesizable: (
-    recipe: RecipeInfo, 
-    resources: { iron?: number; wood?: number; stone?: number; yld?: number }
-  ): number => {
-    let maxCount = Infinity
-
-    // 检查每种材料
-    if (recipe.materials.iron && resources.iron !== undefined) {
-      maxCount = Math.min(maxCount, Math.floor(resources.iron / recipe.materials.iron))
-    }
-    if (recipe.materials.wood && resources.wood !== undefined) {
-      maxCount = Math.min(maxCount, Math.floor(resources.wood / recipe.materials.wood))
-    }
-    if (recipe.materials.stone && resources.stone !== undefined) {
-      maxCount = Math.min(maxCount, Math.floor(resources.stone / recipe.materials.stone))
-    }
-    
-    // 检查 YLD
-    if (recipe.yld_cost && resources.yld !== undefined) {
-      maxCount = Math.min(maxCount, Math.floor(resources.yld / recipe.yld_cost))
-    }
-
-    return maxCount === Infinity ? 0 : maxCount
-  },
-
-  /**
-   * 验证合成请求（客户端预检查）
-   * 
-   * @param toolType - 工具类型
-   * @param quantity - 数量
-   * @param recipe - 配方信息
-   * @param resources - 用户资源
-   * @returns 验证结果
-   */
-  validateSynthesis: (
-    toolType: string,
-    quantity: number,
-    recipe: RecipeInfo,
-    resources: { iron?: number; wood?: number; stone?: number; yld?: number }
-  ): { valid: boolean; errors: string[] } => {
-    const errors: string[] = []
-
-    if (quantity <= 0) {
-      errors.push('合成数量必须大于0')
-    }
-
-    // 检查材料是否足够
-    const required = {
-      iron: (recipe.materials.iron || 0) * quantity,
-      wood: (recipe.materials.wood || 0) * quantity,
-      stone: (recipe.materials.stone || 0) * quantity,
-      yld: (recipe.yld_cost || 0) * quantity
-    }
-
-    if (required.iron > (resources.iron || 0)) {
-      errors.push(`铁矿不足，需要 ${required.iron.toFixed(2)}，当前只有 ${(resources.iron || 0).toFixed(2)}`)
-    }
-    if (required.wood > (resources.wood || 0)) {
-      errors.push(`木材不足，需要 ${required.wood.toFixed(2)}，当前只有 ${(resources.wood || 0).toFixed(2)}`)
-    }
-    if (required.stone > (resources.stone || 0)) {
-      errors.push(`石材不足，需要 ${required.stone.toFixed(2)}，当前只有 ${(resources.stone || 0).toFixed(2)}`)
-    }
-    if (required.yld > (resources.yld || 0)) {
-      errors.push(`YLD不足，需要 ${required.yld.toFixed(2)}，当前只有 ${(resources.yld || 0).toFixed(2)}`)
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors
-    }
-  }
-}
-
-// ==================== 工具类型映射 ====================
-
-export const TOOL_TYPE_MAP = {
-  pickaxe: '镐头',
-  axe: '斧头',
-  hoe: '锄头'
-} as const
-
-export const TOOL_USAGE_MAP = {
-  pickaxe: '用于开采铁矿和石矿',
-  axe: '用于采集木材',
-  hoe: '用于农业生产'
-} as const
-
-// ==================== 合成历史和统计 ====================
-
 // 合成历史记录项
 export interface SynthesisHistoryItem {
   id: number
@@ -414,21 +258,59 @@ export interface SynthesisStatsResponse {
   }
 }
 
-// 添加历史和统计接口
+// ==================== API 接口 ====================
+
 export const synthesisApi = {
-  // ... 原有的接口保持不变 ...
-  synthesizeTool,
-  synthesizeBricks,
-  getRecipes,
-  calculateMaxSynthesizable,
-  validateSynthesis,
+  /**
+   * 合成工具
+   * POST /api/production/synthesis/tool/
+   */
+  synthesizeTool: async (data: SynthesizeToolRequest): Promise<SynthesizeToolResponse> => {
+    try {
+      const response = await request<SynthesizeToolResponse>(`${API_PREFIX}/synthesis/tool/`, {
+        method: 'POST',
+        body: data,
+      })
+      return response
+    } catch (error: any) {
+      if (error?.response?.status === 400) {
+        throw error.response.data
+      }
+      throw error
+    }
+  },
+
+  /**
+   * 合成砖头
+   * POST /api/production/synthesis/bricks/
+   */
+  synthesizeBricks: async (data: SynthesizeBrickRequest): Promise<SynthesizeBrickResponse> => {
+    try {
+      const response = await request<SynthesizeBrickResponse>(`${API_PREFIX}/synthesis/bricks/`, {
+        method: 'POST',
+        body: data,
+      })
+      return response
+    } catch (error: any) {
+      if (error?.response?.status === 400) {
+        throw error.response.data
+      }
+      throw error
+    }
+  },
+
+  /**
+   * 获取合成配方
+   * GET /api/production/synthesis/recipes/
+   */
+  getRecipes: async (): Promise<SynthesisRecipesResponse> => {
+    const response = await request<SynthesisRecipesResponse>(`${API_PREFIX}/synthesis/recipes/`)
+    return response
+  },
 
   /**
    * 获取合成历史记录
    * GET /api/production/synthesis/history/
-   * 
-   * @param params - 查询参数
-   * @returns 合成历史记录
    */
   getHistory: async (params?: {
     type?: 'all' | 'tool' | 'brick'
@@ -449,16 +331,95 @@ export const synthesisApi = {
   /**
    * 获取合成统计
    * GET /api/production/synthesis/stats/
-   * 
-   * @returns 合成统计数据
    */
   getStats: async (): Promise<SynthesisStatsResponse> => {
     const response = await request<SynthesisStatsResponse>(
       `${API_PREFIX}/synthesis/stats/`
     )
     return response
+  },
+
+  /**
+   * 计算可合成数量（客户端辅助函数）
+   */
+  calculateMaxSynthesizable: (
+    recipe: RecipeInfo, 
+    resources: { iron?: number; wood?: number; stone?: number; yld?: number }
+  ): number => {
+    let maxCount = Infinity
+
+    if (recipe.materials.iron && resources.iron !== undefined) {
+      maxCount = Math.min(maxCount, Math.floor(resources.iron / recipe.materials.iron))
+    }
+    if (recipe.materials.wood && resources.wood !== undefined) {
+      maxCount = Math.min(maxCount, Math.floor(resources.wood / recipe.materials.wood))
+    }
+    if (recipe.materials.stone && resources.stone !== undefined) {
+      maxCount = Math.min(maxCount, Math.floor(resources.stone / recipe.materials.stone))
+    }
+    
+    if (recipe.yld_cost && resources.yld !== undefined) {
+      maxCount = Math.min(maxCount, Math.floor(resources.yld / recipe.yld_cost))
+    }
+
+    return maxCount === Infinity ? 0 : maxCount
+  },
+
+  /**
+   * 验证合成请求（客户端预检查）
+   */
+  validateSynthesis: (
+    toolType: string,
+    quantity: number,
+    recipe: RecipeInfo,
+    resources: { iron?: number; wood?: number; stone?: number; yld?: number }
+  ): { valid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    if (quantity <= 0) {
+      errors.push('合成数量必须大于0')
+    }
+
+    const required = {
+      iron: (recipe.materials.iron || 0) * quantity,
+      wood: (recipe.materials.wood || 0) * quantity,
+      stone: (recipe.materials.stone || 0) * quantity,
+      yld: (recipe.yld_cost || 0) * quantity
+    }
+
+    if (required.iron > (resources.iron || 0)) {
+      errors.push(`铁矿不足，需要 ${required.iron.toFixed(2)}，当前只有 ${(resources.iron || 0).toFixed(2)}`)
+    }
+    if (required.wood > (resources.wood || 0)) {
+      errors.push(`木材不足，需要 ${required.wood.toFixed(2)}，当前只有 ${(resources.wood || 0).toFixed(2)}`)
+    }
+    if (required.stone > (resources.stone || 0)) {
+      errors.push(`石材不足，需要 ${required.stone.toFixed(2)}，当前只有 ${(resources.stone || 0).toFixed(2)}`)
+    }
+    if (required.yld > (resources.yld || 0)) {
+      errors.push(`YLD不足，需要 ${required.yld.toFixed(2)}，当前只有 ${(resources.yld || 0).toFixed(2)}`)
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    }
   }
 }
+
+// ==================== 工具类型映射 ====================
+
+export const TOOL_TYPE_MAP = {
+  pickaxe: '镐头',
+  axe: '斧头',
+  hoe: '锄头'
+} as const
+
+export const TOOL_USAGE_MAP = {
+  pickaxe: '用于开采铁矿和石矿',
+  axe: '用于采集木材',
+  hoe: '用于农业生产'
+} as const
 
 // ==================== 品质配置 ====================
 
