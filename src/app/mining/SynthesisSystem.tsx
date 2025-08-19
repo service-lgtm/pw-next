@@ -16,16 +16,10 @@
 // - 使用 @/hooks/useSynthesis (独立 Hooks)
 // - 使用 @/lib/api/synthesisApi (独立 API)
 // - 使用 @/components/shared 系列组件
-// 
-// 创建时间：2024-12
-// 更新历史：
-// - 2024-12-26 v2.0.0: 适配新 API
-// - 2024-12-26 v2.1.0: 优化UI/UX设计
-// - 2024-12-26 v2.2.0: 添加历史记录和统计功能
 
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
@@ -62,20 +56,14 @@ const RESOURCE_CONFIG = {
   brick: { icon: '🧱', color: 'text-orange-400', name: '砖头' }
 } as const
 
-/**
- * 资源显示组件
- */
-function ResourceDisplay({ 
-  type, 
-  amount, 
-  required, 
-  showRequired = false 
-}: { 
+// 资源显示组件
+function ResourceDisplay(props: { 
   type: keyof typeof RESOURCE_CONFIG
   amount: number
   required?: number
   showRequired?: boolean
 }) {
+  const { type, amount, required, showRequired = false } = props
   const config = RESOURCE_CONFIG[type]
   const isInsufficient = showRequired && required && amount < required
   
@@ -93,280 +81,21 @@ function ResourceDisplay({
           <div className="text-xs text-gray-500">
             需要: {type === 'yld' ? required.toFixed(4) : required.toFixed(2)}
           </div>
-            )}
-          </>
-        )}
-        
-        {/* 历史记录标签页 */}
-        {activeTab === 'history' && (
-          <PixelCard className="p-4">
-            <div className="mb-4">
-              <div className="flex gap-2 mb-4">
-                {(['all', 'tool', 'brick'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => {
-                      setHistoryFilter(filter)
-                      setCurrentPage(1)
-                    }}
-                    className={`px-3 py-1 text-xs rounded transition-all ${
-                      historyFilter === filter
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {filter === 'all' ? '全部' : filter === 'tool' ? '工具' : '砖头'}
-                  </button>
-                ))}
-              </div>
-              
-              {/* 统计信息 */}
-              {statistics && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-                  <div className="bg-gray-900/30 rounded p-2">
-                    <p className="text-xs text-gray-400">总合成</p>
-                    <p className="text-lg font-bold">{statistics.total_synthesis}</p>
-                  </div>
-                  <div className="bg-gray-900/30 rounded p-2">
-                    <p className="text-xs text-gray-400">工具</p>
-                    <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
-                  </div>
-                  <div className="bg-gray-900/30 rounded p-2">
-                    <p className="text-xs text-gray-400">砖头</p>
-                    <p className="text-lg font-bold text-orange-400">{statistics.bricks_crafted}</p>
-                  </div>
-                  <div className="bg-gray-900/30 rounded p-2">
-                    <p className="text-xs text-gray-400">幸运值</p>
-                    <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2)}</p>
-                  </div>
-                </div>
-              )}
-              
-              {/* 历史记录列表 */}
-              {historyLoading ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">加载中...</p>
-                </div>
-              ) : history.length > 0 ? (
-                <div className="space-y-2">
-                  {history.map((item) => (
-                    <div key={item.id} className="bg-gray-900/30 rounded p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">
-                            {item.type === 'brick' ? '🧱' : 
-                             item.tool_type === 'pickaxe' ? '⛏️' :
-                             item.tool_type === 'axe' ? '🪓' : '🌾'}
-                          </span>
-                          <span className="font-bold">{item.tool_display || '砖头'}</span>
-                          {item.quality && QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG] && (
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].bgColor
-                            } ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].color}`}>
-                              {QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].name}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {format(new Date(item.created_at), 'MM-dd HH:mm', { locale: zhCN })}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        消耗: 
-                        {item.materials_consumed.iron && ` 铁${item.materials_consumed.iron}`}
-                        {item.materials_consumed.wood && ` 木${item.materials_consumed.wood}`}
-                        {item.materials_consumed.stone && ` 石${item.materials_consumed.stone}`}
-                        {item.materials_consumed.yld && ` YLD${item.materials_consumed.yld}`}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-400">暂无合成记录</p>
-                </div>
-              )}
-              
-              {/* 分页 */}
-              {pagination && pagination.total_pages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
-                  >
-                    上一页
-                  </button>
-                  <span className="px-3 py-1 text-sm">
-                    {currentPage} / {pagination.total_pages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(Math.min(pagination.total_pages, currentPage + 1))}
-                    disabled={currentPage === pagination.total_pages}
-                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
-                  >
-                    下一页
-                  </button>
-                </div>
-              )}
-            </div>
-          </PixelCard>
-        )}
-        
-        {/* 统计数据标签页 */}
-        {activeTab === 'stats' && (
-          <PixelCard className="p-4">
-            {statsLoading ? (
-              <div className="text-center py-8">
-                <p className="text-gray-400">加载统计数据...</p>
-              </div>
-            ) : stats ? (
-              <div className="space-y-4">
-                {/* 总体统计 */}
-                <div>
-                  <h4 className="font-bold text-sm mb-3 text-yellow-400">📊 合成统计</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div className="bg-gray-900/30 rounded p-2">
-                      <p className="text-xs text-gray-400">历史总计</p>
-                      <p className="text-lg font-bold">{stats.synthesis.total_all_time}</p>
-                    </div>
-                    <div className="bg-gray-900/30 rounded p-2">
-                      <p className="text-xs text-gray-400">本周</p>
-                      <p className="text-lg font-bold text-green-400">{stats.synthesis.total_this_week}</p>
-                    </div>
-                    <div className="bg-gray-900/30 rounded p-2">
-                      <p className="text-xs text-gray-400">本月</p>
-                      <p className="text-lg font-bold text-blue-400">{stats.synthesis.total_this_month}</p>
-                    </div>
-                    <div className="bg-gray-900/30 rounded p-2">
-                      <p className="text-xs text-gray-400">日均</p>
-                      <p className="text-lg font-bold text-purple-400">{stats.synthesis.average_per_day.toFixed(1)}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* 工具统计 */}
-                <div>
-                  <h4 className="font-bold text-sm mb-3 text-purple-400">⚒️ 工具分布</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {stats.tools.by_type.map((item) => (
-                      <div key={item.tool_type} className="bg-gray-900/30 rounded p-2 text-center">
-                        <span className="text-lg">
-                          {item.tool_type === 'pickaxe' ? '⛏️' :
-                           item.tool_type === 'axe' ? '🪓' : '🌾'}
-                        </span>
-                        <p className="text-xs text-gray-400 mt-1">{TOOL_TYPE_MAP[item.tool_type as keyof typeof TOOL_TYPE_MAP]}</p>
-                        <p className="font-bold">{item.count}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* 品质分布 */}
-                <div>
-                  <h4 className="font-bold text-sm mb-3 text-blue-400">💎 品质分布</h4>
-                  <div className="space-y-2">
-                    {stats.tools.by_quality.map((item) => {
-                      const config = QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG]
-                      if (!config) return null
-                      const percentage = stats.tools.total > 0 
-                        ? (item.count / stats.tools.total * 100).toFixed(1)
-                        : '0'
-                      
-                      return (
-                        <div key={item.quality} className="flex items-center gap-2">
-                          <span className={`text-xs w-12 ${config.color}`}>{config.name}</span>
-                          <div className="flex-1 bg-gray-800 rounded-full h-4 relative overflow-hidden">
-                            <div 
-                              className={`h-full ${config.bgColor} transition-all`}
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-xs w-16 text-right">{item.count} ({percentage}%)</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-                
-                {/* 幸运合成 */}
-                {stats.lucky_synthesis && (
-                  <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded p-3">
-                    <h4 className="font-bold text-sm mb-2 text-yellow-400">🍀 最幸运的合成</h4>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm">
-                          {QUALITY_CONFIG[stats.lucky_synthesis.quality as keyof typeof QUALITY_CONFIG]?.name} 
-                          {' '}
-                          {TOOL_TYPE_MAP[stats.lucky_synthesis.tool_type as keyof typeof TOOL_TYPE_MAP]}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          概率: {stats.lucky_synthesis.probability}
-                        </p>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        {format(new Date(stats.lucky_synthesis.date), 'MM-dd', { locale: zhCN })}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* 成就系统 */}
-                {stats.achievements && stats.achievements.length > 0 && (
-                  <div>
-                    <h4 className="font-bold text-sm mb-3 text-green-400">🏆 成就</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {stats.achievements.slice(0, 6).map((achievement, index) => (
-                        <div 
-                          key={index} 
-                          className={`p-2 rounded border ${
-                            achievement.unlocked 
-                              ? 'bg-green-900/20 border-green-600' 
-                              : 'bg-gray-900/20 border-gray-700 opacity-50'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <span className="text-lg">{achievement.unlocked ? '✅' : '🔒'}</span>
-                            <div className="flex-1">
-                              <p className="text-xs font-bold">{achievement.name}</p>
-                              <p className="text-xs text-gray-400">{achievement.description}</p>
-                              {achievement.progress && (
-                                <p className="text-xs text-green-400 mt-1">进度: {achievement.progress}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-400">暂无统计数据</p>
-              </div>
-            )}
-          </PixelCard>
         )}
       </div>
     </div>
   )
 }
 
-/**
- * 快捷数量选择组件
- */
-function QuickAmountSelector({ 
-  value, 
-  onChange, 
-  max, 
-  presets = [1, 5, 10] 
-}: {
+// 快捷数量选择组件
+function QuickAmountSelector(props: { 
   value: number
   onChange: (value: number) => void
   max: number
   presets?: number[]
 }) {
+  const { value, onChange, max, presets = [1, 5, 10] } = props
+  
   return (
     <div className="space-y-2">
       <div className="flex gap-1">
@@ -416,9 +145,7 @@ function QuickAmountSelector({
   )
 }
 
-/**
- * 合成系统主组件
- */
+// 合成系统主组件
 export function SynthesisSystem({ className = '', isMobile = false }: SynthesisSystemProps) {
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
@@ -450,6 +177,31 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
   } = useSynthesisSystem({
     enabled: hasMiningAccess,
     autoRefresh: false
+  })
+  
+  // 使用历史记录 Hook
+  const {
+    history,
+    pagination,
+    statistics,
+    loading: historyLoading,
+    refetch: refetchHistory
+  } = useSynthesisHistory({
+    type: historyFilter,
+    page: currentPage,
+    pageSize: 10,
+    enabled: hasMiningAccess && activeTab === 'history'
+  })
+  
+  // 使用统计 Hook
+  const {
+    stats,
+    loading: statsLoading,
+    refetch: refetchStats
+  } = useSynthesisStats({
+    enabled: hasMiningAccess && activeTab === 'stats',
+    autoRefresh: true,
+    refreshInterval: 300000
   })
   
   // 计算当前选中工具的消耗
@@ -497,8 +249,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     })
     
     if (result) {
-      setToolQuantity(1) // 重置数量
-      // 刷新历史记录
+      setToolQuantity(1)
       if (activeTab === 'history') {
         refetchHistory()
       }
@@ -521,8 +272,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     const result = await synthesizeBricks(brickBatches)
     
     if (result) {
-      setBrickBatches(1) // 重置数量
-      // 刷新历史记录
+      setBrickBatches(1)
       if (activeTab === 'history') {
         refetchHistory()
       }
@@ -573,7 +323,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     )
   }
   
-  // 有权限，显示合成系统
+  // 渲染主界面
   return (
     <div className={className}>
       <div className="space-y-4">
@@ -652,7 +402,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
           </button>
         </div>
         
-        {/* 合成工坊标签页 */}
+        {/* 内容区域 */}
         {activeTab === 'synthesis' && (
           <>
             {/* 子标签页切换 */}
@@ -681,207 +431,227 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             
             {/* 工具合成内容 */}
             {synthTab === 'tools' && (
-          <PixelCard className="p-4">
-            {/* 工具选择 */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
-                const recipe = recipes[tool]
-                const maxCount = calculateMaxSynthesizable(tool)
-                const isSelected = selectedTool === tool
-                
-                return (
-                  <button
-                    key={tool}
-                    onClick={() => {
-                      setSelectedTool(tool)
-                      setToolQuantity(1)
-                    }}
-                    className={`p-3 rounded transition-all border-2 ${
-                      isSelected
-                        ? 'bg-purple-900/40 border-purple-400 transform scale-105'
-                        : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
-                    <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
-                    <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      可合成: {maxCount}
-                    </p>
-                  </button>
-                )
-              })}
-            </div>
-            
-            {/* 配方详情和合成操作 */}
-            {selectedTool && recipes[selectedTool] && (
-              <div className="space-y-4">
-                {/* 配方信息 */}
-                <div className="p-3 bg-gray-900/30 rounded">
-                  <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-bold text-sm flex items-center gap-2">
-                      {TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
-                    </h5>
-                    <span className="text-xs text-yellow-400">
-                      耐久: {recipes[selectedTool].durability}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-3">
-                    {TOOL_USAGE_MAP[selectedTool]}
-                  </p>
-                  
-                  {/* 材料需求 */}
-                  <div className="space-y-2">
-                    {toolConsumption && (
-                      <>
-                        {toolConsumption.iron > 0 && (
-                          <ResourceDisplay
-                            type="iron"
-                            amount={userResources.iron || 0}
-                            required={toolConsumption.iron}
-                            showRequired
-                          />
-                        )}
-                        {toolConsumption.wood > 0 && (
-                          <ResourceDisplay
-                            type="wood"
-                            amount={userResources.wood || 0}
-                            required={toolConsumption.wood}
-                            showRequired
-                          />
-                        )}
-                        {toolConsumption.stone > 0 && (
-                          <ResourceDisplay
-                            type="stone"
-                            amount={userResources.stone || 0}
-                            required={toolConsumption.stone}
-                            showRequired
-                          />
-                        )}
-                        {toolConsumption.yld > 0 && (
-                          <ResourceDisplay
-                            type="yld"
-                            amount={userResources.yld || 0}
-                            required={toolConsumption.yld}
-                            showRequired
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
+              <PixelCard className="p-4">
+                {/* 工具选择 */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
+                    const recipe = recipes[tool]
+                    const maxCount = calculateMaxSynthesizable(tool)
+                    const isSelected = selectedTool === tool
+                    
+                    return (
+                      <button
+                        key={tool}
+                        onClick={() => {
+                          setSelectedTool(tool)
+                          setToolQuantity(1)
+                        }}
+                        className={`p-3 rounded transition-all border-2 ${
+                          isSelected
+                            ? 'bg-purple-900/40 border-purple-400 transform scale-105'
+                            : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
+                        <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
+                        <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          可合成: {maxCount}
+                        </p>
+                      </button>
+                    )
+                  })}
                 </div>
                 
-                {/* 数量选择 */}
-                <div>
-                  <label className="text-sm font-bold text-gray-300 mb-2 block">
-                    合成数量
-                  </label>
-                  <QuickAmountSelector
-                    value={toolQuantity}
-                    onChange={setToolQuantity}
-                    max={calculateMaxSynthesizable(selectedTool)}
-                    presets={[1, 5, 10]}
-                  />
-                </div>
-                
-                {/* 合成按钮 */}
-                <PixelButton
-                  onClick={handleSynthesizeTool}
-                  disabled={synthesizing || calculateMaxSynthesizable(selectedTool) === 0 || toolQuantity === 0}
-                  variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
-                  className="w-full"
-                >
-                  {synthesizing 
-                    ? '合成中...' 
-                    : `合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}`
-                  }
-                </PixelButton>
-              </div>
-            )}
-          </PixelCard>
+                {/* 配方详情和合成操作 */}
+                {selectedTool && recipes[selectedTool] && (
+                  <div className="space-y-4">
+                    {/* 配方信息 */}
+                    <div className="p-3 bg-gray-900/30 rounded">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-bold text-sm flex items-center gap-2">
+                          {TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
+                        </h5>
+                        <span className="text-xs text-yellow-400">
+                          耐久: {recipes[selectedTool].durability}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">
+                        {TOOL_USAGE_MAP[selectedTool]}
+                      </p>
+                      
+                      {/* 材料需求 */}
+                      <div className="space-y-2">
+                        {toolConsumption && (
+                          <>
+                            {toolConsumption.iron > 0 && (
+                              <ResourceDisplay
+                                type="iron"
+                                amount={userResources.iron || 0}
+                                required={toolConsumption.iron}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.wood > 0 && (
+                              <ResourceDisplay
+                                type="wood"
+                                amount={userResources.wood || 0}
+                                required={toolConsumption.wood}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.stone > 0 && (
+                              <ResourceDisplay
+                                type="stone"
+                                amount={userResources.stone || 0}
+                                required={toolConsumption.stone}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.yld > 0 && (
+                              <ResourceDisplay
+                                type="yld"
+                                amount={userResources.yld || 0}
+                                required={toolConsumption.yld}
+                                showRequired
+                              />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* 数量选择 */}
+                    <div>
+                      <label className="text-sm font-bold text-gray-300 mb-2 block">
+                        合成数量
+                      </label>
+                      <QuickAmountSelector
+                        value={toolQuantity}
+                        onChange={setToolQuantity}
+                        max={calculateMaxSynthesizable(selectedTool)}
+                        presets={[1, 5, 10]}
+                      />
+                    </div>
+                    
+                    {/* 合成按钮 */}
+                    <PixelButton
+                      onClick={handleSynthesizeTool}
+                      disabled={synthesizing || calculateMaxSynthesizable(selectedTool) === 0 || toolQuantity === 0}
+                      variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
+                      className="w-full"
+                    >
+                      {synthesizing 
+                        ? '合成中...' 
+                        : `合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}`
+                      }
+                    </PixelButton>
+                  </div>
+                )}
+              </PixelCard>
             )}
             
             {/* 砖头合成内容 */}
             {synthTab === 'bricks' && (
-          <PixelCard className="p-4">
-            {recipes.brick ? (
-              <div className="space-y-4">
-                {/* 砖头图标和说明 */}
-                <div className="text-center py-4">
-                  <div className="text-5xl mb-2">🧱</div>
-                  <h4 className="font-bold text-lg mb-1">砖头合成</h4>
-                  <p className="text-sm text-gray-400">
-                    建筑材料，用于建造和升级建筑
-                  </p>
-                </div>
-                
-                {/* 配方信息 */}
-                <div className="p-3 bg-gray-900/30 rounded">
-                  <h5 className="font-bold text-sm mb-3">每批次配方</h5>
-                  <div className="space-y-2">
-                    {brickConsumption && (
-                      <>
-                        <ResourceDisplay
-                          type="stone"
-                          amount={userResources.stone || 0}
-                          required={brickConsumption.stone}
-                          showRequired
-                        />
-                        <ResourceDisplay
-                          type="wood"
-                          amount={userResources.wood || 0}
-                          required={brickConsumption.wood}
-                          showRequired
-                        />
-                        <ResourceDisplay
-                          type="yld"
-                          amount={userResources.yld || 0}
-                          required={brickConsumption.yld}
-                          showRequired
-                        />
-                      </>
-                    )}
+              <PixelCard className="p-4">
+                {recipes.brick ? (
+                  <div className="space-y-4">
+                    {/* 砖头图标和说明 */}
+                    <div className="text-center py-4">
+                      <div className="text-5xl mb-2">🧱</div>
+                      <h4 className="font-bold text-lg mb-1">砖头合成</h4>
+                      <p className="text-sm text-gray-400">
+                        建筑材料，用于建造和升级建筑
+                      </p>
+                    </div>
+                    
+                    {/* 配方信息 */}
+                    <div className="p-3 bg-gray-900/30 rounded">
+                      <h5 className="font-bold text-sm mb-3">每批次配方</h5>
+                      <div className="space-y-2">
+                        {brickConsumption && (
+                          <>
+                            <ResourceDisplay
+                              type="stone"
+                              amount={userResources.stone || 0}
+                              required={brickConsumption.stone}
+                              showRequired
+                            />
+                            <ResourceDisplay
+                              type="wood"
+                              amount={userResources.wood || 0}
+                              required={brickConsumption.wood}
+                              showRequired
+                            />
+                            <ResourceDisplay
+                              type="yld"
+                              amount={userResources.yld || 0}
+                              required={brickConsumption.yld}
+                              showRequired
+                            />
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-3 p-2 bg-green-900/30 rounded">
+                        <p className="text-sm text-green-400 font-bold text-center">
+                          产出: {brickConsumption?.output || 0} 个砖头
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* 批次选择 */}
+                    <div>
+                      <label className="text-sm font-bold text-gray-300 mb-2 block">
+                        合成批次
+                      </label>
+                      <QuickAmountSelector
+                        value={brickBatches}
+                        onChange={setBrickBatches}
+                        max={calculateMaxSynthesizable('brick')}
+                        presets={[1, 5, 10]}
+                      />
+                      <p className="text-xs text-gray-400 mt-2 text-center">
+                        将产出 {brickConsumption?.output || 0} 个砖头
+                      </p>
+                    </div>
+                    
+                    {/* 合成按钮 */}
+                    <PixelButton
+                      onClick={handleSynthesizeBricks}
+                      disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
+                      variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
+                      className="w-full"
+                    >
+                      {synthesizing 
+                        ? '合成中...' 
+                        : `合成 ${brickConsumption?.output || 0} 个砖头`
+                      }
+                    </PixelButton>
                   </div>
-                  <div className="mt-3 p-2 bg-green-900/30 rounded">
-                    <p className="text-sm text-green-400 font-bold text-center">
-                      产出: {brickConsumption?.output || 0} 个砖头
-                    </p>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">砖头配方加载中...</p>
                   </div>
-                </div>
-                
-                {/* 批次选择 */}
-                <div>
-                  <label className="text-sm font-bold text-gray-300 mb-2 block">
-                    合成批次
-                  </label>
-                  <QuickAmountSelector
-                    value={brickBatches}
-                    onChange={setBrickBatches}
-                    max={calculateMaxSynthesizable('brick')}
-                    presets={[1, 5, 10]}
-                  />
-                  <p className="text-xs text-gray-400 mt-2 text-center">
-                    将产出 {brickConsumption?.output || 0} 个砖头
-                  </p>
-                </div>
-                
-                {/* 合成按钮 */}
-                <PixelButton
-                  onClick={handleSynthesizeBricks}
-                  disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
-                  variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
-                  className="w-full"
-                >
-                  {synthesizing 
-                    ? '合成中...' 
-                    : `合成 ${brickConsumption?.output || 0} 个砖头`
-                  }
-                </PixelButton>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-400">砖头配方加载中...</p>
-              </div>
+                )}
+              </PixelCard>
             )}
+          </>
+        )}
+        
+        {/* 历史记录标签页内容 - 简化版 */}
+        {activeTab === 'history' && (
+          <PixelCard className="p-4">
+            <div className="text-center py-8">
+              <p className="text-gray-400">历史记录功能开发中...</p>
+            </div>
+          </PixelCard>
+        )}
+        
+        {/* 统计数据标签页内容 - 简化版 */}
+        {activeTab === 'stats' && (
+          <PixelCard className="p-4">
+            <div className="text-center py-8">
+              <p className="text-gray-400">统计功能开发中...</p>
+            </div>
           </PixelCard>
         )}
         
