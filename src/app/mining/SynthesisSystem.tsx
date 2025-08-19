@@ -1,31 +1,33 @@
 // src/app/mining/SynthesisSystem.tsx
-// 合成系统组件 - v2.0.0 更新版
+// 合成系统组件 - v2.1.0 优化版
 // 
 // 功能说明：
 // 1. 工具合成功能（镐头、斧头、锄头）
 // 2. 砖头合成功能
 // 3. 显示合成配方和价格信息
 // 4. 实时显示用户资源
-// 5. 支持批量合成
+// 5. 支持批量合成和快捷操作
+// 6. 响应式设计，完美适配移动端
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
-// - 使用 ./ToolManagement 组件
-// - 使用 @/hooks/useSynthesis (新的独立 Hooks)
-// - 使用 @/lib/api/synthesisApi (新的独立 API)
+// - 使用 @/hooks/useSynthesis (独立 Hooks)
+// - 使用 @/lib/api/synthesisApi (独立 API)
 // - 使用 @/components/shared 系列组件
 // 
 // 创建时间：2024-12
 // 更新历史：
-// - 2024-12-26: 更新至 v2.0.0
-//   * 使用独立的合成系统 API 和 Hooks
-//   * 适配新的 API 响应格式
-//   * 增加砖头合成功能
-//   * 改进错误处理和用户体验
+// - 2024-12-26 v2.0.0: 适配新 API
+// - 2024-12-26 v2.1.0: 优化UI/UX设计
+//   * 改进响应式布局
+//   * 优化交互流程
+//   * 增加快捷操作按钮
+//   * 改进视觉层次
+//   * 增加加载和空状态处理
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
@@ -37,13 +39,129 @@ interface SynthesisSystemProps {
   isMobile?: boolean
 }
 
+// 工具图标映射
+const TOOL_ICONS = {
+  pickaxe: '⛏️',
+  axe: '🪓',
+  hoe: '🌾'
+} as const
+
+// 资源图标和颜色映射
+const RESOURCE_CONFIG = {
+  wood: { icon: '🪵', color: 'text-green-400', name: '木材' },
+  iron: { icon: '⚙️', color: 'text-gray-400', name: '铁矿' },
+  stone: { icon: '🪨', color: 'text-blue-400', name: '石材' },
+  yld: { icon: '💎', color: 'text-purple-400', name: 'YLD' },
+  brick: { icon: '🧱', color: 'text-orange-400', name: '砖头' }
+} as const
+
 /**
- * 合成系统组件
- * 提供工具和砖头的合成功能
+ * 资源显示组件
  */
-export function SynthesisSystem({ className, isMobile = false }: SynthesisSystemProps) {
+function ResourceDisplay({ 
+  type, 
+  amount, 
+  required, 
+  showRequired = false 
+}: { 
+  type: keyof typeof RESOURCE_CONFIG
+  amount: number
+  required?: number
+  showRequired?: boolean
+}) {
+  const config = RESOURCE_CONFIG[type]
+  const isInsufficient = showRequired && required && amount < required
+  
+  return (
+    <div className="flex items-center justify-between p-2 bg-gray-900/30 rounded">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{config.icon}</span>
+        <span className="text-xs text-gray-400">{config.name}</span>
+      </div>
+      <div className="text-right">
+        <div className={`font-bold ${isInsufficient ? 'text-red-400' : config.color}`}>
+          {type === 'yld' ? amount.toFixed(4) : amount.toFixed(2)}
+        </div>
+        {showRequired && required !== undefined && (
+          <div className="text-xs text-gray-500">
+            需要: {type === 'yld' ? required.toFixed(4) : required.toFixed(2)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 快捷数量选择组件
+ */
+function QuickAmountSelector({ 
+  value, 
+  onChange, 
+  max, 
+  presets = [1, 5, 10] 
+}: {
+  value: number
+  onChange: (value: number) => void
+  max: number
+  presets?: number[]
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        {presets.map(preset => (
+          <button
+            key={preset}
+            onClick={() => onChange(Math.min(preset, max))}
+            disabled={preset > max}
+            className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
+              value === preset 
+                ? 'bg-purple-600 text-white' 
+                : preset <= max
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+            }`}
+          >
+            {preset}
+          </button>
+        ))}
+        <button
+          onClick={() => onChange(max)}
+          disabled={max === 0}
+          className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
+            value === max 
+              ? 'bg-purple-600 text-white' 
+              : max > 0
+                ? 'bg-blue-700 text-blue-300 hover:bg-blue-600'
+                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          最大
+        </button>
+      </div>
+      <input
+        type="number"
+        min="1"
+        max={max}
+        value={value}
+        onChange={(e) => {
+          const val = parseInt(e.target.value) || 1
+          onChange(Math.min(Math.max(1, val), max))
+        }}
+        className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white text-sm"
+        placeholder="自定义数量"
+      />
+    </div>
+  )
+}
+
+/**
+ * 合成系统主组件
+ */
+export function SynthesisSystem({ className = '', isMobile = false }: SynthesisSystemProps) {
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'tools' | 'bricks'>('tools')
   const [selectedTool, setSelectedTool] = useState<'pickaxe' | 'axe' | 'hoe'>('pickaxe')
   const [toolQuantity, setToolQuantity] = useState(1)
   const [brickBatches, setBrickBatches] = useState(1)
@@ -58,7 +176,6 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
   const {
     recipes,
     userResources,
-    materialPrices,
     loading,
     synthesizing,
     error,
@@ -70,6 +187,32 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
     enabled: hasMiningAccess,
     autoRefresh: false
   })
+  
+  // 计算当前选中工具的消耗
+  const toolConsumption = useMemo(() => {
+    const recipe = recipes[selectedTool]
+    if (!recipe) return null
+    
+    return {
+      iron: (recipe.materials.iron || 0) * toolQuantity,
+      wood: (recipe.materials.wood || 0) * toolQuantity,
+      stone: (recipe.materials.stone || 0) * toolQuantity,
+      yld: (recipe.yld_cost || 0) * toolQuantity
+    }
+  }, [selectedTool, toolQuantity, recipes])
+  
+  // 计算砖头合成的消耗
+  const brickConsumption = useMemo(() => {
+    const recipe = recipes.brick
+    if (!recipe) return null
+    
+    return {
+      stone: (recipe.materials.stone || 0) * brickBatches,
+      wood: (recipe.materials.wood || 0) * brickBatches,
+      yld: (recipe.yld_cost || 0) * brickBatches,
+      output: (recipe.output_per_batch || 100) * brickBatches
+    }
+  }, [brickBatches, recipes])
   
   // 处理工具合成
   const handleSynthesizeTool = async () => {
@@ -84,10 +227,14 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
       return
     }
     
-    await synthesizeTool({
+    const result = await synthesizeTool({
       tool_type: selectedTool,
       quantity: toolQuantity
     })
+    
+    if (result) {
+      setToolQuantity(1) // 重置数量
+    }
   }
   
   // 处理砖头合成
@@ -97,19 +244,17 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
       return
     }
     
-    const brickRecipe = recipes.brick
-    if (!brickRecipe) {
-      toast.error('砖头配方不可用')
-      return
-    }
-    
     const maxBatches = calculateMaxSynthesizable('brick')
     if (brickBatches > maxBatches) {
       toast.error(`资源不足，最多可合成 ${maxBatches} 批`)
       return
     }
     
-    await synthesizeBricks(brickBatches)
+    const result = await synthesizeBricks(brickBatches)
+    
+    if (result) {
+      setBrickBatches(1) // 重置数量
+    }
   }
   
   // 如果没有权限
@@ -118,8 +263,9 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
       <div className={className}>
         <PixelCard className="text-center py-8 sm:py-12">
           <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
+          <h3 className="text-lg sm:text-xl font-bold mb-2">合成系统</h3>
           <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">
-            合成系统需要内测权限
+            需要内测权限才能使用
           </p>
           <PixelButton 
             size={isMobile ? "sm" : "md"} 
@@ -129,7 +275,6 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
           </PixelButton>
         </PixelCard>
         
-        {/* 内测密码模态框 */}
         <BetaPasswordModal
           isOpen={showBetaModal}
           onClose={() => setShowBetaModal(false)}
@@ -144,192 +289,300 @@ export function SynthesisSystem({ className, isMobile = false }: SynthesisSystem
     )
   }
   
+  // 加载状态
+  if (loading && !recipes.pickaxe) {
+    return (
+      <div className={className}>
+        <PixelCard className="text-center py-8">
+          <div className="text-2xl mb-2">⏳</div>
+          <p className="text-gray-400">加载合成配方中...</p>
+        </PixelCard>
+      </div>
+    )
+  }
+  
   // 有权限，显示合成系统
   return (
     <div className={className}>
       <div className="space-y-4">
-        {/* 系统说明 */}
-        <PixelCard className="p-4 bg-purple-900/20">
-          <h3 className="font-bold text-lg mb-2 text-purple-400">🔨 合成系统</h3>
-          <p className="text-sm text-gray-400">
-            使用资源合成各种工具和材料，提升生产效率
-          </p>
-        </PixelCard>
-        
-        {/* 资源显示 */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <PixelCard className="p-3 text-center">
-            <p className="text-xs text-gray-400">木材</p>
-            <p className="text-lg font-bold text-green-400">
-              {userResources?.wood?.toFixed(2) || '0.00'}
-            </p>
-          </PixelCard>
-          <PixelCard className="p-3 text-center">
-            <p className="text-xs text-gray-400">铁矿</p>
-            <p className="text-lg font-bold text-gray-400">
-              {userResources?.iron?.toFixed(2) || '0.00'}
-            </p>
-          </PixelCard>
-          <PixelCard className="p-3 text-center">
-            <p className="text-xs text-gray-400">石材</p>
-            <p className="text-lg font-bold text-blue-400">
-              {userResources?.stone?.toFixed(2) || '0.00'}
-            </p>
-          </PixelCard>
-          <PixelCard className="p-3 text-center">
-            <p className="text-xs text-gray-400">YLD</p>
-            <p className="text-lg font-bold text-purple-400">
-              {userResources?.yld?.toFixed(4) || '0.0000'}
-            </p>
-          </PixelCard>
-          <PixelCard className="p-3 text-center">
-            <p className="text-xs text-gray-400">砖头</p>
-            <p className="text-lg font-bold text-orange-400">
-              {userResources?.brick?.toFixed(0) || '0'}
-            </p>
-          </PixelCard>
-        </div>
-        
-        {/* 工具合成 */}
-        <PixelCard className="p-4">
-          <h4 className="font-bold text-md mb-3 text-yellow-400">⚒️ 工具合成</h4>
-          
-          {/* 工具选择 */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
-              const recipe = recipes[tool]
-              const maxCount = calculateMaxSynthesizable(tool)
-              
-              return (
-                <PixelCard
-                  key={tool}
-                  className={`p-3 cursor-pointer transition-all ${
-                    selectedTool === tool 
-                      ? 'bg-purple-900/40 border-purple-400' 
-                      : 'bg-gray-900/20 hover:bg-gray-900/40'
-                  }`}
-                  onClick={() => setSelectedTool(tool)}
-                >
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">
-                      {tool === 'pickaxe' ? '⛏️' : tool === 'axe' ? '🪓' : '🔨'}
-                    </div>
-                    <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      可合成: {maxCount}
-                    </p>
-                  </div>
-                </PixelCard>
-              )
-            })}
-          </div>
-          
-          {/* 选中工具的配方信息 */}
-          {selectedTool && recipes[selectedTool] && (
-            <div className="mb-4 p-3 bg-gray-900/30 rounded">
-              <p className="text-sm font-bold mb-2">{TOOL_TYPE_MAP[selectedTool]}配方：</p>
-              <div className="text-xs text-gray-400 space-y-1">
-                {recipes[selectedTool].materials.iron && (
-                  <p>• 铁矿: {recipes[selectedTool].materials.iron}</p>
-                )}
-                {recipes[selectedTool].materials.wood && (
-                  <p>• 木材: {recipes[selectedTool].materials.wood}</p>
-                )}
-                {recipes[selectedTool].materials.stone && (
-                  <p>• 石材: {recipes[selectedTool].materials.stone}</p>
-                )}
-                <p>• YLD: {recipes[selectedTool].yld_cost}</p>
-                <p className="text-yellow-400 mt-2">
-                  用途: {TOOL_USAGE_MAP[selectedTool]}
-                </p>
-                <p className="text-blue-400">
-                  耐久度: {recipes[selectedTool].durability}
-                </p>
-              </div>
+        {/* 头部信息 */}
+        <PixelCard className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-lg mb-1 text-purple-400">🔨 合成工坊</h3>
+              <p className="text-xs sm:text-sm text-gray-400">
+                使用资源合成工具和材料
+              </p>
             </div>
-          )}
-          
-          {/* 数量输入和合成按钮 */}
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min="1"
-              max={calculateMaxSynthesizable(selectedTool)}
-              value={toolQuantity}
-              onChange={(e) => setToolQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className="flex-1 px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white"
-              placeholder="数量"
-            />
             <PixelButton
-              onClick={handleSynthesizeTool}
-              disabled={synthesizing || calculateMaxSynthesizable(selectedTool) === 0}
-              variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
+              onClick={refetch}
+              disabled={loading}
+              variant="secondary"
+              size="sm"
             >
-              {synthesizing ? '合成中...' : '合成工具'}
+              {loading ? '刷新中...' : '🔄 刷新'}
             </PixelButton>
           </div>
         </PixelCard>
         
-        {/* 砖头合成 */}
-        <PixelCard className="p-4">
-          <h4 className="font-bold text-md mb-3 text-orange-400">🧱 砖头合成</h4>
-          
-          {recipes.brick && (
-            <>
-              <div className="mb-4 p-3 bg-gray-900/30 rounded">
-                <p className="text-sm font-bold mb-2">砖头配方（每批）：</p>
-                <div className="text-xs text-gray-400 space-y-1">
-                  <p>• 石材: {recipes.brick.materials.stone}</p>
-                  <p>• 木材: {recipes.brick.materials.wood}</p>
-                  <p>• YLD: {recipes.brick.yld_cost}</p>
-                  <p className="text-green-400 mt-2">
-                    每批产出: {recipes.brick.output_per_batch} 个砖头
-                  </p>
-                  <p className="text-yellow-400">
-                    最多可合成: {calculateMaxSynthesizable('brick')} 批
-                  </p>
+        {/* 资源概览 */}
+        <PixelCard className="p-3">
+          <h4 className="text-sm font-bold mb-3 text-gray-300">📦 我的资源</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {Object.entries(RESOURCE_CONFIG).map(([key, config]) => (
+              <div key={key} className="bg-gray-900/30 rounded p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-sm">{config.icon}</span>
+                  <span className="text-xs text-gray-500">{config.name}</span>
                 </div>
+                <p className={`font-bold text-sm ${config.color}`}>
+                  {key === 'yld' 
+                    ? (userResources[key as keyof typeof userResources] || 0).toFixed(4)
+                    : Math.floor(userResources[key as keyof typeof userResources] || 0)
+                  }
+                </p>
               </div>
-              
-              {/* 批次输入和合成按钮 */}
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  max={calculateMaxSynthesizable('brick')}
-                  value={brickBatches}
-                  onChange={(e) => setBrickBatches(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="flex-1 px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white"
-                  placeholder="批次数量"
-                />
-                <PixelButton
-                  onClick={handleSynthesizeBricks}
-                  disabled={synthesizing || calculateMaxSynthesizable('brick') === 0}
-                  variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
-                >
-                  {synthesizing ? '合成中...' : `合成砖头 (${brickBatches * (recipes.brick?.output_per_batch || 100)}个)`}
-                </PixelButton>
-              </div>
-            </>
-          )}
+            ))}
+          </div>
         </PixelCard>
         
-        {/* 刷新按钮 */}
-        <div className="text-center">
-          <PixelButton
-            onClick={refetch}
-            disabled={loading}
-            variant="secondary"
-            size="sm"
+        {/* 标签页切换 */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('tools')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'tools'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
           >
-            {loading ? '加载中...' : '刷新数据'}
-          </PixelButton>
+            ⚒️ 工具合成
+          </button>
+          <button
+            onClick={() => setActiveTab('bricks')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'bricks'
+                ? 'bg-orange-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            🧱 砖头合成
+          </button>
         </div>
+        
+        {/* 工具合成标签页 */}
+        {activeTab === 'tools' && (
+          <PixelCard className="p-4">
+            {/* 工具选择 */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
+                const recipe = recipes[tool]
+                const maxCount = calculateMaxSynthesizable(tool)
+                const isSelected = selectedTool === tool
+                
+                return (
+                  <button
+                    key={tool}
+                    onClick={() => {
+                      setSelectedTool(tool)
+                      setToolQuantity(1)
+                    }}
+                    className={`p-3 rounded transition-all border-2 ${
+                      isSelected
+                        ? 'bg-purple-900/40 border-purple-400 transform scale-105'
+                        : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
+                    <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
+                    <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      可合成: {maxCount}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+            
+            {/* 配方详情和合成操作 */}
+            {selectedTool && recipes[selectedTool] && (
+              <div className="space-y-4">
+                {/* 配方信息 */}
+                <div className="p-3 bg-gray-900/30 rounded">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-bold text-sm flex items-center gap-2">
+                      {TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
+                    </h5>
+                    <span className="text-xs text-yellow-400">
+                      耐久: {recipes[selectedTool].durability}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">
+                    {TOOL_USAGE_MAP[selectedTool]}
+                  </p>
+                  
+                  {/* 材料需求 */}
+                  <div className="space-y-2">
+                    {toolConsumption && (
+                      <>
+                        {toolConsumption.iron > 0 && (
+                          <ResourceDisplay
+                            type="iron"
+                            amount={userResources.iron || 0}
+                            required={toolConsumption.iron}
+                            showRequired
+                          />
+                        )}
+                        {toolConsumption.wood > 0 && (
+                          <ResourceDisplay
+                            type="wood"
+                            amount={userResources.wood || 0}
+                            required={toolConsumption.wood}
+                            showRequired
+                          />
+                        )}
+                        {toolConsumption.stone > 0 && (
+                          <ResourceDisplay
+                            type="stone"
+                            amount={userResources.stone || 0}
+                            required={toolConsumption.stone}
+                            showRequired
+                          />
+                        )}
+                        {toolConsumption.yld > 0 && (
+                          <ResourceDisplay
+                            type="yld"
+                            amount={userResources.yld || 0}
+                            required={toolConsumption.yld}
+                            showRequired
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                {/* 数量选择 */}
+                <div>
+                  <label className="text-sm font-bold text-gray-300 mb-2 block">
+                    合成数量
+                  </label>
+                  <QuickAmountSelector
+                    value={toolQuantity}
+                    onChange={setToolQuantity}
+                    max={calculateMaxSynthesizable(selectedTool)}
+                    presets={[1, 5, 10]}
+                  />
+                </div>
+                
+                {/* 合成按钮 */}
+                <PixelButton
+                  onClick={handleSynthesizeTool}
+                  disabled={synthesizing || calculateMaxSynthesizable(selectedTool) === 0 || toolQuantity === 0}
+                  variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
+                  className="w-full"
+                >
+                  {synthesizing 
+                    ? '合成中...' 
+                    : `合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}`
+                  }
+                </PixelButton>
+              </div>
+            )}
+          </PixelCard>
+        )}
+        
+        {/* 砖头合成标签页 */}
+        {activeTab === 'bricks' && (
+          <PixelCard className="p-4">
+            {recipes.brick ? (
+              <div className="space-y-4">
+                {/* 砖头图标和说明 */}
+                <div className="text-center py-4">
+                  <div className="text-5xl mb-2">🧱</div>
+                  <h4 className="font-bold text-lg mb-1">砖头合成</h4>
+                  <p className="text-sm text-gray-400">
+                    建筑材料，用于建造和升级建筑
+                  </p>
+                </div>
+                
+                {/* 配方信息 */}
+                <div className="p-3 bg-gray-900/30 rounded">
+                  <h5 className="font-bold text-sm mb-3">每批次配方</h5>
+                  <div className="space-y-2">
+                    {brickConsumption && (
+                      <>
+                        <ResourceDisplay
+                          type="stone"
+                          amount={userResources.stone || 0}
+                          required={brickConsumption.stone}
+                          showRequired
+                        />
+                        <ResourceDisplay
+                          type="wood"
+                          amount={userResources.wood || 0}
+                          required={brickConsumption.wood}
+                          showRequired
+                        />
+                        <ResourceDisplay
+                          type="yld"
+                          amount={userResources.yld || 0}
+                          required={brickConsumption.yld}
+                          showRequired
+                        />
+                      </>
+                    )}
+                  </div>
+                  <div className="mt-3 p-2 bg-green-900/30 rounded">
+                    <p className="text-sm text-green-400 font-bold text-center">
+                      产出: {brickConsumption?.output || 0} 个砖头
+                    </p>
+                  </div>
+                </div>
+                
+                {/* 批次选择 */}
+                <div>
+                  <label className="text-sm font-bold text-gray-300 mb-2 block">
+                    合成批次
+                  </label>
+                  <QuickAmountSelector
+                    value={brickBatches}
+                    onChange={setBrickBatches}
+                    max={calculateMaxSynthesizable('brick')}
+                    presets={[1, 5, 10]}
+                  />
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    将产出 {brickConsumption?.output || 0} 个砖头
+                  </p>
+                </div>
+                
+                {/* 合成按钮 */}
+                <PixelButton
+                  onClick={handleSynthesizeBricks}
+                  disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
+                  variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
+                  className="w-full"
+                >
+                  {synthesizing 
+                    ? '合成中...' 
+                    : `合成 ${brickConsumption?.output || 0} 个砖头`
+                  }
+                </PixelButton>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">砖头配方加载中...</p>
+              </div>
+            )}
+          </PixelCard>
+        )}
         
         {/* 错误提示 */}
         {error && (
-          <PixelCard className="p-3 bg-red-900/20 border-red-500">
-            <p className="text-sm text-red-400">{error}</p>
+          <PixelCard className="p-3 bg-red-900/20 border border-red-500/50">
+            <p className="text-sm text-red-400 flex items-center gap-2">
+              <span>⚠️</span>
+              {error}
+            </p>
           </PixelCard>
         )}
       </div>
