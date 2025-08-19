@@ -18,18 +18,15 @@ const sidebarItems = [
     icon: '💰',
     items: [
       { label: '资产总览', href: '/assets', icon: '💎', isActive: true },
-      { label: 'NFT仓库', href: '/assets/nft', icon: '📦', isActive: false },
       { label: '土地资产', href: '/assets/land', icon: '🏞️', isActive: true },
-      { label: '工具背包', href: '/assets/tools', icon: '🎒', isActive: false },
-      { label: '矿产仓库', href: '/assets/inventory', icon: '⛏️', isActive: false },
     ]
   },
   {
     title: '我的业务',
     icon: '💼',
     items: [
-      { label: '挖矿中心', href: 'https://www.pxsj.net.cn/mining', icon: '⛏️', isActive: true, isExternal: true },
-      { label: '交易市场', href: 'https://www.pxsj.net.cn/market', icon: '🛒', isActive: true, isExternal: true },
+      { label: '挖矿中心', href: '/mining', icon: '⛏️', isActive: true, isExternal: true },
+      { label: '交易市场', href: '/market', icon: '🛒', isActive: true, isExternal: true },
       { label: '我的商店', href: '/shop', icon: '🏪', isActive: false },
     ]
   },
