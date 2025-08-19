@@ -357,19 +357,19 @@ export interface SynthesisHistoryResponse {
       page_size: number
       total_pages: number
     }
-    statistics: {
+    statistics?: {
       total_synthesis: number
       tools_crafted: number
       bricks_crafted: number
       total_yld_consumed: number
-      quality_distribution: {
-        common: number
-        uncommon: number
-        rare: number
-        epic: number
-        legendary: number
+      quality_distribution?: {
+        common?: number
+        uncommon?: number
+        rare?: number
+        epic?: number
+        legendary?: number
       }
-      luck_score: number
+      luck_score?: number
     }
   }
 }
