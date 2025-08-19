@@ -48,7 +48,7 @@ const TOKEN_CONFIG = {
     color: 'from-yellow-500 to-orange-500',
     textColor: 'text-yellow-400',
     description: '稳定交易通证',
-    features: ['游戏内通用货币', '可兑换现实资产']
+    features: ['1:1锚定美元', '游戏内通用货币', '可兑换现实资产']
   },
   yld: {
     name: '陨石通证',
@@ -411,7 +411,7 @@ export default function AssetsPage() {
         </div>
         <div className="bg-gradient-to-br from-purple-900/20 to-purple-900/10 rounded-lg p-3 border border-purple-900/30">
           <p className="text-xs text-purple-400 mb-1">材料价值</p>
-          <p className="text-xl font-bold">{Math.floor(stats.materialValue)}</p>
+          <p className="text-xl font-bold text-gray-400">待估算</p>
         </div>
         <div className="bg-gradient-to-br from-orange-900/20 to-orange-900/10 rounded-lg p-3 border border-orange-900/30">
           <p className="text-xs text-orange-400 mb-1">活跃度</p>
@@ -582,7 +582,7 @@ export default function AssetsPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">价值</span>
-                      <span className="text-yellow-400">{value.toFixed(2)} TDB</span>
+                      <span className="text-gray-400">待估算</span>
                     </div>
                     <div className="pt-2 border-t border-gray-800">
                       <div className="flex justify-between text-xs text-gray-500">
@@ -637,7 +637,7 @@ export default function AssetsPage() {
                     <div className="pt-2 border-t border-gray-800">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-400">总价值</span>
-                        <span className="text-yellow-400 font-bold">{value.toFixed(2)} TDB</span>
+                        <span className="text-gray-400">待估算</span>
                       </div>
                     </div>
                   </div>
@@ -662,9 +662,7 @@ export default function AssetsPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">价值</span>
-                    <span className="text-yellow-400">
-                      {(inventory.special.brick.value || 0).toFixed(2)} TDB
-                    </span>
+                    <span className="text-gray-400">待估算</span>
                   </div>
                 </div>
               </PixelCard>
