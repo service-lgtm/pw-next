@@ -411,9 +411,150 @@ export function useSynthesisSystem(options?: {
   }
 }
 
+// ==================== 合成历史 Hook ====================
+
+/**
+ * 获取合成历史记录
+ * 
+ * @param options - 配置选项
+ * @returns 历史记录、分页信息、统计数据等
+ */
+export function useSynthesisHistory(options?: {
+  type?: 'all' | 'tool' | 'brick'
+  tool_type?: 'pickaxe' | 'axe' | 'hoe'
+  quality?: string
+  page?: number
+  pageSize?: number
+  enabled?: boolean
+}) {
+  const { 
+    type = 'all', 
+    tool_type, 
+    quality,
+    page = 1,
+    pageSize = 20,
+    enabled = true 
+  } = options || {}
+  
+  const [history, setHistory] = useState<SynthesisHistoryResponse['data'] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const fetchHistory = useCallback(async () => {
+    if (!enabled) return
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await synthesisApi.getHistory({
+        type,
+        tool_type,
+        quality,
+        page,
+        page_size: pageSize
+      })
+      
+      if (response?.success && response?.data) {
+        setHistory(response.data)
+      }
+    } catch (err: any) {
+      console.error('[useSynthesisHistory] Error:', err)
+      setError(err?.message || '获取合成历史失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled, type, tool_type, quality, page, pageSize])
+  
+  useEffect(() => {
+    if (enabled) {
+      fetchHistory()
+    }
+  }, [enabled, type, tool_type, quality, page, pageSize])
+  
+  return {
+    history: history?.history || [],
+    pagination: history?.pagination,
+    statistics: history?.statistics,
+    loading,
+    error,
+    refetch: fetchHistory
+  }
+}
+
+// ==================== 合成统计 Hook ====================
+
+/**
+ * 获取合成统计数据
+ * 
+ * @param options - 配置选项
+ * @returns 统计数据
+ */
+export function useSynthesisStats(options?: {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}) {
+  const { enabled = true, autoRefresh = false, refreshInterval = 300000 } = options || {} // 默认5分钟刷新
+  
+  const [stats, setStats] = useState<SynthesisStatsResponse['data'] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  
+  const fetchStats = useCallback(async () => {
+    if (!enabled) return
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useSynthesisStats] Fetching stats...')
+      const response = await synthesisApi.getStats()
+      console.log('[useSynthesisStats] Response:', response)
+      
+      if (response?.success && response?.data) {
+        setStats(response.data)
+      }
+      
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useSynthesisStats] Error:', err)
+      setError(err?.message || '获取合成统计失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [enabled])
+  
+  // 初始加载
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchStats()
+    }
+  }, [enabled])
+  
+  // 自动刷新
+  useEffect(() => {
+    if (!autoRefresh || !enabled) return
+    
+    const interval = setInterval(fetchStats, refreshInterval)
+    return () => clearInterval(interval)
+  }, [autoRefresh, enabled, refreshInterval, fetchStats])
+  
+  return {
+    stats,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchStats()
+    }
+  }
+}
+
 // ==================== 导出工具函数 ====================
 
-export { TOOL_TYPE_MAP, TOOL_USAGE_MAP } from '@/lib/api/synthesisApi'
+export { TOOL_TYPE_MAP, TOOL_USAGE_MAP, QUALITY_CONFIG } from '@/lib/api/synthesisApi'
 
 // 导出类型
 export type {
