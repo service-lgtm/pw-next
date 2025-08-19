@@ -150,29 +150,34 @@ export function useSynthesizeTool() {
       const response = await synthesisApi.synthesizeTool(data)
       console.log('[useSynthesizeTool] Response:', response)
       
-      if (response?.success) {
-        setLastResult(response.data)
+      // 检查响应格式
+      if (response?.success || response?.data) {
+        const responseData = response.data || response
+        setLastResult(responseData)
         
         // 显示成功消息
-        const toolName = response.data.tool_display || data.tool_type
-        toast.success(`成功合成 ${data.quantity} 个${toolName}！`)
+        const toolName = responseData.tool_display || responseData.tool_type || data.tool_type
+        const quantity = responseData.quantity || data.quantity
+        toast.success(`成功合成 ${quantity} 个${toolName}！`)
         
         // 显示消耗的资源
-        const consumed = response.data.consumed
-        const consumedText = Object.entries(consumed)
-          .filter(([_, value]) => value && value > 0)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ')
-        
-        if (consumedText) {
-          toast.success(`消耗资源：${consumedText}`, {
-            duration: 5000
-          })
+        if (responseData.consumed) {
+          const consumedParts = []
+          if (responseData.consumed.iron) consumedParts.push(`铁矿 ${responseData.consumed.iron}`)
+          if (responseData.consumed.wood) consumedParts.push(`木材 ${responseData.consumed.wood}`)
+          if (responseData.consumed.yld) consumedParts.push(`YLD ${responseData.consumed.yld}`)
+          
+          if (consumedParts.length > 0) {
+            toast.success(`消耗：${consumedParts.join(', ')}`, {
+              duration: 4000,
+              icon: '📦'
+            })
+          }
         }
         
-        return response.data
+        return responseData
       } else {
-        throw new Error(response?.message || '合成失败')
+        throw new Error('合成失败：无效的响应格式')
       }
     } catch (err: any) {
       console.error('[useSynthesizeTool] Error:', err)
