@@ -142,37 +142,101 @@ export function useSynthesizeTool() {
   const [lastResult, setLastResult] = useState<SynthesizeToolResponse['data'] | null>(null)
   
   const synthesize = useCallback(async (data: SynthesizeToolRequest) => {
+    console.log('[useSynthesizeTool] 开始合成:', data)
     setLoading(true)
     setError(null)
     
     try {
-      console.log('[useSynthesizeTool] Synthesizing:', data)
       const response = await synthesisApi.synthesizeTool(data)
-      console.log('[useSynthesizeTool] Response:', response)
+      console.log('[useSynthesizeTool] API响应:', response)
       
-      // 检查响应格式
-      if (response?.success || response?.data) {
-        const responseData = response.data || response
+      // 检查响应格式 - 兼容多种格式
+      let responseData = null
+      let isSuccess = false
+      
+      // 情况1: 标准格式 {success: true, data: {...}}
+      if (response?.success === true && response?.data) {
+        responseData = response.data
+        isSuccess = true
+      }
+      // 情况2: 直接返回数据 {tools: [...], ...}
+      else if (response?.tools && Array.isArray(response.tools)) {
+        responseData = response
+        isSuccess = true
+      }
+      // 情况3: 嵌套在 data 中
+      else if (response?.data?.tools) {
+        responseData = response.data
+        isSuccess = true
+      }
+      
+      if (isSuccess && responseData) {
         setLastResult(responseData)
         
-        // 显示成功消息
-        const toolName = responseData.tool_display || responseData.tool_type || data.tool_type
-        const quantity = responseData.quantity || data.quantity
-        toast.success(`成功合成 ${quantity} 个${toolName}！`)
+        // 提取信息用于提示
+        const toolName = responseData.tool_display || 
+                        responseData.tool_type || 
+                        TOOL_TYPE_MAP[data.tool_type as keyof typeof TOOL_TYPE_MAP] ||
+                        data.tool_type
+        const quantity = responseData.quantity || data.quantity || 1
+        
+        // 确保 toast 被调用
+        const successMessage = `✅ 成功合成 ${quantity} 个${toolName}！`
+        console.log('[useSynthesizeTool] 显示成功提示:', successMessage)
+        
+        // 使用 setTimeout 确保 toast 在下一个事件循环中执行
+        setTimeout(() => {
+          toast.success(successMessage, {
+            duration: 4000,
+            position: 'top-center',
+            style: {
+              background: '#10B981',
+              color: '#fff',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              padding: '16px',
+              borderRadius: '8px',
+            },
+          })
+        }, 0)
         
         // 显示消耗的资源
         if (responseData.consumed) {
           const consumedParts = []
-          if (responseData.consumed.iron) consumedParts.push(`铁矿 ${responseData.consumed.iron}`)
-          if (responseData.consumed.wood) consumedParts.push(`木材 ${responseData.consumed.wood}`)
-          if (responseData.consumed.yld) consumedParts.push(`YLD ${responseData.consumed.yld}`)
+          if (responseData.consumed.iron) {
+            consumedParts.push(`铁矿 ${responseData.consumed.iron.toFixed(2)}`)
+          }
+          if (responseData.consumed.wood) {
+            consumedParts.push(`木材 ${responseData.consumed.wood.toFixed(2)}`)
+          }
+          if (responseData.consumed.yld) {
+            consumedParts.push(`YLD ${responseData.consumed.yld.toFixed(4)}`)
+          }
           
           if (consumedParts.length > 0) {
-            toast.success(`消耗：${consumedParts.join(', ')}`, {
-              duration: 4000,
-              icon: '📦'
-            })
+            const consumedMessage = `📦 消耗：${consumedParts.join(', ')}`
+            console.log('[useSynthesizeTool] 显示消耗提示:', consumedMessage)
+            
+            setTimeout(() => {
+              toast(consumedMessage, {
+                duration: 3000,
+                position: 'top-center',
+                style: {
+                  background: '#1F2937',
+                  color: '#D1D5DB',
+                  fontSize: '14px',
+                  padding: '12px',
+                  borderRadius: '6px',
+                },
+              })
+            }, 500)
           }
+        }
+        
+        // 如果 toast 还是不工作，使用 alert 作为备选
+        if (typeof window !== 'undefined' && !document.querySelector('.react-hot-toast')) {
+          console.warn('[useSynthesizeTool] Toast 可能未正确加载，使用 alert 作为备选')
+          alert(successMessage)
         }
         
         return responseData
@@ -180,27 +244,51 @@ export function useSynthesizeTool() {
         throw new Error('合成失败：无效的响应格式')
       }
     } catch (err: any) {
-      console.error('[useSynthesizeTool] Error:', err)
+      console.error('[useSynthesizeTool] 合成错误:', err)
       
-      // 处理资源不足的错误
-      if (err?.shortage) {
+      let errorMessage = '合成失败'
+      
+      // 处理不同类型的错误
+      if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err?.message) {
+        errorMessage = err.message
+      } else if (err?.shortage) {
         const shortageText = Object.entries(err.shortage)
           .filter(([_, value]) => value && Number(value) > 0)
           .map(([key, value]) => `${key}缺少${value}`)
           .join(', ')
-        
-        const errorMessage = err.message || `资源不足：${shortageText}`
-        setError(errorMessage)
-        toast.error(errorMessage)
-      } else {
-        const errorMessage = err?.message || err?.response?.data?.message || '合成失败'
-        setError(errorMessage)
-        toast.error(errorMessage)
+        errorMessage = `资源不足：${shortageText}`
+      }
+      
+      setError(errorMessage)
+      
+      // 显示错误提示
+      console.log('[useSynthesizeTool] 显示错误提示:', errorMessage)
+      setTimeout(() => {
+        toast.error(errorMessage, {
+          duration: 5000,
+          position: 'top-center',
+          style: {
+            background: '#EF4444',
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '16px',
+            borderRadius: '8px',
+          },
+        })
+      }, 0)
+      
+      // 备选错误提示
+      if (typeof window !== 'undefined' && !document.querySelector('.react-hot-toast')) {
+        alert(`❌ ${errorMessage}`)
       }
       
       throw err
     } finally {
       setLoading(false)
+      console.log('[useSynthesizeTool] 合成流程结束')
     }
   }, [])
   
