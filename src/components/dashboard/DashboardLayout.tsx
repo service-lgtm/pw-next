@@ -25,8 +25,8 @@ const sidebarItems = [
     title: '我的业务',
     icon: '💼',
     items: [
-      { label: '挖矿中心', href: '/mining', icon: '⛏️', isActive: true, isExternal: true },
-      { label: '交易市场', href: '/market', icon: '🛒', isActive: true, isExternal: true },
+      { label: '挖矿中心', href: '/mining', icon: '⛏️', isActive: true,  },
+      { label: '交易市场', href: '/market', icon: '🛒', isActive: true, },
       { label: '我的商店', href: '/shop', icon: '🏪', isActive: false },
     ]
   },
