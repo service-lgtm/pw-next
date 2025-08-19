@@ -1,5 +1,5 @@
 // src/app/mining/SynthesisSystem.tsx
-// 合成系统组件 - v2.1.0 优化版
+// 合成系统组件 - v2.2.0 增强版
 // 
 // 功能说明：
 // 1. 工具合成功能（镐头、斧头、锄头）
@@ -7,7 +7,9 @@
 // 3. 显示合成配方和价格信息
 // 4. 实时显示用户资源
 // 5. 支持批量合成和快捷操作
-// 6. 响应式设计，完美适配移动端
+// 6. 合成历史记录查看
+// 7. 合成统计和成就展示
+// 8. 响应式设计，完美适配移动端
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -19,11 +21,7 @@
 // 更新历史：
 // - 2024-12-26 v2.0.0: 适配新 API
 // - 2024-12-26 v2.1.0: 优化UI/UX设计
-//   * 改进响应式布局
-//   * 优化交互流程
-//   * 增加快捷操作按钮
-//   * 改进视觉层次
-//   * 增加加载和空状态处理
+// - 2024-12-26 v2.2.0: 添加历史记录和统计功能
 
 'use client'
 
@@ -31,8 +29,17 @@ import { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
-import { useSynthesisSystem, TOOL_TYPE_MAP, TOOL_USAGE_MAP } from '@/hooks/useSynthesis'
+import { 
+  useSynthesisSystem, 
+  useSynthesisHistory,
+  useSynthesisStats,
+  TOOL_TYPE_MAP, 
+  TOOL_USAGE_MAP,
+  QUALITY_CONFIG
+} from '@/hooks/useSynthesis'
 import toast from 'react-hot-toast'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 
 interface SynthesisSystemProps {
   className?: string
@@ -86,6 +93,260 @@ function ResourceDisplay({
           <div className="text-xs text-gray-500">
             需要: {type === 'yld' ? required.toFixed(4) : required.toFixed(2)}
           </div>
+            )}
+          </>
+        )}
+        
+        {/* 历史记录标签页 */}
+        {activeTab === 'history' && (
+          <PixelCard className="p-4">
+            <div className="mb-4">
+              <div className="flex gap-2 mb-4">
+                {(['all', 'tool', 'brick'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => {
+                      setHistoryFilter(filter)
+                      setCurrentPage(1)
+                    }}
+                    className={`px-3 py-1 text-xs rounded transition-all ${
+                      historyFilter === filter
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {filter === 'all' ? '全部' : filter === 'tool' ? '工具' : '砖头'}
+                  </button>
+                ))}
+              </div>
+              
+              {/* 统计信息 */}
+              {statistics && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">总合成</p>
+                    <p className="text-lg font-bold">{statistics.total_synthesis}</p>
+                  </div>
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">工具</p>
+                    <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
+                  </div>
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">砖头</p>
+                    <p className="text-lg font-bold text-orange-400">{statistics.bricks_crafted}</p>
+                  </div>
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">幸运值</p>
+                    <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2)}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* 历史记录列表 */}
+              {historyLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">加载中...</p>
+                </div>
+              ) : history.length > 0 ? (
+                <div className="space-y-2">
+                  {history.map((item) => (
+                    <div key={item.id} className="bg-gray-900/30 rounded p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {item.type === 'brick' ? '🧱' : 
+                             item.tool_type === 'pickaxe' ? '⛏️' :
+                             item.tool_type === 'axe' ? '🪓' : '🌾'}
+                          </span>
+                          <span className="font-bold">{item.tool_display || '砖头'}</span>
+                          {item.quality && QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG] && (
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].bgColor
+                            } ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].color}`}>
+                              {QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].name}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {format(new Date(item.created_at), 'MM-dd HH:mm', { locale: zhCN })}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        消耗: 
+                        {item.materials_consumed.iron && ` 铁${item.materials_consumed.iron}`}
+                        {item.materials_consumed.wood && ` 木${item.materials_consumed.wood}`}
+                        {item.materials_consumed.stone && ` 石${item.materials_consumed.stone}`}
+                        {item.materials_consumed.yld && ` YLD${item.materials_consumed.yld}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">暂无合成记录</p>
+                </div>
+              )}
+              
+              {/* 分页 */}
+              {pagination && pagination.total_pages > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
+                  >
+                    上一页
+                  </button>
+                  <span className="px-3 py-1 text-sm">
+                    {currentPage} / {pagination.total_pages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(pagination.total_pages, currentPage + 1))}
+                    disabled={currentPage === pagination.total_pages}
+                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </div>
+          </PixelCard>
+        )}
+        
+        {/* 统计数据标签页 */}
+        {activeTab === 'stats' && (
+          <PixelCard className="p-4">
+            {statsLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">加载统计数据...</p>
+              </div>
+            ) : stats ? (
+              <div className="space-y-4">
+                {/* 总体统计 */}
+                <div>
+                  <h4 className="font-bold text-sm mb-3 text-yellow-400">📊 合成统计</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">历史总计</p>
+                      <p className="text-lg font-bold">{stats.synthesis.total_all_time}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">本周</p>
+                      <p className="text-lg font-bold text-green-400">{stats.synthesis.total_this_week}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">本月</p>
+                      <p className="text-lg font-bold text-blue-400">{stats.synthesis.total_this_month}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">日均</p>
+                      <p className="text-lg font-bold text-purple-400">{stats.synthesis.average_per_day.toFixed(1)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 工具统计 */}
+                <div>
+                  <h4 className="font-bold text-sm mb-3 text-purple-400">⚒️ 工具分布</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {stats.tools.by_type.map((item) => (
+                      <div key={item.tool_type} className="bg-gray-900/30 rounded p-2 text-center">
+                        <span className="text-lg">
+                          {item.tool_type === 'pickaxe' ? '⛏️' :
+                           item.tool_type === 'axe' ? '🪓' : '🌾'}
+                        </span>
+                        <p className="text-xs text-gray-400 mt-1">{TOOL_TYPE_MAP[item.tool_type as keyof typeof TOOL_TYPE_MAP]}</p>
+                        <p className="font-bold">{item.count}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* 品质分布 */}
+                <div>
+                  <h4 className="font-bold text-sm mb-3 text-blue-400">💎 品质分布</h4>
+                  <div className="space-y-2">
+                    {stats.tools.by_quality.map((item) => {
+                      const config = QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG]
+                      if (!config) return null
+                      const percentage = stats.tools.total > 0 
+                        ? (item.count / stats.tools.total * 100).toFixed(1)
+                        : '0'
+                      
+                      return (
+                        <div key={item.quality} className="flex items-center gap-2">
+                          <span className={`text-xs w-12 ${config.color}`}>{config.name}</span>
+                          <div className="flex-1 bg-gray-800 rounded-full h-4 relative overflow-hidden">
+                            <div 
+                              className={`h-full ${config.bgColor} transition-all`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs w-16 text-right">{item.count} ({percentage}%)</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                
+                {/* 幸运合成 */}
+                {stats.lucky_synthesis && (
+                  <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded p-3">
+                    <h4 className="font-bold text-sm mb-2 text-yellow-400">🍀 最幸运的合成</h4>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm">
+                          {QUALITY_CONFIG[stats.lucky_synthesis.quality as keyof typeof QUALITY_CONFIG]?.name} 
+                          {' '}
+                          {TOOL_TYPE_MAP[stats.lucky_synthesis.tool_type as keyof typeof TOOL_TYPE_MAP]}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          概率: {stats.lucky_synthesis.probability}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {format(new Date(stats.lucky_synthesis.date), 'MM-dd', { locale: zhCN })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 成就系统 */}
+                {stats.achievements && stats.achievements.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-sm mb-3 text-green-400">🏆 成就</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {stats.achievements.slice(0, 6).map((achievement, index) => (
+                        <div 
+                          key={index} 
+                          className={`p-2 rounded border ${
+                            achievement.unlocked 
+                              ? 'bg-green-900/20 border-green-600' 
+                              : 'bg-gray-900/20 border-gray-700 opacity-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">{achievement.unlocked ? '✅' : '🔒'}</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-bold">{achievement.name}</p>
+                              <p className="text-xs text-gray-400">{achievement.description}</p>
+                              {achievement.progress && (
+                                <p className="text-xs text-green-400 mt-1">进度: {achievement.progress}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">暂无统计数据</p>
+              </div>
+            )}
+          </PixelCard>
         )}
       </div>
     </div>
@@ -161,10 +422,13 @@ function QuickAmountSelector({
 export function SynthesisSystem({ className = '', isMobile = false }: SynthesisSystemProps) {
   const [hasMiningAccess, setHasMiningAccess] = useState(false)
   const [showBetaModal, setShowBetaModal] = useState(false)
-  const [activeTab, setActiveTab] = useState<'tools' | 'bricks'>('tools')
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'history' | 'stats'>('synthesis')
+  const [synthTab, setSynthTab] = useState<'tools' | 'bricks'>('tools')
   const [selectedTool, setSelectedTool] = useState<'pickaxe' | 'axe' | 'hoe'>('pickaxe')
   const [toolQuantity, setToolQuantity] = useState(1)
   const [brickBatches, setBrickBatches] = useState(1)
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'tool' | 'brick'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
   
   // 检查内测权限
   useEffect(() => {
@@ -234,6 +498,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     
     if (result) {
       setToolQuantity(1) // 重置数量
+      // 刷新历史记录
+      if (activeTab === 'history') {
+        refetchHistory()
+      }
     }
   }
   
@@ -254,6 +522,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     
     if (result) {
       setBrickBatches(1) // 重置数量
+      // 刷新历史记录
+      if (activeTab === 'history') {
+        refetchHistory()
+      }
     }
   }
   
@@ -346,32 +618,69 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
           </div>
         </PixelCard>
         
-        {/* 标签页切换 */}
-        <div className="flex gap-2">
+        {/* 主标签页切换 */}
+        <div className="flex gap-2 mb-4">
           <button
-            onClick={() => setActiveTab('tools')}
+            onClick={() => setActiveTab('synthesis')}
             className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-              activeTab === 'tools'
+              activeTab === 'synthesis'
                 ? 'bg-purple-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            ⚒️ 工具合成
+            🔨 合成工坊
           </button>
           <button
-            onClick={() => setActiveTab('bricks')}
+            onClick={() => setActiveTab('history')}
             className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-              activeTab === 'bricks'
-                ? 'bg-orange-600 text-white'
+              activeTab === 'history'
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            🧱 砖头合成
+            📜 历史记录
+          </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'stats'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            📊 统计数据
           </button>
         </div>
         
-        {/* 工具合成标签页 */}
-        {activeTab === 'tools' && (
+        {/* 合成工坊标签页 */}
+        {activeTab === 'synthesis' && (
+          <>
+            {/* 子标签页切换 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setSynthTab('tools')}
+                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+                  synthTab === 'tools'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ⚒️ 工具合成
+              </button>
+              <button
+                onClick={() => setSynthTab('bricks')}
+                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+                  synthTab === 'bricks'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🧱 砖头合成
+              </button>
+            </div>
+            
+            {/* 工具合成内容 */}
+            {synthTab === 'tools' && (
           <PixelCard className="p-4">
             {/* 工具选择 */}
             <div className="grid grid-cols-3 gap-2 mb-4">
@@ -489,10 +798,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               </div>
             )}
           </PixelCard>
-        )}
-        
-        {/* 砖头合成标签页 */}
-        {activeTab === 'bricks' && (
+            )}
+            
+            {/* 砖头合成内容 */}
+            {synthTab === 'bricks' && (
           <PixelCard className="p-4">
             {recipes.brick ? (
               <div className="space-y-4">
