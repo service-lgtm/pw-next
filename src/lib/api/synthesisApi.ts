@@ -325,6 +325,151 @@ export const TOOL_USAGE_MAP = {
   hoe: '用于农业生产'
 } as const
 
+// ==================== 合成历史和统计 ====================
+
+// 合成历史记录项
+export interface SynthesisHistoryItem {
+  id: number
+  type: 'tool' | 'brick'
+  tool_id?: string
+  tool_type?: string
+  tool_display?: string
+  quality?: string
+  quality_display?: string
+  materials_consumed: {
+    iron?: number
+    wood?: number
+    stone?: number
+    yld?: number
+  }
+  synthesis_mode: string
+  created_at: string
+}
+
+// 合成历史响应
+export interface SynthesisHistoryResponse {
+  success: boolean
+  data: {
+    history: SynthesisHistoryItem[]
+    pagination: {
+      total: number
+      page: number
+      page_size: number
+      total_pages: number
+    }
+    statistics: {
+      total_synthesis: number
+      tools_crafted: number
+      bricks_crafted: number
+      total_yld_consumed: number
+      quality_distribution: {
+        common: number
+        uncommon: number
+        rare: number
+        epic: number
+        legendary: number
+      }
+      luck_score: number
+    }
+  }
+}
+
+// 合成统计响应
+export interface SynthesisStatsResponse {
+  success: boolean
+  data: {
+    tools: {
+      total: number
+      by_type: Array<{ tool_type: string; count: number }>
+      by_quality: Array<{ quality: string; count: number }>
+    }
+    synthesis: {
+      total_all_time: number
+      total_this_week: number
+      total_this_month: number
+      average_per_day: number
+    }
+    yld_consumed: {
+      total: number
+      synthesis_count: number
+      average_per_synthesis: number
+    }
+    materials_consumed: {
+      iron?: number
+      wood?: number
+      stone?: number
+    }
+    lucky_synthesis?: {
+      quality: string
+      tool_type: string
+      date: string
+      probability: string
+    }
+    achievements: Array<{
+      name: string
+      description: string
+      unlocked: boolean
+      progress?: string
+    }>
+  }
+}
+
+// 添加历史和统计接口
+export const synthesisApi = {
+  // ... 原有的接口保持不变 ...
+  synthesizeTool,
+  synthesizeBricks,
+  getRecipes,
+  calculateMaxSynthesizable,
+  validateSynthesis,
+
+  /**
+   * 获取合成历史记录
+   * GET /api/production/synthesis/history/
+   * 
+   * @param params - 查询参数
+   * @returns 合成历史记录
+   */
+  getHistory: async (params?: {
+    type?: 'all' | 'tool' | 'brick'
+    tool_type?: 'pickaxe' | 'axe' | 'hoe'
+    quality?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+    start_date?: string
+    end_date?: string
+    page?: number
+    page_size?: number
+  }): Promise<SynthesisHistoryResponse> => {
+    const response = await request<SynthesisHistoryResponse>(
+      `${API_PREFIX}/synthesis/history/`,
+      { params }
+    )
+    return response
+  },
+
+  /**
+   * 获取合成统计
+   * GET /api/production/synthesis/stats/
+   * 
+   * @returns 合成统计数据
+   */
+  getStats: async (): Promise<SynthesisStatsResponse> => {
+    const response = await request<SynthesisStatsResponse>(
+      `${API_PREFIX}/synthesis/stats/`
+    )
+    return response
+  }
+}
+
+// ==================== 品质配置 ====================
+
+export const QUALITY_CONFIG = {
+  common: { name: '普通', color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+  uncommon: { name: '优秀', color: 'text-green-400', bgColor: 'bg-green-900/20' },
+  rare: { name: '稀有', color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
+  epic: { name: '史诗', color: 'text-purple-400', bgColor: 'bg-purple-900/20' },
+  legendary: { name: '传说', color: 'text-orange-400', bgColor: 'bg-orange-900/20' }
+} as const
+
 // ==================== 导出默认对象 ====================
 
 export default synthesisApi
