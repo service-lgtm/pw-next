@@ -372,7 +372,7 @@ export default function AssetsPage() {
           <PixelButton
             size="sm"
             variant="secondary"
-            onClick={() => router.push('/shop')}
+            onClick={() => window.open('https://www.pxsj.net.cn/shop/tdb', '_blank')}
           >
             商城
           </PixelButton>
