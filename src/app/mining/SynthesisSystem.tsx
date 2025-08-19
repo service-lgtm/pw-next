@@ -350,8 +350,8 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
         {/* 资源概览 */}
         <PixelCard className="p-3">
           <h4 className="text-sm font-bold mb-3 text-gray-300">📦 我的资源</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            {Object.entries(RESOURCE_CONFIG).map(([key, config]) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {Object.entries(RESOURCE_CONFIG).filter(([key]) => key !== 'brick').map(([key, config]) => (
               <div key={key} className="bg-gray-900/30 rounded p-2">
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-sm">{config.icon}</span>
@@ -417,6 +417,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               >
                 ⚒️ 工具合成
               </button>
+              {/* 暂时隐藏砖头合成
               <button
                 onClick={() => setSynthTab('bricks')}
                 className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
@@ -427,6 +428,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               >
                 🧱 砖头合成
               </button>
+              */}
             </div>
             
             {/* 工具合成内容 */}
@@ -550,12 +552,11 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               </PixelCard>
             )}
             
-            {/* 砖头合成内容 */}
+            {/* 砖头合成内容 - 暂时隐藏
             {synthTab === 'bricks' && (
               <PixelCard className="p-4">
                 {recipes.brick ? (
                   <div className="space-y-4">
-                    {/* 砖头图标和说明 */}
                     <div className="text-center py-4">
                       <div className="text-5xl mb-2">🧱</div>
                       <h4 className="font-bold text-lg mb-1">砖头合成</h4>
@@ -564,7 +565,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       </p>
                     </div>
                     
-                    {/* 配方信息 */}
                     <div className="p-3 bg-gray-900/30 rounded">
                       <h5 className="font-bold text-sm mb-3">每批次配方</h5>
                       <div className="space-y-2">
@@ -598,7 +598,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       </div>
                     </div>
                     
-                    {/* 批次选择 */}
                     <div>
                       <label className="text-sm font-bold text-gray-300 mb-2 block">
                         合成批次
@@ -614,7 +613,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       </p>
                     </div>
                     
-                    {/* 合成按钮 */}
                     <PixelButton
                       onClick={handleSynthesizeBricks}
                       disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
@@ -634,6 +632,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                 )}
               </PixelCard>
             )}
+            */}
           </>
         )}
         
@@ -642,11 +641,11 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
           <PixelCard className="p-4">
             <div className="mb-4">
               <div className="flex gap-2 mb-4">
-                {(['all', 'tool', 'brick'] as const).map((filter) => (
+                {(['all', 'tool'] as const).map((filter) => (
                   <button
                     key={filter}
                     onClick={() => {
-                      setHistoryFilter(filter)
+                      setHistoryFilter(filter as 'all' | 'tool' | 'brick')
                       setCurrentPage(1)
                     }}
                     className={`px-3 py-1 text-xs rounded transition-all ${
@@ -655,9 +654,24 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {filter === 'all' ? '全部' : filter === 'tool' ? '工具' : '砖头'}
+                    {filter === 'all' ? '全部' : '工具'}
                   </button>
                 ))}
+                {/* 暂时隐藏砖头筛选
+                <button
+                  onClick={() => {
+                    setHistoryFilter('brick')
+                    setCurrentPage(1)
+                  }}
+                  className={`px-3 py-1 text-xs rounded transition-all ${
+                    historyFilter === 'brick'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  砖头
+                </button>
+                */}
               </div>
               
               {/* 统计信息 */}
@@ -671,10 +685,12 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <p className="text-xs text-gray-400">工具</p>
                     <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
                   </div>
+                  {/* 暂时隐藏砖头统计
                   <div className="bg-gray-900/30 rounded p-2">
                     <p className="text-xs text-gray-400">砖头</p>
                     <p className="text-lg font-bold text-orange-400">{statistics.bricks_crafted}</p>
                   </div>
+                  */}
                   <div className="bg-gray-900/30 rounded p-2">
                     <p className="text-xs text-gray-400">幸运值</p>
                     <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2) || '0.00'}</p>
