@@ -28,6 +28,8 @@ export function LandDetailModal({
   landId,
   onPurchaseSuccess 
 }: LandDetailModalProps) {
+  console.log('[LandDetailModal] Component initialized with props:', { isOpen, propLand, landId })
+  
   const { user } = useAuth()
   const [land, setLand] = useState<any>(propLand || null)  // 使用 any 类型
   const [loading, setLoading] = useState(false)
@@ -158,8 +160,8 @@ export function LandDetailModal({
   
   if (!land) return null
   
-  // 计算价格
-  const originalPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
+  // 计算价格 - 添加安全检查
+  const originalPrice = typeof land?.current_price === 'string' ? parseFloat(land.current_price) : (land?.current_price || 0)
   const discountedPrice = originalPrice * 0.4  // 4折价 = 原价 * 0.4
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60  // 60% off
@@ -212,11 +214,11 @@ export function LandDetailModal({
                   </div>
                   
                   <div className="relative">
-                    {/* 土地信息标题 */}
+                    {/* 土地信息标题 - 添加安全检查 */}
                     <div className="mb-4">
-                      <h2 className="text-2xl font-bold text-white">{land.land_id}</h2>
+                      <h2 className="text-2xl font-bold text-white">{land?.land_id || 'Loading...'}</h2>
                       <p className="text-gray-400">
-                        {land.blueprint?.land_type_display || '未知类型'} · {land.region?.name || '未知区域'}
+                        {land?.blueprint?.land_type_display || '未知类型'} · {land?.region?.name || '未知区域'}
                       </p>
                     </div>
                     
