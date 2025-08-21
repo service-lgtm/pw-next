@@ -192,7 +192,8 @@ export function BetaPasswordModal({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">土地价格</span>
                   <span className="text-lg font-bold text-gold-500">
-                    {landPrice.toLocaleString()} TDB
+                    {/* 使用 Math.floor 确保整数显示 */}
+                    {Math.floor(landPrice).toLocaleString()} TDB
                   </span>
                 </div>
                 {landId && (
