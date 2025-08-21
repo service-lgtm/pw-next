@@ -44,18 +44,27 @@ export function LandDetailModal({
   
   // 获取土地详情
   useEffect(() => {
-    if (!isOpen) return
+    console.log('[LandDetailModal] useEffect triggered', { isOpen, propLand, landId })
+    if (!isOpen) {
+      console.log('[LandDetailModal] Modal not open, skipping')
+      return
+    }
     
     if (propLand) {
       // 如果传入了land对象，直接使用
+      console.log('[LandDetailModal] Setting land from prop:', propLand)
+      console.log('[LandDetailModal] Land blueprint:', propLand.blueprint)
+      console.log('[LandDetailModal] Land region:', propLand.region)
       setLand(propLand)
       setLoading(false)
       setError(null)
     } else if (landId) {
       // 如果只传入了landId，需要获取详情
+      console.log('[LandDetailModal] Fetching land by ID:', landId)
       fetchLandDetails(landId)
     } else {
       // 没有数据
+      console.log('[LandDetailModal] No land data provided')
       setLoading(false)
       setError('没有土地信息')
     }
@@ -116,7 +125,7 @@ export function LandDetailModal({
       setPurchaseError('')
       
       const response = await assetsApi.lands.buy({
-        land_id: land.id,
+        land_id: land?.id,
       })
       
       if (response.success) {
@@ -189,13 +198,18 @@ export function LandDetailModal({
   
   if (!land) return null
   
+  // 调试日志
+  console.log('[LandDetailModal] Rendering with land:', land)
+  console.log('[LandDetailModal] Land blueprint:', land?.blueprint)
+  console.log('[LandDetailModal] Land region:', land?.region)
+  
   // 计算价格
   const originalPrice = typeof land?.current_price === 'string' ? parseFloat(land.current_price) : (land?.current_price || 0)
   const discountedPrice = originalPrice * 0.4  // 4折价
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60
   
-  const LandTypeIcon = getLandTypeIcon(land.blueprint?.land_type || '')
+  const LandTypeIcon = getLandTypeIcon(land?.blueprint?.land_type || '')
   
   return (
     <>
@@ -223,7 +237,7 @@ export function LandDetailModal({
             </button>
             
             {/* 创世土地横幅 */}
-            {land.status === 'unowned' && (
+            {land?.status === 'unowned' && (
               <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-3 animate-gradient">
                 <div className="flex items-center justify-center gap-2 text-white">
                   <Star className="w-5 h-5" />
@@ -264,7 +278,7 @@ export function LandDetailModal({
               </div>
               
               {/* 购买区域 - 创世土地特别版 */}
-              {land.status === 'unowned' && (
+              {land?.status === 'unowned' && (
                 <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-purple-900/30 rounded-xl p-6 border-2 border-purple-500/50 relative overflow-hidden">
                   {/* 背景动画效果 */}
                   <div className="absolute inset-0 opacity-30">
@@ -370,19 +384,19 @@ export function LandDetailModal({
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-400">ID</span>
-                      <span className="font-mono text-xs">{land.id}</span>
+                      <span className="font-mono text-xs">{land?.id || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">面积</span>
-                      <span className="font-medium">{land.blueprint?.size_sqm || 0}㎡</span>
+                      <span className="font-medium">{land?.blueprint?.size_sqm || 0}㎡</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">坐标</span>
-                      <span className="font-medium">({land.coordinate_x}, {land.coordinate_y})</span>
+                      <span className="font-medium">({land?.coordinate_x || 0}, {land?.coordinate_y || 0})</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">交易次数</span>
-                      <span className="font-medium">{land.transaction_count || 0}</span>
+                      <span className="font-medium">{land?.transaction_count || 0}</span>
                     </div>
                   </div>
                 </div>
@@ -396,25 +410,25 @@ export function LandDetailModal({
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-400">区域</span>
-                      <span className="font-medium">{land.region?.name}</span>
+                      <span className="font-medium">{land?.region?.name || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">上级</span>
-                      <span className="font-medium">{land.region?.parent_name}</span>
+                      <span className="font-medium">{land?.region?.parent_name || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">区域代码</span>
-                      <span className="font-mono text-xs">{land.region?.code}</span>
+                      <span className="font-mono text-xs">{land?.region?.code || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">区域等级</span>
-                      <span className="font-medium">Lv.{land.region?.level}</span>
+                      <span className="font-medium">Lv.{land?.region?.level || 0}</span>
                     </div>
                   </div>
                 </div>
                 
                 {/* 资源信息 - 针对矿山类型 */}
-                {land.blueprint?.land_type === 'stone_mine' ? (
+                {land?.blueprint?.land_type === 'stone_mine' ? (
                   <div className="bg-gray-800/50 rounded-xl p-4">
                     <h3 className="font-bold mb-3 text-gray-300 flex items-center gap-2">
                       <Pickaxe className="w-4 h-4" />
@@ -423,24 +437,24 @@ export function LandDetailModal({
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-400">矿山类型</span>
-                        <span className="font-medium">{land.blueprint?.name}</span>
+                        <span className="font-medium">{land?.blueprint?.name || '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">产出资源</span>
                         <span className="font-medium capitalize">
-                          {land.blueprint?.output_resource || '石材'}
+                          {land?.blueprint?.output_resource || '石材'}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">工具需求</span>
                         <span className="font-medium capitalize">
-                          {land.blueprint?.tool_requirement || '镐'}
+                          {land?.blueprint?.tool_requirement || '镐'}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">能耗</span>
                         <span className="font-medium">
-                          {land.blueprint?.energy_consumption_rate || 0}/天
+                          {land?.blueprint?.energy_consumption_rate || 0}/天
                         </span>
                       </div>
                     </div>
@@ -455,23 +469,23 @@ export function LandDetailModal({
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-400">最大楼层</span>
-                        <span className="font-medium">{land.blueprint?.max_floors || 0}层</span>
+                        <span className="font-medium">{land?.blueprint?.max_floors || 0}层</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">建设成本</span>
                         <span className="font-medium">
-                          {formatPrice(land.blueprint?.construction_cost_per_floor || 0)} TDB/层
+                          {formatPrice(land?.blueprint?.construction_cost_per_floor || 0)} TDB/层
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">能源消耗</span>
                         <span className="font-medium">
-                          {land.blueprint?.energy_consumption_rate || 0}/天
+                          {land?.blueprint?.energy_consumption_rate || 0}/天
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">当前等级</span>
-                        <span className="font-medium">Lv.{land.construction_level || 0}</span>
+                        <span className="font-medium">Lv.{land?.construction_level || 0}</span>
                       </div>
                     </div>
                   </div>
@@ -488,16 +502,16 @@ export function LandDetailModal({
                   <div>
                     <p className="text-xs text-gray-400 mb-1">创建时间</p>
                     <p className="font-medium">
-                      {new Date(land.created_at).toLocaleString('zh-CN')}
+                      {land?.created_at ? new Date(land.created_at).toLocaleString('zh-CN') : '-'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">最后更新</p>
                     <p className="font-medium">
-                      {new Date(land.updated_at).toLocaleString('zh-CN')}
+                      {land?.updated_at ? new Date(land.updated_at).toLocaleString('zh-CN') : '-'}
                     </p>
                   </div>
-                  {land.last_transaction_at && (
+                  {land?.last_transaction_at && (
                     <div>
                       <p className="text-xs text-gray-400 mb-1">最后交易</p>
                       <p className="font-medium">
@@ -505,7 +519,7 @@ export function LandDetailModal({
                       </p>
                     </div>
                   )}
-                  {land.owned_at && (
+                  {land?.owned_at && (
                     <div>
                       <p className="text-xs text-gray-400 mb-1">购买时间</p>
                       <p className="font-medium">
@@ -517,7 +531,7 @@ export function LandDetailModal({
               </div>
               
               {/* 统计信息 */}
-              {(land.total_transaction_volume || land.accumulated_output) && (
+              {(land?.total_transaction_volume || land?.accumulated_output) && (
                 <div className="bg-gray-800/50 rounded-xl p-6">
                   <h3 className="font-bold mb-3 text-gray-300 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4" />
@@ -527,13 +541,13 @@ export function LandDetailModal({
                     <div>
                       <p className="text-xs text-gray-400 mb-1">总交易额</p>
                       <p className="text-2xl font-bold text-gold-500">
-                        {formatPrice(land.total_transaction_volume || 0)} TDB
+                        {formatPrice(land?.total_transaction_volume || 0)} TDB
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 mb-1">累计产出</p>
                       <p className="text-2xl font-bold text-green-400">
-                        {land.accumulated_output || 0}
+                        {land?.accumulated_output || 0}
                       </p>
                     </div>
                   </div>
@@ -549,7 +563,7 @@ export function LandDetailModal({
         isOpen={showBetaPassword}
         onClose={() => setShowBetaPassword(false)}
         onConfirm={handleBetaPasswordConfirm}
-        landPrice={discountedPrice}
+        landPrice={discountedPrice || 0}
         landId={land?.land_id || ''}
       />
     </>
