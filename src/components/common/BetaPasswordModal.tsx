@@ -1,9 +1,10 @@
 /**
  * 文件: /src/components/common/BetaPasswordModal.tsx
- * 描述: 内测密码确认弹窗组件 - 不显示密码版本
+ * 描述: 内测密码确认弹窗组件 - 修复价格显示精度
  * 
  * 修改历史：
  * - 2025-01-27: 移除密码显示，用户需要自己知道内测密码
+ * - 2025-01-27: 修复价格显示精度问题，确保与主组件一致
  * - 保留密码验证逻辑
  * - 优化UI提示文案
  * 
@@ -20,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Lock, AlertCircle, CheckCircle, 
   Info, Shield, Sparkles, Eye, EyeOff,
-  KeyRound
+  KeyRound, Coins
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import confetti from 'canvas-confetti'
@@ -29,18 +30,27 @@ interface BetaPasswordModalProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: () => void
-  landPrice?: number
+  landPrice?: number  // 折后价（实际支付价格）
+  originalPrice?: number  // 原价（用于显示对比）
   landId?: string
 }
 
 // 内测密码（硬编码在前端，但不显示）
 const BETA_PASSWORD = 'myland888'
 
+// 统一的价格格式化函数
+const formatPrice = (price: number | undefined): string => {
+  if (!price) return '0'
+  // 直接使用传入的整数值，无需再次 floor
+  return price.toLocaleString('zh-CN')
+}
+
 export function BetaPasswordModal({
   isOpen,
   onClose,
   onConfirm,
   landPrice,
+  originalPrice,
   landId
 }: BetaPasswordModalProps) {
   const [password, setPassword] = useState('')
@@ -108,6 +118,11 @@ export function BetaPasswordModal({
   }
   
   if (!isOpen) return null
+  
+  // 计算折扣百分比
+  const discountPercentage = originalPrice && landPrice 
+    ? Math.round((1 - landPrice / originalPrice) * 100)
+    : 0
   
   return (
     <AnimatePresence>
@@ -186,18 +201,50 @@ export function BetaPasswordModal({
               </div>
             </motion.div>
             
-            {/* 土地信息（如果有） */}
-            {landPrice && (
-              <div className="bg-gray-800/50 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">土地价格</span>
-                  <span className="text-lg font-bold text-gold-500">
-                    {/* 使用 Math.floor 确保整数显示 */}
-                    {Math.floor(landPrice).toLocaleString()} TDB
-                  </span>
-                </div>
+            {/* 土地价格信息 */}
+            {landPrice !== undefined && (
+              <div className="bg-gray-800/50 rounded-xl p-4 space-y-3">
+                {/* 如果有原价，显示对比 */}
+                {originalPrice !== undefined && originalPrice > landPrice && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">原始价格</span>
+                      <span className="text-base text-gray-500 line-through">
+                        {formatPrice(originalPrice)} TDB
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400">
+                        优惠价格
+                        {discountPercentage > 0 && (
+                          <span className="ml-2 px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
+                            -{discountPercentage}%
+                          </span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Coins className="w-5 h-5 text-gold-500" />
+                        <span className="text-lg font-bold text-gold-500">
+                          {formatPrice(landPrice)} TDB
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {/* 如果没有原价，只显示当前价格 */}
+                {(!originalPrice || originalPrice === landPrice) && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">土地价格</span>
+                    <div className="flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-gold-500" />
+                      <span className="text-lg font-bold text-gold-500">
+                        {formatPrice(landPrice)} TDB
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {landId && (
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-700">
                     <span className="text-sm text-gray-400">土地编号</span>
                     <span className="text-sm font-mono">{landId}</span>
                   </div>
