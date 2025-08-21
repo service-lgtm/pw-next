@@ -123,9 +123,24 @@ export function LandDetailDrawer({
   
   // PC端模态框动画配置
   const modalVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 }
+    hidden: { 
+      opacity: 0, 
+      scale: 0.95,
+      x: '-50%',
+      y: '-50%'
+    },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      x: '-50%',
+      y: '-50%'
+    },
+    exit: { 
+      opacity: 0, 
+      scale: 0.95,
+      x: '-50%',
+      y: '-50%'
+    }
   }
   
   // 移动端抽屉动画配置
@@ -157,20 +172,22 @@ export function LandDetailDrawer({
               exit="exit"
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={cn(
-                "fixed z-50 bg-gray-900 shadow-2xl",
-                isMobile ? [
+                "fixed z-50 bg-gray-900 shadow-2xl overflow-hidden",
+                isMobile ? 
                   // 移动端：底部抽屉
-                  "bottom-0 left-0 right-0",
-                  "rounded-t-3xl",
-                  "max-h-[90vh] w-full"
-                ] : [
+                  "bottom-0 left-0 right-0 rounded-t-3xl max-h-[90vh] w-full" : 
                   // PC端：居中模态框
-                  "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-                  "rounded-2xl",
-                  "w-[90%] max-w-4xl",
-                  "max-h-[85vh]"
-                ]
+                  "rounded-2xl max-h-[85vh]"
               )}
+              style={!isMobile ? {
+                // PC端使用内联样式确保居中
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '90%',
+                maxWidth: '1024px',
+              } : undefined}
             >
               {/* 标题栏 */}
               <div className={cn(
