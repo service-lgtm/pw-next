@@ -19,14 +19,15 @@ interface FilterPanelProps {
   totalLands?: number
 }
 
+// 移除emoji，使用文字或图标
 const landTypes = [
-  { value: 'all', label: '全部类型', icon: '🌍', color: 'from-gray-500 to-gray-600' },
-  { value: 'urban', label: '城市用地', icon: '🏢', color: 'from-blue-500 to-cyan-500' },
-  { value: 'farm', label: '农业用地', icon: '🌾', color: 'from-green-500 to-emerald-500' },
-  { value: 'iron_mine', label: '铁矿', icon: '⛏️', color: 'from-gray-500 to-slate-500' },
-  { value: 'stone_mine', label: '石矿', icon: '🪨', color: 'from-stone-500 to-amber-500' },
-  { value: 'forest', label: '森林', icon: '🌲', color: 'from-green-600 to-teal-600' },
-  { value: 'yld_mine', label: 'YLD矿', icon: '💎', color: 'from-purple-500 to-pink-500' },
+  { value: 'all', label: '全部类型', color: 'from-gray-500 to-gray-600' },
+  { value: 'urban', label: '城市用地', color: 'from-blue-500 to-cyan-500' },
+  { value: 'farm', label: '农业用地', color: 'from-green-500 to-emerald-500' },
+  { value: 'iron_mine', label: '铁矿', color: 'from-gray-500 to-slate-500' },
+  { value: 'stone_mine', label: '石矿', color: 'from-stone-500 to-amber-500' },
+  { value: 'forest', label: '森林', color: 'from-green-600 to-teal-600' },
+  { value: 'yld_mine', label: 'YLD矿', color: 'from-purple-500 to-pink-500' },
 ]
 
 // 价格区间改为显示原价和折扣价
@@ -236,7 +237,6 @@ export function FilterPanel({
                   )}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="text-xl">{type.icon}</span>
                     <span className="font-medium">{type.label}</span>
                   </span>
                   {filters.land_type === type.value && (
