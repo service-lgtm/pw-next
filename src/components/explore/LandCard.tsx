@@ -22,13 +22,14 @@ const landTypeColors = {
   yld_mine: 'from-purple-500/20 to-pink-500/20',
 }
 
+// 移除emoji图标，全部使用图标组件
 const landTypeIcons = {
   urban: Building2,
-  farm: '🌾',
-  iron_mine: '⛏️',
-  stone_mine: '🪨',
-  forest: '🌲',
-  yld_mine: '💎',
+  farm: Building2,
+  iron_mine: Building2,
+  stone_mine: Building2,
+  forest: Building2,
+  yld_mine: Building2,
 }
 
 export function LandCard({ land, onClick }: LandCardProps) {
@@ -92,12 +93,8 @@ export function LandCard({ land, onClick }: LandCardProps) {
             <h3 className="font-bold text-white">{land.land_id}</h3>
             <p className="text-xs text-gray-400">{land.land_type_display}</p>
           </div>
-          <div className="text-2xl">
-            {typeof landTypeIcons[land.land_type as keyof typeof landTypeIcons] === 'string' 
-              ? landTypeIcons[land.land_type as keyof typeof landTypeIcons]
-              : <Building2 className="w-6 h-6 text-gray-400" />
-            }
-          </div>
+          {/* 土地类型图标 - 统一使用组件 */}
+          <Building2 className="w-6 h-6 text-gray-400" />
         </div>
         
         {/* 信息 */}
