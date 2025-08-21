@@ -10,9 +10,9 @@ import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
 interface MyLandsSectionProps {
-  lands: Land[]
+  lands: any[]  // 改为 any[] 以兼容不同的数据结构
   loading?: boolean
-  onLandClick: (land: Land) => void
+  onLandClick: (land: any) => void
   regionName: string
 }
 
@@ -77,8 +77,9 @@ export function MyLandsSection({
   }
   
   // 处理点击事件
-  const handleLandClick = (land: Land) => {
+  const handleLandClick = (land: any) => {
     console.log('[MyLandsSection] Land clicked:', land)
+    // 验证数据完整性
     if (land && land.id) {
       onLandClick(land)
     } else {
@@ -143,6 +144,7 @@ export function MyLandsSection({
                       {land.land_id || `土地 #${land.id}`}
                     </h3>
                     <p className="text-xs text-gray-400">
+                      {/* 兼容两种数据结构 */}
                       {land.land_type_display || land.blueprint?.land_type_display || '未知类型'}
                     </p>
                   </div>
@@ -170,6 +172,13 @@ export function MyLandsSection({
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs text-gray-400">交易次数</span>
                         <span className="text-xs text-gray-300">{land.transaction_count}次</span>
+                      </div>
+                    )}
+                    {/* 添加区域显示 */}
+                    {land.region?.name && (
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-gray-400">所在区域</span>
+                        <span className="text-xs text-gray-300">{land.region.name}</span>
                       </div>
                     )}
                   </div>
