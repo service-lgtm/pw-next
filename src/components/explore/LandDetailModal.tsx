@@ -214,11 +214,11 @@ export function LandDetailModal({
                   </div>
                   
                   <div className="relative">
-                    {/* 土地信息标题 - 添加安全检查 */}
+                    {/* 土地信息标题 */}
                     <div className="mb-4">
-                      <h2 className="text-2xl font-bold text-white">{land?.land_id || 'Loading...'}</h2>
+                      <h2 className="text-2xl font-bold text-white">{land.land_id || 'Loading...'}</h2>
                       <p className="text-gray-400">
-                        {land?.blueprint?.land_type_display || '未知类型'} · {land?.region?.name || '未知区域'}
+                        {land.blueprint?.land_type_display || '未知类型'} · {land.region?.name || '未知区域'}
                       </p>
                     </div>
                     
