@@ -18,7 +18,7 @@ import { useLands, useMyLandsInRegion } from '@/hooks/useLands'
 import { RegionBreadcrumb } from '@/components/explore/RegionBreadcrumb'
 import { LandGrid } from '@/components/explore/LandGrid'
 import { FilterPanel } from '@/components/explore/FilterPanel'
-import { LandDetailModal } from '@/components/explore/LandDetailModal'
+import { LandDetailDrawer } from '@/components/explore/LandDetailDrawer'
 import { MyLandsSection } from '@/components/explore/MyLandsSection'
 import type { FilterState, Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
@@ -552,22 +552,22 @@ export default function RegionDetailPage() {
         )}
       </div>
       
-      {/* 土地详情弹窗 - 修复版本 */}
-      <LandDetailModal
-        land={selectedLand}  // 添加这行，直接传递土地对象
-        landId={selectedLand?.id}  // 改为可选链
-        isOpen={showLandDetail}
-        onClose={() => {
-          setShowLandDetail(false)
-          setSelectedLand(null)  // 关闭时清空选中的土地
-        }}
-        onPurchaseSuccess={() => {
-          setShowLandDetail(false)
-          setSelectedLand(null)  // 购买成功后清空
-          refetch()
-          refetchMyLands()
-        }}
-      />
+     {/* 土地详情抽屉 - 新版本 */}
+    <LandDetailDrawer
+      land={selectedLand}
+      landId={selectedLand?.id}
+      isOpen={showLandDetail}
+      onClose={() => {
+        setShowLandDetail(false)
+        setSelectedLand(null)
+      }}
+      onPurchaseSuccess={() => {
+        setShowLandDetail(false)
+        setSelectedLand(null)
+        refetch()
+        refetchMyLands()
+      }}
+    />
     </div>
   )
 }
