@@ -50,25 +50,29 @@ export function LandDetailModal({
       return
     }
     
-    if (propLand) {
-      // 如果传入了land对象，直接使用
-      console.log('[LandDetailModal] Setting land from prop:', propLand)
-      console.log('[LandDetailModal] Land blueprint:', propLand.blueprint)
-      console.log('[LandDetailModal] Land region:', propLand.region)
-      setLand(propLand)
-      setLoading(false)
-      setError(null)
-    } else if (landId) {
-      // 如果只传入了landId，需要获取详情
+    // 优先使用 landId 获取完整数据
+    if (landId) {
       console.log('[LandDetailModal] Fetching land by ID:', landId)
       fetchLandDetails(landId)
+    } else if (propLand) {
+      // 如果没有 landId 但有 land 对象，尝试从 land.id 获取
+      if (propLand.id) {
+        console.log('[LandDetailModal] Fetching land by land.id:', propLand.id)
+        fetchLandDetails(propLand.id)
+      } else {
+        // 只有当真的没有 ID 时才直接使用传入的对象
+        console.log('[LandDetailModal] Using land from prop:', propLand)
+        setLand(propLand)
+        setLoading(false)
+        setError(null)
+      }
     } else {
       // 没有数据
       console.log('[LandDetailModal] No land data provided')
       setLoading(false)
       setError('没有土地信息')
     }
-  }, [isOpen, landId, propLand])
+  }, [isOpen, landId, propLand?.id])
   
   // 获取土地详情
   const fetchLandDetails = async (id: number) => {
