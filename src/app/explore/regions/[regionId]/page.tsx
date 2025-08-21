@@ -552,19 +552,22 @@ export default function RegionDetailPage() {
         )}
       </div>
       
-      {/* 土地详情弹窗 */}
-      {selectedLand && (
-        <LandDetailModal
-          landId={selectedLand.id}
-          isOpen={showLandDetail}
-          onClose={() => setShowLandDetail(false)}
-          onPurchaseSuccess={() => {
-            setShowLandDetail(false)
-            refetch()
-            refetchMyLands()
-          }}
-        />
-      )}
+      {/* 土地详情弹窗 - 修复版本 */}
+      <LandDetailModal
+        land={selectedLand}  // 添加这行，直接传递土地对象
+        landId={selectedLand?.id}  // 改为可选链
+        isOpen={showLandDetail}
+        onClose={() => {
+          setShowLandDetail(false)
+          setSelectedLand(null)  // 关闭时清空选中的土地
+        }}
+        onPurchaseSuccess={() => {
+          setShowLandDetail(false)
+          setSelectedLand(null)  // 购买成功后清空
+          refetch()
+          refetchMyLands()
+        }}
+      />
     </div>
   )
 }
