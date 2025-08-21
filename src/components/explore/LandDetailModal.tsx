@@ -1,31 +1,13 @@
 /**
  * 文件: /src/components/explore/LandDetailModal.tsx
- * 描述: 土地详情查看和购买弹窗组件 - 最终修复版本
- * 
- * 关键修复：
- * - 支持通过 landId 自动获取土地详情
- * - 兼容直接传入 land 对象
- * - 修复内测密码弹窗显示问题
- * 
- * 功能:
- * - 展示土地详细信息（基本信息、建设信息、产出信息、价格历史等）
- * - 支持土地购买功能，包含内测密码验证
- * - 显示最近交易记录和所有者信息
- * - 响应式设计，支持移动端和桌面端
- * 
- * 依赖:
- * - framer-motion: 动画效果
- * - lucide-react: 图标组件
- * - @/lib/api/assets: 资产相关 API
- * - @/hooks/useAuth: 用户认证状态
- * - @/components/common/BetaPasswordModal: 内测密码验证弹窗
+ * 描述: 土地详情查看和购买弹窗组件 - 创世土地4折优惠版
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Coins } from 'lucide-react'
+import { X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Coins, Zap, Timer, Gift, Star, Trophy } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
 import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
@@ -35,8 +17,8 @@ import { cn } from '@/lib/utils'
 interface LandDetailModalProps {
   isOpen: boolean
   onClose: () => void
-  land?: LandDetail | null  // 可选：直接传入土地对象
-  landId?: number  // 可选：传入土地ID，组件会自动获取详情
+  land?: LandDetail | null
+  landId?: number
   onPurchaseSuccess?: () => void
 }
 
@@ -58,10 +40,8 @@ export function LandDetailModal({
   // 如果传入了 landId，获取土地详情
   useEffect(() => {
     if (isOpen && landId && !propLand) {
-      console.log('[LandDetailModal] Fetching land details for ID:', landId)
       fetchLandDetails(landId)
     } else if (propLand) {
-      console.log('[LandDetailModal] Using provided land data:', propLand.land_id)
       setLand(propLand)
     }
   }, [isOpen, landId, propLand])
@@ -71,12 +51,9 @@ export function LandDetailModal({
     setLoading(true)
     setError(null)
     try {
-      console.log('[LandDetailModal] Calling API to get land details...')
       const landDetail = await assetsApi.lands.get(id)
-      console.log('[LandDetailModal] Land details received:', landDetail)
       setLand(landDetail)
     } catch (err: any) {
-      console.error('[LandDetailModal] Failed to fetch land details:', err)
       setError(err.message || '获取土地详情失败')
     } finally {
       setLoading(false)
@@ -91,56 +68,40 @@ export function LandDetailModal({
   
   // 处理购买
   const handlePurchase = () => {
-    console.log('[LandDetailModal] handlePurchase called')
-    
     if (!user) {
-      console.log('[LandDetailModal] No user, redirecting to login')
       window.location.href = '/login'
       return
     }
-    
-    console.log('[LandDetailModal] Showing beta password modal')
     setShowBetaPassword(true)
   }
   
   // 确认内测密码后的处理
   const handleBetaPasswordConfirm = async () => {
-    console.log('[LandDetailModal] Beta password confirmed, starting purchase...')
     setShowBetaPassword(false)
     
-    if (!land) {
-      console.error('[LandDetailModal] No land data available')
-      return
-    }
+    if (!land) return
     
     try {
       setPurchasing(true)
       setPurchaseError('')
       
-      console.log('[LandDetailModal] Calling buy API for land:', land.id)
       const response = await assetsApi.lands.buy({
         land_id: land.id,
       })
       
-      console.log('[LandDetailModal] Purchase response:', response)
-      
       if (response.success) {
-        console.log('[LandDetailModal] Purchase successful!')
         onPurchaseSuccess?.()
         onClose()
       }
     } catch (err: any) {
-      console.error('[LandDetailModal] Purchase failed:', err)
       setPurchaseError(err.message || '购买失败')
     } finally {
       setPurchasing(false)
     }
   }
   
-  // 如果弹窗未打开，不渲染任何内容
   if (!isOpen) return null
   
-  // 加载中状态
   if (loading) {
     return (
       <AnimatePresence>
@@ -166,7 +127,6 @@ export function LandDetailModal({
     )
   }
   
-  // 错误状态
   if (error) {
     return (
       <AnimatePresence>
@@ -197,13 +157,13 @@ export function LandDetailModal({
     )
   }
   
-  // 无数据状态
-  if (!land) {
-    console.log('[LandDetailModal] No land data available')
-    return null
-  }
+  if (!land) return null
   
-  console.log('[LandDetailModal] Rendering with land:', land.land_id, 'Status:', land.status)
+  // 计算价格
+  const discountedPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
+  const originalPrice = discountedPrice / 0.4  // 原价 = 折扣价 / 0.4
+  const savedAmount = originalPrice - discountedPrice
+  const discountPercentage = 60  // 60% off
   
   return (
     <>
@@ -230,73 +190,136 @@ export function LandDetailModal({
               <X className="w-5 h-5" />
             </button>
             
+            {/* 创世土地横幅 */}
+            {land.status === 'unowned' && (
+              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-3 animate-gradient">
+                <div className="flex items-center justify-center gap-2 text-white">
+                  <Star className="w-5 h-5" />
+                  <span className="text-lg font-bold">创世纪元 · 首批土地 · 限时4折</span>
+                  <Star className="w-5 h-5" />
+                </div>
+              </div>
+            )}
+            
             {/* 头部展示 */}
-            <div className="relative h-48 bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-t-2xl">
+            <div className={cn(
+              "relative h-48 bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-t-2xl",
+              land.status === 'unowned' && "pt-12"
+            )}>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <Building2 className="w-16 h-16 text-gold-500 mx-auto mb-3" />
                   <h2 className="text-3xl font-bold">{land.land_id}</h2>
                   <p className="text-gray-300 mt-2">{land.blueprint.land_type_display}</p>
+                  {land.status === 'unowned' && (
+                    <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-bold">
+                      <Trophy className="w-4 h-4" />
+                      创世先锋专属
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
             
             {/* 主体内容 */}
             <div className="p-6 space-y-6">
-              {/* 购买区域 - 仅在未拥有时显示 */}
+              {/* 购买区域 - 创世土地特别版 */}
               {land.status === 'unowned' && (
-                <div className="bg-gradient-to-r from-gold-500/10 to-yellow-500/10 rounded-xl p-6 border border-gold-500/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-sm text-gray-400 mb-1">当前价格</p>
-                      <div className="flex items-center gap-2">
-                        <Coins className="w-6 h-6 text-gold-500" />
-                        <p className="text-3xl font-bold text-gold-500">
-                          {formatPrice(land.current_price)}
-                        </p>
-                        <span className="text-lg text-gold-400">TDB</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-400 mb-1">单价</p>
-                      <p className="text-xl font-bold">
-                        {Math.round(Number(land.current_price) / land.size_sqm)} TDB/㎡
-                      </p>
-                    </div>
+                <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-purple-900/30 rounded-xl p-6 border-2 border-purple-500/50 relative overflow-hidden">
+                  {/* 背景动画效果 */}
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute bottom-0 right-0 w-32 h-32 bg-pink-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
                   </div>
                   
-                  {purchaseError && (
-                    <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                      <p className="text-sm text-red-400">{purchaseError}</p>
+                  <div className="relative">
+                    {/* 优惠信息 */}
+                    <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg p-3 mb-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Gift className="w-5 h-5" />
+                        <span className="font-bold">限时优惠 -{discountPercentage}%</span>
+                        <Gift className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs mt-1 opacity-90">创世纪元首批土地专属优惠</p>
                     </div>
-                  )}
-                  
-                  <button
-                    onClick={handlePurchase}
-                    disabled={purchasing}
-                    className={cn(
-                      "w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2",
-                      "bg-gradient-to-r from-gold-500 to-yellow-600 text-black",
-                      "hover:shadow-lg hover:shadow-gold-500/25",
-                      purchasing && "opacity-50 cursor-not-allowed"
+                    
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      {/* 原价 */}
+                      <div className="bg-black/30 rounded-lg p-4">
+                        <p className="text-xs text-gray-400 mb-1">原始价格</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-2xl text-gray-500 line-through">
+                            {formatPrice(originalPrice)}
+                          </p>
+                          <span className="text-sm text-gray-500">TDB</span>
+                        </div>
+                      </div>
+                      
+                      {/* 现价 */}
+                      <div className="bg-gradient-to-r from-gold-500/20 to-yellow-500/20 rounded-lg p-4 border border-gold-500/30">
+                        <p className="text-xs text-gold-400 font-bold mb-1">创世优惠价</p>
+                        <div className="flex items-center gap-2">
+                          <Coins className="w-6 h-6 text-gold-500" />
+                          <p className="text-3xl font-bold text-gold-500">
+                            {formatPrice(discountedPrice)}
+                          </p>
+                          <span className="text-lg text-gold-400">TDB</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* 节省金额 */}
+                    <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-400 font-medium">您将节省</span>
+                        <span className="text-2xl font-bold text-green-400">
+                          {formatPrice(savedAmount)} TDB
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* 限时提醒 */}
+                    <div className="flex items-center justify-center gap-2 text-orange-400 mb-4">
+                      <Timer className="w-4 h-4 animate-pulse" />
+                      <span className="text-sm">优惠活动限时进行，机会难得</span>
+                      <Timer className="w-4 h-4 animate-pulse" />
+                    </div>
+                    
+                    {purchaseError && (
+                      <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                        <p className="text-sm text-red-400">{purchaseError}</p>
+                      </div>
                     )}
-                  >
-                    {purchasing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        处理中...
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingBag className="w-5 h-5" />
-                        立即购买
-                      </>
-                    )}
-                  </button>
+                    
+                    <button
+                      onClick={handlePurchase}
+                      disabled={purchasing}
+                      className={cn(
+                        "w-full py-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2",
+                        "bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white",
+                        "hover:shadow-xl hover:shadow-purple-500/30 animate-gradient",
+                        "text-lg",
+                        purchasing && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {purchasing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          处理中...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-5 h-5" />
+                          立即抢购 - 成为创世先锋
+                          <Zap className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
               
-              {/* 基本信息和建设信息 */}
+              {/* 基本信息和建设信息 - 保持原样 */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-gray-800/50 rounded-xl p-4">
                   <h3 className="font-bold mb-3 text-gray-300">基本信息</h3>
@@ -347,8 +370,6 @@ export function LandDetailModal({
                   </div>
                 </div>
               </div>
-              
-              {/* 其他信息区域保持不变... */}
             </div>
           </motion.div>
         </motion.div>
@@ -357,10 +378,7 @@ export function LandDetailModal({
       {/* 内测密码验证弹窗 */}
       <BetaPasswordModal
         isOpen={showBetaPassword}
-        onClose={() => {
-          console.log('[LandDetailModal] Closing beta password modal')
-          setShowBetaPassword(false)
-        }}
+        onClose={() => setShowBetaPassword(false)}
         onConfirm={handleBetaPasswordConfirm}
         landPrice={Number(land?.current_price || 0)}
         landId={land?.land_id}
