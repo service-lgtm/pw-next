@@ -11,7 +11,6 @@ import { X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, Building2, Co
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
 import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
-import type { LandDetail } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
 interface LandDetailModalProps {
@@ -30,7 +29,7 @@ export function LandDetailModal({
   onPurchaseSuccess 
 }: LandDetailModalProps) {
   const { user } = useAuth()
-  const [land, setLand] = useState<LandDetail | null>(propLand || null)
+  const [land, setLand] = useState<any>(propLand || null)  // 使用 any 类型
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [purchasing, setPurchasing] = useState(false)
