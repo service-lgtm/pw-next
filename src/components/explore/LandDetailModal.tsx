@@ -192,7 +192,7 @@ export function LandDetailModal({
             
             {/* 创世土地横幅 */}
             {land.status === 'unowned' && (
-              <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-3 animate-gradient">
+              <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-3 animate-gradient">
                 <div className="flex items-center justify-center gap-2 text-white">
                   <Star className="w-5 h-5" />
                   <span className="text-lg font-bold">创世纪元 · 首批土地 · 限时4折</span>
@@ -200,29 +200,6 @@ export function LandDetailModal({
                 </div>
               </div>
             )}
-            
-            {/* 头部展示 */}
-            <div className={cn(
-              "relative h-48 bg-gradient-to-br from-gold-500/20 to-yellow-500/20 rounded-t-2xl",
-              land.status === 'unowned' && "pt-12"
-            )}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  {/* 使用渐变色块替代图标 */}
-                  <div className="w-20 h-20 bg-gradient-to-br from-gold-500 to-yellow-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                    <span className="text-3xl font-black text-black">地</span>
-                  </div>
-                  <h2 className="text-3xl font-bold">{land.land_id}</h2>
-                  <p className="text-gray-300 mt-2">{land.blueprint.land_type_display}</p>
-                  {land.status === 'unowned' && (
-                    <div className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-bold">
-                      <Trophy className="w-4 h-4" />
-                      创世先锋专属
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
             
             {/* 主体内容 */}
             <div className="p-6 space-y-6">
@@ -236,6 +213,12 @@ export function LandDetailModal({
                   </div>
                   
                   <div className="relative">
+                    {/* 土地信息标题 */}
+                    <div className="mb-4">
+                      <h2 className="text-2xl font-bold text-white">{land.land_id}</h2>
+                      <p className="text-gray-400">{land.blueprint.land_type_display} · {land.region.name}</p>
+                    </div>
+                    
                     {/* 优惠信息 */}
                     <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg p-3 mb-4 text-center">
                       <div className="flex items-center justify-center gap-2">
