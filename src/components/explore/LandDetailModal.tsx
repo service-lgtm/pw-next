@@ -216,7 +216,7 @@ export function LandDetailModal({
                     {/* 土地信息标题 */}
                     <div className="mb-4">
                       <h2 className="text-2xl font-bold text-white">{land.land_id}</h2>
-                      <p className="text-gray-400">{land.blueprint.land_type_display} · {land.region.name}</p>
+                      <p className="text-gray-400">{land.blueprint?.land_type_display} · {land.region?.name}</p>
                     </div>
                     
                     {/* 优惠信息 */}
