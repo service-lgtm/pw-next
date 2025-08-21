@@ -1,6 +1,6 @@
 /**
  * 文件: /src/components/explore/LandDetailDrawer.tsx
- * 描述: 土地详情抽屉组件 - 简化的底部滑出式设计
+ * 描述: 土地详情展示组件 - 响应式设计，PC居中，移动端底部抽屉
  */
 
 'use client'
@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, Coins, Gift, Star, 
   Mountain, Pickaxe, Building2, Hash, Calendar,
-  Loader2, ChevronDown, Zap
+  Loader2, Zap, Battery, Layers
 } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
@@ -38,14 +38,21 @@ export function LandDetailDrawer({
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
   const [showBetaPassword, setShowBetaPassword] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  
+  // 检测设备类型
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
   
   // 获取土地详情
   useEffect(() => {
-    if (!isOpen) {
-      setIsMinimized(false)
-      return
-    }
+    if (!isOpen) return
     
     if (landId) {
       fetchLandDetails(landId)
@@ -64,7 +71,6 @@ export function LandDetailDrawer({
       setLand(landDetail)
     } catch (err: any) {
       console.error('获取土地详情失败:', err)
-      // 如果获取失败，使用传入的数据
       if (propLand) {
         setLand(propLand)
       }
@@ -115,6 +121,20 @@ export function LandDetailDrawer({
   const discountedPrice = originalPrice * 0.4
   const savedAmount = originalPrice - discountedPrice
   
+  // PC端模态框动画配置
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.95 }
+  }
+  
+  // 移动端抽屉动画配置
+  const drawerVariants = {
+    hidden: { y: '100%' },
+    visible: { y: 0 },
+    exit: { y: '100%' }
+  }
+  
   return (
     <>
       <AnimatePresence>
@@ -129,42 +149,45 @@ export function LandDetailDrawer({
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             />
             
-            {/* 抽屉内容 */}
+            {/* 内容容器 - 根据设备类型调整 */}
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ 
-                y: isMinimized ? 'calc(100% - 80px)' : 0,
-              }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              variants={isMobile ? drawerVariants : modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={cn(
-                "fixed bottom-0 left-0 right-0 z-50",
-                "bg-gray-900 rounded-t-3xl shadow-2xl",
-                "max-h-[90vh] md:max-h-[85vh]",
-                "w-full md:max-w-3xl md:mx-auto md:left-auto md:right-auto"
+                "fixed z-50 bg-gray-900 shadow-2xl",
+                isMobile ? [
+                  // 移动端：底部抽屉
+                  "bottom-0 left-0 right-0",
+                  "rounded-t-3xl",
+                  "max-h-[90vh] w-full"
+                ] : [
+                  // PC端：居中模态框
+                  "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+                  "rounded-2xl",
+                  "w-[90%] max-w-4xl",
+                  "max-h-[85vh]"
+                ]
               )}
             >
-              {/* 拖动条和标题栏 */}
-              <div 
-                className="sticky top-0 bg-gray-900 rounded-t-3xl border-b border-gray-800 cursor-pointer"
-                onClick={() => setIsMinimized(!isMinimized)}
-              >
-                <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mt-3" />
+              {/* 标题栏 */}
+              <div className={cn(
+                "sticky top-0 bg-gray-900 border-b border-gray-800",
+                isMobile ? "rounded-t-3xl" : "rounded-t-2xl"
+              )}>
+                {/* 移动端拖动条 */}
+                {isMobile && (
+                  <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mt-3" />
+                )}
+                
                 <div className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-3">
-                    <ChevronDown className={cn(
-                      "w-5 h-5 text-gray-400 transition-transform",
-                      isMinimized && "rotate-180"
-                    )} />
-                    <h3 className="text-lg font-bold">
-                      {loading ? '加载中...' : (land?.land_id || '土地详情')}
-                    </h3>
-                  </div>
+                  <h3 className="text-lg font-bold">
+                    {loading ? '加载中...' : (land?.land_id || '土地详情')}
+                  </h3>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onClose()
-                    }}
+                    onClick={onClose}
                     className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
@@ -173,98 +196,180 @@ export function LandDetailDrawer({
               </div>
               
               {/* 内容区域 */}
-              <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+              <div className="overflow-y-auto overscroll-contain p-4 md:p-6"
+                   style={{ maxHeight: isMobile ? 'calc(90vh - 80px)' : 'calc(85vh - 80px)' }}>
                 {loading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
                   </div>
                 ) : land ? (
-                  <div className="p-4 md:p-6 space-y-6">
+                  <div className="space-y-6">
                     {/* 创世优惠横幅 */}
                     {land?.status === 'unowned' && (
-                      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-4 text-center">
+                      <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 text-center">
                         <div className="flex items-center justify-center gap-2 text-white mb-2">
                           <Star className="w-5 h-5" />
-                          <span className="font-bold">创世纪元 · 限时4折</span>
+                          <span className="font-bold text-lg">创世纪元 · 限时4折</span>
                           <Star className="w-5 h-5" />
                         </div>
                         <p className="text-sm text-white/90">首批数字地产，独享创世优惠</p>
                       </div>
                     )}
                     
-                    {/* 基本信息卡片 */}
-                    <div className="bg-gray-800/50 rounded-xl p-4">
-                      <div className="flex items-center gap-3 mb-4">
-                        {land?.blueprint?.land_type === 'stone_mine' ? (
-                          <Mountain className="w-6 h-6 text-purple-400" />
-                        ) : (
-                          <Building2 className="w-6 h-6 text-purple-400" />
-                        )}
-                        <div>
-                          <h4 className="font-bold">{land?.blueprint?.land_type_display || '未知类型'}</h4>
-                          <p className="text-sm text-gray-400">{land?.region?.name || '未知区域'}</p>
+                    {/* 主要信息网格 - PC端3列，移动端2列 */}
+                    <div className={cn(
+                      "grid gap-4",
+                      isMobile ? "grid-cols-1" : "grid-cols-2 lg:grid-cols-3"
+                    )}>
+                      {/* 基本信息 */}
+                      <div className="bg-gray-800/50 rounded-xl p-4">
+                        <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
+                          <Hash className="w-4 h-4 text-purple-400" />
+                          基本信息
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">ID</span>
+                            <span className="font-mono">{land?.id || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">面积</span>
+                            <span>{land?.blueprint?.size_sqm || 0}㎡</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">坐标</span>
+                            <span>({land?.coordinate_x || 0}, {land?.coordinate_y || 0})</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">交易次数</span>
+                            <span>{land?.transaction_count || 0}</span>
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-400">面积</p>
-                          <p className="font-medium">{land?.blueprint?.size_sqm || 0}㎡</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">坐标</p>
-                          <p className="font-medium">({land?.coordinate_x || 0}, {land?.coordinate_y || 0})</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">区域代码</p>
-                          <p className="font-medium text-xs">{land?.region?.code || '-'}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">交易次数</p>
-                          <p className="font-medium">{land?.transaction_count || 0}</p>
+                      {/* 位置信息 */}
+                      <div className="bg-gray-800/50 rounded-xl p-4">
+                        <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
+                          <MapPin className="w-4 h-4 text-purple-400" />
+                          位置信息
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">区域</span>
+                            <span>{land?.region?.name || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">上级</span>
+                            <span>{land?.region?.parent_name || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">代码</span>
+                            <span className="font-mono text-xs">{land?.region?.code || '-'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">等级</span>
+                            <span>Lv.{land?.region?.level || 0}</span>
+                          </div>
                         </div>
                       </div>
+                      
+                      {/* 特殊属性 */}
+                      {land?.blueprint?.land_type === 'stone_mine' ? (
+                        <div className="bg-gray-800/50 rounded-xl p-4">
+                          <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
+                            <Pickaxe className="w-4 h-4 text-purple-400" />
+                            矿山属性
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">类型</span>
+                              <span>{land?.blueprint?.name || '-'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">产出</span>
+                              <span>{land?.blueprint?.output_resource || '石材'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">工具</span>
+                              <span>{land?.blueprint?.tool_requirement || '镐'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">能耗</span>
+                              <span>{land?.blueprint?.energy_consumption_rate || 0}/天</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-800/50 rounded-xl p-4">
+                          <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
+                            <Building2 className="w-4 h-4 text-purple-400" />
+                            建筑信息
+                          </h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">楼层</span>
+                              <span>{land?.blueprint?.max_floors || 0}层</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">建设费</span>
+                              <span>{formatPrice(land?.blueprint?.construction_cost_per_floor || 0)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">能耗</span>
+                              <span>{land?.blueprint?.energy_consumption_rate || 0}/天</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">等级</span>
+                              <span>Lv.{land?.construction_level || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
-                    {/* 价格信息 - 只在可购买时显示 */}
+                    {/* 价格和购买区域 - 只在可购买时显示 */}
                     {land?.status === 'unowned' && (
-                      <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/30">
+                      <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30">
                         {/* 优惠标签 */}
-                        <div className="bg-red-600 text-white text-center py-2 rounded-lg mb-4">
+                        <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-center py-2 rounded-lg mb-4">
                           <div className="flex items-center justify-center gap-2">
                             <Gift className="w-4 h-4" />
                             <span className="font-bold">限时优惠 -60%</span>
+                            <Gift className="w-4 h-4" />
                           </div>
                         </div>
                         
-                        {/* 价格对比 */}
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">原价</span>
-                            <span className="text-xl text-gray-500 line-through">
+                        {/* 价格信息 - PC端横向布局，移动端纵向 */}
+                        <div className={cn(
+                          "grid gap-4 mb-4",
+                          isMobile ? "grid-cols-1" : "grid-cols-3"
+                        )}>
+                          <div className="text-center">
+                            <p className="text-xs text-gray-400 mb-1">原价</p>
+                            <p className="text-xl text-gray-500 line-through">
                               {formatPrice(originalPrice)} TDB
-                            </span>
+                            </p>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-gold-400 font-bold">现价</span>
-                            <div className="flex items-center gap-2">
+                          <div className="text-center">
+                            <p className="text-xs text-gold-400 font-bold mb-1">现价</p>
+                            <div className="flex items-center justify-center gap-2">
                               <Coins className="w-5 h-5 text-gold-500" />
-                              <span className="text-2xl font-bold text-gold-500">
+                              <p className="text-2xl font-bold text-gold-500">
                                 {formatPrice(discountedPrice)} TDB
-                              </span>
+                              </p>
                             </div>
                           </div>
-                          <div className="pt-3 border-t border-gray-700">
-                            <div className="flex justify-between items-center text-green-400">
-                              <span>您将节省</span>
-                              <span className="font-bold">{formatPrice(savedAmount)} TDB</span>
-                            </div>
+                          <div className="text-center">
+                            <p className="text-xs text-green-400 mb-1">节省</p>
+                            <p className="text-xl font-bold text-green-400">
+                              {formatPrice(savedAmount)} TDB
+                            </p>
                           </div>
                         </div>
                         
                         {purchaseError && (
-                          <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-                            <p className="text-sm text-red-400">{purchaseError}</p>
+                          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                            <p className="text-sm text-red-400 text-center">{purchaseError}</p>
                           </div>
                         )}
                         
@@ -273,7 +378,7 @@ export function LandDetailDrawer({
                           onClick={handlePurchase}
                           disabled={purchasing}
                           className={cn(
-                            "w-full mt-4 py-3 rounded-xl font-bold transition-all",
+                            "w-full py-3 rounded-xl font-bold transition-all",
                             "bg-gradient-to-r from-purple-600 to-pink-600 text-white",
                             "hover:shadow-lg hover:shadow-purple-500/30",
                             "flex items-center justify-center gap-2",
@@ -288,56 +393,43 @@ export function LandDetailDrawer({
                           ) : (
                             <>
                               <Zap className="w-5 h-5" />
-                              立即抢购
+                              立即抢购 - 成为创世先锋
                             </>
                           )}
                         </button>
                       </div>
                     )}
                     
-                    {/* 特殊属性 - 矿山 */}
-                    {land?.blueprint?.land_type === 'stone_mine' && (
-                      <div className="bg-gray-800/50 rounded-xl p-4">
-                        <h4 className="font-bold mb-3 flex items-center gap-2">
-                          <Pickaxe className="w-5 h-5 text-purple-400" />
-                          矿山属性
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-gray-400">矿山类型</p>
-                            <p className="font-medium">{land?.blueprint?.name || '-'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400">产出资源</p>
-                            <p className="font-medium">{land?.blueprint?.output_resource || '石材'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400">工具需求</p>
-                            <p className="font-medium">{land?.blueprint?.tool_requirement || '镐'}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-400">能源消耗</p>
-                            <p className="font-medium">{land?.blueprint?.energy_consumption_rate || 0}/天</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* 时间信息 */}
                     <div className="bg-gray-800/50 rounded-xl p-4">
-                      <h4 className="font-bold mb-3 flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-purple-400" />
+                      <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
+                        <Calendar className="w-4 h-4 text-purple-400" />
                         时间记录
                       </h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">创建时间</span>
-                          <span>{land?.created_at ? new Date(land.created_at).toLocaleDateString('zh-CN') : '-'}</span>
+                      <div className={cn(
+                        "grid gap-4 text-sm",
+                        isMobile ? "grid-cols-1" : "grid-cols-2"
+                      )}>
+                        <div>
+                          <p className="text-gray-400 mb-1">创建时间</p>
+                          <p>{land?.created_at ? new Date(land.created_at).toLocaleString('zh-CN') : '-'}</p>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">更新时间</span>
-                          <span>{land?.updated_at ? new Date(land.updated_at).toLocaleDateString('zh-CN') : '-'}</span>
+                        <div>
+                          <p className="text-gray-400 mb-1">更新时间</p>
+                          <p>{land?.updated_at ? new Date(land.updated_at).toLocaleString('zh-CN') : '-'}</p>
                         </div>
+                        {land?.last_transaction_at && (
+                          <div>
+                            <p className="text-gray-400 mb-1">最后交易</p>
+                            <p>{new Date(land.last_transaction_at).toLocaleString('zh-CN')}</p>
+                          </div>
+                        )}
+                        {land?.owned_at && (
+                          <div>
+                            <p className="text-gray-400 mb-1">购买时间</p>
+                            <p>{new Date(land.owned_at).toLocaleString('zh-CN')}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
