@@ -1,6 +1,6 @@
 /**
  * 文件: /src/components/explore/LandDetailModal.tsx
- * 描述: 土地详情查看和购买弹窗组件 - 修复版（统一价格计算逻辑）
+ * 描述: 土地详情查看和购买弹窗组件 - 修复版（保持原始模态框样式）
  */
 
 'use client'
@@ -16,31 +16,6 @@ import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
 import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
 import { cn } from '@/lib/utils'
-
-// 统一的价格计算工具函数
-const priceUtils = {
-  // 计算折扣价格
-  calculateDiscountPrice: (originalPrice: number | string, discount: number = 0.4): number => {
-    const price = typeof originalPrice === 'string' ? parseFloat(originalPrice) : originalPrice
-    // 确保结果是整数
-    return Math.floor(price * discount)
-  },
-  
-  // 格式化价格显示
-  formatPrice: (price: string | number | null | undefined): string => {
-    if (!price) return '0'
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    // 使用 Math.floor 向下取整，避免小数
-    return Math.floor(numPrice).toLocaleString('zh-CN')
-  },
-  
-  // 解析原始价格
-  parseOriginalPrice: (rawPrice: string | number | null | undefined): number => {
-    if (!rawPrice) return 0
-    const price = typeof rawPrice === 'string' ? parseFloat(rawPrice) : rawPrice
-    return Math.floor(price)
-  }
-}
 
 interface LandDetailModalProps {
   isOpen: boolean
@@ -109,6 +84,13 @@ export function LandDetailModal({
     }
   }
   
+  const formatPrice = (price: string | number | null | undefined) => {
+    if (!price) return '0'
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    // 使用 Math.floor 向下取整，避免小数
+    return Math.floor(numPrice).toLocaleString('zh-CN')
+  }
+  
   const getLandTypeIcon = (landType: string) => {
     const iconMap: Record<string, any> = {
       'stone_mine': Mountain,
@@ -154,9 +136,16 @@ export function LandDetailModal({
   
   if (!isOpen) return null
   
-  // 使用统一的价格计算方法
-  const originalPrice = priceUtils.parseOriginalPrice(land?.current_price)
-  const discountedPrice = priceUtils.calculateDiscountPrice(originalPrice, 0.4)  // 4折价格
+  // 价格计算 - 添加调试日志
+  const rawPrice = land?.current_price
+  console.log('[LandDetailModal] Raw price:', rawPrice, typeof rawPrice)
+  
+  const originalPrice = Math.floor(parseFloat(rawPrice || 0))
+  console.log('[LandDetailModal] Original price after floor:', originalPrice)
+  
+  const discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
+  console.log('[LandDetailModal] Discounted price (40%):', originalPrice * 0.4, '→ floored:', discountedPrice)
+  
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60
   
@@ -276,7 +265,7 @@ export function LandDetailModal({
                               <p className="text-xs text-gray-400 mb-1">原始价格</p>
                               <div className="flex items-center gap-2">
                                 <p className="text-2xl text-gray-500 line-through">
-                                  {priceUtils.formatPrice(originalPrice)}
+                                  {originalPrice.toLocaleString('zh-CN')}
                                 </p>
                                 <span className="text-sm text-gray-500">TDB</span>
                               </div>
@@ -288,7 +277,7 @@ export function LandDetailModal({
                               <div className="flex items-center gap-2">
                                 <Coins className="w-6 h-6 text-gold-500" />
                                 <p className="text-3xl font-bold text-gold-500">
-                                  {priceUtils.formatPrice(discountedPrice)}
+                                  {discountedPrice.toLocaleString('zh-CN')}
                                 </p>
                                 <span className="text-lg text-gold-400">TDB</span>
                               </div>
@@ -300,7 +289,7 @@ export function LandDetailModal({
                             <div className="flex items-center justify-between">
                               <span className="text-green-400 font-medium">您将节省</span>
                               <span className="text-2xl font-bold text-green-400">
-                                {priceUtils.formatPrice(savedAmount)} TDB
+                                {savedAmount.toLocaleString('zh-CN')} TDB
                               </span>
                             </div>
                           </div>
@@ -352,11 +341,11 @@ export function LandDetailModal({
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">购买价格</p>
-                            <p className="text-white">{priceUtils.formatPrice(land.last_transaction_price)} TDB</p>
+                            <p className="text-white">{formatPrice(land.last_transaction_price)} TDB</p>
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">当前价值</p>
-                            <p className="text-gold-400 font-bold">{priceUtils.formatPrice(land.current_price)} TDB</p>
+                            <p className="text-gold-400 font-bold">{formatPrice(land.current_price)} TDB</p>
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">交易次数</p>
@@ -488,7 +477,7 @@ export function LandDetailModal({
                             <div className="flex justify-between">
                               <span className="text-gray-400">建设成本</span>
                               <span className="font-medium">
-                                {priceUtils.formatPrice(land?.blueprint?.construction_cost_per_floor || 0)} TDB/层
+                                {formatPrice(land?.blueprint?.construction_cost_per_floor || 0)} TDB/层
                               </span>
                             </div>
                             <div className="flex justify-between">
@@ -517,13 +506,13 @@ export function LandDetailModal({
         )}
       </AnimatePresence>
       
-      {/* 内测密码验证弹窗 - 传递折后价 */}
+      {/* 内测密码验证弹窗 - 传递原价和折后价 */}
       <BetaPasswordModal
         isOpen={showBetaPassword}
         onClose={() => setShowBetaPassword(false)}
         onConfirm={handleBetaPasswordConfirm}
-        landPrice={discountedPrice}  // 折后价（实际支付价格）
-        originalPrice={originalPrice}  // 原价（用于显示对比）
+        landPrice={discountedPrice || 0}  // 折后价（实际支付价格）
+        originalPrice={originalPrice || 0}  // 原价（用于显示对比）
         landId={land?.land_id || ''}
       />
     </>
