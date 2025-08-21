@@ -1,5 +1,5 @@
 // src/components/explore/FilterPanel.tsx
-// 筛选面板组件 - 使用TDB单位
+// 筛选面板组件 - 添加创世土地标识
 
 'use client'
 
@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Filter, ChevronDown, X, Sparkles, TrendingUp, 
-  Package, Coins, RotateCcw, Check
+  Package, Coins, RotateCcw, Check, Zap, Star
 } from 'lucide-react'
 import type { FilterState } from '@/types/assets'
 import { cn } from '@/lib/utils'
@@ -29,13 +29,13 @@ const landTypes = [
   { value: 'yld_mine', label: 'YLD矿', icon: '💎', color: 'from-purple-500 to-pink-500' },
 ]
 
-// 价格区间改为 TDB
+// 价格区间改为显示原价和折扣价
 const priceRanges = [
   { value: 'all', label: '不限价格', min: undefined, max: undefined },
-  { value: '0-10k', label: '1万 TDB 以下', min: 0, max: 10000 },
-  { value: '10k-50k', label: '1-5万 TDB', min: 10000, max: 50000 },
-  { value: '50k-100k', label: '5-10万 TDB', min: 50000, max: 100000 },
-  { value: '100k+', label: '10万 TDB 以上', min: 100000, max: undefined },
+  { value: '0-10k', label: '2.5万 TDB 以下（原价1万以下）', min: 0, max: 10000 },
+  { value: '10k-50k', label: '2.5-12.5万 TDB（原价1-5万）', min: 10000, max: 50000 },
+  { value: '50k-100k', label: '12.5-25万 TDB（原价5-10万）', min: 50000, max: 100000 },
+  { value: '100k+', label: '25万 TDB 以上（原价10万+）', min: 100000, max: undefined },
 ]
 
 const sortOptions = [
@@ -103,7 +103,39 @@ export function FilterPanel({
   
   return (
     <div className="space-y-4">
-      {/* 统计信息卡片 - 使用TDB */}
+      {/* 创世土地活动卡片 */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-purple-600/30 via-pink-600/30 to-purple-600/30 rounded-xl p-5 border-2 border-purple-500/50 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-gold-500 to-yellow-600 rounded-full flex items-center justify-center">
+              <Star className="w-4 h-4 text-black" />
+            </div>
+            <h3 className="font-bold text-white">创世纪元 · 限时特惠</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Zap className="w-4 h-4 text-gold-500" />
+              <span className="text-gold-400">首批土地享受4折优惠</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span className="text-purple-300">成为创世先锋，见证历史</span>
+            </div>
+            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-2 mt-3">
+              <p className="text-xs text-red-400 text-center font-medium">
+                限时优惠 -60% OFF
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      
+      {/* 统计信息卡片 */}
       {stats && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
@@ -124,13 +156,18 @@ export function FilterPanel({
               <span className="text-lg font-bold text-green-400">{stats.available_lands}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-400">平均价格</span>
-              <div className="flex items-center gap-1">
-                <Coins className="w-4 h-4 text-gold-500" />
-                <span className="text-lg font-bold text-gold-500">
-                  {Math.round(stats.average_price).toLocaleString()}
-                </span>
-                <span className="text-sm text-gold-400">TDB</span>
+              <span className="text-sm text-gray-400">创世优惠价</span>
+              <div className="text-right">
+                <div className="flex items-center gap-1 justify-end">
+                  <Coins className="w-4 h-4 text-gold-500" />
+                  <span className="text-lg font-bold text-gold-500">
+                    {Math.round(stats.average_price).toLocaleString()}
+                  </span>
+                  <span className="text-sm text-gold-400">TDB</span>
+                </div>
+                <p className="text-xs text-gray-500 line-through">
+                  原价 {Math.round(stats.average_price / 0.4).toLocaleString()} TDB
+                </p>
               </div>
             </div>
             
@@ -154,7 +191,7 @@ export function FilterPanel({
         </motion.div>
       )}
       
-      {/* 土地类型选择 - 卡片式设计 */}
+      {/* 土地类型选择 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('type')}
@@ -212,7 +249,7 @@ export function FilterPanel({
         </AnimatePresence>
       </div>
       
-      {/* 价格区间 - 使用TDB单位 */}
+      {/* 价格区间 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('price')}
@@ -220,7 +257,7 @@ export function FilterPanel({
         >
           <h3 className="font-bold flex items-center gap-2">
             <Coins className="w-5 h-5 text-gold-400" />
-            价格区间 (TDB)
+            价格区间 (4折后)
             {(filters.priceRange.min !== undefined || filters.priceRange.max !== undefined) && (
               <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full">
                 已设置
@@ -258,7 +295,7 @@ export function FilterPanel({
                         : "bg-white/5 hover:bg-white/10"
                     )}
                   >
-                    <span>{range.label}</span>
+                    <span className="text-sm">{range.label}</span>
                     {isActive && <Check className="w-4 h-4" />}
                   </motion.button>
                 )
@@ -268,7 +305,7 @@ export function FilterPanel({
         </AnimatePresence>
       </div>
       
-      {/* 排序方式 - 下拉改为按钮组 */}
+      {/* 排序方式 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <h3 className="font-bold mb-3 flex items-center gap-2">
           <Filter className="w-5 h-5 text-purple-400" />
@@ -296,7 +333,7 @@ export function FilterPanel({
         </div>
       </div>
       
-      {/* 清除筛选 - 更明显的提示 */}
+      {/* 清除筛选 */}
       <AnimatePresence>
         {hasActiveFilters && (
           <motion.button
