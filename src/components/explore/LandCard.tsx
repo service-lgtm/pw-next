@@ -41,9 +41,9 @@ export function LandCard({ land, onClick }: LandCardProps) {
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
   }
   
-  // 计算原价（当前价格是4折后的价格）
-  const discountedPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
-  const originalPrice = discountedPrice / 0.4  // 原价 = 折扣价 / 0.4
+  // 计算折扣价（原价打4折）
+  const originalPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
+  const discountedPrice = originalPrice * 0.4  // 4折价 = 原价 * 0.4
   const savedAmount = originalPrice - discountedPrice
   
   return (
