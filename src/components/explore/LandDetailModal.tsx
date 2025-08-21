@@ -84,12 +84,15 @@ export function LandDetailModal({
     }
   }
   
-  const formatPrice = (price: string | number | null | undefined) => {
-    if (!price) return '0'
+  // 安全的价格格式化函数
+  const safeFormatPrice = (price: any): string => {
+    if (price === null || price === undefined || price === '') return '0'
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    // 使用 Math.floor 向下取整，避免小数
+    if (isNaN(numPrice)) return '0'
     return Math.floor(numPrice).toLocaleString('zh-CN')
   }
+  
+  const formatPrice = safeFormatPrice  // 兼容旧代码
   
   const getLandTypeIcon = (landType: string) => {
     const iconMap: Record<string, any> = {
@@ -136,18 +139,24 @@ export function LandDetailModal({
   
   if (!isOpen) return null
   
-  // 价格计算 - 添加调试日志
-  const rawPrice = land?.current_price
-  console.log('[LandDetailModal] Raw price:', rawPrice, typeof rawPrice)
-  
-  const originalPrice = Math.floor(parseFloat(rawPrice || 0))
-  console.log('[LandDetailModal] Original price after floor:', originalPrice)
-  
-  const discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
-  console.log('[LandDetailModal] Discounted price (40%):', originalPrice * 0.4, '→ floored:', discountedPrice)
-  
-  const savedAmount = originalPrice - discountedPrice
+  // 价格计算 - 只对 unowned 状态的土地计算折扣
+  let originalPrice = 0
+  let discountedPrice = 0
+  let savedAmount = 0
   const discountPercentage = 60
+  
+  if (land?.status === 'unowned' && land?.current_price) {
+    const rawPrice = land.current_price
+    console.log('[LandDetailModal] Raw price:', rawPrice, typeof rawPrice)
+    
+    originalPrice = Math.floor(parseFloat(rawPrice || '0'))
+    console.log('[LandDetailModal] Original price after floor:', originalPrice)
+    
+    discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
+    console.log('[LandDetailModal] Discounted price (40%):', originalPrice * 0.4, '→ floored:', discountedPrice)
+    
+    savedAmount = originalPrice - discountedPrice
+  }
   
   const LandTypeIcon = getLandTypeIcon(land?.blueprint?.land_type || '')
   
@@ -336,39 +345,63 @@ export function LandDetailModal({
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">购买时间</p>
                             <p className="text-white">
-                              {land.owned_at ? new Date(land.owned_at).toLocaleString('zh-CN') : '-'}
+                              {land?.owned_at ? new Date(land.owned_at).toLocaleString('zh-CN') : '-'}
                             </p>
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">购买价格</p>
-                            <p className="text-white">{formatPrice(land.last_transaction_price)} TDB</p>
+                            <p className="text-white">{land?.last_transaction_price ? Math.floor(parseFloat(land.last_transaction_price)).toLocaleString('zh-CN') : '0'} TDB</p>
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">当前价值</p>
-                            <p className="text-gold-400 font-bold">{formatPrice(land.current_price)} TDB</p>
+                            <p className="text-gold-400 font-bold">{land?.current_price ? Math.floor(parseFloat(land.current_price)).toLocaleString('zh-CN') : '0'} TDB</p>
                           </div>
                           <div className="bg-black/30 rounded-lg p-4">
                             <p className="text-xs text-gray-400 mb-1">交易次数</p>
-                            <p className="text-white">{land.transaction_count}次</p>
+                            <p className="text-white">{land?.transaction_count || 0}次</p>
                           </div>
                         </div>
                         
-                        {/* 显示生产状态 */}
-                        {land.blueprint?.land_type === 'stone_mine' && (
+                        {/* 显示生产状态 - 针对矿山类型 */}
+                        {land?.blueprint?.land_type === 'stone_mine' && (
                           <div className="mt-4 p-4 bg-black/30 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-xs text-gray-400 mb-1">生产状态</p>
                                 <p className={cn(
                                   "font-bold",
-                                  land.is_producing ? "text-green-400" : "text-gray-400"
+                                  land?.is_producing ? "text-green-400" : "text-gray-400"
                                 )}>
-                                  {land.is_producing ? '生产中' : '未生产'}
+                                  {land?.is_producing ? '生产中' : '未生产'}
                                 </p>
+                                {land?.accumulated_output && (
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    累计产出: {land.accumulated_output} {land?.blueprint?.output_resource || '石材'}
+                                  </p>
+                                )}
                               </div>
-                              {land.can_produce && !land.is_producing && (
+                              {land?.can_produce && !land?.is_producing && (
                                 <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
                                   开始生产
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* 显示建设状态 - 针对城市类型 */}
+                        {land?.blueprint?.land_type !== 'stone_mine' && land?.can_build && (
+                          <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-gray-400 mb-1">建设等级</p>
+                                <p className="font-bold text-white">
+                                  Lv.{land?.construction_level || 0} / {land?.blueprint?.max_floors || 0}
+                                </p>
+                              </div>
+                              {!land?.is_under_construction && (
+                                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                                  升级建筑
                                 </button>
                               )}
                             </div>
