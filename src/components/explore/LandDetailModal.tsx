@@ -87,7 +87,8 @@ export function LandDetailModal({
   const formatPrice = (price: string | number | null | undefined) => {
     if (!price) return '0'
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+    // 使用 Math.floor 向下取整，避免小数
+    return Math.floor(numPrice).toLocaleString('zh-CN')
   }
   
   const getLandTypeIcon = (landType: string) => {
@@ -136,7 +137,8 @@ export function LandDetailModal({
   if (!isOpen) return null
   
   const originalPrice = parseFloat(land?.current_price || 0)
-  const discountedPrice = originalPrice * 0.4
+  // 使用 Math.floor 确保价格一致性
+  const discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60
   
@@ -497,12 +499,13 @@ export function LandDetailModal({
         )}
       </AnimatePresence>
       
-      {/* 内测密码验证弹窗 */}
+      {/* 内测密码验证弹窗 - 传递原价和折后价 */}
       <BetaPasswordModal
         isOpen={showBetaPassword}
         onClose={() => setShowBetaPassword(false)}
         onConfirm={handleBetaPasswordConfirm}
-        landPrice={discountedPrice || 0}
+        landPrice={discountedPrice || 0}  // 折后价（实际支付价格）
+        originalPrice={originalPrice || 0}  // 原价（用于显示对比）
         landId={land?.land_id || ''}
       />
     </>
