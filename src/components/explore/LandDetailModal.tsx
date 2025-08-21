@@ -136,9 +136,16 @@ export function LandDetailModal({
   
   if (!isOpen) return null
   
-  const originalPrice = parseFloat(land?.current_price || 0)
-  // 使用 Math.floor 确保价格一致性
+  // 价格计算 - 添加调试日志
+  const rawPrice = land?.current_price
+  console.log('[LandDetailModal] Raw price:', rawPrice, typeof rawPrice)
+  
+  const originalPrice = Math.floor(parseFloat(rawPrice || 0))
+  console.log('[LandDetailModal] Original price after floor:', originalPrice)
+  
   const discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
+  console.log('[LandDetailModal] Discounted price (40%):', originalPrice * 0.4, '→ floored:', discountedPrice)
+  
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60
   
@@ -258,7 +265,7 @@ export function LandDetailModal({
                               <p className="text-xs text-gray-400 mb-1">原始价格</p>
                               <div className="flex items-center gap-2">
                                 <p className="text-2xl text-gray-500 line-through">
-                                  {formatPrice(originalPrice)}
+                                  {originalPrice.toLocaleString('zh-CN')}
                                 </p>
                                 <span className="text-sm text-gray-500">TDB</span>
                               </div>
@@ -270,7 +277,7 @@ export function LandDetailModal({
                               <div className="flex items-center gap-2">
                                 <Coins className="w-6 h-6 text-gold-500" />
                                 <p className="text-3xl font-bold text-gold-500">
-                                  {formatPrice(discountedPrice)}
+                                  {discountedPrice.toLocaleString('zh-CN')}
                                 </p>
                                 <span className="text-lg text-gold-400">TDB</span>
                               </div>
@@ -282,7 +289,7 @@ export function LandDetailModal({
                             <div className="flex items-center justify-between">
                               <span className="text-green-400 font-medium">您将节省</span>
                               <span className="text-2xl font-bold text-green-400">
-                                {formatPrice(savedAmount)} TDB
+                                {savedAmount.toLocaleString('zh-CN')} TDB
                               </span>
                             </div>
                           </div>
