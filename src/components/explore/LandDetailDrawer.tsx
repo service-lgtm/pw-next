@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, Coins, Gift, Star, 
   Mountain, Pickaxe, Building2, Hash, Calendar,
-  Loader2, Zap, Battery, Layers
+  Loader2, Zap
 } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
@@ -126,8 +126,107 @@ export function LandDetailDrawer({
   const discountedPrice = originalPrice * 0.4
   const savedAmount = originalPrice - discountedPrice
   
-  // 渲染内容的函数
-  const renderContent = () => (
+  return (
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* 背景遮罩 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+            />
+            
+            {/* 内容容器 */}
+            {isMobile ? (
+              // 移动端：底部抽屉
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 shadow-2xl rounded-t-3xl max-h-[90vh] w-full overflow-hidden"
+              >
+                <ContentBody 
+                  isMobile={isMobile}
+                  loading={loading}
+                  land={land}
+                  onClose={onClose}
+                  originalPrice={originalPrice}
+                  discountedPrice={discountedPrice}
+                  savedAmount={savedAmount}
+                  purchaseError={purchaseError}
+                  purchasing={purchasing}
+                  handlePurchase={handlePurchase}
+                  formatPrice={formatPrice}
+                />
+              </motion.div>
+            ) : (
+              // PC端：居中模态框
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed z-50 bg-gray-900 shadow-2xl rounded-2xl max-h-[85vh] overflow-hidden"
+                style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '90%',
+                  maxWidth: '1024px',
+                }}
+              >
+                <ContentBody 
+                  isMobile={isMobile}
+                  loading={loading}
+                  land={land}
+                  onClose={onClose}
+                  originalPrice={originalPrice}
+                  discountedPrice={discountedPrice}
+                  savedAmount={savedAmount}
+                  purchaseError={purchaseError}
+                  purchasing={purchasing}
+                  handlePurchase={handlePurchase}
+                  formatPrice={formatPrice}
+                />
+              </motion.div>
+            )}
+          </>
+        )}
+      </AnimatePresence>
+      
+      {/* 内测密码验证弹窗 */}
+      <BetaPasswordModal
+        isOpen={showBetaPassword}
+        onClose={() => setShowBetaPassword(false)}
+        onConfirm={handleBetaPasswordConfirm}
+        landPrice={discountedPrice || 0}
+        landId={land?.land_id || ''}
+      />
+    </>
+  )
+}
+
+// 内容组件
+function ContentBody({ 
+  isMobile, 
+  loading, 
+  land, 
+  onClose,
+  originalPrice,
+  discountedPrice,
+  savedAmount,
+  purchaseError,
+  purchasing,
+  handlePurchase,
+  formatPrice
+}: any) {
+  return (
     <>
       {/* 标题栏 */}
       <div className={cn(
@@ -173,7 +272,7 @@ export function LandDetailDrawer({
               </div>
             )}
             
-            {/* 主要信息网格 - PC端3列，移动端2列 */}
+            {/* 主要信息网格 */}
             <div className={cn(
               "grid gap-4",
               isMobile ? "grid-cols-1" : "grid-cols-2 lg:grid-cols-3"
@@ -284,7 +383,7 @@ export function LandDetailDrawer({
               )}
             </div>
             
-            {/* 价格和购买区域 - 只在可购买时显示 */}
+            {/* 价格和购买区域 */}
             {land?.status === 'unowned' && (
               <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30">
                 {/* 优惠标签 */}
@@ -296,7 +395,7 @@ export function LandDetailDrawer({
                   </div>
                 </div>
                 
-                {/* 价格信息 - PC端横向布局，移动端纵向 */}
+                {/* 价格信息 */}
                 <div className={cn(
                   "grid gap-4 mb-4",
                   isMobile ? "grid-cols-1" : "grid-cols-3"
@@ -396,69 +495,6 @@ export function LandDetailDrawer({
           </div>
         )}
       </div>
-    </>
-  )
-  
-  return (
-    <>
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* 背景遮罩 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-            />
-            
-            {/* 内容容器 - 根据设备类型调整 */}
-            {isMobile ? (
-              // 移动端：底部抽屉
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 shadow-2xl rounded-t-3xl max-h-[90vh] w-full overflow-hidden"
-              >
-                {renderContent()}
-              </motion.div>
-            ) : (
-              // PC端：居中模态框
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="fixed z-50 bg-gray-900 shadow-2xl rounded-2xl max-h-[85vh] overflow-hidden"
-                style={{
-                  position: 'fixed',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '90%',
-                  maxWidth: '1024px',
-                }}
-              >
-                {renderContent()}
-              </motion.div>
-            )}
-              </motion.div>
-            )}
-          </>
-        )}
-      </AnimatePresence>
-      
-      {/* 内测密码验证弹窗 */}
-      <BetaPasswordModal
-        isOpen={showBetaPassword}
-        onClose={() => setShowBetaPassword(false)}
-        onConfirm={handleBetaPasswordConfirm}
-        landPrice={discountedPrice || 0}
-        landId={land?.land_id || ''}
-      />
     </>
   )
 }
