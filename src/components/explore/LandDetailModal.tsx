@@ -208,7 +208,10 @@ export function LandDetailModal({
             )}>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <Building2 className="w-16 h-16 text-gold-500 mx-auto mb-3" />
+                  {/* 使用渐变色块替代图标 */}
+                  <div className="w-20 h-20 bg-gradient-to-br from-gold-500 to-yellow-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                    <span className="text-3xl font-black text-black">地</span>
+                  </div>
                   <h2 className="text-3xl font-bold">{land.land_id}</h2>
                   <p className="text-gray-300 mt-2">{land.blueprint.land_type_display}</p>
                   {land.status === 'unowned' && (
