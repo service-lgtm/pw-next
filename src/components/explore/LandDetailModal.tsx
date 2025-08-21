@@ -370,7 +370,7 @@ export function LandDetailModal({
         onClose={() => setShowBetaPassword(false)}
         onConfirm={handleBetaPasswordConfirm}
         landPrice={Number(land?.current_price || 0)}
-        landId={land?.land_id}
+        landId={land?.land_id || ''}
       />
     </>
   )
