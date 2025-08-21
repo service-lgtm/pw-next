@@ -1,10 +1,10 @@
 // src/components/explore/LandCard.tsx
-// 土地卡片组件 - 使用TDB单位
+// 土地卡片组件 - 创世土地4折优惠版
 
 'use client'
 
 import { motion } from 'framer-motion'
-import { MapPin, TrendingUp, Building2, Lock, Coins } from 'lucide-react'
+import { MapPin, TrendingUp, Building2, Lock, Coins, Zap, Timer, Percent } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +41,11 @@ export function LandCard({ land, onClick }: LandCardProps) {
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
   }
   
+  // 计算原价（当前价格是4折后的价格）
+  const discountedPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
+  const originalPrice = discountedPrice / 0.4  // 原价 = 折扣价 / 0.4
+  const savedAmount = originalPrice - discountedPrice
+  
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -51,11 +56,36 @@ export function LandCard({ land, onClick }: LandCardProps) {
         isAvailable ? "border-green-500/50 hover:border-green-500" : "border-gray-700"
       )}
     >
+      {/* 创世土地标识 */}
+      {isAvailable && (
+        <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-1.5 animate-gradient">
+          <div className="flex items-center justify-center gap-1 text-xs font-bold text-white">
+            <Zap className="w-3 h-3" />
+            <span>创世土地 · 限时4折</span>
+            <Zap className="w-3 h-3" />
+          </div>
+        </div>
+      )}
+      
+      {/* 折扣角标 */}
+      {isAvailable && (
+        <div className="absolute top-8 right-2 z-10">
+          <motion.div
+            initial={{ rotate: 0 }}
+            animate={{ rotate: [0, -5, 5, -5, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg"
+          >
+            -60% OFF
+          </motion.div>
+        </div>
+      )}
+      
       {/* 类型背景 */}
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-20", bgGradient)} />
       
       {/* 内容 */}
-      <div className="relative p-4">
+      <div className="relative p-4 pt-12">
         {/* 头部 */}
         <div className="flex items-start justify-between mb-3">
           <div>
@@ -82,22 +112,43 @@ export function LandCard({ land, onClick }: LandCardProps) {
           </div>
         </div>
         
-        {/* 价格 - 使用TDB */}
+        {/* 价格 - 创世土地特殊展示 */}
         <div className="pt-3 border-t border-gray-700">
           {isAvailable ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400">当前价格</p>
+            <div>
+              {/* 原价 */}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-gray-500">原价</p>
                 <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-gold-500" />
-                  <p className="text-lg font-bold text-gold-500">
-                    {formatPrice(land.current_price)}
+                  <p className="text-sm text-gray-500 line-through">
+                    {formatPrice(originalPrice)} TDB
                   </p>
-                  <span className="text-xs text-gold-400">TDB</span>
                 </div>
               </div>
-              <div className="bg-green-500 text-black px-3 py-1 rounded-full text-xs font-bold">
-                可购买
+              
+              {/* 现价 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-red-400 font-bold">创世优惠价</p>
+                  <div className="flex items-center gap-1">
+                    <Coins className="w-4 h-4 text-gold-500" />
+                    <p className="text-xl font-bold text-gold-500">
+                      {formatPrice(discountedPrice)}
+                    </p>
+                    <span className="text-xs text-gold-400">TDB</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse">
+                    立省{formatPrice(savedAmount)}
+                  </div>
+                </div>
+              </div>
+              
+              {/* 限时标识 */}
+              <div className="mt-2 flex items-center justify-center gap-1 text-xs text-orange-400">
+                <Timer className="w-3 h-3 animate-pulse" />
+                <span>限时抢购中</span>
               </div>
             </div>
           ) : (
