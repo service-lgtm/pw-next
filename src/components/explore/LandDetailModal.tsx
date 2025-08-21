@@ -54,25 +54,23 @@ export function LandDetailModal({
     if (landId) {
       console.log('[LandDetailModal] Fetching land by ID:', landId)
       fetchLandDetails(landId)
+    } else if (propLand && propLand.id) {
+      // 如果没有 landId 但有 land.id
+      console.log('[LandDetailModal] Fetching land by land.id:', propLand.id)
+      fetchLandDetails(propLand.id)
     } else if (propLand) {
-      // 如果没有 landId 但有 land 对象，尝试从 land.id 获取
-      if (propLand.id) {
-        console.log('[LandDetailModal] Fetching land by land.id:', propLand.id)
-        fetchLandDetails(propLand.id)
-      } else {
-        // 只有当真的没有 ID 时才直接使用传入的对象
-        console.log('[LandDetailModal] Using land from prop:', propLand)
-        setLand(propLand)
-        setLoading(false)
-        setError(null)
-      }
+      // 只有当真的没有 ID 时才直接使用传入的对象
+      console.log('[LandDetailModal] Using land from prop:', propLand)
+      setLand(propLand)
+      setLoading(false)
+      setError(null)
     } else {
       // 没有数据
       console.log('[LandDetailModal] No land data provided')
       setLoading(false)
       setError('没有土地信息')
     }
-  }, [isOpen, landId, propLand?.id])
+  }, [isOpen, landId]) // 移除 propLand?.id 避免依赖问题
   
   // 获取土地详情
   const fetchLandDetails = async (id: number) => {
@@ -147,55 +145,63 @@ export function LandDetailModal({
   
   if (loading) {
     return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
+      <AnimatePresence mode="wait">
+        {isOpen && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gray-900 rounded-2xl p-8"
+            key="loading-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={onClose}
           >
-            <Loader2 className="w-8 h-8 animate-spin text-gold-500 mx-auto mb-4" />
-            <p className="text-gray-400">加载土地详情...</p>
+            <motion.div
+              key="loading-content"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl p-8"
+            >
+              <Loader2 className="w-8 h-8 animate-spin text-gold-500 mx-auto mb-4" />
+              <p className="text-gray-400">加载土地详情...</p>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        )}
       </AnimatePresence>
     )
   }
   
   if (error) {
     return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
+      <AnimatePresence mode="wait">
+        {isOpen && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-gray-900 rounded-2xl p-8"
+            key="error-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={onClose}
           >
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+            <motion.div
+              key="error-content"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-gray-900 rounded-2xl p-8"
             >
-              关闭
-            </button>
+              <p className="text-red-400 mb-4">{error}</p>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                关闭
+              </button>
+            </motion.div>
           </motion.div>
-        </motion.div>
+        )}
       </AnimatePresence>
     )
   }
@@ -217,21 +223,24 @@ export function LandDetailModal({
   
   return (
     <>
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
+      <AnimatePresence mode="wait">
+        {isOpen && (
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-gray-900 rounded-2xl shadow-2xl"
+            key="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={onClose}
           >
+            <motion.div
+              key="modal-content"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-gray-900 rounded-2xl shadow-2xl"
+            >
             {/* 关闭按钮 */}
             <button
               onClick={onClose}
