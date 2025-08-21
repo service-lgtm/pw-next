@@ -160,8 +160,8 @@ export function LandDetailModal({
   if (!land) return null
   
   // 计算价格
-  const discountedPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
-  const originalPrice = discountedPrice / 0.4  // 原价 = 折扣价 / 0.4
+  const originalPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
+  const discountedPrice = originalPrice * 0.4  // 4折价 = 原价 * 0.4
   const savedAmount = originalPrice - discountedPrice
   const discountPercentage = 60  // 60% off
   
