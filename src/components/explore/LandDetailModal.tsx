@@ -31,8 +31,8 @@ export function LandDetailModal({
   console.log('[LandDetailModal] Component initialized with props:', { isOpen, propLand, landId })
   
   const { user } = useAuth()
-  const [land, setLand] = useState<any>(propLand || null)  // 使用 any 类型
-  const [loading, setLoading] = useState(false)
+  const [land, setLand] = useState<any>(null)  // 初始为 null
+  const [loading, setLoading] = useState(true)  // 初始为 loading
   const [error, setError] = useState<string | null>(null)
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
