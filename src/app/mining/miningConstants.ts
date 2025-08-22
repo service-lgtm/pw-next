@@ -1,5 +1,5 @@
 // src/app/mining/miningConstants.ts
-// 挖矿系统常量定义文件
+// 挖矿系统常量定义文件 - 增强版（添加工具与土地类型映射）
 // 
 // 文件说明：
 // 本文件集中管理挖矿系统的所有常量定义，包括土地类型、资源消耗率、税率等
@@ -10,18 +10,19 @@
 // - 常量定义集中管理，方便修改和查找
 // - 多个组件需要共享这些常量
 // 
+// 更新历史：
+// - 2025-01: 从 MiningSessions.tsx 拆分出来
+// - 2025-01: 添加所有土地类型的支持
+// - 2025-01: 添加工具与土地类型映射关系，解决工具选择错误问题
+// 
 // 使用方式：
-// import { MINABLE_LAND_TYPES, LAND_TYPE_MAP } from './miningConstants'
+// import { MINABLE_LAND_TYPES, LAND_TYPE_MAP, TOOL_LAND_MAP } from './miningConstants'
 // 
 // 关联文件：
 // - 被 MiningSessions.tsx 引用（主挖矿会话组件）
 // - 被 LandSelector.tsx 引用（土地选择器组件）
-// - 被 StartMiningForm.tsx 引用（开始挖矿表单）
+// - 被 StartMiningForm.tsx 引用（开始挖矿表单）- 使用工具映射进行智能筛选
 // - 被 SessionCard.tsx 引用（会话卡片组件）
-// 
-// 更新历史：
-// - 2025-01: 从 MiningSessions.tsx 拆分出来
-// - 2025-01: 添加所有土地类型的支持
 
 /**
  * 资源消耗率定义
@@ -89,6 +90,107 @@ export const LAND_RESOURCE_MAP: { [key: string]: string } = {
 }
 
 /**
+ * 工具类型定义
+ */
+export const TOOL_TYPES = {
+  PICKAXE: 'pickaxe',  // 镐
+  AXE: 'axe',          // 斧头
+  HOE: 'hoe'           // 锄头
+}
+
+/**
+ * 工具类型中文名称映射
+ */
+export const TOOL_TYPE_NAMES: { [key: string]: string } = {
+  'pickaxe': '镐',
+  'axe': '斧头',
+  'hoe': '锄头'
+}
+
+/**
+ * 工具类型图标映射
+ */
+export const TOOL_TYPE_ICONS: { [key: string]: string } = {
+  'pickaxe': '⛏️',
+  'axe': '🪓',
+  'hoe': '🔨'
+}
+
+/**
+ * 工具与土地类型映射关系
+ * 定义每种工具可以用于哪些土地类型
+ * 
+ * 规则：
+ * - 镐 → 铁矿山、石矿山、YLD矿山
+ * - 斧头 → 森林
+ * - 锄头 → 农场
+ */
+export const TOOL_LAND_MAP: { [toolType: string]: string[] } = {
+  'pickaxe': ['iron_mine', 'stone_mine', 'yld_mine'],  // 镐可用于矿山类型
+  'axe': ['forest'],                                    // 斧头可用于森林
+  'hoe': ['farm']                                       // 锄头可用于农场
+}
+
+/**
+ * 土地与工具类型映射关系（反向映射）
+ * 定义每种土地类型需要使用哪种工具
+ */
+export const LAND_TOOL_MAP: { [landType: string]: string } = {
+  'iron_mine': 'pickaxe',   // 铁矿山需要镐
+  'stone_mine': 'pickaxe',  // 石矿山需要镐
+  'yld_mine': 'pickaxe',    // YLD矿山需要镐
+  'forest': 'axe',          // 森林需要斧头
+  'farm': 'hoe'             // 农场需要锄头
+}
+
+/**
+ * 检查工具是否适用于指定土地类型
+ * @param toolType - 工具类型
+ * @param landType - 土地类型
+ * @returns 是否适用
+ */
+export function isToolValidForLand(toolType: string, landType: string): boolean {
+  const validLandTypes = TOOL_LAND_MAP[toolType] || []
+  return validLandTypes.includes(landType)
+}
+
+/**
+ * 获取土地类型所需的工具类型
+ * @param landType - 土地类型
+ * @returns 所需的工具类型
+ */
+export function getRequiredToolType(landType: string): string | null {
+  return LAND_TOOL_MAP[landType] || null
+}
+
+/**
+ * 获取工具类型的描述信息
+ * @param toolType - 工具类型
+ * @returns 描述信息
+ */
+export function getToolTypeInfo(toolType: string): {
+  name: string
+  icon: string
+  validLands: string[]
+  description: string
+} {
+  const name = TOOL_TYPE_NAMES[toolType] || '未知工具'
+  const icon = TOOL_TYPE_ICONS[toolType] || '🔧'
+  const validLands = TOOL_LAND_MAP[toolType] || []
+  
+  let description = ''
+  if (toolType === 'pickaxe') {
+    description = '适用于开采矿石（铁矿山、石矿山、YLD矿山）'
+  } else if (toolType === 'axe') {
+    description = '适用于砍伐木材（森林）'
+  } else if (toolType === 'hoe') {
+    description = '适用于耕种土地（农场）'
+  }
+  
+  return { name, icon, validLands, description }
+}
+
+/**
  * 资源类型的图标映射
  * 用于界面显示
  */
@@ -153,6 +255,7 @@ export const ERROR_TYPES = {
   NO_TOOLS: '工具',
   LAND_ISSUE: '土地',
   YLD_LIMIT: 'YLD',
+  TOOL_MISMATCH: '工具类型不匹配',  // 新增：工具类型不匹配错误
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   SERVER_ERROR: 500
