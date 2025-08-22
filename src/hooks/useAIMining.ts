@@ -277,10 +277,7 @@ export function useAIMiningStop() {
       localStorage.removeItem('ai_mining_state')
       
       toast.success(
-        <div>
-          <p className="font-bold">AI挖矿已停止</p>
-          <p className="text-sm">总收益: {mockResponse.data.total_earnings.toFixed(2)} YLD</p>
-        </div>,
+        `AI挖矿已停止\n总收益: ${mockResponse.data.total_earnings.toFixed(2)} YLD`,
         { duration: 5000 }
       )
       
