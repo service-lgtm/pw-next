@@ -171,8 +171,53 @@ export function MiningSessions({
     const errorData = errorResponse?.data
     const statusCode = errorResponse?.status
     
-    // 处理400错误 - 土地类型不支持挖矿
+    // 处理400错误
     if (statusCode === 400 && errorData) {
+      const errorMessage = errorData.message || ''
+      
+      // 处理工具类型不匹配错误
+      if (errorMessage.includes('只能使用') || errorMessage.includes('不适用的工具')) {
+        // 解析错误信息，提取关键信息
+        const landTypeMatch = errorMessage.match(/([\u4e00-\u9fa5]+矿山|森林|农场)/g)
+        const requiredToolMatch = errorMessage.match(/只能使用([\u4e00-\u9fa5]+)/g)
+        const wrongToolsMatch = errorMessage.match(/不适用的工具：(.+?)。/g)
+        
+        const landType = landTypeMatch ? landTypeMatch[0] : '该土地'
+        const requiredTool = requiredToolMatch ? requiredToolMatch[0].replace('只能使用', '') : '正确的工具'
+        const wrongTools = wrongToolsMatch ? wrongToolsMatch[0].replace('不适用的工具：', '').replace('。', '') : ''
+        
+        toast.error(
+          <div>
+            <p className="font-bold mb-2">🔧 工具类型不匹配</p>
+            <div className="text-xs space-y-1">
+              <p className="text-yellow-400">{landType}需要使用{requiredTool}</p>
+              {wrongTools && (
+                <div className="mt-2">
+                  <p className="text-gray-300">您选择了不适用的工具：</p>
+                  <p className="text-red-400 text-[10px] mt-1">{wrongTools}</p>
+                </div>
+              )}
+              <div className="mt-3 p-2 bg-blue-900/30 rounded">
+                <p className="font-bold text-blue-400 mb-1">工具使用规则：</p>
+                <ul className="space-y-0.5 text-gray-300">
+                  <li>• 镐 → 铁矿山、石矿山、YLD矿山</li>
+                  <li>• 斧头 → 森林</li>
+                  <li>• 锄头 → 农场</li>
+                </ul>
+              </div>
+            </div>
+          </div>,
+          {
+            duration: TOAST_DURATION.LONG,
+            position: 'top-center',
+            icon: '❌'
+          }
+        )
+        // 不关闭模态框，让用户重新选择工具
+        return
+      }
+      
+      // 处理土地类型不支持挖矿
       if (errorData.message?.includes(ERROR_TYPES.LAND_NOT_SUPPORTED)) {
         const landType = errorData.data?.land_type || '未知'
         const landName = errorData.data?.land_name || selectedLand?.land_id || '未知土地'
