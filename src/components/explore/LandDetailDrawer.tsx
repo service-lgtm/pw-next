@@ -1,7 +1,12 @@
-/**
- * 文件: /src/components/explore/LandDetailDrawer.tsx
- * 描述: 土地详情展示组件 - 稳定版本
- */
+// src/components/explore/LandDetailDrawer.tsx
+// 土地详情展示组件 - 3折特惠版（移除密码验证）
+// 修改说明：
+// 1. 将原4折(0.4)改为3折(0.3)计算
+// 2. 移除BetaPasswordModal密码验证，改为内测提醒确认
+// 3. 添加特色地块专属道具赠送提示
+// 4. 优化营销文案，突出"限时3折"和"区块链确权"
+// 关联文件：LandDetailModal.tsx, LandDetailView.tsx, BetaConfirmModal.tsx(新建)
+// 最后修改：2024-12-20 - 调整为3折并移除密码验证
 
 'use client'
 
@@ -10,11 +15,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, Coins, Gift, Star, 
   Mountain, Pickaxe, Building2, Hash, Calendar,
-  Loader2, Zap
+  Loader2, Zap, Shield, Wheat, AlertCircle
 } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
-import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
 import { cn } from '@/lib/utils'
 
 interface LandDetailDrawerProps {
@@ -23,6 +27,15 @@ interface LandDetailDrawerProps {
   land?: any
   landId?: number
   onPurchaseSuccess?: () => void
+}
+
+// 特色地块赠送配置
+const landTypeGifts: Record<string, { tools: string; food: string }> = {
+  farm: { tools: '农具×1', food: '基础粮食×100' },
+  iron_mine: { tools: '铁镐×1', food: '基础粮食×50' },
+  stone_mine: { tools: '石镐×1', food: '基础粮食×50' },
+  forest: { tools: '斧头×1', food: '基础粮食×75' },
+  yld_mine: { tools: '钻头×1', food: '基础粮食×100' },
 }
 
 export function LandDetailDrawer({ 
@@ -37,7 +50,7 @@ export function LandDetailDrawer({
   const [loading, setLoading] = useState(false)
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
-  const [showBetaPassword, setShowBetaPassword] = useState(false)
+  const [showBetaConfirm, setShowBetaConfirm] = useState(false)
   const [mounted, setMounted] = useState(false)
   
   // 确保组件已挂载（避免SSR问题）
@@ -84,11 +97,11 @@ export function LandDetailDrawer({
       window.location.href = '/login'
       return
     }
-    setShowBetaPassword(true)
+    setShowBetaConfirm(true)
   }
   
-  const handleBetaPasswordConfirm = async () => {
-    setShowBetaPassword(false)
+  const handleBetaConfirm = async () => {
+    setShowBetaConfirm(false)
     if (!land) return
     
     try {
@@ -114,8 +127,9 @@ export function LandDetailDrawer({
   if (!mounted || !isOpen) return null
   
   const originalPrice = parseFloat(land?.current_price || 0)
-  const discountedPrice = originalPrice * 0.4
+  const discountedPrice = originalPrice * 0.3  // 3折价格
   const savedAmount = originalPrice - discountedPrice
+  const giftInfo = land?.land_type ? landTypeGifts[land.land_type] : null
   
   // 检测是否为移动端（只在客户端执行）
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -165,10 +179,39 @@ export function LandDetailDrawer({
               <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 text-center">
                 <div className="flex items-center justify-center gap-2 text-white mb-2">
                   <Star className="w-5 h-5" />
-                  <span className="font-bold text-lg">创世纪元 · 限时4折</span>
+                  <span className="font-bold text-lg">平行世界土地狂欢 · 限时3折</span>
                   <Star className="w-5 h-5" />
                 </div>
-                <p className="text-sm text-white/90">首批数字地产，独享创世优惠</p>
+                <p className="text-sm text-white/90">区块链确权，成为元宇宙地主</p>
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <Shield className="w-4 h-4 text-white/80" />
+                  <span className="text-xs text-white/80">永久拥有 · 实时确权</span>
+                </div>
+              </div>
+            )}
+            
+            {/* 赠品提示 */}
+            {land?.status === 'unowned' && giftInfo && (
+              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-4 border border-green-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Gift className="w-5 h-5 text-green-400" />
+                  <span className="font-bold text-green-400">购买即送专属道具</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-black/30 rounded-lg p-2">
+                    <div className="flex items-center gap-2">
+                      <Pickaxe className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-white">{giftInfo.tools}</span>
+                    </div>
+                  </div>
+                  <div className="bg-black/30 rounded-lg p-2">
+                    <div className="flex items-center gap-2">
+                      <Wheat className="w-4 h-4 text-yellow-400" />
+                      <span className="text-sm text-white">{giftInfo.food}</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">助您快速开启生产建设，解锁领地专属收益</p>
               </div>
             )}
             
@@ -222,6 +265,7 @@ export function LandDetailDrawer({
                 onPurchase={handlePurchase}
                 formatPrice={formatPrice}
                 isMobile={isMobile}
+                hasGift={!!giftInfo}
               />
             )}
             
@@ -289,14 +333,19 @@ export function LandDetailDrawer({
         )}
       </AnimatePresence>
       
-      {/* 内测密码验证弹窗 */}
-      <BetaPasswordModal
-        isOpen={showBetaPassword}
-        onClose={() => setShowBetaPassword(false)}
-        onConfirm={handleBetaPasswordConfirm}
-        landPrice={discountedPrice || 0}
-        landId={land?.land_id || ''}
-      />
+      {/* 内测确认弹窗 */}
+      {showBetaConfirm && (
+        <BetaConfirmModal
+          isOpen={showBetaConfirm}
+          onClose={() => setShowBetaConfirm(false)}
+          onConfirm={handleBetaConfirm}
+          landPrice={discountedPrice}
+          originalPrice={originalPrice}
+          landId={land?.land_id || ''}
+          hasGift={!!giftInfo}
+          giftInfo={giftInfo}
+        />
+      )}
     </>
   )
 }
@@ -348,7 +397,8 @@ function PurchaseSection({
   purchasing, 
   onPurchase, 
   formatPrice,
-  isMobile 
+  isMobile,
+  hasGift
 }: any) {
   return (
     <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30">
@@ -356,7 +406,8 @@ function PurchaseSection({
       <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-center py-2 rounded-lg mb-4">
         <div className="flex items-center justify-center gap-2">
           <Gift className="w-4 h-4" />
-          <span className="font-bold">限时优惠 -60%</span>
+          <span className="font-bold">限时优惠 -70%</span>
+          {hasGift && <span className="text-xs">+专属道具</span>}
           <Gift className="w-4 h-4" />
         </div>
       </div>
@@ -373,7 +424,7 @@ function PurchaseSection({
           </p>
         </div>
         <div className="text-center">
-          <p className="text-xs text-gold-400 font-bold mb-1">现价</p>
+          <p className="text-xs text-gold-400 font-bold mb-1">狂欢价</p>
           <div className="flex items-center justify-center gap-2">
             <Coins className="w-5 h-5 text-gold-500" />
             <p className="text-2xl font-bold text-gold-500">
@@ -415,10 +466,92 @@ function PurchaseSection({
         ) : (
           <>
             <Zap className="w-5 h-5" />
-            立即抢购 - 成为创世先锋
+            立即抢购 - 锁定元宇宙领地
           </>
         )}
       </button>
+      
+      {/* 活动截止时间 */}
+      <p className="text-center text-xs text-orange-400 mt-3">
+        活动截止：9月15日 23:59
+      </p>
     </div>
+  )
+}
+
+// 内测确认弹窗组件
+function BetaConfirmModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  landPrice, 
+  originalPrice,
+  landId,
+  hasGift,
+  giftInfo
+}: any) {
+  if (!isOpen) return null
+  
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2">内测提醒</h3>
+            <p className="text-gray-400 mb-4">
+              当前为内测阶段，购买土地将消耗测试代币(TDB)
+            </p>
+            
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-300 mb-2">土地编号：{landId}</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-gray-500 line-through text-sm">原价 {Math.round(originalPrice).toLocaleString()} TDB</span>
+                <span className="text-gold-500 font-bold text-lg">
+                  3折价 {Math.round(landPrice).toLocaleString()} TDB
+                </span>
+              </div>
+              {hasGift && giftInfo && (
+                <div className="border-t border-gray-700 pt-2 mt-2">
+                  <p className="text-xs text-green-400">赠送：{giftInfo.tools} + {giftInfo.food}</p>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-xs text-gray-500 mb-6">
+              提示：正式版上线后，内测期间的所有资产将保留
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+              >
+                确认购买
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
