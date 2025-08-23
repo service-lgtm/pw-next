@@ -642,9 +642,9 @@ function BetaConfirmModal({
               <AlertCircle className="w-8 h-8 text-white" />
             </div>
             
-            <h3 className="text-xl font-bold mb-2">内测购买确认</h3>
+            <h3 className="text-xl font-bold mb-2">购买确认</h3>
             <p className="text-gray-400 mb-4">
-              当前为内测阶段，购买土地将消耗测试代币(TDB)
+              确认购买此土地，将消耗您的TDB通证
             </p>
             
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
@@ -668,7 +668,7 @@ function BetaConfirmModal({
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6">
               <p className="text-xs text-blue-400">
                 <Shield className="w-3 h-3 inline mr-1" />
-                正式版上线后，内测期间的所有资产将保留
+                区块链确权，永久拥有您的数字资产
               </p>
             </div>
             
