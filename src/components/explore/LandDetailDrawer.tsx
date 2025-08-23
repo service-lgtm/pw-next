@@ -10,7 +10,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, Coins, Gift, Star, 
@@ -157,7 +157,7 @@ export function LandDetailDrawer({
   const originalPrice = parseFloat(land?.current_price || 0)
   const discountedPrice = originalPrice * 0.3  // 3折价格
   const savedAmount = originalPrice - discountedPrice
-  const giftInfo = land?.land_type ? landTypeGifts[land.land_type] : null
+  const giftInfo = land?.blueprint?.land_type ? landTypeGifts[land.blueprint.land_type] : null
   
   // 检测是否为移动端（只在客户端执行）
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -265,10 +265,24 @@ export function LandDetailDrawer({
               </InfoCard>
               
               {/* 特殊属性 */}
-              {land?.blueprint?.land_type === 'stone_mine' ? (
+              {land?.blueprint?.land_type === 'stone_mine' || land?.blueprint?.land_type === 'iron_mine' ? (
                 <InfoCard title="矿山属性" icon={<Pickaxe className="w-4 h-4 text-purple-400" />}>
                   <InfoRow label="类型" value={land?.blueprint?.name || '-'} />
-                  <InfoRow label="产出" value={land?.blueprint?.output_resource || '石材'} />
+                  <InfoRow label="产出" value={land?.blueprint?.output_resource || '矿石'} />
+                  <InfoRow label="工具" value={land?.blueprint?.tool_requirement || '镐'} />
+                  <InfoRow label="能耗" value={`${land?.blueprint?.energy_consumption_rate || 0}/天`} />
+                </InfoCard>
+              ) : land?.blueprint?.land_type === 'farm' || land?.blueprint?.land_type === 'forest' ? (
+                <InfoCard title="资源属性" icon={<Pickaxe className="w-4 h-4 text-purple-400" />}>
+                  <InfoRow label="类型" value={land?.blueprint?.name || '-'} />
+                  <InfoRow label="产出" value={land?.blueprint?.output_resource || '资源'} />
+                  <InfoRow label="面积" value={`${land?.blueprint?.size_sqm || 0}㎡`} />
+                  <InfoRow label="能耗" value={`${land?.blueprint?.energy_consumption_rate || 0}/天`} />
+                </InfoCard>
+              ) : land?.blueprint?.land_type === 'yld_mine' ? (
+                <InfoCard title="陨石矿属性" icon={<Pickaxe className="w-4 h-4 text-purple-400" />}>
+                  <InfoRow label="类型" value={land?.blueprint?.name || '-'} />
+                  <InfoRow label="产出" value="YLD" />
                   <InfoRow label="工具" value={land?.blueprint?.tool_requirement || '镐'} />
                   <InfoRow label="能耗" value={`${land?.blueprint?.energy_consumption_rate || 0}/天`} />
                 </InfoCard>
