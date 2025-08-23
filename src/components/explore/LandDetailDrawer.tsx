@@ -113,11 +113,39 @@ export function LandDetailDrawer({
       })
       
       if (response.success) {
-        onPurchaseSuccess?.()
-        onClose()
+        // 显示成功提示
+        const successMessage = document.createElement('div')
+        successMessage.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 z-[100] bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg'
+        successMessage.innerHTML = `
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span>购买成功！</span>
+          </div>
+        `
+        document.body.appendChild(successMessage)
+        
+        // 3秒后移除提示
+        setTimeout(() => {
+          successMessage.remove()
+        }, 3000)
+        
+        // 调用成功回调
+        if (onPurchaseSuccess) {
+          onPurchaseSuccess()
+        }
+        
+        // 延迟关闭抽屉，让用户看到成功提示
+        setTimeout(() => {
+          onClose()
+        }, 1500)
+      } else {
+        setPurchaseError(response.message || '购买失败')
       }
     } catch (err: any) {
-      setPurchaseError(err.message || '购买失败')
+      console.error('购买失败:', err)
+      setPurchaseError(err.response?.data?.message || err.message || '购买失败')
     } finally {
       setPurchasing(false)
     }
