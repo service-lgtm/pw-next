@@ -4,6 +4,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'  // 添加这行
 import { ChevronLeft, ChevronRight, MapPin, TrendingUp, Gem } from 'lucide-react'
 import { LandCard } from './LandCard'
 import type { Land } from '@/types/assets'
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils'
 interface LandGridProps {
   lands: Land[]
   loading?: boolean
-  onLandClick: (land: Land) => void
+  onLandClick?: (land: Land) => void  // 改为可选
   currentPage?: number
   totalPages?: number
   onPageChange?: (page: number) => void
@@ -22,12 +23,24 @@ interface LandGridProps {
 export function LandGrid({
   lands,
   loading,
-  onLandClick,
+  onLandClick,  // 保留这个参数以保持向后兼容
   currentPage = 1,
   totalPages = 1,
   onPageChange,
   viewMode = 'grid'
 }: LandGridProps) {
+  const router = useRouter()  // 添加 router
+  
+  // 新的点击处理函数
+  const handleLandClick = (land: Land) => {
+    // 如果传入了 onLandClick，仍然调用它（向后兼容）
+    if (onLandClick) {
+      onLandClick(land)
+    }
+    // 导航到土地详情页
+    router.push(`/land/${land.id}`)
+  }
+  
   if (loading) {
     return (
       <div className={cn(
@@ -63,7 +76,7 @@ export function LandGrid({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() => onLandClick(land)}
+      onClick={() => handleLandClick(land)}  // 使用新的处理函数
       className={cn(
         "bg-white/5 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all border",
         land.status === 'unowned' 
@@ -120,7 +133,7 @@ export function LandGrid({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <LandCard land={land} onClick={() => onLandClick(land)} />
+              <LandCard land={land} onClick={() => handleLandClick(land)} />  {/* 使用新的处理函数 */}
             </motion.div>
           ))}
         </div>
