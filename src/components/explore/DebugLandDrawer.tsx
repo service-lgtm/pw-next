@@ -38,10 +38,21 @@ class ErrorBoundary extends React.Component<any, any> {
 }
 
 export function DebugLandDrawer(props: any) {
+  // 添加安全检查
+  if (!props) {
+    console.error('[DebugLandDrawer] No props received!')
+    return null
+  }
+  
   console.log('[DebugLandDrawer] Props:', props)
   console.log('[DebugLandDrawer] land:', props.land)
   console.log('[DebugLandDrawer] landId:', props.landId)
   console.log('[DebugLandDrawer] isOpen:', props.isOpen)
+  
+  // 如果 props 不存在或 isOpen 为 false，不渲染
+  if (!props.isOpen) {
+    return null
+  }
   
   return (
     <ErrorBoundary>
