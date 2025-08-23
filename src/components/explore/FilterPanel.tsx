@@ -1,5 +1,11 @@
 // src/components/explore/FilterPanel.tsx
-// 筛选面板组件 - 添加创世土地标识
+// 筛选面板组件 - 创世土地3折特惠版
+// 修改说明：
+// 1. 将原4折(60% OFF)改为3折(70% OFF)
+// 2. 更新价格区间显示，反映3折后的实际价格
+// 3. 优化营销文案，突出"限时3折"和"专属道具赠送"
+// 关联文件：LandCard.tsx, LandDetailModal.tsx, LandDetailDrawer.tsx
+// 最后修改：2024-12-20 - 调整折扣力度和营销策略
 
 'use client'
 
@@ -7,7 +13,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Filter, ChevronDown, X, Sparkles, TrendingUp, 
-  Package, Coins, RotateCcw, Check, Zap, Star
+  Package, Coins, RotateCcw, Check, Zap, Star, Gift
 } from 'lucide-react'
 import type { FilterState } from '@/types/assets'
 import { cn } from '@/lib/utils'
@@ -19,24 +25,24 @@ interface FilterPanelProps {
   totalLands?: number
 }
 
-// 移除emoji，使用文字或图标
+// 土地类型配置
 const landTypes = [
   { value: 'all', label: '全部类型', color: 'from-gray-500 to-gray-600' },
   { value: 'urban', label: '城市用地', color: 'from-blue-500 to-cyan-500' },
-  { value: 'farm', label: '农业用地', color: 'from-green-500 to-emerald-500' },
-  { value: 'iron_mine', label: '铁矿', color: 'from-gray-500 to-slate-500' },
-  { value: 'stone_mine', label: '石矿', color: 'from-stone-500 to-amber-500' },
-  { value: 'forest', label: '森林', color: 'from-green-600 to-teal-600' },
-  { value: 'yld_mine', label: 'YLD矿', color: 'from-purple-500 to-pink-500' },
+  { value: 'farm', label: '农田', color: 'from-green-500 to-emerald-500', hasGift: true },
+  { value: 'iron_mine', label: '铁矿山', color: 'from-gray-500 to-slate-500', hasGift: true },
+  { value: 'stone_mine', label: '石矿山', color: 'from-stone-500 to-amber-500', hasGift: true },
+  { value: 'forest', label: '森林', color: 'from-green-600 to-teal-600', hasGift: true },
+  { value: 'yld_mine', label: '陨石矿山', color: 'from-purple-500 to-pink-500', hasGift: true },
 ]
 
-// 价格区间改为显示原价和折扣价
+// 价格区间 - 3折后的价格
 const priceRanges = [
   { value: 'all', label: '不限价格', min: undefined, max: undefined },
-  { value: '0-10k', label: '2.5万 TDB 以下（原价1万以下）', min: 0, max: 10000 },
-  { value: '10k-50k', label: '2.5-12.5万 TDB（原价1-5万）', min: 10000, max: 50000 },
-  { value: '50k-100k', label: '12.5-25万 TDB（原价5-10万）', min: 50000, max: 100000 },
-  { value: '100k+', label: '25万 TDB 以上（原价10万+）', min: 100000, max: undefined },
+  { value: '0-10k', label: '3千 TDB 以下（原价1万以下）', min: 0, max: 10000 },
+  { value: '10k-50k', label: '3千-1.5万 TDB（原价1-5万）', min: 10000, max: 50000 },
+  { value: '50k-100k', label: '1.5万-3万 TDB（原价5-10万）', min: 50000, max: 100000 },
+  { value: '100k+', label: '3万 TDB 以上（原价10万+）', min: 100000, max: undefined },
 ]
 
 const sortOptions = [
@@ -104,7 +110,7 @@ export function FilterPanel({
   
   return (
     <div className="space-y-4">
-      {/* 创世土地活动卡片 */}
+      {/* 创世土地活动卡片 - 3折特惠 */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -113,23 +119,27 @@ export function FilterPanel({
         <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-gold-500 to-yellow-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-gold-500 to-yellow-600 rounded-full flex items-center justify-center animate-pulse">
               <Star className="w-4 h-4 text-black" />
             </div>
-            <h3 className="font-bold text-white">创世纪元 · 限时特惠</h3>
+            <h3 className="font-bold text-white">平行世界土地狂欢</h3>
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <Zap className="w-4 h-4 text-gold-500" />
-              <span className="text-gold-400">首批土地享受4折优惠</span>
+              <span className="text-gold-400 font-bold">全平台虚拟地块3折开抢！</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Gift className="w-4 h-4 text-green-400" />
+              <span className="text-green-300">购买特色地块送专属工具+粮食补给</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Sparkles className="w-4 h-4 text-purple-400" />
-              <span className="text-purple-300">成为创世先锋，见证历史</span>
+              <span className="text-purple-300">区块链确权，永久拥有</span>
             </div>
-            <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-2 mt-3">
-              <p className="text-xs text-red-400 text-center font-medium">
-                限时优惠 -60% OFF
+            <div className="bg-gradient-to-r from-red-600 to-pink-600 border border-red-500/50 rounded-lg p-2 mt-3">
+              <p className="text-sm text-white text-center font-bold animate-pulse">
+                限时特惠 -70% OFF · 仅限9月15日前
               </p>
             </div>
           </div>
@@ -157,17 +167,17 @@ export function FilterPanel({
               <span className="text-lg font-bold text-green-400">{stats.available_lands}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-400">创世优惠价</span>
+              <span className="text-sm text-gray-400">创世3折价</span>
               <div className="text-right">
                 <div className="flex items-center gap-1 justify-end">
                   <Coins className="w-4 h-4 text-gold-500" />
                   <span className="text-lg font-bold text-gold-500">
-                    {Math.round(stats.average_price).toLocaleString()}
+                    {Math.round(stats.average_price * 0.3).toLocaleString()}
                   </span>
                   <span className="text-sm text-gold-400">TDB</span>
                 </div>
                 <p className="text-xs text-gray-500 line-through">
-                  原价 {Math.round(stats.average_price / 0.4).toLocaleString()} TDB
+                  原价 {Math.round(stats.average_price).toLocaleString()} TDB
                 </p>
               </div>
             </div>
@@ -192,7 +202,7 @@ export function FilterPanel({
         </motion.div>
       )}
       
-      {/* 土地类型选择 */}
+      {/* 土地类型选择 - 标记赠送道具的类型 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('type')}
@@ -230,7 +240,7 @@ export function FilterPanel({
                   onClick={() => handleTypeChange(type.value)}
                   className={cn(
                     "w-full px-4 py-3 rounded-xl text-left transition-all",
-                    "flex items-center justify-between group",
+                    "flex items-center justify-between group relative",
                     filters.land_type === type.value
                       ? "bg-gradient-to-r " + type.color + " text-white shadow-lg"
                       : "bg-white/5 hover:bg-white/10"
@@ -238,6 +248,12 @@ export function FilterPanel({
                 >
                   <span className="flex items-center gap-3">
                     <span className="font-medium">{type.label}</span>
+                    {type.hasGift && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                        <Gift className="w-3 h-3" />
+                        送道具
+                      </span>
+                    )}
                   </span>
                   {filters.land_type === type.value && (
                     <Check className="w-4 h-4" />
@@ -249,7 +265,7 @@ export function FilterPanel({
         </AnimatePresence>
       </div>
       
-      {/* 价格区间 */}
+      {/* 价格区间 - 3折后价格 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
           onClick={() => toggleSection('price')}
@@ -257,7 +273,7 @@ export function FilterPanel({
         >
           <h3 className="font-bold flex items-center gap-2">
             <Coins className="w-5 h-5 text-gold-400" />
-            价格区间 (4折后)
+            价格区间 (3折后)
             {(filters.priceRange.min !== undefined || filters.priceRange.max !== undefined) && (
               <span className="px-2 py-0.5 bg-gold-500/20 text-gold-400 text-xs rounded-full">
                 已设置
