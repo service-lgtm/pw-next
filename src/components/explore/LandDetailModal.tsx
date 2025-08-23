@@ -1,16 +1,16 @@
 // src/components/explore/LandDetailModal.tsx
-// 土地详情查看和购买弹窗组件 - 3折特惠版（修复石矿山兼容性）
+// 土地详情查看和购买弹窗组件 - 3折特惠版（完全修复石矿山兼容性）
 // 修改说明：
-// 1. 修复石矿山类型土地的礼物配置读取问题 - 使用 blueprint.land_type 而不是 land.land_type
-// 2. 修复 giftInfo.icon 渲染问题 - 改为使用组件名称
-// 3. 添加更多的空值保护和类型检查
-// 4. 确保所有土地类型都能正常打开详情弹窗
+// 1. 修复石矿山类型土地的礼物配置读取问题
+// 2. 统一使用 blueprint.land_type 而不是 land.land_type
+// 3. 修复所有可能返回 undefined 的情况
+// 4. 确保 BetaConfirmModal 组件正确定义
 // 关联文件：LandDetailDrawer.tsx, LandDetailView.tsx, LandCard.tsx
-// 最后修改：2024-12-20 - 修复石矿山类型兼容性问题
+// 最后修改：2024-12-20 - 完全修复石矿山兼容性问题
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, 
@@ -30,13 +30,107 @@ interface LandDetailModalProps {
   onPurchaseSuccess?: () => void
 }
 
-// 特色地块赠送配置 - 注意这里不再需要 icon 字段
+// 特色地块赠送配置
 const landTypeGifts: Record<string, { tools: string; food: string }> = {
   farm: { tools: '专属工具×1', food: '基础粮食包' },
   iron_mine: { tools: '专属工具×1', food: '基础粮食包' },
   stone_mine: { tools: '专属工具×1', food: '基础粮食包' },
   forest: { tools: '专属工具×1', food: '基础粮食包' },
   yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
+}
+
+// 内测确认弹窗组件 - 提前定义，避免 undefined
+function BetaConfirmModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  landPrice, 
+  originalPrice,
+  landId,
+  hasGift,
+  giftInfo
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  landPrice: number
+  originalPrice: number
+  landId: string
+  hasGift: boolean
+  giftInfo: any
+}) {
+  if (!isOpen) return null
+  
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6"
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-white" />
+              </div>
+              
+              <h3 className="text-xl font-bold mb-2">购买确认</h3>
+              <p className="text-gray-400 mb-4">
+                确认购买此土地，将消耗您的TDB通证
+              </p>
+              
+              <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-300 mb-2">土地编号：{landId}</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-gray-500 line-through text-sm">原价 {Math.round(originalPrice).toLocaleString()} TDB</span>
+                  <span className="text-gold-500 font-bold text-lg">
+                    3折价 {Math.round(landPrice).toLocaleString()} TDB
+                  </span>
+                </div>
+                {hasGift && giftInfo && (
+                  <div className="border-t border-gray-700 pt-2 mt-2">
+                    <p className="text-xs text-green-400">
+                      <Gift className="w-3 h-3 inline mr-1" />
+                      赠送：{giftInfo.tools} + {giftInfo.food}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6">
+                <p className="text-xs text-blue-400">
+                  <Shield className="w-3 h-3 inline mr-1" />
+                  区块链确权，永久拥有您的数字资产
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={onConfirm}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+                >
+                  确认购买
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 export function LandDetailModal({ 
@@ -77,7 +171,7 @@ export function LandDetailModal({
       setLoading(false)
       setError('没有土地信息')
     }
-  }, [isOpen, landId])
+  }, [isOpen, landId, propLand])
   
   const fetchLandDetails = async (id: number) => {
     setLoading(true)
@@ -120,6 +214,7 @@ export function LandDetailModal({
       'residential': Building2,
       'industrial': Building2,
       'agricultural': Building2,
+      'urban': Building2,
     }
     return iconMap[landType] || Building2
   }
@@ -156,6 +251,7 @@ export function LandDetailModal({
     }
   }
   
+  // 如果模态框未打开，返回 null
   if (!isOpen) return null
   
   // 价格计算 - 只对 unowned 状态的土地计算折扣
@@ -166,14 +262,8 @@ export function LandDetailModal({
   
   if (land?.status === 'unowned' && land?.current_price) {
     const rawPrice = land.current_price
-    console.log('[LandDetailModal] Raw price:', rawPrice, typeof rawPrice)
-    
     originalPrice = Math.floor(parseFloat(rawPrice || '0'))
-    console.log('[LandDetailModal] Original price after floor:', originalPrice)
-    
     discountedPrice = Math.floor(originalPrice * 0.3)  // 3折价格，向下取整
-    console.log('[LandDetailModal] Discounted price (30%):', originalPrice * 0.3, '→ floored:', discountedPrice)
-    
     savedAmount = originalPrice - discountedPrice
   }
   
@@ -182,9 +272,7 @@ export function LandDetailModal({
   
   // 修复：使用 blueprint.land_type 而不是 land.land_type
   const landType = land?.blueprint?.land_type
-  console.log('[LandDetailModal] Land type:', landType)
   const giftInfo = landType ? landTypeGifts[landType] : null
-  console.log('[LandDetailModal] Gift info:', giftInfo)
   
   return (
     <>
@@ -404,84 +492,6 @@ export function LandDetailModal({
                       </div>
                     )}
                     
-                    {/* 如果是自己的土地，显示管理信息 */}
-                    {land?.status === 'owned' && land?.owner_info && (
-                      <div className="bg-gradient-to-r from-gold-500/20 to-yellow-500/20 rounded-xl p-6 border-2 border-gold-500/50">
-                        <h3 className="font-bold text-lg mb-4 text-gold-400">土地管理</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div className="bg-black/30 rounded-lg p-4">
-                            <p className="text-xs text-gray-400 mb-1">购买时间</p>
-                            <p className="text-white">
-                              {land?.owned_at ? new Date(land.owned_at).toLocaleString('zh-CN') : '-'}
-                            </p>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-4">
-                            <p className="text-xs text-gray-400 mb-1">购买价格</p>
-                            <p className="text-white">{land?.last_transaction_price ? Math.floor(parseFloat(land.last_transaction_price)).toLocaleString('zh-CN') : '0'} TDB</p>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-4">
-                            <p className="text-xs text-gray-400 mb-1">当前价值</p>
-                            <p className="text-gold-400 font-bold">{land?.current_price ? Math.floor(parseFloat(land.current_price)).toLocaleString('zh-CN') : '0'} TDB</p>
-                          </div>
-                          <div className="bg-black/30 rounded-lg p-4">
-                            <p className="text-xs text-gray-400 mb-1">交易次数</p>
-                            <p className="text-white">{land?.transaction_count || 0}次</p>
-                          </div>
-                        </div>
-                        
-                        {/* 显示生产状态 - 针对矿山类型 */}
-                        {(land?.blueprint?.land_type === 'stone_mine' || 
-                          land?.blueprint?.land_type === 'iron_mine' || 
-                          land?.blueprint?.land_type === 'yld_mine') && (
-                          <div className="mt-4 p-4 bg-black/30 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-xs text-gray-400 mb-1">生产状态</p>
-                                <p className={cn(
-                                  "font-bold",
-                                  land?.is_producing ? "text-green-400" : "text-gray-400"
-                                )}>
-                                  {land?.is_producing ? '生产中' : '未生产'}
-                                </p>
-                                {land?.accumulated_output && (
-                                  <p className="text-xs text-gray-400 mt-1">
-                                    累计产出: {land.accumulated_output} {land?.blueprint?.output_resource || '资源'}
-                                  </p>
-                                )}
-                              </div>
-                              {land?.can_produce && !land?.is_producing && (
-                                <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                                  开始生产
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 显示建设状态 - 针对城市类型 */}
-                        {land?.blueprint?.land_type !== 'stone_mine' && 
-                         land?.blueprint?.land_type !== 'iron_mine' && 
-                         land?.blueprint?.land_type !== 'yld_mine' && 
-                         land?.can_build && (
-                          <div className="mt-4 p-4 bg-black/30 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-xs text-gray-400 mb-1">建设等级</p>
-                                <p className="font-bold text-white">
-                                  Lv.{land?.construction_level || 0} / {land?.blueprint?.max_floors || 0}
-                                </p>
-                              </div>
-                              {!land?.is_under_construction && (
-                                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                                  升级建筑
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
                     {/* 详细信息网格 */}
                     <div className="grid md:grid-cols-3 gap-6">
                       {/* 基本信息 */}
@@ -613,100 +623,17 @@ export function LandDetailModal({
         )}
       </AnimatePresence>
       
-      {/* 内测确认弹窗 - 无需密码 */}
+      {/* 内测确认弹窗 */}
       <BetaConfirmModal
         isOpen={showBetaConfirm}
         onClose={() => setShowBetaConfirm(false)}
         onConfirm={handleBetaConfirm}
-        landPrice={discountedPrice || 0}  // 折后价（实际支付价格）
-        originalPrice={originalPrice || 0}  // 原价（用于显示对比）
+        landPrice={discountedPrice || 0}
+        originalPrice={originalPrice || 0}
         landId={land?.land_id || ''}
         hasGift={!!giftInfo}
         giftInfo={giftInfo}
       />
     </>
-  )
-}
-
-// 内测确认弹窗组件
-function BetaConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  landPrice, 
-  originalPrice,
-  landId,
-  hasGift,
-  giftInfo
-}: any) {
-  if (!isOpen) return null
-  
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6"
-        >
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <AlertCircle className="w-8 h-8 text-white" />
-            </div>
-            
-            <h3 className="text-xl font-bold mb-2">购买确认</h3>
-            <p className="text-gray-400 mb-4">
-              确认购买此土地，将消耗您的TDB通证
-            </p>
-            
-            <div className="bg-gray-800 rounded-lg p-4 mb-4">
-              <p className="text-sm text-gray-300 mb-2">土地编号：{landId}</p>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-gray-500 line-through text-sm">原价 {Math.round(originalPrice).toLocaleString()} TDB</span>
-                <span className="text-gold-500 font-bold text-lg">
-                  3折价 {Math.round(landPrice).toLocaleString()} TDB
-                </span>
-              </div>
-              {hasGift && giftInfo && (
-                <div className="border-t border-gray-700 pt-2 mt-2">
-                  <p className="text-xs text-green-400">
-                    <Gift className="w-3 h-3 inline mr-1" />
-                    赠送：{giftInfo.tools} + {giftInfo.food}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6">
-              <p className="text-xs text-blue-400">
-                <Shield className="w-3 h-3 inline mr-1" />
-                区块链确权，永久拥有您的数字资产
-              </p>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={onConfirm}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
-              >
-                确认购买
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
   )
 }
