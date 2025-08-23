@@ -131,7 +131,7 @@ export function FilterPanel({
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Gift className="w-4 h-4 text-green-400" />
-              <span className="text-green-300">购买特色地块送专属工具+粮食补给</span>
+              <span className="text-green-300">购买特色地块送专属工具+基础粮食</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Sparkles className="w-4 h-4 text-purple-400" />
