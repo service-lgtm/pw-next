@@ -541,7 +541,7 @@ function BetaConfirmModal({
             
             <h3 className="text-xl font-bold mb-2">内测提醒</h3>
             <p className="text-gray-400 mb-4">
-              当前为内测阶段，购买土地将消耗测试代币(TDB)
+              购买土地将消耗TDB通证
             </p>
             
             <div className="bg-gray-800 rounded-lg p-4 mb-4">
