@@ -1,10 +1,16 @@
 // src/components/explore/LandCard.tsx
-// 土地卡片组件 - 创世土地4折优惠版
+// 土地卡片组件 - 创世土地3折优惠版
+// 修改说明：
+// 1. 将原4折(0.4)改为3折(0.3)计算
+// 2. 折扣标签从-60%改为-70%
+// 3. 添加特色地块的专属道具赠送标识
+// 关联文件：FilterPanel.tsx, LandGrid.tsx, LandDetailModal.tsx
+// 最后修改：2024-12-20 - 调整为3折优惠
 
 'use client'
 
 import { motion } from 'framer-motion'
-import { MapPin, TrendingUp, Building2, Lock, Coins, Zap, Timer, Percent } from 'lucide-react'
+import { MapPin, TrendingUp, Building2, Lock, Coins, Zap, Timer, Percent, Gift, Pickaxe, Wheat } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
@@ -22,7 +28,15 @@ const landTypeColors = {
   yld_mine: 'from-purple-500/20 to-pink-500/20',
 }
 
-// 移除emoji图标，全部使用图标组件
+// 特色地块赠送配置
+const landTypeGifts = {
+  farm: { icon: Wheat, text: '送粮食+农具' },
+  iron_mine: { icon: Pickaxe, text: '送铁镐+粮食' },
+  stone_mine: { icon: Pickaxe, text: '送石镐+粮食' },
+  forest: { icon: Pickaxe, text: '送斧头+粮食' },
+  yld_mine: { icon: Pickaxe, text: '送钻头+粮食' },
+}
+
 const landTypeIcons = {
   urban: Building2,
   farm: Building2,
@@ -35,6 +49,7 @@ const landTypeIcons = {
 export function LandCard({ land, onClick }: LandCardProps) {
   const isAvailable = land.status === 'unowned'
   const bgGradient = landTypeColors[land.land_type as keyof typeof landTypeColors] || landTypeColors.urban
+  const giftInfo = landTypeGifts[land.land_type as keyof typeof landTypeGifts]
   
   // 格式化价格
   const formatPrice = (price: string | number) => {
@@ -42,9 +57,9 @@ export function LandCard({ land, onClick }: LandCardProps) {
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
   }
   
-  // 计算折扣价（原价打4折）
+  // 计算3折价（原价打3折）
   const originalPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
-  const discountedPrice = originalPrice * 0.4  // 4折价 = 原价 * 0.4
+  const discountedPrice = originalPrice * 0.3  // 3折价 = 原价 * 0.3
   const savedAmount = originalPrice - discountedPrice
   
   return (
@@ -62,7 +77,7 @@ export function LandCard({ land, onClick }: LandCardProps) {
         <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-1.5 animate-gradient">
           <div className="flex items-center justify-center gap-1 text-xs font-bold text-white">
             <Zap className="w-3 h-3" />
-            <span>创世土地 · 限时4折</span>
+            <span>平行世界狂欢 · 限时3折</span>
             <Zap className="w-3 h-3" />
           </div>
         </div>
@@ -77,7 +92,22 @@ export function LandCard({ land, onClick }: LandCardProps) {
             transition={{ duration: 2, repeat: Infinity }}
             className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg"
           >
-            -60% OFF
+            -70% OFF
+          </motion.div>
+        </div>
+      )}
+      
+      {/* 赠送道具标识 */}
+      {isAvailable && giftInfo && (
+        <div className="absolute top-8 left-2 z-10">
+          <motion.div
+            initial={{ scale: 0.9 }}
+            animate={{ scale: [0.9, 1.1, 0.9] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg flex items-center gap-1"
+          >
+            <Gift className="w-3 h-3" />
+            <span>{giftInfo.text}</span>
           </motion.div>
         </div>
       )}
@@ -93,7 +123,6 @@ export function LandCard({ land, onClick }: LandCardProps) {
             <h3 className="font-bold text-white">{land.land_id}</h3>
             <p className="text-xs text-gray-400">{land.land_type_display}</p>
           </div>
-          {/* 土地类型图标 - 统一使用组件 */}
           <Building2 className="w-6 h-6 text-gray-400" />
         </div>
         
@@ -109,7 +138,7 @@ export function LandCard({ land, onClick }: LandCardProps) {
           </div>
         </div>
         
-        {/* 价格 - 创世土地特殊展示 */}
+        {/* 价格 - 创世土地3折展示 */}
         <div className="pt-3 border-t border-gray-700">
           {isAvailable ? (
             <div>
@@ -126,7 +155,7 @@ export function LandCard({ land, onClick }: LandCardProps) {
               {/* 现价 */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-red-400 font-bold">创世优惠价</p>
+                  <p className="text-xs text-red-400 font-bold">狂欢价</p>
                   <div className="flex items-center gap-1">
                     <Coins className="w-4 h-4 text-gold-500" />
                     <p className="text-xl font-bold text-gold-500">
@@ -145,7 +174,7 @@ export function LandCard({ land, onClick }: LandCardProps) {
               {/* 限时标识 */}
               <div className="mt-2 flex items-center justify-center gap-1 text-xs text-orange-400">
                 <Timer className="w-3 h-3 animate-pulse" />
-                <span>限时抢购中</span>
+                <span>限时抢购 · 9月15日截止</span>
               </div>
             </div>
           ) : (
