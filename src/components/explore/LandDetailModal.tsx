@@ -1,12 +1,12 @@
 // src/components/explore/LandDetailModal.tsx
-// 土地详情查看和购买弹窗组件 - 3折特惠版（移除密码验证）
+// 土地详情查看和购买弹窗组件 - 3折特惠版（修复石矿山兼容性）
 // 修改说明：
-// 1. 将原4折(0.4)改为3折(0.3)计算，折扣标签改为-70%
-// 2. 移除BetaPasswordModal，使用内测确认弹窗
-// 3. 添加特色地块专属道具赠送展示
-// 4. 优化营销文案，突出"平行世界土地狂欢"主题
+// 1. 修复石矿山类型土地的礼物配置读取问题 - 使用 blueprint.land_type 而不是 land.land_type
+// 2. 修复 giftInfo.icon 渲染问题 - 改为使用组件名称
+// 3. 添加更多的空值保护和类型检查
+// 4. 确保所有土地类型都能正常打开详情弹窗
 // 关联文件：LandDetailDrawer.tsx, LandDetailView.tsx, LandCard.tsx
-// 最后修改：2024-12-20 - 调整为3折并移除密码验证
+// 最后修改：2024-12-20 - 修复石矿山类型兼容性问题
 
 'use client'
 
@@ -30,13 +30,19 @@ interface LandDetailModalProps {
   onPurchaseSuccess?: () => void
 }
 
-// 特色地块赠送配置
-const landTypeGifts: Record<string, { tools: string; food: string; icon: any }> = {
-  farm: { tools: '专属工具×1', food: '基础粮食包', icon: Wheat },
-  iron_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
-  stone_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
-  forest: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
-  yld_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
+// 特色地块赠送配置 - 注意这里的 icon 是组件名称，不是组件实例
+const landTypeGifts: Record<string, { tools: string; food: string; icon: string }> = {
+  farm: { tools: '专属工具×1', food: '基础粮食包', icon: 'Wheat' },
+  iron_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
+  stone_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
+  forest: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
+  yld_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
+}
+
+// 图标映射
+const IconMap: Record<string, any> = {
+  Wheat: Wheat,
+  Pickaxe: Pickaxe,
 }
 
 export function LandDetailModal({ 
@@ -84,6 +90,7 @@ export function LandDetailModal({
     setError(null)
     try {
       const landDetail = await assetsApi.lands.get(id)
+      console.log('[LandDetailModal] Fetched land detail:', landDetail)
       setLand(landDetail)
     } catch (err: any) {
       console.error('获取土地详情失败:', err)
@@ -111,6 +118,10 @@ export function LandDetailModal({
   const getLandTypeIcon = (landType: string) => {
     const iconMap: Record<string, any> = {
       'stone_mine': Mountain,
+      'iron_mine': Mountain,
+      'yld_mine': Mountain,
+      'farm': Wheat,
+      'forest': Building2,
       'commercial': Building2,
       'residential': Building2,
       'industrial': Building2,
@@ -172,8 +183,17 @@ export function LandDetailModal({
     savedAmount = originalPrice - discountedPrice
   }
   
-  const LandTypeIcon = getLandTypeIcon(land?.blueprint?.land_type || '')
-  const giftInfo = land?.land_type ? landTypeGifts[land.land_type] : null
+  // 获取土地类型图标
+  const LandTypeIcon = land?.blueprint?.land_type ? getLandTypeIcon(land.blueprint.land_type) : Building2
+  
+  // 修复：使用 blueprint.land_type 而不是 land.land_type
+  const landType = land?.blueprint?.land_type
+  console.log('[LandDetailModal] Land type:', landType)
+  const giftInfo = landType ? landTypeGifts[landType] : null
+  console.log('[LandDetailModal] Gift info:', giftInfo)
+  
+  // 获取礼物图标组件
+  const GiftIcon = giftInfo?.icon ? IconMap[giftInfo.icon] || Pickaxe : null
   
   return (
     <>
@@ -278,7 +298,7 @@ export function LandDetailModal({
                     </div>
                     
                     {/* 赠品提示 - 特色地块专属 */}
-                    {land?.status === 'unowned' && giftInfo && (
+                    {land?.status === 'unowned' && giftInfo && GiftIcon && (
                       <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-5 border border-green-500/30">
                         <div className="flex items-center gap-3 mb-3">
                           <Gift className="w-6 h-6 text-green-400" />
@@ -287,7 +307,7 @@ export function LandDetailModal({
                         <div className="grid md:grid-cols-2 gap-3">
                           <div className="bg-black/30 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <giftInfo.icon className="w-5 h-5 text-yellow-400" />
+                              <GiftIcon className="w-5 h-5 text-yellow-400" />
                               <span className="text-white font-medium">专属工具</span>
                             </div>
                             <p className="text-sm text-gray-300">{giftInfo.tools}</p>
@@ -419,7 +439,9 @@ export function LandDetailModal({
                         </div>
                         
                         {/* 显示生产状态 - 针对矿山类型 */}
-                        {land?.blueprint?.land_type === 'stone_mine' && (
+                        {(land?.blueprint?.land_type === 'stone_mine' || 
+                          land?.blueprint?.land_type === 'iron_mine' || 
+                          land?.blueprint?.land_type === 'yld_mine') && (
                           <div className="mt-4 p-4 bg-black/30 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div>
@@ -432,7 +454,7 @@ export function LandDetailModal({
                                 </p>
                                 {land?.accumulated_output && (
                                   <p className="text-xs text-gray-400 mt-1">
-                                    累计产出: {land.accumulated_output} {land?.blueprint?.output_resource || '石材'}
+                                    累计产出: {land.accumulated_output} {land?.blueprint?.output_resource || '资源'}
                                   </p>
                                 )}
                               </div>
@@ -446,7 +468,10 @@ export function LandDetailModal({
                         )}
                         
                         {/* 显示建设状态 - 针对城市类型 */}
-                        {land?.blueprint?.land_type !== 'stone_mine' && land?.can_build && (
+                        {land?.blueprint?.land_type !== 'stone_mine' && 
+                         land?.blueprint?.land_type !== 'iron_mine' && 
+                         land?.blueprint?.land_type !== 'yld_mine' && 
+                         land?.can_build && (
                           <div className="mt-4 p-4 bg-black/30 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div>
@@ -521,7 +546,9 @@ export function LandDetailModal({
                       </div>
                       
                       {/* 资源信息 */}
-                      {land?.blueprint?.land_type === 'stone_mine' ? (
+                      {(land?.blueprint?.land_type === 'stone_mine' || 
+                        land?.blueprint?.land_type === 'iron_mine' || 
+                        land?.blueprint?.land_type === 'yld_mine') ? (
                         <div className="bg-gray-800/50 rounded-xl p-4">
                           <h3 className="font-bold mb-3 text-gray-300 flex items-center gap-2">
                             <Pickaxe className="w-4 h-4" />
@@ -535,13 +562,13 @@ export function LandDetailModal({
                             <div className="flex justify-between">
                               <span className="text-gray-400">产出资源</span>
                               <span className="font-medium capitalize">
-                                {land?.blueprint?.output_resource || '石材'}
+                                {land?.blueprint?.output_resource || '资源'}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-400">工具需求</span>
                               <span className="font-medium capitalize">
-                                {land?.blueprint?.tool_requirement || '镐'}
+                                {land?.blueprint?.tool_requirement || '工具'}
                               </span>
                             </div>
                             <div className="flex justify-between">
