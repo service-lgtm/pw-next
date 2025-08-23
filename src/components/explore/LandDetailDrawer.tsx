@@ -1,11 +1,11 @@
 // src/components/explore/LandDetailDrawer.tsx
-// 土地详情展示组件 - 最终安全版（修复石矿山兼容性）
+// 土地详情展示组件 - 完全安全版（处理所有null和空字符串）
 // 修改说明：
-// 1. 移除所有可能导致undefined的地方
-// 2. 确保所有渲染分支都返回有效的JSX或null
-// 3. 修复石矿山类型渲染问题
-// 关联文件：RegionDetailPage.tsx
-// 最后修改：2024-12-20 - 最终修复版
+// 1. 完全处理后端返回的null值和空字符串
+// 2. 确保每个渲染分支都返回有效的JSX
+// 3. 修复石矿山和森林类型的兼容性问题
+// 关联文件：RegionDetailPage.tsx, MyLandsSection.tsx
+// 最后修改：2024-12-20 - 完全安全版
 
 'use client'
 
@@ -37,6 +37,26 @@ const landTypeGifts: Record<string, { tools: string; food: string }> = {
   yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
 }
 
+// 安全获取值的辅助函数
+const safeGet = (value: any, defaultValue: any = '-') => {
+  if (value === null || value === undefined || value === '') {
+    return defaultValue
+  }
+  return value
+}
+
+// 安全格式化价格
+const safeFormatPrice = (price: any): string => {
+  try {
+    if (price === null || price === undefined || price === '') return '0'
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    if (isNaN(numPrice)) return '0'
+    return Math.floor(numPrice).toLocaleString('zh-CN')
+  } catch {
+    return '0'
+  }
+}
+
 export function LandDetailDrawer({ 
   isOpen = false, 
   onClose = () => {}, 
@@ -61,10 +81,9 @@ export function LandDetailDrawer({
       return
     }
     
-    if (landId && typeof landId === 'number') {
-      fetchLandDetails(landId)
-    } else if (propLand && propLand.id && typeof propLand.id === 'number') {
-      fetchLandDetails(propLand.id)
+    const idToFetch = landId || propLand?.id
+    if (idToFetch && typeof idToFetch === 'number') {
+      fetchLandDetails(idToFetch)
     } else if (propLand) {
       setLand(propLand)
       setLoading(false)
@@ -75,6 +94,21 @@ export function LandDetailDrawer({
     setLoading(true)
     try {
       const landDetail = await assetsApi.lands.get(id)
+      
+      // 数据清理：确保所有字段都有有效值
+      if (landDetail) {
+        // 清理 blueprint 数据
+        if (landDetail.blueprint) {
+          landDetail.blueprint.tool_requirement = safeGet(landDetail.blueprint.tool_requirement, '')
+          landDetail.blueprint.output_resource = safeGet(landDetail.blueprint.output_resource, '')
+        }
+        
+        // 清理其他可能为 null 的字段
+        landDetail.remaining_reserves = safeGet(landDetail.remaining_reserves, null)
+        landDetail.initial_reserves = safeGet(landDetail.initial_reserves, null)
+        landDetail.depletion_percentage = safeGet(landDetail.depletion_percentage, 0)
+      }
+      
       setLand(landDetail)
     } catch (err: any) {
       console.error('[LandDetailDrawer] Failed to fetch:', err)
@@ -83,16 +117,6 @@ export function LandDetailDrawer({
       }
     } finally {
       setLoading(false)
-    }
-  }
-  
-  const formatPrice = (price: string | number): string => {
-    try {
-      const numPrice = typeof price === 'string' ? parseFloat(price) : price
-      if (isNaN(numPrice)) return '0'
-      return Math.floor(numPrice).toLocaleString('zh-CN')
-    } catch {
-      return '0'
     }
   }
   
@@ -134,20 +158,27 @@ export function LandDetailDrawer({
   // 不渲染如果未打开
   if (!isOpen) return null
   
-  // 计算价格
-  const originalPrice = parseFloat(land?.current_price || '0')
+  // 计算价格（安全处理）
+  const originalPrice = parseFloat(safeGet(land?.current_price, '0'))
   const discountedPrice = originalPrice * 0.3
   const savedAmount = originalPrice - discountedPrice
-  const giftInfo = land?.blueprint?.land_type ? landTypeGifts[land.blueprint.land_type] : null
+  
+  // 获取礼物信息（安全处理）
+  const landType = safeGet(land?.blueprint?.land_type, '')
+  const giftInfo = landType && landTypeGifts[landType] ? landTypeGifts[landType] : null
   
   // 检测移动端
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   
-  // 渲染特殊属性卡片 - 安全版本
+  // 渲染特殊属性卡片 - 完全安全版本
   const renderSpecialCard = () => {
-    const landType = land?.blueprint?.land_type || ''
+    const type = safeGet(land?.blueprint?.land_type, '')
     
-    if (landType === 'stone_mine' || landType === 'iron_mine' || landType === 'yld_mine') {
+    // 矿山类型
+    if (type === 'stone_mine' || type === 'iron_mine' || type === 'yld_mine') {
+      const outputResource = safeGet(land?.blueprint?.output_resource, '矿石')
+      const toolRequirement = safeGet(land?.blueprint?.tool_requirement, '镐')
+      
       return (
         <div className="bg-gray-800/50 rounded-xl p-4">
           <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
@@ -157,31 +188,35 @@ export function LandDetailDrawer({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-400">类型</span>
-              <span>{land?.blueprint?.name || '-'}</span>
+              <span>{safeGet(land?.blueprint?.name, '-')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">产出</span>
               <span>
-                {land?.blueprint?.output_resource === 'stone' ? '石头' :
-                 land?.blueprint?.output_resource === 'iron' ? '铁矿' :
-                 land?.blueprint?.output_resource === 'yld' ? 'YLD' :
-                 (land?.blueprint?.output_resource || '矿石')}
+                {outputResource === 'stone' ? '石头' :
+                 outputResource === 'iron' ? '铁矿' :
+                 outputResource === 'yld' ? 'YLD' :
+                 outputResource || '矿石'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">工具</span>
-              <span>{land?.blueprint?.tool_requirement === 'pickaxe' ? '镐' : (land?.blueprint?.tool_requirement || '镐')}</span>
+              <span>
+                {toolRequirement === 'pickaxe' ? '镐' : 
+                 toolRequirement || '镐'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">能耗</span>
-              <span>{land?.blueprint?.energy_consumption_rate || 0}/天</span>
+              <span>{safeGet(land?.blueprint?.energy_consumption_rate, 0)}/天</span>
             </div>
           </div>
         </div>
       )
     }
     
-    if (landType === 'farm' || landType === 'forest') {
+    // 农场或森林类型
+    if (type === 'farm' || type === 'forest') {
       return (
         <div className="bg-gray-800/50 rounded-xl p-4">
           <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
@@ -191,19 +226,19 @@ export function LandDetailDrawer({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-400">类型</span>
-              <span>{land?.blueprint?.name || '-'}</span>
+              <span>{safeGet(land?.blueprint?.name, '-')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">产出</span>
-              <span>{land?.blueprint?.output_resource || '资源'}</span>
+              <span>{safeGet(land?.blueprint?.output_resource, '资源') || '资源'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">面积</span>
-              <span>{land?.blueprint?.size_sqm || 0}㎡</span>
+              <span>{safeGet(land?.blueprint?.size_sqm, 0)}㎡</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">能耗</span>
-              <span>{land?.blueprint?.energy_consumption_rate || 0}/天</span>
+              <span>{safeGet(land?.blueprint?.energy_consumption_rate, 0)}/天</span>
             </div>
           </div>
         </div>
@@ -220,27 +255,27 @@ export function LandDetailDrawer({
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-400">楼层</span>
-            <span>{land?.blueprint?.max_floors || 0}层</span>
+            <span>{safeGet(land?.blueprint?.max_floors, 0)}层</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">建设费</span>
-            <span>{formatPrice(land?.blueprint?.construction_cost_per_floor || 0)} TDB</span>
+            <span>{safeFormatPrice(land?.blueprint?.construction_cost_per_floor)} TDB</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">能耗</span>
-            <span>{land?.blueprint?.energy_consumption_rate || 0}/天</span>
+            <span>{safeGet(land?.blueprint?.energy_consumption_rate, 0)}/天</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">等级</span>
-            <span>Lv.{land?.construction_level || 0}</span>
+            <span>Lv.{safeGet(land?.construction_level, 0)}</span>
           </div>
         </div>
       </div>
     )
   }
   
-  // 主内容
-  const mainContent = (
+  // 主内容 - 确保不返回 undefined
+  const renderMainContent = () => (
     <div className="h-full flex flex-col">
       {/* 标题栏 */}
       <div className={cn(
@@ -253,7 +288,7 @@ export function LandDetailDrawer({
         
         <div className="flex items-center justify-between p-4">
           <h3 className="text-lg font-bold">
-            {loading ? '加载中...' : (land?.land_id || '土地详情')}
+            {loading ? '加载中...' : safeGet(land?.land_id, '土地详情')}
           </h3>
           <button
             onClick={onClose}
@@ -308,7 +343,7 @@ export function LandDetailDrawer({
               </div>
             )}
             
-            {/* 信息卡片网格 - 安全渲染 */}
+            {/* 信息卡片网格 */}
             <div className={cn(
               "grid gap-4",
               isMobile ? "grid-cols-1" : "grid-cols-2 lg:grid-cols-3"
@@ -322,19 +357,19 @@ export function LandDetailDrawer({
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">ID</span>
-                    <span className="font-mono">{land?.id || '-'}</span>
+                    <span className="font-mono">{safeGet(land?.id, '-')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">面积</span>
-                    <span>{land?.blueprint?.size_sqm || 0}㎡</span>
+                    <span>{safeGet(land?.blueprint?.size_sqm, 0)}㎡</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">坐标</span>
-                    <span>({land?.coordinate_x || 0}, {land?.coordinate_y || 0})</span>
+                    <span>({safeGet(land?.coordinate_x, 0)}, {safeGet(land?.coordinate_y, 0)})</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">交易次数</span>
-                    <span>{land?.transaction_count || 0}</span>
+                    <span>{safeGet(land?.transaction_count, 0)}</span>
                   </div>
                 </div>
               </div>
@@ -348,29 +383,29 @@ export function LandDetailDrawer({
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">区域</span>
-                    <span>{land?.region?.name || '-'}</span>
+                    <span>{safeGet(land?.region?.name, '-')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">上级</span>
-                    <span>{land?.region?.parent_name || '-'}</span>
+                    <span>{safeGet(land?.region?.parent_name, '-')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">代码</span>
-                    <span className="font-mono text-xs">{land?.region?.code || '-'}</span>
+                    <span className="font-mono text-xs">{safeGet(land?.region?.code, '-')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-400">等级</span>
-                    <span>Lv.{land?.region?.level || 0}</span>
+                    <span>Lv.{safeGet(land?.region?.level, 0)}</span>
                   </div>
                 </div>
               </div>
               
-              {/* 特殊属性 - 使用安全函数 */}
+              {/* 特殊属性 */}
               {renderSpecialCard()}
             </div>
             
             {/* 购买区域 */}
-            {land?.status === 'unowned' && (
+            {land?.status === 'unowned' && originalPrice > 0 && (
               <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-6 border border-purple-500/30">
                 <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-center py-2 rounded-lg mb-4">
                   <div className="flex items-center justify-center gap-2">
@@ -387,7 +422,7 @@ export function LandDetailDrawer({
                   <div className="text-center">
                     <p className="text-xs text-gray-400 mb-1">原价</p>
                     <p className="text-xl text-gray-500 line-through">
-                      {formatPrice(originalPrice)} TDB
+                      {safeFormatPrice(originalPrice)} TDB
                     </p>
                   </div>
                   <div className="text-center">
@@ -395,14 +430,14 @@ export function LandDetailDrawer({
                     <div className="flex items-center justify-center gap-2">
                       <Coins className="w-5 h-5 text-gold-500" />
                       <p className="text-2xl font-bold text-gold-500">
-                        {formatPrice(discountedPrice)} TDB
+                        {safeFormatPrice(discountedPrice)} TDB
                       </p>
                     </div>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-green-400 mb-1">节省</p>
                     <p className="text-xl font-bold text-green-400">
-                      {formatPrice(savedAmount)} TDB
+                      {safeFormatPrice(savedAmount)} TDB
                     </p>
                   </div>
                 </div>
@@ -442,24 +477,6 @@ export function LandDetailDrawer({
                 </p>
               </div>
             )}
-            
-            {/* 时间信息 */}
-            <div className="bg-gray-800/50 rounded-xl p-4">
-              <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-300">
-                <Calendar className="w-4 h-4 text-purple-400" />
-                时间记录
-              </h4>
-              <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
-                <div>
-                  <p className="text-gray-400 mb-1 text-sm">创建时间</p>
-                  <p className="text-sm">{land?.created_at ? new Date(land.created_at).toLocaleString('zh-CN') : '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 mb-1 text-sm">更新时间</p>
-                  <p className="text-sm">{land?.updated_at ? new Date(land.updated_at).toLocaleString('zh-CN') : '-'}</p>
-                </div>
-              </div>
-            </div>
           </div>
         ) : (
           <div className="text-center py-20 text-gray-400">
@@ -470,11 +487,14 @@ export function LandDetailDrawer({
     </div>
   )
   
+  // 确保永远不返回 undefined
+  if (!isOpen) return null
+  
   // 渲染组件
   return (
     <>
       <AnimatePresence>
-        {isOpen ? (
+        {isOpen && (
           <>
             {/* 背景遮罩 */}
             <motion.div
@@ -487,7 +507,6 @@ export function LandDetailDrawer({
             
             {/* 主容器 */}
             {!isMobile ? (
-              // PC端
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -496,11 +515,10 @@ export function LandDetailDrawer({
                   transition={{ duration: 0.2 }}
                   className="bg-gray-900 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden"
                 >
-                  {mainContent}
+                  {renderMainContent()}
                 </motion.div>
               </div>
             ) : (
-              // 移动端
               <motion.div
                 initial={{ y: '100%' }}
                 animate={{ y: 0 }}
@@ -508,15 +526,15 @@ export function LandDetailDrawer({
                 transition={{ type: 'tween', duration: 0.3 }}
                 className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 shadow-2xl rounded-t-3xl max-h-[90vh] overflow-hidden"
               >
-                {mainContent}
+                {renderMainContent()}
               </motion.div>
             )}
           </>
-        ) : null}
+        )}
       </AnimatePresence>
       
-      {/* 内测确认弹窗 - 独立渲染 */}
-      {showBetaConfirm && land ? (
+      {/* 内测确认弹窗 */}
+      {showBetaConfirm && land && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -534,7 +552,9 @@ export function LandDetailDrawer({
               </p>
               
               <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                <p className="text-sm text-gray-300 mb-2">土地编号：{land?.land_id}</p>
+                <p className="text-sm text-gray-300 mb-2">
+                  土地编号：{safeGet(land?.land_id, '-')}
+                </p>
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <span className="text-gray-500 line-through text-sm">
                     原价 {Math.round(originalPrice).toLocaleString()} TDB
@@ -577,7 +597,7 @@ export function LandDetailDrawer({
             </div>
           </motion.div>
         </div>
-      ) : null}
+      )}
     </>
   )
 }
