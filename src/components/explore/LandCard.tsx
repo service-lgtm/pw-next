@@ -30,11 +30,11 @@ const landTypeColors = {
 
 // 特色地块赠送配置
 const landTypeGifts = {
-  farm: { icon: Wheat, text: '送粮食+农具' },
-  iron_mine: { icon: Pickaxe, text: '送铁镐+粮食' },
-  stone_mine: { icon: Pickaxe, text: '送石镐+粮食' },
-  forest: { icon: Pickaxe, text: '送斧头+粮食' },
-  yld_mine: { icon: Pickaxe, text: '送钻头+粮食' },
+  farm: { icon: Wheat, text: '送工具+粮食' },
+  iron_mine: { icon: Pickaxe, text: '送工具+粮食' },
+  stone_mine: { icon: Pickaxe, text: '送工具+粮食' },
+  forest: { icon: Pickaxe, text: '送工具+粮食' },
+  yld_mine: { icon: Pickaxe, text: '送工具+粮食' },
 }
 
 const landTypeIcons = {
