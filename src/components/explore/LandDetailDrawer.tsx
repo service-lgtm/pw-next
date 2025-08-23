@@ -31,11 +31,11 @@ interface LandDetailDrawerProps {
 
 // 特色地块赠送配置
 const landTypeGifts: Record<string, { tools: string; food: string }> = {
-  farm: { tools: '农具×1', food: '基础粮食×100' },
-  iron_mine: { tools: '铁镐×1', food: '基础粮食×50' },
-  stone_mine: { tools: '石镐×1', food: '基础粮食×50' },
-  forest: { tools: '斧头×1', food: '基础粮食×75' },
-  yld_mine: { tools: '钻头×1', food: '基础粮食×100' },
+  farm: { tools: '专属工具×1', food: '基础粮食包' },
+  iron_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  stone_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  forest: { tools: '专属工具×1', food: '基础粮食包' },
+  yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
 }
 
 export function LandDetailDrawer({ 
