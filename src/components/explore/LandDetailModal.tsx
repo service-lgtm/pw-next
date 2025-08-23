@@ -30,19 +30,13 @@ interface LandDetailModalProps {
   onPurchaseSuccess?: () => void
 }
 
-// 特色地块赠送配置 - 注意这里的 icon 是组件名称，不是组件实例
-const landTypeGifts: Record<string, { tools: string; food: string; icon: string }> = {
-  farm: { tools: '专属工具×1', food: '基础粮食包', icon: 'Wheat' },
-  iron_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
-  stone_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
-  forest: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
-  yld_mine: { tools: '专属工具×1', food: '基础粮食包', icon: 'Pickaxe' },
-}
-
-// 图标映射
-const IconMap: Record<string, any> = {
-  Wheat: Wheat,
-  Pickaxe: Pickaxe,
+// 特色地块赠送配置 - 注意这里不再需要 icon 字段
+const landTypeGifts: Record<string, { tools: string; food: string }> = {
+  farm: { tools: '专属工具×1', food: '基础粮食包' },
+  iron_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  stone_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  forest: { tools: '专属工具×1', food: '基础粮食包' },
+  yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
 }
 
 export function LandDetailModal({ 
@@ -192,9 +186,6 @@ export function LandDetailModal({
   const giftInfo = landType ? landTypeGifts[landType] : null
   console.log('[LandDetailModal] Gift info:', giftInfo)
   
-  // 获取礼物图标组件
-  const GiftIcon = giftInfo?.icon ? IconMap[giftInfo.icon] || Pickaxe : null
-  
   return (
     <>
       <AnimatePresence mode="wait">
@@ -298,7 +289,7 @@ export function LandDetailModal({
                     </div>
                     
                     {/* 赠品提示 - 特色地块专属 */}
-                    {land?.status === 'unowned' && giftInfo && GiftIcon && (
+                    {land?.status === 'unowned' && giftInfo && (
                       <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-5 border border-green-500/30">
                         <div className="flex items-center gap-3 mb-3">
                           <Gift className="w-6 h-6 text-green-400" />
@@ -307,7 +298,7 @@ export function LandDetailModal({
                         <div className="grid md:grid-cols-2 gap-3">
                           <div className="bg-black/30 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <GiftIcon className="w-5 h-5 text-yellow-400" />
+                              <Pickaxe className="w-5 h-5 text-yellow-400" />
                               <span className="text-white font-medium">专属工具</span>
                             </div>
                             <p className="text-sm text-gray-300">{giftInfo.tools}</p>
