@@ -1,7 +1,12 @@
-/**
- * 文件: /src/components/explore/LandDetailModal.tsx
- * 描述: 土地详情查看和购买弹窗组件 - 修复版（保持原始模态框样式）
- */
+// src/components/explore/LandDetailModal.tsx
+// 土地详情查看和购买弹窗组件 - 3折特惠版（移除密码验证）
+// 修改说明：
+// 1. 将原4折(0.4)改为3折(0.3)计算，折扣标签改为-70%
+// 2. 移除BetaPasswordModal，使用内测确认弹窗
+// 3. 添加特色地块专属道具赠送展示
+// 4. 优化营销文案，突出"平行世界土地狂欢"主题
+// 关联文件：LandDetailDrawer.tsx, LandDetailView.tsx, LandCard.tsx
+// 最后修改：2024-12-20 - 调整为3折并移除密码验证
 
 'use client'
 
@@ -10,11 +15,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, MapPin, TrendingUp, Clock, User, ShoppingBag, Loader2, 
   Building2, Coins, Zap, Timer, Gift, Star, Trophy, 
-  Mountain, Pickaxe, Layers, Battery, Calendar, Hash
+  Mountain, Pickaxe, Layers, Battery, Calendar, Hash,
+  Shield, Wheat, AlertCircle
 } from 'lucide-react'
 import { assetsApi } from '@/lib/api/assets'
 import { useAuth } from '@/hooks/useAuth'
-import { BetaPasswordModal } from '@/components/common/BetaPasswordModal'
 import { cn } from '@/lib/utils'
 
 interface LandDetailModalProps {
@@ -23,6 +28,15 @@ interface LandDetailModalProps {
   land?: any
   landId?: number
   onPurchaseSuccess?: () => void
+}
+
+// 特色地块赠送配置
+const landTypeGifts: Record<string, { tools: string; food: string; icon: any }> = {
+  farm: { tools: '专属工具×1', food: '基础粮食包', icon: Wheat },
+  iron_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
+  stone_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
+  forest: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
+  yld_mine: { tools: '专属工具×1', food: '基础粮食包', icon: Pickaxe },
 }
 
 export function LandDetailModal({ 
@@ -38,7 +52,7 @@ export function LandDetailModal({
   const [error, setError] = useState<string | null>(null)
   const [purchasing, setPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
-  const [showBetaPassword, setShowBetaPassword] = useState(false)
+  const [showBetaConfirm, setShowBetaConfirm] = useState(false)
   
   // 获取土地详情
   useEffect(() => {
@@ -110,11 +124,11 @@ export function LandDetailModal({
       window.location.href = '/login'
       return
     }
-    setShowBetaPassword(true)
+    setShowBetaConfirm(true)
   }
   
-  const handleBetaPasswordConfirm = async () => {
-    setShowBetaPassword(false)
+  const handleBetaConfirm = async () => {
+    setShowBetaConfirm(false)
     
     if (!land) return
     
@@ -143,7 +157,7 @@ export function LandDetailModal({
   let originalPrice = 0
   let discountedPrice = 0
   let savedAmount = 0
-  const discountPercentage = 60
+  const discountPercentage = 70  // 3折 = 70% OFF
   
   if (land?.status === 'unowned' && land?.current_price) {
     const rawPrice = land.current_price
@@ -152,13 +166,14 @@ export function LandDetailModal({
     originalPrice = Math.floor(parseFloat(rawPrice || '0'))
     console.log('[LandDetailModal] Original price after floor:', originalPrice)
     
-    discountedPrice = Math.floor(originalPrice * 0.4)  // 4折价格，向下取整
-    console.log('[LandDetailModal] Discounted price (40%):', originalPrice * 0.4, '→ floored:', discountedPrice)
+    discountedPrice = Math.floor(originalPrice * 0.3)  // 3折价格，向下取整
+    console.log('[LandDetailModal] Discounted price (30%):', originalPrice * 0.3, '→ floored:', discountedPrice)
     
     savedAmount = originalPrice - discountedPrice
   }
   
   const LandTypeIcon = getLandTypeIcon(land?.blueprint?.land_type || '')
+  const giftInfo = land?.land_type ? landTypeGifts[land.land_type] : null
   
   return (
     <>
@@ -186,13 +201,21 @@ export function LandDetailModal({
                 <X className="w-5 h-5" />
               </button>
               
-              {/* 创世土地横幅 */}
+              {/* 创世土地横幅 - 3折特惠 */}
               {land?.status === 'unowned' && (
                 <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 p-3">
                   <div className="flex items-center justify-center gap-2 text-white">
                     <Star className="w-5 h-5" />
-                    <span className="text-lg font-bold">创世纪元 · 首批土地 · 限时4折</span>
+                    <span className="text-lg font-bold">平行世界土地狂欢 · 限时3折</span>
                     <Star className="w-5 h-5" />
+                  </div>
+                  <div className="flex items-center justify-center gap-3 mt-1">
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-4 h-4 text-white/80" />
+                      <span className="text-xs text-white/80">区块链确权</span>
+                    </div>
+                    <span className="text-white/60">·</span>
+                    <span className="text-xs text-white/80">9月15日截止</span>
                   </div>
                 </div>
               )}
@@ -254,6 +277,35 @@ export function LandDetailModal({
                       </div>
                     </div>
                     
+                    {/* 赠品提示 - 特色地块专属 */}
+                    {land?.status === 'unowned' && giftInfo && (
+                      <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-5 border border-green-500/30">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Gift className="w-6 h-6 text-green-400" />
+                          <span className="font-bold text-green-400 text-lg">购买即送专属道具礼包</span>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          <div className="bg-black/30 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <giftInfo.icon className="w-5 h-5 text-yellow-400" />
+                              <span className="text-white font-medium">专属工具</span>
+                            </div>
+                            <p className="text-sm text-gray-300">{giftInfo.tools}</p>
+                          </div>
+                          <div className="bg-black/30 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Wheat className="w-5 h-5 text-yellow-400" />
+                              <span className="text-white font-medium">粮食补给</span>
+                            </div>
+                            <p className="text-sm text-gray-300">{giftInfo.food}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3 text-center">
+                          助您快速开启平行世界生产建设，解锁领地专属收益
+                        </p>
+                      </div>
+                    )}
+                    
                     {/* 购买区域 - 只对 unowned 状态显示 */}
                     {land?.status === 'unowned' && (
                       <div className="bg-gradient-to-r from-purple-900/30 via-pink-900/30 to-purple-900/30 rounded-xl p-6 border-2 border-purple-500/50 relative overflow-hidden">
@@ -265,7 +317,7 @@ export function LandDetailModal({
                               <span className="font-bold">限时优惠 -{discountPercentage}%</span>
                               <Gift className="w-5 h-5" />
                             </div>
-                            <p className="text-xs mt-1 opacity-90">创世纪元首批土地专属优惠</p>
+                            <p className="text-xs mt-1 opacity-90">平行世界土地狂欢特惠</p>
                           </div>
                           
                           <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -282,7 +334,7 @@ export function LandDetailModal({
                             
                             {/* 现价 */}
                             <div className="bg-gradient-to-r from-gold-500/20 to-yellow-500/20 rounded-lg p-4 border border-gold-500/30">
-                              <p className="text-xs text-gold-400 font-bold mb-1">创世优惠价</p>
+                              <p className="text-xs text-gold-400 font-bold mb-1">狂欢价</p>
                               <div className="flex items-center gap-2">
                                 <Coins className="w-6 h-6 text-gold-500" />
                                 <p className="text-3xl font-bold text-gold-500">
@@ -328,11 +380,15 @@ export function LandDetailModal({
                             ) : (
                               <>
                                 <Zap className="w-5 h-5" />
-                                立即抢购 - 成为创世先锋
+                                立即抢购 - 成为元宇宙地主
                                 <Zap className="w-5 h-5" />
                               </>
                             )}
                           </button>
+                          
+                          <p className="text-center text-xs text-orange-400 mt-3">
+                            活动截止：9月15日 23:59
+                          </p>
                         </div>
                       </div>
                     )}
@@ -539,15 +595,100 @@ export function LandDetailModal({
         )}
       </AnimatePresence>
       
-      {/* 内测密码验证弹窗 - 传递原价和折后价 */}
-      <BetaPasswordModal
-        isOpen={showBetaPassword}
-        onClose={() => setShowBetaPassword(false)}
-        onConfirm={handleBetaPasswordConfirm}
+      {/* 内测确认弹窗 - 无需密码 */}
+      <BetaConfirmModal
+        isOpen={showBetaConfirm}
+        onClose={() => setShowBetaConfirm(false)}
+        onConfirm={handleBetaConfirm}
         landPrice={discountedPrice || 0}  // 折后价（实际支付价格）
         originalPrice={originalPrice || 0}  // 原价（用于显示对比）
         landId={land?.land_id || ''}
+        hasGift={!!giftInfo}
+        giftInfo={giftInfo}
       />
     </>
+  )
+}
+
+// 内测确认弹窗组件
+function BetaConfirmModal({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  landPrice, 
+  originalPrice,
+  landId,
+  hasGift,
+  giftInfo
+}: any) {
+  if (!isOpen) return null
+  
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2">内测购买确认</h3>
+            <p className="text-gray-400 mb-4">
+              当前为内测阶段，购买土地将消耗测试代币(TDB)
+            </p>
+            
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-300 mb-2">土地编号：{landId}</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="text-gray-500 line-through text-sm">原价 {Math.round(originalPrice).toLocaleString()} TDB</span>
+                <span className="text-gold-500 font-bold text-lg">
+                  3折价 {Math.round(landPrice).toLocaleString()} TDB
+                </span>
+              </div>
+              {hasGift && giftInfo && (
+                <div className="border-t border-gray-700 pt-2 mt-2">
+                  <p className="text-xs text-green-400">
+                    <Gift className="w-3 h-3 inline mr-1" />
+                    赠送：{giftInfo.tools} + {giftInfo.food}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6">
+              <p className="text-xs text-blue-400">
+                <Shield className="w-3 h-3 inline mr-1" />
+                正式版上线后，内测期间的所有资产将保留
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:shadow-lg hover:shadow-purple-500/25 transition-all"
+              >
+                确认购买
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
