@@ -5,6 +5,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'  // 添加这行
 import { Crown, MapPin, TrendingUp, ChevronRight, Sparkles, Star, Coins } from 'lucide-react'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
@@ -12,16 +13,18 @@ import { cn } from '@/lib/utils'
 interface MyLandsSectionProps {
   lands: any[]  // 改为 any[] 以兼容不同的数据结构
   loading?: boolean
-  onLandClick: (land: any) => void
+  onLandClick?: (land: any) => void  // 改为可选
   regionName: string
 }
 
 export function MyLandsSection({
   lands,
   loading,
-  onLandClick,
+  onLandClick,  // 保留以保持向后兼容
   regionName
 }: MyLandsSectionProps) {
+  const router = useRouter()  // 添加 router
+  
   console.log('[MyLandsSection] Rendering with lands:', lands)
   
   // 验证数据完整性
@@ -33,6 +36,22 @@ export function MyLandsSection({
     if (!price) return '0'
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
     return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+  }
+  
+  // 新的点击处理函数
+  const handleLandClick = (land: any) => {
+    console.log('[MyLandsSection] Land clicked:', land)
+    // 验证数据完整性
+    if (land && land.id) {
+      // 如果传入了 onLandClick，仍然调用它（向后兼容）
+      if (onLandClick) {
+        onLandClick(land)
+      }
+      // 导航到土地详情页
+      router.push(`/land/${land.id}`)
+    } else {
+      console.error('[MyLandsSection] Invalid land data:', land)
+    }
   }
   
   if (loading) {
@@ -76,17 +95,6 @@ export function MyLandsSection({
     )
   }
   
-  // 处理点击事件
-  const handleLandClick = (land: any) => {
-    console.log('[MyLandsSection] Land clicked:', land)
-    // 验证数据完整性
-    if (land && land.id) {
-      onLandClick(land)
-    } else {
-      console.error('[MyLandsSection] Invalid land data:', land)
-    }
-  }
-  
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -123,7 +131,7 @@ export function MyLandsSection({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ scale: 1.02 }}
-                onClick={() => handleLandClick(land)}
+                onClick={() => handleLandClick(land)}  // 使用新的处理函数
                 className={cn(
                   "relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4",
                   "border-2 border-gold-500/30 hover:border-gold-500/60",
