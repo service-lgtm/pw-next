@@ -1,11 +1,11 @@
 // src/components/explore/LandCard.tsx
-// 土地卡片组件 - 创世土地3折优惠版
+// 土地卡片组件 - 创世土地3折优惠版（修复石矿山兼容性）
 // 修改说明：
-// 1. 将原4折(0.4)改为3折(0.3)计算
-// 2. 折扣标签从-60%改为-70%
-// 3. 添加特色地块的专属道具赠送标识
+// 1. 修复石矿山类型土地的礼物配置读取问题
+// 2. 统一使用 blueprint.land_type 而不是 land.land_type
+// 3. 兼容两种数据结构（列表视图和详情视图）
 // 关联文件：FilterPanel.tsx, LandGrid.tsx, LandDetailModal.tsx
-// 最后修改：2024-12-20 - 调整为3折优惠
+// 最后修改：2024-12-20 - 修复石矿山类型兼容性
 
 'use client'
 
@@ -48,8 +48,13 @@ const landTypeIcons = {
 
 export function LandCard({ land, onClick }: LandCardProps) {
   const isAvailable = land.status === 'unowned'
-  const bgGradient = landTypeColors[land.land_type as keyof typeof landTypeColors] || landTypeColors.urban
-  const giftInfo = landTypeGifts[land.land_type as keyof typeof landTypeGifts]
+  
+  // 兼容两种数据结构：
+  // 1. 列表API返回的简化结构：land.land_type
+  // 2. 详情API返回的完整结构：land.blueprint.land_type
+  const landType = land.blueprint?.land_type || land.land_type
+  const bgGradient = landTypeColors[landType as keyof typeof landTypeColors] || landTypeColors.urban
+  const giftInfo = landTypeGifts[landType as keyof typeof landTypeGifts]
   
   // 格式化价格
   const formatPrice = (price: string | number) => {
@@ -121,7 +126,9 @@ export function LandCard({ land, onClick }: LandCardProps) {
         <div className="flex items-start justify-between mb-3">
           <div>
             <h3 className="font-bold text-white">{land.land_id}</h3>
-            <p className="text-xs text-gray-400">{land.land_type_display}</p>
+            <p className="text-xs text-gray-400">
+              {land.blueprint?.land_type_display || land.land_type_display}
+            </p>
           </div>
           <Building2 className="w-6 h-6 text-gray-400" />
         </div>
@@ -130,7 +137,7 @@ export function LandCard({ land, onClick }: LandCardProps) {
         <div className="space-y-2 mb-4">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <MapPin className="w-3 h-3" />
-            <span>{land.region_name}</span>
+            <span>{land.region?.name || land.region_name}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <TrendingUp className="w-3 h-3" />
