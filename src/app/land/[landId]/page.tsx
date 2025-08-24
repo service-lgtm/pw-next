@@ -1,10 +1,20 @@
 // src/app/land/[landId]/page.tsx
-// 安全版土地详情页面 - 避开所有可能的渲染问题
+// 修复版本 - 正确渲染 giftInfo 对象的属性
+
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Star, Coins, MapPin, Hash, Building2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Star, Gift, Coins, MapPin, Hash, Building2, Pickaxe, Wheat } from 'lucide-react'
+import { assetsApi } from '@/lib/api/assets'
+
+const landTypeGifts: Record<string, { tools: string; food: string }> = {
+  farm: { tools: '专属工具×1', food: '基础粮食包' },
+  iron_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  stone_mine: { tools: '专属工具×1', food: '基础粮食包' },
+  forest: { tools: '专属工具×1', food: '基础粮食包' },
+  yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
+}
 
 export default function LandDetailPage() {
   const params = useParams()
@@ -23,19 +33,7 @@ export default function LandDetailPage() {
     
     const fetchLand = async () => {
       try {
-        const token = localStorage.getItem('token')
-        const response = await fetch(`https://mg.pxsj.net.cn/api/v1/assets/lands/${landId}/`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        })
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        const data = await response.json()
+        const data = await assetsApi.lands.get(landId)
         console.log('[LandPage] Data received:', data)
         setLand(data)
       } catch (err: any) {
@@ -60,11 +58,27 @@ export default function LandDetailPage() {
     }
   }
   
-  const handlePurchase = () => {
-    alert('购买功能开发中...')
+  const handlePurchase = async () => {
+    if (!land) return
+    
+    if (!confirm(`确认购买土地 ${land.land_id}？`)) return
+    
+    try {
+      const response = await assetsApi.lands.buy({
+        land_id: land.id,
+      })
+      
+      if (response.success) {
+        alert('购买成功！')
+        router.push('/assets')
+      } else {
+        alert(response.message || '购买失败')
+      }
+    } catch (err: any) {
+      alert(err.message || '购买失败')
+    }
   }
   
-  // 加载状态
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
@@ -76,7 +90,6 @@ export default function LandDetailPage() {
     )
   }
   
-  // 错误状态
   if (error || !land) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
@@ -99,8 +112,11 @@ export default function LandDetailPage() {
   const isUnowned = land?.status === 'unowned'
   const originalPrice = parseFloat(land?.current_price || '0')
   const discountedPrice = originalPrice * 0.3
+  const savedAmount = originalPrice - discountedPrice
   
-  // 主要渲染 - 使用最安全的方式
+  // 获取赠品信息
+  const giftInfo = landTypeGifts[landType] || null
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
       {/* 顶部导航 */}
@@ -140,44 +156,83 @@ export default function LandDetailPage() {
             </div>
           </div>
           
+          {/* 优惠横幅 - 仅在可购买时显示 */}
+          {isUnowned && (
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-center">
+              <div className="flex items-center justify-center gap-2 text-white mb-2">
+                <Star className="w-5 h-5" />
+                <span className="font-bold text-xl">平行世界土地狂欢 · 限时3折</span>
+                <Star className="w-5 h-5" />
+              </div>
+              <p className="text-white/90">区块链确权，成为元宇宙地主</p>
+            </div>
+          )}
+          
+          {/* 赠品提示 - 正确渲染 giftInfo 的属性 */}
+          {isUnowned && giftInfo && (
+            <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl p-6 border border-green-500/30">
+              <div className="flex items-center gap-3 mb-4">
+                <Gift className="w-6 h-6 text-green-400" />
+                <span className="text-xl font-bold text-green-400">购买即送专属道具</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
+                  <Pickaxe className="w-5 h-5 text-yellow-400" />
+                  {/* 正确：渲染 giftInfo.tools 属性，而不是 giftInfo 对象 */}
+                  <span className="text-white">{giftInfo.tools}</span>
+                </div>
+                <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
+                  <Wheat className="w-5 h-5 text-yellow-400" />
+                  {/* 正确：渲染 giftInfo.food 属性，而不是 giftInfo 对象 */}
+                  <span className="text-white">{giftInfo.food}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* 价格卡片 - 仅在可购买时显示 */}
           {isUnowned && originalPrice > 0 && (
-            <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl p-6 border border-purple-500/30">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-500" />
-                  限时优惠
-                </h2>
-                <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-bold">
-                  -70% OFF
-                </span>
+            <div className="bg-purple-900/30 rounded-2xl p-6 border border-purple-500/30">
+              <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-center py-3 rounded-xl mb-6">
+                <span className="text-lg font-bold">限时优惠 -70%</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center">
                   <p className="text-sm text-gray-400 mb-1">原价</p>
                   <p className="text-xl text-gray-500 line-through">
                     {formatPrice(originalPrice)} TDB
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gold-400 mb-1">狂欢价</p>
+                <div className="text-center">
+                  <p className="text-sm text-gold-400 font-bold mb-1">狂欢价</p>
                   <p className="text-2xl font-bold text-gold-500">
                     {formatPrice(discountedPrice)} TDB
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-green-400 mb-1">节省</p>
+                  <p className="text-xl font-bold text-green-400">
+                    {formatPrice(savedAmount)} TDB
                   </p>
                 </div>
               </div>
               
               <button
                 onClick={handlePurchase}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg hover:shadow-xl hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2"
               >
-                立即购买
+                <Coins className="w-6 h-6" />
+                立即抢购
               </button>
+              
+              <p className="text-center text-orange-400 mt-4 text-sm">
+                活动截止：9月15日 23:59
+              </p>
             </div>
           )}
           
-          {/* 信息网格 - 使用简单的布局 */}
+          {/* 信息网格 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 基本信息 */}
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
@@ -196,7 +251,7 @@ export default function LandDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">状态</span>
-                  <span className="text-white">
+                  <span className={isUnowned ? 'text-green-400' : 'text-gray-400'}>
                     {isUnowned ? '可购买' : '已拥有'}
                   </span>
                 </div>
@@ -236,7 +291,7 @@ export default function LandDetailPage() {
             </div>
           </div>
           
-          {/* Blueprint 基本信息 - 安全渲染 */}
+          {/* Blueprint 信息 */}
           {land.blueprint && (
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -252,14 +307,18 @@ export default function LandDetailPage() {
                   <p className="text-gray-400 text-sm mb-1">能耗</p>
                   <p className="text-white">{land.blueprint.energy_consumption_rate || 0}/天</p>
                 </div>
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">工具</p>
-                  <p className="text-white">{land.blueprint.tool_requirement || 'none'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">产出</p>
-                  <p className="text-white">{land.blueprint.output_resource || 'none'}</p>
-                </div>
+                {land.blueprint.max_floors > 0 && (
+                  <div>
+                    <p className="text-gray-400 text-sm mb-1">最大楼层</p>
+                    <p className="text-white">{land.blueprint.max_floors}层</p>
+                  </div>
+                )}
+                {parseFloat(land.blueprint.construction_cost_per_floor || 0) > 0 && (
+                  <div>
+                    <p className="text-gray-400 text-sm mb-1">建设成本</p>
+                    <p className="text-white">{land.blueprint.construction_cost_per_floor}/层</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -273,9 +332,11 @@ export default function LandDetailPage() {
                   <p className="text-white">{land.owner_info.nickname || land.owner_info.username}</p>
                   <p className="text-gray-400 text-sm">等级 {land.owner_info.level}</p>
                 </div>
-                <p className="text-gray-400 text-sm">
-                  拥有时间：{land.owned_at ? new Date(land.owned_at).toLocaleDateString('zh-CN') : '-'}
-                </p>
+                {land.owned_at && (
+                  <p className="text-gray-400 text-sm">
+                    拥有时间：{new Date(land.owned_at).toLocaleDateString('zh-CN')}
+                  </p>
+                )}
               </div>
             </div>
           )}
