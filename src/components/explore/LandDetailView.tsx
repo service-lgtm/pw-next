@@ -1,6 +1,5 @@
 // src/components/explore/LandDetailView.tsx
-// 这是一个统一的、经过安全加固的土地详情组件
-// 请在所有需要显示土地详情的地方（页面、弹窗、抽屉）使用这个组件
+// 修复土地详情组件 - 解决 owned_at 字段导致的崩溃问题
 
 'use client'
 
@@ -38,6 +37,33 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
     return isNaN(numPrice) ? '0' : Math.floor(numPrice).toLocaleString('zh-CN')
   }
 
+  // 安全的日期格式化函数
+  const formatDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '—'
+    
+    try {
+      // 处理可能的日期格式问题
+      // 将 "2025-08-16 03:44:00" 转换为 "2025-08-16T03:44:00"
+      const normalizedDate = dateStr.replace(' ', 'T')
+      const date = new Date(normalizedDate)
+      
+      // 检查日期是否有效
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date format:', dateStr)
+        return '—'
+      }
+      
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+    } catch (error) {
+      console.error('Date formatting error:', error, 'for date:', dateStr)
+      return '—'
+    }
+  }
+
   // 购买逻辑
   const handlePurchase = async () => {
     if (!user) {
@@ -46,19 +72,19 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
     }
     if (!land) return
 
-    const purchaseToast = toast.loading('正在处理购买...');
+    const purchaseToast = toast.loading('正在处理购买...')
     setPurchasing(true)
 
     try {
       const response = await assetsApi.lands.buy({ land_id: land.id })
       if (response.success) {
-        toast.success('购买成功！', { id: purchaseToast });
+        toast.success('购买成功！', { id: purchaseToast })
         onPurchaseSuccess?.()
       } else {
-        toast.error(response.message || '购买失败', { id: purchaseToast });
+        toast.error(response.message || '购买失败', { id: purchaseToast })
       }
     } catch (err: any) {
-      toast.error(err.message || '购买失败，请稍后再试', { id: purchaseToast });
+      toast.error(err.message || '购买失败，请稍后再试', { id: purchaseToast })
     } finally {
       setPurchasing(false)
     }
@@ -71,6 +97,9 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
   const discountedPrice = originalPrice * 0.3
   const savedAmount = originalPrice - discountedPrice
   const giftInfo = landTypeGifts[landType] || null
+  
+  // 判断是否显示购买时间（只有当有owner且owned_at存在时才显示）
+  const shouldShowOwnedAt = land?.owner && land?.owned_at
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
@@ -100,7 +129,7 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
           </motion.div>
         )}
         
-        {/* ✅ 最终修复：安全地渲染赠品信息 */}
+        {/* 赠品信息 */}
         {isUnowned && giftInfo && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -117,7 +146,6 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
                 <Pickaxe className="w-5 h-5 text-yellow-400" />
                 <div>
                   <p className="text-sm font-medium text-white">专属工具</p>
-                  {/* 渲染 giftInfo.tools (字符串) */}
                   <p className="text-xs text-gray-300">{giftInfo.tools}</p>
                 </div>
               </div>
@@ -125,7 +153,6 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
                 <Wheat className="w-5 h-5 text-yellow-400" />
                 <div>
                   <p className="text-sm font-medium text-white">粮食补给</p>
-                  {/* 渲染 giftInfo.food (字符串) */}
                   <p className="text-xs text-gray-300">{giftInfo.food}</p>
                 </div>
               </div>
@@ -150,40 +177,81 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-400">类型</span>
-                  <span className="font-medium">{land.blueprint?.land_type_display}</span>
+                  <span className="font-medium">{land.blueprint?.land_type_display || '未知类型'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">面积</span>
-                  <span className="font-medium">{land.blueprint?.size_sqm || land.size_sqm}㎡</span>
+                  <span className="font-medium">{land.blueprint?.size_sqm || land.size_sqm || 0}㎡</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">坐标</span>
-                  <span className="font-medium">({land.coordinate_x}, {land.coordinate_y})</span>
+                  <span className="font-medium">({land.coordinate_x || 0}, {land.coordinate_y || 0})</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">区域</span>
-                  <span className="font-medium">{land.region?.name}</span>
+                  <span className="font-medium">{land.region?.name || '未知区域'}</span>
                 </div>
               </div>
             </div>
             <div>
               <h3 className="font-bold mb-3">所有权信息</h3>
               <div className="space-y-2">
-                 <div className="flex justify-between">
+                <div className="flex justify-between">
                   <span className="text-gray-400">状态</span>
-                  <span className="font-medium">{land.status === 'unowned' ? '可购买' : '已拥有'}</span>
+                  <span className={cn(
+                    "font-medium",
+                    land.status === 'unowned' ? 'text-green-400' : 
+                    land.status === 'owned' ? 'text-yellow-400' : 'text-gray-400'
+                  )}>
+                    {land.status === 'unowned' ? '可购买' : 
+                     land.status === 'owned' ? '已拥有' : 
+                     land.status_display || '未知状态'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">所有者</span>
-                  <span className="font-medium">{land.owner_info?.nickname || land.owner_info?.username || '—'}</span>
+                  <span className="font-medium">
+                    {land.owner_info?.nickname || land.owner_info?.username || '—'}
+                  </span>
                 </div>
+                {shouldShowOwnedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">购买时间</span>
+                    <span className="font-medium">{formatDate(land.owned_at)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
-                  <span className="text-gray-400">购买时间</span>
-                  <span className="font-medium">{land.owned_at ? new Date(land.owned_at).toLocaleDateString() : '—'}</span>
+                  <span className="text-gray-400">交易次数</span>
+                  <span className="font-medium">{land.transaction_count || 0}次</span>
                 </div>
               </div>
             </div>
           </div>
+          
+          {/* 特殊字段：YLD矿山储量信息 */}
+          {land.blueprint?.land_type === 'yld_mine' && (
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <h3 className="font-bold mb-3">矿山储量信息</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">初始储量</span>
+                  <span className="font-medium">{formatPrice(land.initial_reserves)} YLD</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">剩余储量</span>
+                  <span className="font-medium text-yellow-400">
+                    {formatPrice(land.remaining_reserves)} YLD
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">开采进度</span>
+                  <span className="font-medium">
+                    {land.depletion_percentage || 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
       
@@ -251,6 +319,11 @@ export function LandDetailView({ land, onPurchaseSuccess }: LandDetailViewProps)
                 </p>
                 <span className="text-xl text-gold-400">TDB</span>
               </div>
+              {land.last_transaction_price && (
+                <p className="text-sm text-gray-400 mt-2">
+                  最后成交价：{formatPrice(land.last_transaction_price)} TDB
+                </p>
+              )}
             </div>
           )}
         </motion.div>
