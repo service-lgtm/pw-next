@@ -1,13 +1,13 @@
 // src/app/land/[landId]/page.tsx
-// 最终修复版本 - 确保没有任何地方直接渲染对象，并优化用户体验
+// 最终修复版本 - 增加额外安全检查，确保生产环境稳定
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, Star, Gift, Coins, MapPin, Hash, Building2, Pickaxe, Wheat, AlertCircle } from 'lucide-react'
-import { assetsApi } from '@/lib/api/assets'
-import toast from 'react-hot-toast'
+import { assetsApi } from '@/lib/api/assets' // 使用项目中统一的 API 模块
+import toast from 'react-hot-toast' // 使用项目中统一的 toast 模块
 
 // 赠品配置
 const landTypeGifts: Record<string, { tools: string; food: string }> = {
@@ -26,105 +26,76 @@ export default function LandDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   
-  // 数据获取逻辑
-  useEffect(() => {
-    if (!landId) {
-      setError('无效的土地ID')
-      setLoading(false)
-      return
-    }
-    
-    const fetchLand = async () => {
-      try {
-        setLoading(true)
-        // 使用项目中统一的 API 层获取数据
-        const data = await assetsApi.lands.get(landId)
-        console.log('[LandPage] Data received:', data)
-        setLand(data)
-      } catch (err: any) {
-        console.error('[LandPage] Error:', err)
-        setError(err.message || '加载失败')
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    fetchLand()
-  }, [landId])
-  
-  // 价格格式化
-  const formatPrice = (price: any): string => {
-    if (price === null || price === undefined) return '0'
+  // 使用 useCallback 封装数据获取逻辑，防止不必要的重渲染
+  const fetchLand = useCallback(async (id: number) => {
     try {
-      const numPrice = typeof price === 'string' ? parseFloat(price) : price
-      if (isNaN(numPrice)) return '0'
-      return Math.floor(numPrice).toLocaleString('zh-CN')
+      setLoading(true);
+      setError('');
+      const data = await assetsApi.lands.get(id);
+      console.log('[LandPage] Data received:', data);
+      setLand(data);
+    } catch (err: any) {
+      console.error('[LandPage] Error fetching land data:', err);
+      setError(err.message || '加载土地信息失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (landId && !isNaN(landId)) {
+      fetchLand(landId);
+    } else {
+      setError('无效的土地ID');
+      setLoading(false);
+    }
+  }, [landId, fetchLand]);
+  
+  const formatPrice = (price: any): string => {
+    if (price === null || price === undefined) return '0';
+    try {
+      const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+      if (isNaN(numPrice)) return '0';
+      return Math.floor(numPrice).toLocaleString('zh-CN');
     } catch {
-      return '0'
+      return '0';
     }
   }
   
-  // 购买逻辑
   const handlePurchase = async () => {
-    if (!land) return
+    if (!land) return;
     
-    // 使用 toast 替代 confirm
-    toast((t) => (
-      <div className="flex flex-col gap-4">
-        <p>确认购买土地 <span className="font-bold">{land.land_id}</span>？</p>
-        <div className="flex gap-2">
-          <button
-            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            onClick={async () => {
-              toast.dismiss(t.id)
-              const purchaseToast = toast.loading('正在处理购买...');
-              try {
-                const response = await assetsApi.lands.buy({ land_id: land.id })
-                if (response.success) {
-                  toast.success('购买成功！', { id: purchaseToast });
-                  router.push('/assets')
-                } else {
-                  toast.error(response.message || '购买失败', { id: purchaseToast });
-                }
-              } catch (err: any) {
-                toast.error(err.message || '购买失败', { id: purchaseToast });
-              }
-            }}
-          >
-            确认
-          </button>
-          <button
-            className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-            onClick={() => toast.dismiss(t.id)}
-          >
-            取消
-          </button>
-        </div>
-      </div>
-    ), {
-      duration: 10000, // 10秒后自动关闭
-    });
+    const purchaseToast = toast.loading('正在处理购买...');
+    try {
+      const response = await assetsApi.lands.buy({ land_id: land.id });
+      if (response.success) {
+        toast.success('购买成功！即将跳转到您的资产页面。', { id: purchaseToast });
+        setTimeout(() => router.push('/assets'), 1500);
+      } else {
+        toast.error(response.message || '购买失败', { id: purchaseToast });
+      }
+    } catch (err: any) {
+      toast.error(err.message || '购买失败，请稍后再试', { id: purchaseToast });
+    }
   }
   
-  // 加载状态
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
-          <p className="text-gray-400">加载中...</p>
+          <p className="text-gray-400">加载土地信息中...</p>
         </div>
       </div>
-    )
+    );
   }
   
-  // 错误状态
   if (error || !land) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
         <div className="text-center bg-gray-800 rounded-xl p-8 max-w-md">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-xl text-red-400 mb-6">{error || '土地不存在'}</p>
+          <p className="text-xl text-red-400 mb-6">{error || '土地不存在或无法加载'}</p>
           <button
             onClick={() => router.push('/explore')}
             className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
@@ -133,19 +104,19 @@ export default function LandDetailPage() {
           </button>
         </div>
       </div>
-    )
+    );
   }
   
   // 安全地获取数据
-  const landType = land?.blueprint?.land_type || 'unknown'
-  const landTypeName = land?.blueprint?.land_type_display || '未知类型'
-  const isUnowned = land?.status === 'unowned'
-  const originalPrice = parseFloat(land?.current_price || '0')
-  const discountedPrice = originalPrice * 0.3
-  const savedAmount = originalPrice - discountedPrice
+  const landType = land?.blueprint?.land_type || 'unknown';
+  const landTypeName = land?.blueprint?.land_type_display || '未知类型';
+  const isUnowned = land?.status === 'unowned';
+  const originalPrice = parseFloat(land?.current_price || '0');
+  const discountedPrice = originalPrice * 0.3;
+  const savedAmount = originalPrice - discountedPrice;
   
-  // 获取赠品信息 - 这里是对象或null，不能直接渲染！
-  const giftInfo = landTypeGifts[landType] || null
+  // 获取赠品信息 - 这是对象或null
+  const giftInfo = landTypeGifts[landType] || null;
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
@@ -198,8 +169,8 @@ export default function LandDetailPage() {
             </div>
           )}
           
-          {/* 赠品提示 - 关键修复 */}
-          {isUnowned && giftInfo && (
+          {/* 赠品提示 - ✅ 最终安全修复 ✅ */}
+          {isUnowned && giftInfo && typeof giftInfo === 'object' && (
             <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl p-6 border border-green-500/30">
               <div className="flex items-center gap-3 mb-4">
                 <Gift className="w-6 h-6 text-green-400" />
@@ -208,12 +179,12 @@ export default function LandDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
                   <Pickaxe className="w-5 h-5 text-yellow-400" />
-                  {/* ✅ 正确：渲染字符串属性 giftInfo.tools */}
+                  {/* 渲染 giftInfo.tools (字符串) */}
                   <span className="text-white">{giftInfo.tools}</span>
                 </div>
                 <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
                   <Wheat className="w-5 h-5 text-yellow-400" />
-                  {/* ✅ 正确：渲染字符串属性 giftInfo.food */}
+                  {/* 渲染 giftInfo.food (字符串) */}
                   <span className="text-white">{giftInfo.food}</span>
                 </div>
               </div>
@@ -262,7 +233,7 @@ export default function LandDetailPage() {
             </div>
           )}
           
-          {/* 基本信息网格 */}
+          {/* 其他信息卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -318,40 +289,8 @@ export default function LandDetailPage() {
               </div>
             </div>
           </div>
-          
-          {/* 属性信息 */}
-          {land.blueprint && (
-            <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-purple-400" />
-                属性信息
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">面积</p>
-                  <p className="text-white">{land.blueprint.size_sqm || 0}㎡</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-sm mb-1">能耗</p>
-                  <p className="text-white">{land.blueprint.energy_consumption_rate || 0}/天</p>
-                </div>
-                {land.blueprint.max_floors > 0 && (
-                  <div>
-                    <p className="text-gray-400 text-sm mb-1">最大楼层</p>
-                    <p className="text-white">{land.blueprint.max_floors}层</p>
-                  </div>
-                )}
-                {land.blueprint.construction_cost_per_floor && parseFloat(land.blueprint.construction_cost_per_floor) > 0 && (
-                  <div>
-                    <p className="text-gray-400 text-sm mb-1">建设成本</p>
-                    <p className="text-white">{land.blueprint.construction_cost_per_floor}/层</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
-  )
+  );
 }
