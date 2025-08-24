@@ -1,5 +1,5 @@
 // src/app/land/[landId]/page.tsx
-// 修复版本 - 正确渲染 giftInfo 对象的属性
+// 最终修复版本 - 确保没有任何地方直接渲染对象
 
 'use client'
 
@@ -35,6 +35,13 @@ export default function LandDetailPage() {
       try {
         const data = await assetsApi.lands.get(landId)
         console.log('[LandPage] Data received:', data)
+        
+        // 立即检查 giftInfo 以确保我们理解数据
+        const landType = data?.blueprint?.land_type || 'unknown'
+        const giftInfo = landTypeGifts[landType] || null
+        console.log('[LandPage] Land type:', landType)
+        console.log('[LandPage] Gift info:', giftInfo)
+        
         setLand(data)
       } catch (err: any) {
         console.error('[LandPage] Error:', err)
@@ -114,8 +121,12 @@ export default function LandDetailPage() {
   const discountedPrice = originalPrice * 0.3
   const savedAmount = originalPrice - discountedPrice
   
-  // 获取赠品信息
+  // 获取赠品信息 - 这里是对象，不能直接渲染！
   const giftInfo = landTypeGifts[landType] || null
+  
+  // 为了调试，让我们打印出来看看
+  console.log('[LandPage Render] giftInfo:', giftInfo)
+  console.log('[LandPage Render] giftInfo type:', typeof giftInfo)
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
@@ -168,7 +179,7 @@ export default function LandDetailPage() {
             </div>
           )}
           
-          {/* 赠品提示 - 正确渲染 giftInfo 的属性 */}
+          {/* 赠品提示 - 关键修复：必须渲染属性，不能渲染对象！ */}
           {isUnowned && giftInfo && (
             <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl p-6 border border-green-500/30">
               <div className="flex items-center gap-3 mb-4">
@@ -178,19 +189,20 @@ export default function LandDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
                   <Pickaxe className="w-5 h-5 text-yellow-400" />
-                  {/* 正确：渲染 giftInfo.tools 属性，而不是 giftInfo 对象 */}
+                  {/* ✅ 正确：渲染字符串属性 giftInfo.tools */}
                   <span className="text-white">{giftInfo.tools}</span>
                 </div>
                 <div className="bg-black/30 rounded-lg p-4 flex items-center gap-3">
                   <Wheat className="w-5 h-5 text-yellow-400" />
-                  {/* 正确：渲染 giftInfo.food 属性，而不是 giftInfo 对象 */}
+                  {/* ✅ 正确：渲染字符串属性 giftInfo.food */}
                   <span className="text-white">{giftInfo.food}</span>
                 </div>
               </div>
+              {/* 绝对不要这样做：{giftInfo} - 这会导致 Error #130 */}
             </div>
           )}
           
-          {/* 价格卡片 - 仅在可购买时显示 */}
+          {/* 价格卡片 */}
           {isUnowned && originalPrice > 0 && (
             <div className="bg-purple-900/30 rounded-2xl p-6 border border-purple-500/30">
               <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white text-center py-3 rounded-xl mb-6">
@@ -232,9 +244,9 @@ export default function LandDetailPage() {
             </div>
           )}
           
-          {/* 信息网格 */}
+          {/* 基本信息网格 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 基本信息 */}
+            {/* 基本信息卡片 */}
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Hash className="w-5 h-5 text-purple-400" />
@@ -262,7 +274,7 @@ export default function LandDetailPage() {
               </div>
             </div>
             
-            {/* 位置信息 */}
+            {/* 位置信息卡片 */}
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-purple-400" />
@@ -291,7 +303,7 @@ export default function LandDetailPage() {
             </div>
           </div>
           
-          {/* Blueprint 信息 */}
+          {/* 属性信息 */}
           {land.blueprint && (
             <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
@@ -313,29 +325,11 @@ export default function LandDetailPage() {
                     <p className="text-white">{land.blueprint.max_floors}层</p>
                   </div>
                 )}
-                {parseFloat(land.blueprint.construction_cost_per_floor || 0) > 0 && (
+                {land.blueprint.construction_cost_per_floor && parseFloat(land.blueprint.construction_cost_per_floor) > 0 && (
                   <div>
                     <p className="text-gray-400 text-sm mb-1">建设成本</p>
                     <p className="text-white">{land.blueprint.construction_cost_per_floor}/层</p>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {/* 所有者信息 */}
-          {land.owner_info && (
-            <div className="bg-gray-800/50 backdrop-blur rounded-xl p-6 border border-white/10">
-              <h3 className="font-bold text-lg mb-4">所有者信息</h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white">{land.owner_info.nickname || land.owner_info.username}</p>
-                  <p className="text-gray-400 text-sm">等级 {land.owner_info.level}</p>
-                </div>
-                {land.owned_at && (
-                  <p className="text-gray-400 text-sm">
-                    拥有时间：{new Date(land.owned_at).toLocaleDateString('zh-CN')}
-                  </p>
                 )}
               </div>
             </div>
