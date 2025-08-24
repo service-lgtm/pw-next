@@ -1,19 +1,20 @@
 // src/components/explore/LandGrid.tsx
-// 土地网格展示组件 - 支持网格和列表视图
+// 土地网格展示组件 - 使用抽屉而非跳转
 
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'  // 添加这行
 import { ChevronLeft, ChevronRight, MapPin, TrendingUp, Gem } from 'lucide-react'
 import { LandCard } from './LandCard'
+import { LandDetailDrawer } from './LandDetailDrawer'
 import type { Land } from '@/types/assets'
 import { cn } from '@/lib/utils'
 
 interface LandGridProps {
   lands: Land[]
   loading?: boolean
-  onLandClick?: (land: Land) => void  // 改为可选
+  onLandClick?: (land: Land) => void
   currentPage?: number
   totalPages?: number
   onPageChange?: (page: number) => void
@@ -23,22 +24,40 @@ interface LandGridProps {
 export function LandGrid({
   lands,
   loading,
-  onLandClick,  // 保留这个参数以保持向后兼容
+  onLandClick,
   currentPage = 1,
   totalPages = 1,
   onPageChange,
   viewMode = 'grid'
 }: LandGridProps) {
-  const router = useRouter()  // 添加 router
+  // 添加状态控制抽屉
+  const [selectedLand, setSelectedLand] = useState<Land | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   
-  // 新的点击处理函数
+  // 处理土地点击
   const handleLandClick = (land: Land) => {
     // 如果传入了 onLandClick，仍然调用它（向后兼容）
     if (onLandClick) {
       onLandClick(land)
     }
-    // 导航到土地详情页
-    router.push(`/land/${land.id}`)
+    // 打开抽屉而不是跳转
+    setSelectedLand(land)
+    setDrawerOpen(true)
+  }
+  
+  // 处理抽屉关闭
+  const handleDrawerClose = () => {
+    setDrawerOpen(false)
+    // 延迟清除选中的土地，让关闭动画更流畅
+    setTimeout(() => {
+      setSelectedLand(null)
+    }, 300)
+  }
+  
+  // 处理购买成功
+  const handlePurchaseSuccess = () => {
+    // 可以在这里刷新数据或显示成功提示
+    handleDrawerClose()
   }
   
   if (loading) {
@@ -76,7 +95,7 @@ export function LandGrid({
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() => handleLandClick(land)}  // 使用新的处理函数
+      onClick={() => handleLandClick(land)}
       className={cn(
         "bg-white/5 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all border",
         land.status === 'unowned' 
@@ -123,101 +142,109 @@ export function LandGrid({
   )
   
   return (
-    <div>
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {lands.map((land, index) => (
-            <motion.div
-              key={land.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <LandCard land={land} onClick={() => handleLandClick(land)} />  {/* 使用新的处理函数 */}
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {lands.map((land, index) => (
-            <LandListItem key={land.id} land={land} index={index} />
-          ))}
-        </div>
-      )}
-      
-      {/* 分页 - 优化样式 */}
-      {totalPages > 1 && onPageChange && (
-        <div className="flex items-center justify-center gap-2 mt-8">
-          <button
-            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              currentPage === 1
-                ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                : "bg-white/10 hover:bg-white/20 text-white"
-            )}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          
-          <div className="flex items-center gap-1">
-            {/* 智能分页显示 */}
-            {(() => {
-              const pages = []
-              const showEllipsis = totalPages > 7
-              
-              if (!showEllipsis) {
-                // 显示所有页码
-                for (let i = 1; i <= totalPages; i++) {
-                  pages.push(i)
-                }
-              } else {
-                // 智能省略
-                if (currentPage <= 3) {
-                  pages.push(1, 2, 3, 4, 5, '...', totalPages)
-                } else if (currentPage >= totalPages - 2) {
-                  pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
-                } else {
-                  pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
-                }
-              }
-              
-              return pages.map((page, index) => (
-                page === '...' ? (
-                  <span key={`ellipsis-${index}`} className="px-2 text-gray-500">...</span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => onPageChange(page as number)}
-                    className={cn(
-                      "w-10 h-10 rounded-lg transition-all font-medium",
-                      page === currentPage
-                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25"
-                        : "bg-white/10 hover:bg-white/20 text-white"
-                    )}
-                  >
-                    {page}
-                  </button>
-                )
-              ))
-            })()}
+    <>
+      <div>
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {lands.map((land, index) => (
+              <motion.div
+                key={land.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <LandCard land={land} onClick={() => handleLandClick(land)} />
+              </motion.div>
+            ))}
           </div>
-          
-          <button
-            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              currentPage === totalPages
-                ? "bg-gray-800 text-gray-500 cursor-not-allowed"
-                : "bg-white/10 hover:bg-white/20 text-white"
-            )}
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      )}
-    </div>
+        ) : (
+          <div className="space-y-3">
+            {lands.map((land, index) => (
+              <LandListItem key={land.id} land={land} index={index} />
+            ))}
+          </div>
+        )}
+        
+        {/* 分页 */}
+        {totalPages > 1 && onPageChange && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                currentPage === 1
+                  ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  : "bg-white/10 hover:bg-white/20 text-white"
+              )}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = []
+                const showEllipsis = totalPages > 7
+                
+                if (!showEllipsis) {
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i)
+                  }
+                } else {
+                  if (currentPage <= 3) {
+                    pages.push(1, 2, 3, 4, 5, '...', totalPages)
+                  } else if (currentPage >= totalPages - 2) {
+                    pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages)
+                  } else {
+                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages)
+                  }
+                }
+                
+                return pages.map((page, index) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${index}`} className="px-2 text-gray-500">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => onPageChange(page as number)}
+                      className={cn(
+                        "w-10 h-10 rounded-lg transition-all font-medium",
+                        page === currentPage
+                          ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25"
+                          : "bg-white/10 hover:bg-white/20 text-white"
+                      )}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))
+              })()}
+            </div>
+            
+            <button
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                currentPage === totalPages
+                  ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+                  : "bg-white/10 hover:bg-white/20 text-white"
+              )}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* 土地详情抽屉 */}
+      <LandDetailDrawer
+        isOpen={drawerOpen}
+        onClose={handleDrawerClose}
+        land={selectedLand}
+        landId={selectedLand?.id}
+        onPurchaseSuccess={handlePurchaseSuccess}
+      />
+    </>
   )
 }
