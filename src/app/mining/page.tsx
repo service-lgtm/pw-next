@@ -1,21 +1,11 @@
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 优化版本
+// 挖矿中心页面 - 取消内测密码版本
 // 
 // 文件说明：
 // 挖矿中心的主页面，管理所有矿山、挖矿会话、工具、合成等功能
 // 
-// 优化内容：
-// - 2025-01-19: 全面优化产品体验
-//   - 重新设计信息架构，突出核心数据
-//   - 添加快捷操作卡片
-//   - 优化移动端布局和交互
-//   - 增加数据可视化展示
-//   - 改进状态反馈机制
-// 
-// 关联文件：
-// - 子组件: ./YLDMineList, ./MiningSessions, ./ToolManagement, ./SynthesisSystem 等
-// - Hooks: @/hooks/useAuth, @/hooks/useProduction, @/hooks/useYLDMines
-// - API: 通过 hooks 调用后端接口
+// 修改内容：
+// - 2025-01-20: 取消内测密码验证，直接开放所有功能
 
 'use client'
 
@@ -49,8 +39,8 @@ const IconTool = () => (
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
-import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
-import { BetaNotice, BetaBanner } from './BetaNotice'
+// import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal' // 移除内测密码相关
+// import { BetaNotice, BetaBanner } from './BetaNotice' // 移除内测提示相关
 import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
@@ -268,17 +258,14 @@ function MiningPage() {
   // 状态管理
   const [activeTab, setActiveTab] = useState<'overview' | 'production' | 'market'>('overview')
   const [productionSubTab, setProductionSubTab] = useState<'sessions' | 'tools' | 'synthesis'>('sessions')
-  const [showBetaModal, setShowBetaModal] = useState(false)
-  const [hasMiningAccess, setHasMiningAccess] = useState(false)
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showWelcomeGuide, setShowWelcomeGuide] = useState(false)
   const [filterType, setFilterType] = useState<'all' | 'yld' | 'iron' | 'stone' | 'forest'>('all')
   
-  // 数据获取
+  // 数据获取 - 移除内测权限判断，直接根据认证状态获取
   const shouldFetchData = !authLoading && isAuthenticated
-  const shouldFetchMiningData = shouldFetchData && hasMiningAccess
   
   const { 
     mines: yldMines, 
@@ -301,7 +288,7 @@ function MiningPage() {
   const { 
     lands: userLands
   } = useUserLands({
-    enabled: shouldFetchMiningData
+    enabled: shouldFetchData // 直接使用认证状态
   })
   
   const { 
@@ -310,7 +297,7 @@ function MiningPage() {
     refetch: refetchSessions
   } = useMiningSessions({
     status: 'active',
-    enabled: shouldFetchMiningData  // 有内测权限就获取数据
+    enabled: shouldFetchData // 直接使用认证状态
   })
   
   const { 
@@ -319,14 +306,14 @@ function MiningPage() {
     stats: toolStats, 
     refetch: refetchTools
   } = useMyTools({
-    enabled: shouldFetchMiningData
+    enabled: shouldFetchData // 直接使用认证状态
   })
   
   const { 
     resources, 
     refetch: refetchResources
   } = useMyResources({
-    enabled: shouldFetchMiningData,
+    enabled: shouldFetchData, // 直接使用认证状态
     useStats: true
   })
   
@@ -334,21 +321,21 @@ function MiningPage() {
     stats: resourceStats,
     refetch: refetchResourceStats
   } = useResourceStats({
-    enabled: shouldFetchMiningData,
+    enabled: shouldFetchData, // 直接使用认证状态
     autoRefresh: false
   })
   
   const { 
     status: grainStatus 
   } = useGrainStatus({
-    enabled: shouldFetchMiningData
+    enabled: shouldFetchData // 直接使用认证状态
   })
   
   const { 
     status: yldSystemStatus,
     refetch: refetchYLDStatus
   } = useYLDStatus({
-    enabled: shouldFetchMiningData,
+    enabled: shouldFetchData, // 直接使用认证状态
     autoRefresh: true,
     refreshInterval: 60000
   })
@@ -357,7 +344,7 @@ function MiningPage() {
     summary: miningSummary,
     refetch: refetchMiningSummary
   } = useMiningSummary({
-    enabled: shouldFetchMiningData,
+    enabled: shouldFetchData, // 直接使用认证状态
     autoRefresh: true,
     refreshInterval: 30000
   })
@@ -476,23 +463,13 @@ function MiningPage() {
   }, [authLoading, isAuthenticated, router])
   
   useEffect(() => {
-    const access = hasBetaAccess()
-    setHasMiningAccess(access)
-    
-    // 如果有权限，立即刷新会话数据
-    if (access) {
-      refetchSessions()
-      refetchTools()
-      refetchResourceStats()
-    }
-    
-    // 检查是否是新用户
+    // 检查是否是新用户 - 移除内测权限检查
     const hasSeenGuide = localStorage.getItem('mining_guide_seen')
-    if (access && !hasSeenGuide) {
+    if (isAuthenticated && !hasSeenGuide) {
       setShowWelcomeGuide(true)
       localStorage.setItem('mining_guide_seen', 'true')
     }
-  }, [])
+  }, [isAuthenticated])
   
   // 事件处理
   const handleViewDetail = useCallback((mine: YLDMine) => {
@@ -560,15 +537,11 @@ function MiningPage() {
     }
   }, [synthesize, refetchTools, refetchResources, refetchResourceStats])
   
-  // 快捷操作处理
+  // 快捷操作处理 - 移除内测权限判断
   const handleQuickStartMining = useCallback(() => {
-    if (!hasMiningAccess) {
-      setShowBetaModal(true)
-    } else {
-      setActiveTab('production')
-      setProductionSubTab('sessions')
-    }
-  }, [hasMiningAccess])
+    setActiveTab('production')
+    setProductionSubTab('sessions')
+  }, [])
   
   const handleQuickCollect = useCallback(async () => {
     if (stats.collectibleSessions > 0) {
@@ -584,13 +557,9 @@ function MiningPage() {
   }, [sessions, stats.collectibleSessions, handleCollectSessionOutput])
   
   const handleQuickSynthesis = useCallback(() => {
-    if (!hasMiningAccess) {
-      setShowBetaModal(true)
-    } else {
-      setActiveTab('production')
-      setProductionSubTab('synthesis')
-    }
-  }, [hasMiningAccess])
+    setActiveTab('production')
+    setProductionSubTab('synthesis')
+  }, [])
   
   // 渲染逻辑
   if (authLoading) {
@@ -610,11 +579,8 @@ function MiningPage() {
   
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* 内测横幅 */}
-      {hasMiningAccess && <BetaBanner />}
-      
-      {/* 自动刷新系统 */}
-      {hasMiningAccess && sessions && sessions.length > 0 && (
+      {/* 自动刷新系统 - 移除内测权限判断 */}
+      {sessions && sessions.length > 0 && (
         <AutoRefreshSystem
           enabled={true}
           sessions={sessions}
@@ -685,76 +651,68 @@ function MiningPage() {
 
       {/* 主内容区 */}
       <div className="container mx-auto px-3 py-4 sm:px-4 sm:py-6">
-        {/* 资源状态栏（优化版） */}
-        {hasMiningAccess && (
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <ResourceCard
-              type="wood"
-              amount={getResourceAmount('wood')}
-              label="木头"
-              color="text-green-400"
-              icon="🌲"
-            />
-            <ResourceCard
-              type="iron"
-              amount={getResourceAmount('iron')}
-              label="铁矿"
-              color="text-gray-400"
-              icon="⛏️"
-            />
-            <ResourceCard
-              type="stone"
-              amount={getResourceAmount('stone')}
-              label="石头"
-              color="text-blue-400"
-              icon="🪨"
-            />
-            <ResourceCard
-              type="food"
-              amount={getResourceAmount('food') || getResourceAmount('grain')}
-              label="粮食"
-              color="text-yellow-400"
-              icon="🌾"
-              warning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
-              onClick={() => toast('粮食市场即将开放', { icon: '🌾' })}
-            />
-          </div>
-        )}
+        {/* 资源状态栏 - 始终显示 */}
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <ResourceCard
+            type="wood"
+            amount={getResourceAmount('wood')}
+            label="木头"
+            color="text-green-400"
+            icon="🌲"
+          />
+          <ResourceCard
+            type="iron"
+            amount={getResourceAmount('iron')}
+            label="铁矿"
+            color="text-gray-400"
+            icon="⛏️"
+          />
+          <ResourceCard
+            type="stone"
+            amount={getResourceAmount('stone')}
+            label="石头"
+            color="text-blue-400"
+            icon="🪨"
+          />
+          <ResourceCard
+            type="food"
+            amount={getResourceAmount('food') || getResourceAmount('grain')}
+            label="粮食"
+            color="text-yellow-400"
+            icon="🌾"
+            warning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
+            onClick={() => toast('粮食市场即将开放', { icon: '🌾' })}
+          />
+        </div>
         
-        {/* 快捷操作区（新增） */}
+        {/* 快捷操作区 */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 sm:mb-6">
           <QuickActionCard
             title="快速挖矿"
-            description={hasMiningAccess ? "开始新的挖矿会话" : "需要内测权限"}
+            description="开始新的挖矿会话"
             icon={<IconPickaxe />}
             onClick={handleQuickStartMining}
           />
           <QuickActionCard
             title="查看收益"
-            description={hasMiningAccess ? "点击查看挖矿收益" : "需要内测权限"}
+            description="点击查看挖矿收益"
             icon={<IconCoin />}
             onClick={() => {
-              if (hasMiningAccess) {
-                setActiveTab('production')
-                setProductionSubTab('sessions')
-              } else {
-                setShowBetaModal(true)
-              }
+              setActiveTab('production')
+              setProductionSubTab('sessions')
             }}
-            badge={hasMiningAccess && stats.collectibleSessions > 0 ? stats.collectibleSessions.toString() : undefined}
+            badge={stats.collectibleSessions > 0 ? stats.collectibleSessions.toString() : undefined}
           />
           <QuickActionCard
             title="合成工具"
             description={
-              hasMiningAccess 
-                ? (stats.damagedTools > 0 
-                    ? `${stats.damagedTools} 个工具需修复` 
-                    : '合成新工具')
-                : "需要内测权限"
+              stats.damagedTools > 0 
+                ? `${stats.damagedTools} 个工具需修复` 
+                : '合成新工具'
             }
             icon={<IconTool />}
             onClick={handleQuickSynthesis}
-            badge={hasMiningAccess && stats.damagedTools > 0 ? stats.damagedTools.toString() : undefined}
+            badge={stats.damagedTools > 0 ? stats.damagedTools.toString() : undefined}
           />
         </div>
         
@@ -947,65 +905,45 @@ function MiningPage() {
                 </button>
               </div>
 
-              {/* 子标签内容 */}
+              {/* 子标签内容 - 移除内测权限判断 */}
               {productionSubTab === 'sessions' && (
-                hasMiningAccess ? (
-                  <MiningSessions
-                    sessions={sessions}
-                    loading={sessionsLoading}
-                    userLands={userLands}
-                    tools={tools}
-                    onStartMining={handleStartSelfMining}
-                    onStopSession={handleStopSession}
-                    onCollectOutput={handleCollectSessionOutput}
-                    startMiningLoading={startMiningLoading}
-                    miningSummary={miningSummary}
-                    yldStatus={yldSystemStatus}
-                    onRefresh={() => {
-                      refetchSessions()
-                      refetchTools()
-                      refetchResourceStats()
-                      refetchMiningSummary()
-                      refetchYLDStatus()
-                    }}
-                    onBuyFood={() => {
-                      toast('粮食市场即将开放', { icon: '🌾' })
-                    }}
-                    onSynthesizeTool={() => {
-                      setProductionSubTab('synthesis')
-                    }}
-                  />
-                ) : (
-                  <PixelCard className="text-center py-12">
-                    <div className="text-6xl mb-4">🔒</div>
-                    <p className="text-gray-400 mb-4">需要内测权限访问此功能</p>
-                    <PixelButton onClick={() => setShowBetaModal(true)}>
-                      输入内测密码
-                    </PixelButton>
-                  </PixelCard>
-                )
+                <MiningSessions
+                  sessions={sessions}
+                  loading={sessionsLoading}
+                  userLands={userLands}
+                  tools={tools}
+                  onStartMining={handleStartSelfMining}
+                  onStopSession={handleStopSession}
+                  onCollectOutput={handleCollectSessionOutput}
+                  startMiningLoading={startMiningLoading}
+                  miningSummary={miningSummary}
+                  yldStatus={yldSystemStatus}
+                  onRefresh={() => {
+                    refetchSessions()
+                    refetchTools()
+                    refetchResourceStats()
+                    refetchMiningSummary()
+                    refetchYLDStatus()
+                  }}
+                  onBuyFood={() => {
+                    toast('粮食市场即将开放', { icon: '🌾' })
+                  }}
+                  onSynthesizeTool={() => {
+                    setProductionSubTab('synthesis')
+                  }}
+                />
               )}
 
               {productionSubTab === 'tools' && (
-                hasMiningAccess ? (
-                  <ToolManagement
-                    tools={tools}
-                    loading={toolsLoading}
-                    toolStats={toolStats}
-                    resources={resources || resourceStats?.data?.resources || miningSummary?.resources}
-                    onSynthesize={handleSynthesize}
-                    synthesizeLoading={synthesizeLoading}
-                    showOnlyTools={true}
-                  />
-                ) : (
-                  <PixelCard className="text-center py-12">
-                    <div className="text-6xl mb-4">🔒</div>
-                    <p className="text-gray-400 mb-4">需要内测权限访问此功能</p>
-                    <PixelButton onClick={() => setShowBetaModal(true)}>
-                      输入内测密码
-                    </PixelButton>
-                  </PixelCard>
-                )
+                <ToolManagement
+                  tools={tools}
+                  loading={toolsLoading}
+                  toolStats={toolStats}
+                  resources={resources || resourceStats?.data?.resources || miningSummary?.resources}
+                  onSynthesize={handleSynthesize}
+                  synthesizeLoading={synthesizeLoading}
+                  showOnlyTools={true}
+                />
               )}
 
               {productionSubTab === 'synthesis' && (
@@ -1052,27 +990,6 @@ function MiningPage() {
           )}
         </div>
       </div>
-
-      {/* 内测密码模态框 */}
-      <BetaPasswordModal
-        isOpen={showBetaModal}
-        onClose={() => setShowBetaModal(false)}
-        onSuccess={() => {
-          setHasMiningAccess(true)
-          setShowBetaModal(false)
-          toast.success('验证成功！欢迎进入挖矿系统')
-          // 立即获取所有挖矿相关数据
-          refetchSessions()
-          refetchTools()
-          refetchResourceStats()
-          refetchMiningSummary()
-          refetchYLDStatus()
-          refetchResources()
-        }}
-      />
-      
-      {/* 内测提示 */}
-      {hasMiningAccess && <BetaNotice compact={isMobile} />}
       
       {/* 新手引导弹窗 */}
       {showWelcomeGuide && (
