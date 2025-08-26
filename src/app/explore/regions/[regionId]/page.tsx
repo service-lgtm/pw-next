@@ -298,12 +298,6 @@ export default function RegionDetailPage() {
                     <p className="text-xs text-gray-400">可购买</p>
                   </div>
                   <div className="bg-black/20 rounded-xl p-3 text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-gold-500">
-                      {stats.average_price ? `¥${Math.round(stats.average_price / 10000)}万` : '-'}
-                    </p>
-                    <p className="text-xs text-gray-400">均价</p>
-                  </div>
-                  <div className="bg-black/20 rounded-xl p-3 text-center">
                     <p className="text-2xl md:text-3xl font-bold text-purple-400">
                       {Math.round((stats.owned_lands / stats.total_lands) * 100)}%
                     </p>
