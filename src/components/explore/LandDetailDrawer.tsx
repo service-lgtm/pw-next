@@ -1,5 +1,5 @@
 // src/components/explore/LandDetailDrawer.tsx
-// 修复版本 - 解决精度问题导致的购买失败
+// 修复版本 - 正确显示价格和手续费
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -57,8 +57,14 @@ async function purchaseLand(landId: number) {
   
   if (!response.ok) {
     // 提供更详细的错误信息
-    const errorMessage = data.message || data.detail || 
-      (data.errors ? JSON.stringify(data.errors) : '购买失败')
+    let errorMessage = '购买失败'
+    if (data.errors?.non_field_errors) {
+      errorMessage = data.errors.non_field_errors[0]
+    } else if (data.message) {
+      errorMessage = data.message
+    } else if (data.detail) {
+      errorMessage = data.detail
+    }
     throw new Error(errorMessage)
   }
   
@@ -119,6 +125,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </svg>
   ),
+  Info: ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
   Pickaxe: ({ className = "w-5 h-5" }: { className?: string }) => (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">
       <path d="M14.79,10.62L3.5,21.9l2.6,2.6L17.38,13.21L14.79,10.62z M19.27,7.73l-1.01-1.01c-0.47-0.47-1.15-0.68-1.81-0.55L14.22,6.7 l1.48,1.48l-0.7,0.71l-1.49-1.49l-0.54,2.23c-0.13,0.66,0.08,1.35,0.55,1.81l1.01,1.01c0.47,0.47,1.15,0.68,1.81,0.55l4.95-1.01 c0.35-0.07,0.56-0.42,0.49-0.77C21.72,11,21.63,10.81,21.49,10.67l-2.19-2.19l2.19-2.19c0.14-0.14,0.23-0.33,0.23-0.54 C21.72,5.35,21.45,5,21.14,4.93l-4.95-1.01C15.54,3.79,14.86,4,14.39,4.47l-1.92,1.92l1.41,1.41l1.92-1.92l2.63,0.53l-1.64,1.64 L18.74,9.99l1.63-1.64L19.85,11C19.72,11.65,19.93,12.33,19.27,7.73z M9.5,5.5C10.33,5.5,11,4.83,11,4S10.33,2.5,9.5,2.5S8,3.17,8,4 S8.67,5.5,9.5,5.5z"/>
@@ -141,22 +152,24 @@ const landTypeGifts: Record<string, { tools: string; food: string }> = {
 }
 
 // 精确计算折扣价格（避免浮点数精度问题）
-onst calculateDiscountPrice = (originalPrice: number): number => {
+const calculateDiscountPrice = (originalPrice: number): number => {
   // 保留2位小数，不要向下取整
   const discounted = originalPrice * 0.3
   return Math.round(discounted * 100) / 100  // 保留2位小数
 }
 
-// 修改格式化函数，显示小数
+// 格式化价格显示
 const formatPrice = (price: any): string => {
   if (price === null || price === undefined || price === '') return '0'
   const numPrice = typeof price === 'string' ? parseFloat(price) : price
   if (isNaN(numPrice)) return '0'
   
   // 如果是整数显示整数，如果有小数显示2位小数
-  return numPrice % 1 === 0 
-    ? numPrice.toLocaleString('zh-CN')
-    : numPrice.toFixed(2)
+  if (numPrice % 1 === 0) {
+    return numPrice.toLocaleString('zh-CN')
+  } else {
+    return numPrice.toFixed(2)
+  }
 }
 
 interface LandDetailDrawerProps {
@@ -217,13 +230,6 @@ export function LandDetailDrawer({
     }
   }
   
-  // 格式化函数
-  const formatPrice = (price: any): string => {
-    if (price === null || price === undefined || price === '') return '0'
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return isNaN(numPrice) ? '0' : Math.floor(numPrice).toLocaleString('zh-CN')
-  }
-  
   const formatDate = (dateStr: any): string => {
     if (!dateStr) return '—'
     try {
@@ -243,16 +249,6 @@ export function LandDetailDrawer({
       router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
       return
     }
-    
-    // 调试日志
-    console.log('购买前调试信息：', {
-      原价: originalPrice,
-      折扣价_计算: originalPrice * 0.3,
-      折扣价_显示: discountedPrice,
-      土地ID: land?.id,
-      土地ID类型: typeof land?.id
-    })
-    
     setShowConfirm(true)
   }
   
@@ -301,6 +297,8 @@ export function LandDetailDrawer({
   const originalPrice = parseFloat(land?.current_price || '0')
   const discountedPrice = calculateDiscountPrice(originalPrice)
   const savedAmount = originalPrice - discountedPrice
+  const feeAmount = discountedPrice * 0.03  // 3% 手续费
+  const totalAmount = discountedPrice + feeAmount  // 总计金额
   const giftInfo = landTypeGifts[landType] || null
   const shouldShowOwnedAt = land?.owner && land?.owned_at
   
@@ -533,12 +531,20 @@ export function LandDetailDrawer({
                           节省 {formatPrice(savedAmount)} TDB
                         </div>
                         
-                        {/* 添加手续费提示 */}
-                        <div className="mt-3 text-xs text-gray-400">
-                          <p>手续费：{formatPrice(discountedPrice * 0.03)} TDB</p>
-                          <p className="text-yellow-400">
-                            总计需要：{formatPrice(discountedPrice * 1.03)} TDB
-                          </p>
+                        {/* 费用明细 */}
+                        <div className="mt-4 p-3 bg-black/30 rounded-lg">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-400">土地价格</span>
+                            <span className="text-white">{formatPrice(discountedPrice)} TDB</span>
+                          </div>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span className="text-gray-400">手续费 (3%)</span>
+                            <span className="text-white">{formatPrice(feeAmount)} TDB</span>
+                          </div>
+                          <div className="border-t border-gray-600 pt-2 flex justify-between">
+                            <span className="text-yellow-400 font-medium">总计需要</span>
+                            <span className="text-yellow-400 font-bold">{formatPrice(totalAmount)} TDB</span>
+                          </div>
                         </div>
                       </div>
                       
@@ -608,14 +614,26 @@ export function LandDetailDrawer({
               </p>
               
               <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-gray-500 line-through text-sm">
-                    原价 {formatPrice(originalPrice)} TDB
-                  </span>
-                  <span className="text-gold-500 font-bold text-lg">
-                    3折价 {formatPrice(discountedPrice)} TDB
-                  </span>
+                {/* 价格明细 */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">原价</span>
+                    <span className="text-gray-500 line-through">{formatPrice(originalPrice)} TDB</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">3折价</span>
+                    <span className="text-white">{formatPrice(discountedPrice)} TDB</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">手续费</span>
+                    <span className="text-white">{formatPrice(feeAmount)} TDB</span>
+                  </div>
+                  <div className="border-t border-gray-700 pt-2 flex justify-between">
+                    <span className="text-gold-400 font-medium">总计</span>
+                    <span className="text-gold-500 font-bold text-lg">{formatPrice(totalAmount)} TDB</span>
+                  </div>
                 </div>
+                
                 {giftInfo && (
                   <div className="border-t border-gray-700 pt-2 mt-2">
                     <p className="text-xs text-green-400">
