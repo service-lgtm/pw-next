@@ -141,10 +141,22 @@ const landTypeGifts: Record<string, { tools: string; food: string }> = {
 }
 
 // 精确计算折扣价格（避免浮点数精度问题）
-const calculateDiscountPrice = (originalPrice: number): number => {
-  // 使用整数运算避免浮点数精度问题
-  // 3折 = 30%，所以乘以30再除以100
-  return Math.floor((originalPrice * 30) / 100)
+onst calculateDiscountPrice = (originalPrice: number): number => {
+  // 保留2位小数，不要向下取整
+  const discounted = originalPrice * 0.3
+  return Math.round(discounted * 100) / 100  // 保留2位小数
+}
+
+// 修改格式化函数，显示小数
+const formatPrice = (price: any): string => {
+  if (price === null || price === undefined || price === '') return '0'
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price
+  if (isNaN(numPrice)) return '0'
+  
+  // 如果是整数显示整数，如果有小数显示2位小数
+  return numPrice % 1 === 0 
+    ? numPrice.toLocaleString('zh-CN')
+    : numPrice.toFixed(2)
 }
 
 interface LandDetailDrawerProps {
@@ -519,6 +531,14 @@ export function LandDetailDrawer({
                         </p>
                         <div className="bg-red-500/20 text-red-400 rounded-full px-3 py-1 inline-block mt-2 text-xs font-bold">
                           节省 {formatPrice(savedAmount)} TDB
+                        </div>
+                        
+                        {/* 添加手续费提示 */}
+                        <div className="mt-3 text-xs text-gray-400">
+                          <p>手续费：{formatPrice(discountedPrice * 0.03)} TDB</p>
+                          <p className="text-yellow-400">
+                            总计需要：{formatPrice(discountedPrice * 1.03)} TDB
+                          </p>
                         </div>
                       </div>
                       
