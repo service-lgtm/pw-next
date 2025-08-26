@@ -1,5 +1,5 @@
 // src/components/explore/LandDetailDrawer.tsx
-// 最终生产版本 - 完全独立，不依赖第三方组件
+// 修复版本 - 解决精度问题导致的购买失败
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -35,6 +35,13 @@ async function purchaseLand(landId: number) {
     throw new Error('请先登录')
   }
   
+  // 确保 land_id 是整数
+  const requestBody = { 
+    land_id: Math.floor(landId)
+  }
+  
+  console.log('[purchaseLand] 发送请求:', requestBody)
+  
   const response = await fetch(`${API_BASE_URL}/assets/lands/buy/`, {
     method: 'POST',
     headers: {
@@ -42,13 +49,17 @@ async function purchaseLand(landId: number) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ land_id: landId })
+    body: JSON.stringify(requestBody)
   })
   
   const data = await response.json()
+  console.log('[purchaseLand] 响应数据:', data)
   
   if (!response.ok) {
-    throw new Error(data.message || '购买失败')
+    // 提供更详细的错误信息
+    const errorMessage = data.message || data.detail || 
+      (data.errors ? JSON.stringify(data.errors) : '购买失败')
+    throw new Error(errorMessage)
   }
   
   return data
@@ -127,6 +138,13 @@ const landTypeGifts: Record<string, { tools: string; food: string }> = {
   stone_mine: { tools: '专属工具×1', food: '基础粮食包' },
   forest: { tools: '专属工具×1', food: '基础粮食包' },
   yld_mine: { tools: '专属工具×1', food: '基础粮食包' },
+}
+
+// 精确计算折扣价格（避免浮点数精度问题）
+const calculateDiscountPrice = (originalPrice: number): number => {
+  // 使用整数运算避免浮点数精度问题
+  // 3折 = 30%，所以乘以30再除以100
+  return Math.floor((originalPrice * 30) / 100)
 }
 
 interface LandDetailDrawerProps {
@@ -213,6 +231,16 @@ export function LandDetailDrawer({
       router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
       return
     }
+    
+    // 调试日志
+    console.log('购买前调试信息：', {
+      原价: originalPrice,
+      折扣价_计算: originalPrice * 0.3,
+      折扣价_显示: discountedPrice,
+      土地ID: land?.id,
+      土地ID类型: typeof land?.id
+    })
+    
     setShowConfirm(true)
   }
   
@@ -224,19 +252,22 @@ export function LandDetailDrawer({
     setPurchaseMessage(null)
     
     try {
-      const result = await purchaseLand(land.id)
+      // 确保land_id是整数
+      const landId = parseInt(land.id) || land.id
+      
+      const result = await purchaseLand(landId)
       setPurchaseMessage({ type: 'success', text: result.message || '购买成功！' })
       
       // 刷新土地数据
-      await fetchLandDetails(land.id)
+      await fetchLandDetails(landId)
       
-      // 通知父组件
       if (onPurchaseSuccess) {
         setTimeout(() => {
           onPurchaseSuccess()
         }, 1500)
       }
     } catch (err: any) {
+      console.error('[购买失败] 详细错误:', err)
       setPurchaseMessage({ type: 'error', text: err.message || '购买失败，请稍后再试' })
     } finally {
       setPurchasing(false)
@@ -256,16 +287,15 @@ export function LandDetailDrawer({
   const landType = land?.blueprint?.land_type || 'unknown'
   const isUnowned = land?.status === 'unowned'
   const originalPrice = parseFloat(land?.current_price || '0')
-  const discountedPrice = originalPrice * 0.3
+  const discountedPrice = calculateDiscountPrice(originalPrice)
   const savedAmount = originalPrice - discountedPrice
   const giftInfo = landTypeGifts[landType] || null
   const shouldShowOwnedAt = land?.owner && land?.owned_at
   
-  // 安全地获取储量信息（兼容后端的修复）
+  // 安全地获取储量信息
   const getReserves = () => {
     if (!land) return { initial: 0, remaining: 0, depletion: 0 }
     
-    // 直接使用后端返回的字段
     const initial = land.initial_reserves || 0
     const remaining = land.remaining_reserves || 0
     const depletion = land.depletion_percentage || 0
