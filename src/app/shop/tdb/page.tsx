@@ -73,7 +73,7 @@ export default function TDBShopPage() {
   }, [authLoading, isAuthenticated, router])
 
   // 加载商品列表
-  const loadProducts = useCallback(async (reset = false, searchQuery = searchTerm, category = selectedCategory) => {
+  const loadProducts = useCallback(async (reset = false, searchQuery = searchTerm, category = selectedCategory, pageNum?: number) => {
     // 防止重复加载
     if (loadingRef.current && !reset) return
     
@@ -93,7 +93,8 @@ export default function TDBShopPage() {
     }
     
     try {
-      const currentPage = reset ? 1 : page
+      // 使用传入的页码或当前页码
+      const currentPage = reset ? 1 : (pageNum || page)
       const params: any = {
         page: currentPage,
         page_size: PAGE_SIZE, // 使用增大的页面大小
@@ -106,6 +107,8 @@ export default function TDBShopPage() {
       if (category && category !== '全部') {
         params.category = category
       }
+      
+      console.log('Loading products with params:', params) // 调试日志
       
       const response = await api.shop.products.list(params)
       
@@ -121,7 +124,12 @@ export default function TDBShopPage() {
         if (remainingSpace < newProducts.length) {
           newProducts = newProducts.slice(0, remainingSpace)
         }
-        setProducts(prev => [...prev, ...newProducts])
+        // 去重处理，避免重复数据
+        setProducts(prev => {
+          const existingIds = new Set(prev.map(p => p.id))
+          const uniqueNewProducts = newProducts.filter((p: Product) => !existingIds.has(p.id))
+          return [...prev, ...uniqueNewProducts]
+        })
       }
       
       // 更新分页状态
@@ -158,7 +166,7 @@ export default function TDBShopPage() {
       setLoadingMore(false)
       loadingRef.current = false
     }
-  }, [products.length, page, searchTerm, selectedCategory, categories.length, isInitialLoad])
+  }, [products, page, searchTerm, selectedCategory, categories.length, isInitialLoad])
 
   // 加载用户提货单统计
   const loadUserStats = async () => {
