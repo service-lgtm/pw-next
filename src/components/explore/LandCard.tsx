@@ -59,12 +59,17 @@ export function LandCard({ land, onClick }: LandCardProps) {
   // 格式化价格
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === 'string' ? parseFloat(price) : price
-    return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+    // 如果有小数，显示2位；如果是整数，不显示小数
+    if (numPrice % 1 === 0) {
+      return numPrice.toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+    } else {
+      return numPrice.toFixed(2)
+    }
   }
   
   // 计算3折价（原价打3折）
   const originalPrice = typeof land.current_price === 'string' ? parseFloat(land.current_price) : land.current_price
-  const discountedPrice = originalPrice * 0.3  // 3折价 = 原价 * 0.3
+  const discountedPrice = Math.round(originalPrice * 30) / 100  // 保留2位小数
   const savedAmount = originalPrice - discountedPrice
   
   return (
