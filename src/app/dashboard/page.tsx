@@ -1,5 +1,5 @@
 // src/app/dashboard/page.tsx
-// 仪表盘页面 - 添加土地碎片领取功能
+// 仪表盘页面 - 完整版本，包含钱包入口
 
 'use client'
 
@@ -359,6 +359,20 @@ export default function DashboardPage() {
                 <span className="text-sm font-bold">我的资产</span>
               </motion.button>
 
+              {/* 数字钱包 - 新增 */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/wallet')}
+                className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all relative"
+              >
+                <span className="text-3xl block mb-2">💳</span>
+                <span className="text-sm font-bold">数字钱包</span>
+                <span className="absolute top-1 right-1 text-xs bg-green-500 text-white px-2 py-0.5 rounded">
+                  新
+                </span>
+              </motion.button>
+
               {/* 新增：土地碎片 */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -416,6 +430,12 @@ export default function DashboardPage() {
               系统公告
             </h3>
             <div className="space-y-3">
+              <div className="p-3 bg-gray-800 rounded">
+                <p className="text-sm text-emerald-500 font-bold">💳 数字钱包功能上线</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  支持TDB转账，安全便捷！
+                </p>
+              </div>
               <div className="p-3 bg-gray-800 rounded">
                 <p className="text-sm text-gold-500 font-bold">🎁 土地碎片活动上线</p>
                 <p className="text-xs text-gray-400 mt-1">
