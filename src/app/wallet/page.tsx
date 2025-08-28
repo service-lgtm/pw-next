@@ -25,6 +25,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { TransferModal } from '@/components/wallet/TransferModal'
@@ -34,6 +35,7 @@ import { useAuth } from '@/hooks/useAuth'
 import toast from 'react-hot-toast'
 
 export default function WalletPage() {
+  const router = useRouter()
   const { user } = useAuth()
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [loading, setLoading] = useState(true)
@@ -163,11 +165,11 @@ export default function WalletPage() {
               <PixelButton
                 variant="secondary"
                 size="sm"
-                disabled
-                className="flex-1 opacity-50 cursor-not-allowed"
+                onClick={() => router.push('/shop/tdb')}
+                className="flex-1"
               >
-                <span className="mr-1">💰</span>
-                充值
+                <span className="mr-1">🛍️</span>
+                TDB商城
               </PixelButton>
             </div>
           </PixelCard>
