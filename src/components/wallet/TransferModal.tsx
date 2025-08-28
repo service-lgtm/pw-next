@@ -84,9 +84,16 @@ export function TransferModal({
   
   // 下一步
   const handleNext = () => {
-    // 验证接收方
+    // 验证接收方推荐码
     if (!recipient.trim()) {
-      toast.error('请输入接收方用户名或手机号')
+      toast.error('请输入接收方推荐码')
+      return
+    }
+    
+    // 验证推荐码格式（8位字母数字）
+    const referralCodePattern = /^[A-Za-z0-9]{8}$/
+    if (!referralCodePattern.test(recipient)) {
+      toast.error('推荐码格式错误，应为8位字母或数字')
       return
     }
     
@@ -208,18 +215,28 @@ export function TransferModal({
                       </p>
                     </div>
                     
-                    {/* 接收方 */}
+                    {/* 接收方推荐码 */}
                     <div>
                       <label className="block text-sm font-bold text-gray-400 mb-2">
-                        接收方
+                        接收方推荐码
                       </label>
                       <input
                         type="text"
                         value={recipient}
                         onChange={(e) => setRecipient(e.target.value)}
-                        placeholder="输入用户名或手机号"
-                        className="w-full px-3 py-2 bg-gray-800 border-2 border-gray-700 rounded focus:border-gold-500 focus:outline-none text-white"
+                        placeholder="输入对方推荐码（8位字母数字）"
+                        maxLength={8}
+                        className="w-full px-3 py-2 bg-gray-800 border-2 border-gray-700 rounded focus:border-gold-500 focus:outline-none text-white font-mono text-lg tracking-wider"
                       />
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-yellow-400 flex items-center gap-1">
+                          <span>⚠️</span>
+                          推荐码区分大小写，请准确输入
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          请仔细核对对方的推荐码，确保大小写完全一致
+                        </p>
+                      </div>
                     </div>
                     
                     {/* 转账金额 */}
@@ -289,8 +306,8 @@ export function TransferModal({
                       <h3 className="font-bold text-gold-500 mb-2">转账信息确认</h3>
                       
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">接收方:</span>
-                        <span className="text-white font-bold">{recipient}</span>
+                        <span className="text-gray-400">接收方推荐码:</span>
+                        <span className="text-white font-bold font-mono">{recipient}</span>
                       </div>
                       
                       <div className="flex justify-between text-sm">
