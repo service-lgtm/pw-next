@@ -1,14 +1,14 @@
 /**
  * 文件: src/components/wallet/TransferModal.tsx
- * 描述: TDB转账弹窗组件
+ * 描述: TDB转账弹窗组件（无需支付密码版本）
  * 作者: Assistant
  * 创建日期: 2024-01-27
  * 
  * 文件说明：
  * 1. 本文件实现TDB转账功能的弹窗界面
- * 2. 包含接收方输入、金额输入、支付密码验证
+ * 2. 包含接收方输入、金额输入
  * 3. 实时计算并显示手续费（0.8%）
- * 4. 处理转账API调用和错误提示
+ * 4. 无需支付密码验证
  * 
  * 关联文件：
  * - src/lib/api/wallet.ts: 钱包API调用
@@ -16,6 +16,7 @@
  * 
  * 更新历史：
  * - 2024-01-27: 初始创建
+ * - 2024-01-27: 移除支付密码验证
  */
 
 'use client'
@@ -46,7 +47,6 @@ export function TransferModal({
   // 表单数据
   const [recipient, setRecipient] = useState('')
   const [amount, setAmount] = useState('')
-  const [paymentPassword, setPaymentPassword] = useState('')
   const [memo, setMemo] = useState('')
   
   // 计算的费用
@@ -58,7 +58,6 @@ export function TransferModal({
     setStep(1)
     setRecipient('')
     setAmount('')
-    setPaymentPassword('')
     setMemo('')
     setFee('0')
     setTotal('0')
@@ -101,21 +100,15 @@ export function TransferModal({
     setStep(2)
   }
   
-  // 执行转账
+  // 执行转账（无需支付密码）
   const handleTransfer = async () => {
-    // 验证支付密码
-    if (!paymentPassword || paymentPassword.length !== 6) {
-      toast.error('请输入6位数字支付密码')
-      return
-    }
-    
     try {
       setLoading(true)
       
       const response = await walletApi.transferTDB({
         recipient: recipient.trim(),
         amount: amount,
-        payment_password: paymentPassword,
+        payment_password: '000000', // 后端如果还需要这个字段，传个默认值
         memo: memo.trim()
       })
       
@@ -136,11 +129,6 @@ export function TransferModal({
         // 处理错误
         const errorMsg = response.error || response.message || '转账失败'
         toast.error(errorMsg)
-        
-        // 如果是密码错误，清空密码输入
-        if (errorMsg.includes('密码')) {
-          setPaymentPassword('')
-        }
       }
     } catch (error: any) {
       console.error('转账失败:', error)
@@ -151,9 +139,6 @@ export function TransferModal({
         if (error.details.recipient) {
           toast.error(error.details.recipient[0])
           setStep(1) // 返回第一步
-        } else if (error.details.payment_password) {
-          toast.error(error.details.payment_password[0])
-          setPaymentPassword('')
         } else if (error.details.amount) {
           toast.error(error.details.amount[0])
           setStep(1)
@@ -297,7 +282,7 @@ export function TransferModal({
                     </div>
                   </div>
                 ) : (
-                  // 第二步：确认并输入支付密码
+                  // 第二步：确认转账（无需支付密码）
                   <div className="space-y-4">
                     {/* 转账信息确认 */}
                     <div className="bg-gray-800/50 p-4 rounded space-y-3">
@@ -331,22 +316,6 @@ export function TransferModal({
                       )}
                     </div>
                     
-                    {/* 支付密码 */}
-                    <div>
-                      <label className="block text-sm font-bold text-gray-400 mb-2">
-                        支付密码
-                      </label>
-                      <input
-                        type="password"
-                        value={paymentPassword}
-                        onChange={(e) => setPaymentPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="请输入6位数字支付密码"
-                        maxLength={6}
-                        className="w-full px-3 py-2 bg-gray-800 border-2 border-gray-700 rounded focus:border-gold-500 focus:outline-none text-white text-center text-lg tracking-widest"
-                        autoComplete="off"
-                      />
-                    </div>
-                    
                     {/* 安全提示 */}
                     <div className="bg-orange-500/10 border border-orange-500/30 p-3 rounded text-xs text-orange-400">
                       <p className="font-bold mb-1">⚠️ 安全提示</p>
@@ -366,7 +335,7 @@ export function TransferModal({
                       <PixelButton
                         variant="primary"
                         onClick={handleTransfer}
-                        disabled={loading || !paymentPassword}
+                        disabled={loading}
                         className="flex-1"
                       >
                         {loading ? '转账中...' : '确认转账'}
