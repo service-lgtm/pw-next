@@ -1,5 +1,23 @@
 // src/app/market/page.tsx
-// 交易市场页面 - 包含粮食购买功能（使用 TDB 支付）
+// 交易市场页面 - 支持多种资源购买（使用 TDB 支付）
+//
+// 文件说明：
+// 1. 本页面提供资源购买功能，支持5种资源类型
+// 2. 使用新的统一资源购买API
+// 3. 保持向后兼容，粮食购买功能正常工作
+// 4. 提供友好的用户界面和购买体验
+//
+// 版本历史：
+// - 2025-01-28: 更新支持多资源购买
+//   - 添加5种资源的购买卡片
+//   - 使用新的 useResourcePurchase Hook
+//   - 优化UI布局和交互体验
+// - 2025-01-27: 初始版本（仅支持粮食购买）
+//
+// 关联文件：
+// - src/hooks/useResourcePurchase.ts: 资源购买Hook
+// - src/lib/api/resources.ts: 资源购买API
+// - src/components/shared/: UI组件
 
 'use client'
 
@@ -10,21 +28,40 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
 import { useAuth } from '@/hooks/useAuth'
-import { useFoodPurchase } from '@/hooks/useFoodPurchase'
+import { useResourcePurchase } from '@/hooks/useResourcePurchase'
 import { useInventory } from '@/hooks/useInventory'
+import { RESOURCE_INFO, ResourceType } from '@/lib/api/resources'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 
 export default function MarketPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const [selectedResource, setSelectedResource] = useState<ResourceType | null>(null)
   const [showBuyModal, setShowBuyModal] = useState(false)
   
-  // 获取粮食购买状态
-  const { status: foodStatus, loading: foodLoading, buyFood, buying, refreshStatus } = useFoodPurchase()
+  // 获取所有资源购买状态
+  const { 
+    status, 
+    resourceStatus, 
+    wallet,
+    loading, 
+    buying, 
+    buyResource, 
+    refreshStatus,
+    canBuy,
+    getMaxCanBuy,
+    getTotalCost
+  } = useResourcePurchase({
+    autoRefresh: true,
+    refreshInterval: 30000, // 30秒自动刷新
+    onSuccess: () => {
+      refetchInventory()
+    }
+  })
   
   // 获取库存信息
-  const { inventory, refetch: refetchInventory } = useInventory({
+  const { refetch: refetchInventory } = useInventory({
     category: 'materials',
     includePrices: true
   })
@@ -36,6 +73,23 @@ export default function MarketPage() {
       router.push('/login?redirect=/market')
     }
   }, [authLoading, isAuthenticated, router])
+  
+  // 打开购买弹窗
+  const handleOpenBuyModal = (resourceType: ResourceType) => {
+    if (!canBuy(resourceType)) {
+      const info = RESOURCE_INFO[resourceType]
+      toast.error(`当前无法购买${info.name}`)
+      return
+    }
+    setSelectedResource(resourceType)
+    setShowBuyModal(true)
+  }
+  
+  // 关闭购买弹窗
+  const handleCloseBuyModal = () => {
+    setShowBuyModal(false)
+    setSelectedResource(null)
+  }
   
   if (authLoading) {
     return (
@@ -52,6 +106,9 @@ export default function MarketPage() {
     return null
   }
   
+  // 资源类型列表（按价格排序）
+  const resourceTypes: ResourceType[] = ['food', 'wood', 'stone', 'iron', 'yld']
+  
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto">
       {/* 页面标题 */}
@@ -64,226 +121,293 @@ export default function MarketPage() {
           交易市场
         </h1>
         <p className="text-gray-400 mt-1">
-          购买生产所需的资源
+          购买生产所需的资源，使用 TDB 支付
         </p>
+        
+        {/* TDB余额显示 */}
+        {wallet && (
+          <div className="mt-4 inline-flex items-center gap-4 px-4 py-2 bg-gray-800/50 rounded">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">TDB余额：</span>
+              <span className="font-bold text-gold-500">
+                {wallet.tdb_balance.toFixed(2)} TDB
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">YLD余额：</span>
+              <span className="font-bold text-purple-400">
+                {wallet.yld_balance.toFixed(2)} YLD
+              </span>
+            </div>
+          </div>
+        )}
       </motion.div>
       
-      {/* 粮食购买卡片 */}
+      {/* 资源购买卡片网格 */}
+      <div className="grid gap-4 md:gap-6">
+        {resourceTypes.map((resourceType, index) => {
+          const info = RESOURCE_INFO[resourceType]
+          const status = resourceStatus?.[resourceType]
+          
+          return (
+            <motion.div
+              key={resourceType}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * index }}
+            >
+              <ResourceCard
+                resourceType={resourceType}
+                info={info}
+                status={status}
+                loading={loading}
+                onBuy={() => handleOpenBuyModal(resourceType)}
+              />
+            </motion.div>
+          )
+        })}
+      </div>
+      
+      {/* 其他功能提示（即将开放） */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.6 }}
+        className="mt-8 grid md:grid-cols-2 gap-4"
       >
-        <PixelCard className="p-6">
-          <div className="flex flex-col md:flex-row justify-between gap-6">
-            {/* 左侧信息 */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-5xl">🌾</span>
-                <div>
-                  <h2 className="text-xl font-bold">粮食</h2>
-                  <p className="text-sm text-gray-400">挖矿生产必需品，每小时消耗2个/工具</p>
-                </div>
-              </div>
-              
-              {foodLoading ? (
-                <div className="space-y-2">
-                  <div className="h-4 bg-gray-800 rounded animate-pulse w-32"></div>
-                  <div className="h-4 bg-gray-800 rounded animate-pulse w-24"></div>
-                </div>
-              ) : foodStatus ? (
-                <div className="space-y-3">
-                  {/* 状态信息 */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-400">当前库存</p>
-                      <p className="text-lg font-bold text-yellow-400">
-                        {foodStatus.current_food.toFixed(0)}
-                        <span className="text-xs text-gray-400 ml-1">个</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">单价</p>
-                      <p className="text-lg font-bold text-gold-500">
-                        {foodStatus.unit_price}
-                        <span className="text-xs text-gray-400 ml-1">TDB</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">今日已购</p>
-                      <p className="text-lg font-bold">
-                        {foodStatus.today_purchased}
-                        <span className="text-xs text-gray-400">/{foodStatus.daily_limit}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">剩余额度</p>
-                      <p className={cn(
-                        "text-lg font-bold",
-                        foodStatus.today_remaining > 0 ? "text-green-400" : "text-red-400"
-                      )}>
-                        {foodStatus.today_remaining}
-                        <span className="text-xs text-gray-400 ml-1">个</span>
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* 进度条 */}
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>今日购买进度</span>
-                      <span>{((foodStatus.today_purchased / foodStatus.daily_limit) * 100).toFixed(0)}%</span>
-                    </div>
-                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full transition-all",
-                          foodStatus.today_purchased >= foodStatus.daily_limit 
-                            ? "bg-red-500" 
-                            : foodStatus.today_purchased > foodStatus.daily_limit * 0.5 
-                            ? "bg-yellow-500" 
-                            : "bg-green-500"
-                        )}
-                        style={{ 
-                          width: `${Math.min(100, (foodStatus.today_purchased / foodStatus.daily_limit) * 100)}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* TDB余额提示 */}
-                  <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded">
-                    <span className="text-sm text-gray-400">TDB余额</span>
-                    <span className="font-bold text-gold-500">
-                      {foodStatus.tdb_balance.toFixed(2)} TDB
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-400">加载失败</p>
-              )}
-            </div>
-            
-            {/* 右侧操作 */}
-            <div className="flex flex-col justify-between items-center md:items-end gap-4">
-              <div className="text-center md:text-right">
-                <p className="text-xs text-gray-400 mb-1">每日限购</p>
-                <p className="text-3xl font-bold text-gold-500">48</p>
-                <p className="text-xs text-gray-400">个/天</p>
-                <p className="text-xs text-gray-500 mt-2">单价: 0.01 TDB</p>
-              </div>
-              
-              <PixelButton
-                onClick={() => setShowBuyModal(true)}
-                disabled={!foodStatus?.can_buy || foodLoading}
-                size="sm"
-                className="min-w-[120px]"
-              >
-                {foodLoading ? '加载中...' : 
-                 !foodStatus?.can_buy ? '今日额度已用完' : 
-                 '立即购买'}
-              </PixelButton>
-              
-              {foodStatus && !foodStatus.can_buy && (
-                <p className="text-xs text-gray-400 text-center">
-                  重置时间：
-                  <br />
-                  {new Date(foodStatus.next_reset_time).toLocaleString('zh-CN')}
-                </p>
-              )}
-            </div>
-          </div>
-        </PixelCard>
-      </motion.div>
-      
-      {/* 其他资源提示 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mt-6 grid md:grid-cols-2 gap-4"
-      >
-        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">🪵</span>
-            <div>
-              <h3 className="text-lg font-bold">木材交易</h3>
-              <p className="text-sm text-gray-400">即将开放</p>
-            </div>
-          </div>
-        </PixelCard>
-        
-        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">⛏️</span>
-            <div>
-              <h3 className="text-lg font-bold">铁矿交易</h3>
-              <p className="text-sm text-gray-400">即将开放</p>
-            </div>
-          </div>
-        </PixelCard>
-        
-        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">🪨</span>
-            <div>
-              <h3 className="text-lg font-bold">石材交易</h3>
-              <p className="text-sm text-gray-400">即将开放</p>
-            </div>
-          </div>
-        </PixelCard>
-        
-        <PixelCard className="p-6 bg-gray-800/50 opacity-50">
+        <PixelCard className="p-6 bg-gray-800/30 opacity-60">
           <div className="flex items-center gap-3">
             <span className="text-4xl">💱</span>
             <div>
               <h3 className="text-lg font-bold">货币兑换</h3>
-              <p className="text-sm text-gray-400">即将开放</p>
+              <p className="text-sm text-gray-400">TDB与YLD互换 - 即将开放</p>
+            </div>
+          </div>
+        </PixelCard>
+        
+        <PixelCard className="p-6 bg-gray-800/30 opacity-60">
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">📦</span>
+            <div>
+              <h3 className="text-lg font-bold">批量交易</h3>
+              <p className="text-sm text-gray-400">大宗资源交易 - 即将开放</p>
             </div>
           </div>
         </PixelCard>
       </motion.div>
       
-      {/* 购买粮食弹窗 */}
-      <BuyFoodModal
-        isOpen={showBuyModal}
-        onClose={() => setShowBuyModal(false)}
-        foodStatus={foodStatus}
-        onSuccess={() => {
-          refreshStatus()
-          refetchInventory()
-          setShowBuyModal(false)
-        }}
-      />
+      {/* 购买资源弹窗 */}
+      {selectedResource && (
+        <BuyResourceModal
+          isOpen={showBuyModal}
+          onClose={handleCloseBuyModal}
+          resourceType={selectedResource}
+          resourceInfo={RESOURCE_INFO[selectedResource]}
+          resourceStatus={resourceStatus?.[selectedResource] || null}
+          wallet={wallet}
+          onBuy={buyResource}
+          buying={buying}
+          onSuccess={() => {
+            refreshStatus()
+            handleCloseBuyModal()
+          }}
+        />
+      )}
     </div>
   )
 }
 
-// 购买粮食弹窗组件
-interface BuyFoodModalProps {
+// ==================== 资源卡片组件 ====================
+
+interface ResourceCardProps {
+  resourceType: ResourceType
+  info: typeof RESOURCE_INFO[ResourceType]
+  status?: any
+  loading: boolean
+  onBuy: () => void
+}
+
+function ResourceCard({ 
+  resourceType, 
+  info, 
+  status, 
+  loading, 
+  onBuy 
+}: ResourceCardProps) {
+  const isSpecial = resourceType === 'food' || resourceType === 'yld'
+  
+  return (
+    <PixelCard className={cn(
+      "p-6",
+      isSpecial && "border-gold-500/30 bg-gradient-to-br from-gray-900 to-gray-800"
+    )}>
+      <div className="flex flex-col md:flex-row justify-between gap-6">
+        {/* 左侧信息 */}
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-5xl">{info.icon}</span>
+            <div>
+              <h2 className="text-xl font-bold">{info.name}</h2>
+              <p className="text-sm text-gray-400">{info.description}</p>
+            </div>
+          </div>
+          
+          {loading ? (
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-800 rounded animate-pulse w-32"></div>
+              <div className="h-4 bg-gray-800 rounded animate-pulse w-24"></div>
+            </div>
+          ) : status ? (
+            <div className="space-y-3">
+              {/* 状态信息 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400">当前库存</p>
+                  <p className="text-lg font-bold text-yellow-400">
+                    {status.current_amount.toFixed(0)}
+                    <span className="text-xs text-gray-400 ml-1">个</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">单价</p>
+                  <p className="text-lg font-bold text-gold-500">
+                    {status.unit_price}
+                    <span className="text-xs text-gray-400 ml-1">TDB</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">今日已购</p>
+                  <p className="text-lg font-bold">
+                    {status.today_purchased}
+                    <span className="text-xs text-gray-400">/{status.daily_limit}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">剩余额度</p>
+                  <p className={cn(
+                    "text-lg font-bold",
+                    status.today_remaining > 0 ? "text-green-400" : "text-red-400"
+                  )}>
+                    {status.today_remaining}
+                    <span className="text-xs text-gray-400 ml-1">个</span>
+                  </p>
+                </div>
+              </div>
+              
+              {/* 进度条 */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>今日购买进度</span>
+                  <span>{((status.today_purchased / status.daily_limit) * 100).toFixed(0)}%</span>
+                </div>
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div 
+                    className={cn(
+                      "h-full transition-all",
+                      status.today_purchased >= status.daily_limit 
+                        ? "bg-red-500" 
+                        : status.today_purchased > status.daily_limit * 0.5 
+                        ? "bg-yellow-500" 
+                        : "bg-green-500"
+                    )}
+                    style={{ 
+                      width: `${Math.min(100, (status.today_purchased / status.daily_limit) * 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-400">加载失败</p>
+          )}
+        </div>
+        
+        {/* 右侧操作 */}
+        <div className="flex flex-col justify-between items-center md:items-end gap-4">
+          <div className="text-center md:text-right">
+            <p className="text-xs text-gray-400 mb-1">每日限购</p>
+            <p className="text-3xl font-bold text-gold-500">{info.dailyLimit}</p>
+            <p className="text-xs text-gray-400">个/天</p>
+            <p className="text-xs text-gray-500 mt-2">
+              单价: {info.unitPrice} TDB | 单次最多: {info.singleLimit}个
+            </p>
+          </div>
+          
+          <PixelButton
+            onClick={onBuy}
+            disabled={!status?.can_buy || loading}
+            variant={isSpecial ? "primary" : "secondary"}
+            size="sm"
+            className="min-w-[120px]"
+          >
+            {loading ? '加载中...' : 
+             !status?.can_buy ? '今日额度已用完' : 
+             '立即购买'}
+          </PixelButton>
+        </div>
+      </div>
+    </PixelCard>
+  )
+}
+
+// ==================== 购买弹窗组件 ====================
+
+interface BuyResourceModalProps {
   isOpen: boolean
   onClose: () => void
-  foodStatus: any
+  resourceType: ResourceType
+  resourceInfo: typeof RESOURCE_INFO[ResourceType]
+  resourceStatus: any
+  wallet: any
+  onBuy: (type: ResourceType, quantity: number) => Promise<any>
+  buying: boolean
   onSuccess: () => void
 }
 
-function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalProps) {
-  const { buyFood, buying } = useFoodPurchase()
+function BuyResourceModal({ 
+  isOpen, 
+  onClose, 
+  resourceType,
+  resourceInfo,
+  resourceStatus, 
+  wallet,
+  onBuy,
+  buying,
+  onSuccess 
+}: BuyResourceModalProps) {
   const [quantity, setQuantity] = useState(10)
   const [showSuccess, setShowSuccess] = useState(false)
   const [purchaseResult, setPurchaseResult] = useState<any>(null)
   
-  const totalCost = quantity * (foodStatus?.unit_price || 0.01)
-  const quickAmounts = [1, 10, 20, 48]
+  // 根据资源类型设置默认数量和快捷按钮
+  const getQuickAmounts = () => {
+    switch (resourceType) {
+      case 'food':
+        return [1, 10, 20, 48]
+      case 'wood':
+        return [10, 50, 100, 200]
+      case 'stone':
+        return [10, 50, 100, 100]
+      case 'iron':
+        return [5, 10, 15, 20]
+      case 'yld':
+        return [1, 3, 5, 10]
+      default:
+        return [1, 5, 10, 20]
+    }
+  }
+  
+  const quickAmounts = getQuickAmounts()
+  const totalCost = quantity * (resourceStatus?.unit_price || 0)
   
   const handleBuy = async () => {
-    const result = await buyFood(quantity)
-    if (result && result.transaction_id) {  // 检查是否有transaction_id表示成功
+    const result = await onBuy(resourceType, quantity)
+    if (result && result.transaction_id) {
       setPurchaseResult({
         quantity: result.quantity,
         totalCost: result.total_cost.toFixed(2),
-        newBalance: result.tdb_balance_after.toFixed(2),
-        newFood: result.food_balance_after,
+        newBalance: result.balance_after.toFixed(2),
+        newResource: result.resource_after,
         transactionId: result.transaction_id
       })
       setShowSuccess(true)
@@ -303,14 +427,22 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
     onClose()
   }
   
+  // 设置初始数量
+  useEffect(() => {
+    if (isOpen && resourceStatus) {
+      const defaultQty = Math.min(10, resourceStatus.max_can_buy || 10)
+      setQuantity(defaultQty)
+    }
+  }, [isOpen, resourceStatus])
+  
   return (
     <PixelModal
       isOpen={isOpen}
       onClose={handleClose}
-      title={showSuccess ? "购买成功" : "购买粮食"}
+      title={showSuccess ? "购买成功" : `购买${resourceInfo.name}`}
       size="small"
     >
-      {foodStatus && (
+      {resourceStatus && wallet && (
         <div className="space-y-4">
           {showSuccess && purchaseResult ? (
             // 成功提示界面
@@ -335,7 +467,15 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               <div className="space-y-3 bg-gray-800/50 rounded-lg p-4 text-left">
                 <div className="flex justify-between">
                   <span className="text-gray-400">交易编号：</span>
-                  <span className="font-bold text-xs text-white">{purchaseResult.transactionId}</span>
+                  <span className="font-bold text-xs text-white break-all">
+                    {purchaseResult.transactionId}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">购买资源：</span>
+                  <span className="font-bold text-white">
+                    {resourceInfo.icon} {resourceInfo.name}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-400">购买数量：</span>
@@ -347,8 +487,10 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
                 </div>
                 <div className="border-t border-gray-700 pt-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-400">当前粮食：</span>
-                    <span className="font-bold text-yellow-400">{purchaseResult.newFood} 个</span>
+                    <span className="text-gray-400">当前{resourceInfo.name}：</span>
+                    <span className="font-bold text-yellow-400">
+                      {purchaseResult.newResource} 个
+                    </span>
                   </div>
                   <div className="flex justify-between mt-2">
                     <span className="text-gray-400">剩余 TDB：</span>
@@ -362,7 +504,7 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
                   onClick={() => {
                     setShowSuccess(false)
                     setPurchaseResult(null)
-                    setQuantity(10)
+                    setQuantity(Math.min(10, resourceStatus.max_can_buy || 10))
                   }}
                   variant="primary"
                   className="w-full"
@@ -383,31 +525,31 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               </p>
             </motion.div>
           ) : (
-            // 原有的购买界面
+            // 购买界面
             <>
               {/* 价格信息 */}
               <div className="p-4 bg-gray-800/50 rounded">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-gray-400">单价</p>
-                    <p className="font-bold text-gold-500">{foodStatus.unit_price} TDB</p>
+                    <p className="font-bold text-gold-500">{resourceStatus.unit_price} TDB</p>
                   </div>
                   <div>
                     <p className="text-gray-400">TDB余额</p>
                     <p className="font-bold text-gold-500">
-                      {foodStatus.tdb_balance.toFixed(2)} TDB
+                      {wallet.tdb_balance.toFixed(2)} TDB
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">今日已购</p>
                     <p className="font-bold">
-                      {foodStatus.today_purchased}/{foodStatus.daily_limit}
+                      {resourceStatus.today_purchased}/{resourceStatus.daily_limit}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-400">剩余额度</p>
                     <p className="font-bold text-green-400">
-                      {foodStatus.today_remaining}
+                      {resourceStatus.today_remaining}
                     </p>
                   </div>
                 </div>
@@ -416,20 +558,24 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               {/* 购买数量 */}
               <div>
                 <label className="block text-sm text-gray-400 mb-2">
-                  购买数量
+                  购买数量（单次最多{resourceStatus.single_limit}个）
                 </label>
                 <div className="flex gap-2 mb-2">
                   {quickAmounts.map(amount => (
                     <button
                       key={amount}
-                      onClick={() => setQuantity(Math.min(amount, foodStatus.today_remaining))}
-                      disabled={amount > foodStatus.today_remaining}
+                      onClick={() => setQuantity(Math.min(
+                        amount, 
+                        resourceStatus.today_remaining,
+                        resourceStatus.single_limit
+                      ))}
+                      disabled={amount > resourceStatus.today_remaining}
                       className={cn(
                         "flex-1 py-2 rounded border transition-all",
                         amount === quantity
                           ? "bg-gold-500/20 border-gold-500 text-white"
                           : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white",
-                        amount > foodStatus.today_remaining && "opacity-50 cursor-not-allowed"
+                        amount > resourceStatus.today_remaining && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       {amount}
@@ -439,11 +585,15 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
                 <input
                   type="number"
                   min={1}
-                  max={foodStatus.today_remaining}
+                  max={Math.min(resourceStatus.today_remaining, resourceStatus.single_limit)}
                   value={quantity}
                   onChange={(e) => {
                     const val = parseInt(e.target.value) || 0
-                    setQuantity(Math.min(Math.max(1, val), foodStatus.today_remaining))
+                    setQuantity(Math.min(
+                      Math.max(1, val), 
+                      resourceStatus.today_remaining,
+                      resourceStatus.single_limit
+                    ))
                   }}
                   className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
                 />
@@ -453,12 +603,18 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               <div className="p-4 bg-green-500/10 border border-green-500/30 rounded">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
+                    <span>资源：</span>
+                    <span className="font-bold">
+                      {resourceInfo.icon} {resourceInfo.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
                     <span>数量：</span>
                     <span className="font-bold">{quantity} 个</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>单价：</span>
-                    <span>{foodStatus.unit_price} TDB</span>
+                    <span>{resourceStatus.unit_price} TDB</span>
                   </div>
                   <div className="border-t border-gray-700 pt-2 mt-2">
                     <div className="flex justify-between">
@@ -472,10 +628,10 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
               </div>
               
               {/* 余额不足提示 */}
-              {totalCost > foodStatus.tdb_balance && (
+              {totalCost > wallet.tdb_balance && (
                 <div className="p-3 bg-red-500/10 border border-red-500/30 rounded">
                   <p className="text-sm text-red-400">
-                    TDB余额不足，请先购买更多TDB
+                    TDB余额不足，还需要 {(totalCost - wallet.tdb_balance).toFixed(2)} TDB
                   </p>
                 </div>
               )}
@@ -493,9 +649,10 @@ function BuyFoodModal({ isOpen, onClose, foodStatus, onSuccess }: BuyFoodModalPr
                   onClick={handleBuy}
                   disabled={
                     buying || 
-                    !foodStatus.can_buy || 
+                    !resourceStatus.can_buy || 
                     quantity <= 0 || 
-                    totalCost > foodStatus.tdb_balance
+                    quantity > resourceStatus.single_limit ||
+                    totalCost > wallet.tdb_balance
                   }
                   className="flex-1"
                 >
