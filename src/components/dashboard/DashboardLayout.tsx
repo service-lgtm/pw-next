@@ -34,7 +34,7 @@ const sidebarItems = [
     title: '财务中心',
     icon: '💳',
     items: [
-      { label: '数字钱包', href: '/wallet', icon: '👛', isActive: false },
+      { label: '数字钱包', href: '/wallet', icon: '👛', isActive: true },  // 改为 true
       { label: '收益统计', href: '/wallet/earnings', icon: '📊', isActive: false },
     ]
   },
