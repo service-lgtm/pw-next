@@ -1,414 +1,453 @@
 // src/app/mining/LandSelector.tsx
-// 土地选择器组件 - 完整生产版（支持所有土地类型）
+// 土地选择器组件 - 完整生产级版本
 // 
 // 文件说明：
-// 这是挖矿系统中的土地选择器组件，支持所有类型的可挖矿土地
-// 从 MiningSessions.tsx (2000+行) 重构拆分出来的独立组件
+// 本组件负责提供土地选择功能，只显示可用于挖矿的土地
+// 从 MiningSessions.tsx 中的 LandSelectorV2 组件拆分出来
 // 
 // 创建原因：
-// - 解决 React error #130 (组件返回 undefined 的问题)
-// - 原 MiningSessions.tsx 文件过大，需要拆分以提高可维护性
-// - 提供独立的土地选择功能，支持所有土地类型的挖矿
+// - 土地选择是独立的功能模块，应该单独组件化
+// - 需要复杂的筛选逻辑（土地类型、生产状态等）
+// - 便于复用和测试
 // 
-// 数据源：
-// - userLands: 来自 useUserLands Hook
-// - 接口: /production/lands/available/
-// - 包含用户所有土地（不仅限于YLD矿山）
-// 
-// 支持的可挖矿土地类型：
-// - yld_mine: YLD矿山（产出YLD）
-// - iron_mine: 铁矿山（产出铁矿）
-// - stone_mine: 石矿山（产出石头）
-// - forest: 森林（产出木材）
-// - farm: 农场（产出粮食）
-// 
-// 不可挖矿的土地类型：
-// - urban: 城市用地
-// - residential: 住宅用地
-// - commercial: 商业用地
-// 
-// 主要功能：
-// 1. 下拉框展示所有土地，分组显示（可挖矿/不可挖矿）
-// 2. 自动识别土地类型和产出资源
-// 3. 视觉标识（绿色=可挖矿，红色=不可挖矿）
-// 4. 显示土地统计信息
+// 功能特性：
+// 1. 筛选可挖矿的土地类型
+// 2. 排除正在生产的土地
+// 3. 按土地类型分组显示
+// 4. 显示土地详细信息
 // 5. 支持错误提示
-// 6. 响应式设计
+// 
+// 使用方式：
+// <LandSelector
+//   lands={userLands}
+//   selectedLand={selectedLand}
+//   onSelect={setSelectedLand}
+//   activeSessions={activeSessions}
+//   disabled={loading}
+// />
 // 
 // 关联文件：
-// - 被调用: ./MiningSessions.tsx (在开始挖矿模态框中使用)
-// - 被调用: ./StartMiningForm.tsx (如果该文件独立存在)
-// - 类型定义: @/types/assets (Land 类型)
-// - 工具函数: @/lib/utils (cn 函数)
-// 
-// 更新历史：
-// - 2025-01: 创建文件，从 MiningSessions.tsx 拆分
-// - 2025-01: 修复 React error #130
-// - 2025-01: 添加分组显示功能
-// - 2025-01: 支持所有土地类型，不限于YLD矿山
+// - 被 StartMiningForm.tsx 使用（开始挖矿表单）
+// - 使用 miningConstants.ts 中的土地类型定义
+// - 使用 @/types/assets 中的 Land 类型
 
 'use client'
 
-import React, { useState, useRef, useEffect, memo, useMemo } from 'react'
+import React, { useMemo, memo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { Land } from '@/types/assets'
+import { 
+  isMinableLandType, 
+  getLandTypeDisplayName, 
+  getLandResourceType,
+  LAND_TYPE_MAP,
+  LAND_RESOURCE_MAP,
+  MINABLE_LAND_TYPES
+} from './miningConstants'
 
 interface LandSelectorProps {
-  lands: Land[]
-  selectedLand: Land | null
-  onSelect: (land: Land | null) => void
-  disabled?: boolean
-  error?: string
-  showError?: boolean
-  className?: string
-}
-
-// 土地类型配置
-const LAND_TYPE_CONFIG = {
-  // 可挖矿的土地类型
-  mineable: {
-    'yld_mine': { 
-      name: 'YLD矿山', 
-      resource: 'YLD', 
-      icon: '💎', 
-      color: 'text-yellow-400',
-      bgColor: 'bg-yellow-900/20'
-    },
-    'iron_mine': { 
-      name: '铁矿山', 
-      resource: '铁矿', 
-      icon: '⚙️', 
-      color: 'text-gray-400',
-      bgColor: 'bg-gray-900/20'
-    },
-    'stone_mine': { 
-      name: '石矿山', 
-      resource: '石头', 
-      icon: '🪨', 
-      color: 'text-stone-400',
-      bgColor: 'bg-stone-900/20'
-    },
-    'forest': { 
-      name: '森林', 
-      resource: '木材', 
-      icon: '🌲', 
-      color: 'text-green-400',
-      bgColor: 'bg-green-900/20'
-    },
-    'farm': { 
-      name: '农场', 
-      resource: '粮食', 
-      icon: '🌾', 
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-900/20'
-    },
-    'mining': { 
-      name: '矿产土地', 
-      resource: '矿产', 
-      icon: '⛏️', 
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-900/20'
-    },
-    'special': { 
-      name: '特殊土地', 
-      resource: '特殊资源', 
-      icon: '✨', 
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-900/20'
-    }
-  },
-  // 不可挖矿的土地类型
-  nonMineable: {
-    'urban': { name: '城市用地', icon: '🏢', reason: '城市用地不支持挖矿' },
-    'residential': { name: '住宅用地', icon: '🏘️', reason: '住宅用地不支持挖矿' },
-    'commercial': { name: '商业用地', icon: '🏪', reason: '商业用地不支持挖矿' }
-  }
+  lands: Land[]                                  // 土地列表
+  selectedLand: Land | null                      // 选中的土地
+  onSelect: (land: Land | null) => void         // 选择回调
+  error?: string                                 // 错误信息
+  showError?: boolean                            // 是否显示错误
+  disabled?: boolean                             // 是否禁用
+  className?: string                             // 自定义样式
+  activeSessions?: any[]                         // 活跃的挖矿会话（新增）
+  debug?: boolean                                // 是否显示调试信息
 }
 
 /**
- * 判断土地是否支持挖矿
+ * 检查土地是否可挖矿
+ * 使用导入的函数而不是内联定义
  */
-const isLandMineable = (land: Land): boolean => {
-  const landType = land.blueprint?.land_type || land.land_type || ''
-  return Object.keys(LAND_TYPE_CONFIG.mineable).includes(landType.toLowerCase())
-}
-
-/**
- * 获取土地类型信息
- */
-const getLandTypeInfo = (land: Land) => {
-  const landType = (land.blueprint?.land_type || land.land_type || '').toLowerCase()
-  
-  if (LAND_TYPE_CONFIG.mineable[landType]) {
-    return { ...LAND_TYPE_CONFIG.mineable[landType], isMineable: true }
-  }
-  
-  if (LAND_TYPE_CONFIG.nonMineable[landType]) {
-    return { ...LAND_TYPE_CONFIG.nonMineable[landType], isMineable: false }
-  }
-  
-  // 默认返回未知类型
-  return {
-    name: land.blueprint?.land_type_display || land.land_type_display || '未知类型',
-    icon: '❓',
-    isMineable: false,
-    reason: '未知土地类型'
-  }
+function isMinableLandType(landType: string): boolean {
+  return MINABLE_LAND_TYPES.includes(landType)
 }
 
 /**
  * 土地选择器组件
+ * 提供土地选择下拉框，只显示可用于挖矿的土地
  */
 export const LandSelector = memo(({
   lands,
   selectedLand,
   onSelect,
-  disabled = false,
-  error = '',
+  error,
   showError = false,
-  className
+  disabled = false,
+  className,
+  activeSessions = [],
+  debug = false
 }: LandSelectorProps) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   
-  // 分组土地：可挖矿和不可挖矿
-  const { mineableLands, nonMineableLands, stats } = useMemo(() => {
-    const mineable: Land[] = []
-    const nonMineable: Land[] = []
-    
-    lands.forEach(land => {
-      if (isLandMineable(land)) {
-        mineable.push(land)
-      } else {
-        nonMineable.push(land)
-      }
-    })
-    
-    // 对可挖矿土地排序：YLD矿山优先
-    mineable.sort((a, b) => {
-      const aType = (a.blueprint?.land_type || a.land_type || '').toLowerCase()
-      const bType = (b.blueprint?.land_type || b.land_type || '').toLowerCase()
-      if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
-      if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
-      return 0
-    })
-    
-    return {
-      mineableLands: mineable,
-      nonMineableLands: nonMineable,
-      stats: {
-        total: lands.length,
-        mineable: mineable.length,
-        nonMineable: nonMineable.length
-      }
-    }
-  }, [lands])
-  
-  // 点击外部关闭下拉框
+  // 调试日志
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+    if (debug) {
+      console.log('[LandSelector] Props:', {
+        landsCount: lands.length,
+        selectedLand: selectedLand?.land_id,
+        activeSessionsCount: activeSessions.length,
+        disabled
+      })
+    }
+  }, [lands, selectedLand, activeSessions, disabled, debug])
+  
+  // 获取正在使用的土地ID列表
+  const activeLandIds = useMemo(() => {
+    const ids = new Set<number>()
+    activeSessions.forEach(session => {
+      // 兼容不同的数据结构
+      const landId = session.land_id || session.land?.id || session.landId
+      if (landId) {
+        ids.add(typeof landId === 'string' ? parseInt(landId) : landId)
+      }
+    })
+    
+    if (debug) {
+      console.log('[LandSelector] 活跃土地IDs:', Array.from(ids))
+    }
+    
+    return ids
+  }, [activeSessions, debug])
+  
+  // 筛选可挖矿的土地
+  const minableLands = useMemo(() => {
+    const filtered = lands.filter(land => {
+      // 获取土地类型
+      const landType = land.blueprint?.land_type || land.land_type || ''
+      
+      // 检查是否是可挖矿类型
+      const isMinable = isMinableLandType(landType)
+      
+      if (!isMinable) {
+        if (debug) {
+          console.log(`[LandSelector] 土地 ${land.land_id} 不可挖矿，类型: ${landType}`)
+        }
+        return false
+      }
+      
+      // 检查是否正在生产（后端字段）
+      const isProducing = land.is_producing === true
+      
+      // 检查是否在活跃会话中（前端数据）
+      const isInActiveSession = activeLandIds.has(land.id)
+      
+      // 检查是否正在招募
+      const isRecruiting = land.is_recruiting === true
+      
+      // 综合判断是否可用
+      const isAvailable = !isProducing && !isInActiveSession && !isRecruiting
+      
+      if (debug && !isAvailable) {
+        console.log(`[LandSelector] 土地 ${land.land_id} 不可用:`, {
+          is_producing: isProducing,
+          is_in_session: isInActiveSession,
+          is_recruiting: isRecruiting,
+          land_id: land.id
+        })
+      }
+      
+      return isAvailable
+    })
+    
+    // 排序：YLD矿山优先，然后按类型和ID排序
+    const sorted = filtered.sort((a, b) => {
+      const aType = a.blueprint?.land_type || a.land_type || ''
+      const bType = b.blueprint?.land_type || b.land_type || ''
+      
+      // YLD矿山优先
+      if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
+      if (bType === 'yld_mine' && aType !== 'yld_mine') return 1
+      
+      // 按类型排序
+      if (aType !== bType) {
+        return aType.localeCompare(bType)
+      }
+      
+      // 同类型按ID排序
+      return (a.land_id || '').localeCompare(b.land_id || '')
+    })
+    
+    if (debug) {
+      console.log('[LandSelector] 筛选结果:', {
+        总土地数: lands.length,
+        可挖矿土地数: sorted.length,
+        土地列表: sorted.map(l => ({
+          id: l.id,
+          land_id: l.land_id,
+          type: l.blueprint?.land_type,
+          is_producing: l.is_producing
+        }))
+      })
+    }
+    
+    return sorted
+  }, [lands, activeLandIds, debug])
+  
+  // 将土地按类型分组
+  const groupedLands = useMemo(() => {
+    const groups: { [key: string]: Land[] } = {}
+    
+    minableLands.forEach(land => {
+      const landType = land.blueprint?.land_type || land.land_type || 'unknown'
+      if (!groups[landType]) {
+        groups[landType] = []
+      }
+      groups[landType].push(land)
+    })
+    
+    // 按特定顺序返回
+    const orderedGroups: { [key: string]: Land[] } = {}
+    const typeOrder = ['yld_mine', 'iron_mine', 'stone_mine', 'forest', 'farm']
+    
+    typeOrder.forEach(type => {
+      if (groups[type]) {
+        orderedGroups[type] = groups[type]
+      }
+    })
+    
+    // 添加其他未列出的类型
+    Object.keys(groups).forEach(type => {
+      if (!orderedGroups[type]) {
+        orderedGroups[type] = groups[type]
+      }
+    })
+    
+    return orderedGroups
+  }, [minableLands])
+  
+  // 处理选择变化
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const landId = e.target.value
+    
+    if (landId === '') {
+      onSelect(null)
+      if (debug) {
+        console.log('[LandSelector] 清除选择')
+      }
+    } else {
+      const land = minableLands.find(l => l.id.toString() === landId)
+      if (land) {
+        onSelect(land)
+        if (debug) {
+          console.log('[LandSelector] 选中土地:', {
+            id: land.id,
+            land_id: land.land_id,
+            type: land.blueprint?.land_type,
+            is_producing: land.is_producing,
+            resource_reserves: land.resource_reserves
+          })
+        }
       }
     }
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('touchstart', handleClickOutside)
-    }
-    
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('touchstart', handleClickOutside)
-    }
-  }, [isOpen])
-  
-  const handleSelect = (land: Land | null) => {
-    // 只允许选择可挖矿的土地
-    if (land && !isLandMineable(land)) {
-      return
-    }
-    onSelect(land)
-    setIsOpen(false)
   }
   
-  // 确保组件始终返回有效的 React 元素，避免 React error #130
+  // 获取土地的显示文本
+  const getLandDisplayText = (land: Land) => {
+    const landType = land.blueprint?.land_type || land.land_type || ''
+    const typeName = LAND_TYPE_MAP[landType] || '未知类型'
+    const resourceType = LAND_RESOURCE_MAP[landType] || ''
+    
+    // 坐标信息
+    const coordinates = land.coordinate_x !== undefined && land.coordinate_y !== undefined 
+      ? ` (${land.coordinate_x}, ${land.coordinate_y})`
+      : ''
+    
+    // 储量信息（如果有）
+    let reservesInfo = ''
+    if (land.resource_reserves !== undefined && land.resource_reserves !== null) {
+      const reserves = parseFloat(land.resource_reserves.toString())
+      if (reserves > 0) {
+        reservesInfo = ` [储量: ${reserves.toFixed(0)}]`
+      } else {
+        reservesInfo = ' [储量耗尽]'
+      }
+    }
+    
+    // 特殊标记
+    const specialMark = land.is_special ? ' ⭐' : ''
+    
+    return `${land.land_id} - ${typeName}${resourceType ? `[${resourceType}]` : ''}${coordinates}${reservesInfo}${specialMark}`
+  }
+  
+  // 获取土地组的显示名称
+  const getGroupDisplayName = (landType: string) => {
+    const displayName = LAND_TYPE_MAP[landType] || '其他'
+    const resourceType = LAND_RESOURCE_MAP[landType]
+    return resourceType ? `${displayName} (产出${resourceType})` : displayName
+  }
+  
+  // 检查是否没有任何土地
+  const hasNoLands = lands.length === 0
+  
+  // 检查是否所有土地都在生产中
+  const allLandsProducing = lands.length > 0 && minableLands.length === 0
+  
   return (
-    <div ref={dropdownRef} className={cn("relative", className)}>
-      {/* 主按钮 */}
-      <button
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
+    <div className={className}>
+      <select
+        value={selectedLand?.id || ''}
+        onChange={handleChange}
+        disabled={disabled || minableLands.length === 0}
         className={cn(
-          "w-full px-3 py-2.5 bg-gray-800/70 border rounded-lg",
-          "text-left text-white text-sm",
-          "focus:outline-none transition-colors",
-          "flex items-center justify-between",
+          "w-full px-3 py-2 bg-gray-800 border rounded text-white",
+          "focus:outline-none focus:ring-2 focus:ring-gold-500",
+          "transition-colors duration-200",
+          showError && error ? "border-red-500" : "border-gray-600",
           disabled && "opacity-50 cursor-not-allowed",
-          showError && error ? "border-red-500 focus:border-red-400" : "border-gray-600 focus:border-gold-500"
+          !disabled && minableLands.length > 0 && "hover:border-gray-500"
         )}
       >
-        <span className={selectedLand ? "text-white" : "text-gray-400"}>
-          {selectedLand ? (
-            <span className="flex items-center gap-2">
-              <span>{getLandTypeInfo(selectedLand).icon}</span>
-              <span>{selectedLand.land_id}</span>
-              <span className="text-xs text-gray-400">
-                {getLandTypeInfo(selectedLand).name}
-              </span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span>📍</span>
-              <span>请选择土地</span>
-              <span className="text-xs text-gray-400">
-                ({stats.mineable}/{stats.total} 可挖矿)
-              </span>
-            </span>
-          )}
-        </span>
-        <span className={cn(
-          "transition-transform text-gray-400",
-          isOpen ? "rotate-180" : ""
-        )}>
-          ▼
-        </span>
-      </button>
-      
-      {/* 下拉菜单 */}
-      {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-80 overflow-y-auto">
-          {/* 统计信息 */}
-          <div className="px-3 py-2 bg-gray-900/50 border-b border-gray-700 text-xs text-gray-400">
-            <div className="flex justify-between">
-              <span>总土地数: {stats.total}</span>
-              <span className="text-green-400">可挖矿: {stats.mineable}</span>
-              <span className="text-red-400">不可挖矿: {stats.nonMineable}</span>
-            </div>
-          </div>
-          
-          {/* 清空选择 */}
-          <button
-            type="button"
-            onClick={() => handleSelect(null)}
-            className={cn(
-              "w-full px-3 py-2 text-left text-sm",
-              "hover:bg-gray-700 transition-colors",
-              "border-b border-gray-700",
-              !selectedLand ? "bg-gray-700 text-gold-400" : "text-gray-400"
-            )}
+        <option value="">
+          {hasNoLands 
+            ? '暂无土地' 
+            : allLandsProducing
+            ? `没有可用土地（${lands.length}个土地都在生产中）`
+            : '请选择土地'
+          }
+        </option>
+        
+        {/* 分组显示土地 */}
+        {Object.entries(groupedLands).map(([landType, landList]) => (
+          <optgroup 
+            key={landType} 
+            label={`${getGroupDisplayName(landType)} (${landList.length}个)`}
           >
-            -- 清空选择 --
-          </button>
-          
-          {/* 可挖矿土地组 */}
-          {mineableLands.length > 0 && (
-            <>
-              <div className="px-3 py-1.5 bg-green-900/20 text-xs text-green-400 font-bold border-b border-gray-700">
-                ✅ 可挖矿土地 ({mineableLands.length})
-              </div>
-              {mineableLands.map((land, index) => {
-                const typeInfo = getLandTypeInfo(land)
-                const isYldMine = (land.blueprint?.land_type || land.land_type || '').toLowerCase() === 'yld_mine'
-                
-                return (
-                  <button
-                    key={land.id}
-                    type="button"
-                    onClick={() => handleSelect(land)}
-                    className={cn(
-                      "w-full px-3 py-2.5 text-left text-sm",
-                      "hover:bg-gray-700 transition-colors",
-                      "flex items-center gap-2",
-                      selectedLand?.id === land.id ? "bg-gray-700 text-gold-400" : "text-white",
-                      index !== mineableLands.length - 1 && "border-b border-gray-700/50"
-                    )}
-                  >
-                    <span className={typeInfo.color}>{typeInfo.icon}</span>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{land.land_id}</span>
-                        {isYldMine && (
-                          <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">
-                            推荐
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        <span>{typeInfo.name}</span>
-                        {typeInfo.resource && (
-                          <span className="ml-2">产出: {typeInfo.resource}</span>
-                        )}
-                        {land.region_name && (
-                          <span className="ml-2">区域: {land.region_name}</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </>
-          )}
-          
-          {/* 不可挖矿土地组 */}
-          {nonMineableLands.length > 0 && (
-            <>
-              <div className="px-3 py-1.5 bg-red-900/20 text-xs text-red-400 font-bold border-b border-gray-700">
-                ❌ 不可挖矿土地 ({nonMineableLands.length})
-              </div>
-              {nonMineableLands.map((land, index) => {
-                const typeInfo = getLandTypeInfo(land)
-                
-                return (
-                  <div
-                    key={land.id}
-                    className={cn(
-                      "w-full px-3 py-2.5 text-left text-sm",
-                      "opacity-50 cursor-not-allowed",
-                      "flex items-center gap-2",
-                      "text-gray-500",
-                      index !== nonMineableLands.length - 1 && "border-b border-gray-700/50"
-                    )}
-                  >
-                    <span>{typeInfo.icon}</span>
-                    <div className="flex-1">
-                      <div className="font-medium">{land.land_id}</div>
-                      <div className="text-xs text-gray-600">
-                        <span>{typeInfo.name}</span>
-                        {typeInfo.reason && (
-                          <span className="ml-2 text-red-400">{typeInfo.reason}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </>
-          )}
-          
-          {/* 无土地提示 */}
-          {lands.length === 0 && (
-            <div className="px-3 py-4 text-center text-sm text-gray-400">
-              暂无土地
-            </div>
-          )}
-        </div>
-      )}
+            {landList.map(land => (
+              <option key={land.id} value={land.id}>
+                {getLandDisplayText(land)}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
       
       {/* 错误提示 */}
       {showError && error && (
-        <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
+        <p className="text-xs text-red-400 mt-1 flex items-center gap-1 animate-pulse">
           <span>❌</span>
           <span>{error}</span>
         </p>
       )}
       
-      {/* 无可挖矿土地提示 */}
-      {mineableLands.length === 0 && lands.length > 0 && (
-        <p className="text-xs text-yellow-400 mt-1">
-          ⚠️ 您的所有土地都不支持挖矿，请购买矿山类型的土地
-        </p>
+      {/* 选中土地的详细信息 */}
+      {selectedLand && (
+        <div className="mt-2 p-3 bg-gray-800/50 rounded border border-gray-700">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-gray-400">土地编号：</span>
+              <span className="text-white font-medium">{selectedLand.land_id}</span>
+            </div>
+            <div>
+              <span className="text-gray-400">类型：</span>
+              <span className="text-white font-medium">
+                {LAND_TYPE_MAP[selectedLand.blueprint?.land_type || ''] || '未知'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">产出资源：</span>
+              <span className="text-yellow-400 font-medium">
+                {LAND_RESOURCE_MAP[selectedLand.blueprint?.land_type || ''] || '未知'}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">坐标：</span>
+              <span className="text-white">
+                ({selectedLand.coordinate_x || 0}, {selectedLand.coordinate_y || 0})
+              </span>
+            </div>
+            
+            {/* 面积信息 */}
+            {selectedLand.blueprint?.size_sqm && (
+              <div>
+                <span className="text-gray-400">面积：</span>
+                <span className="text-white">
+                  {selectedLand.blueprint.size_sqm} 平方米
+                </span>
+              </div>
+            )}
+            
+            {/* 储量信息 */}
+            {selectedLand.resource_reserves !== undefined && selectedLand.resource_reserves !== null && (
+              <div>
+                <span className="text-gray-400">储量：</span>
+                <span className={cn(
+                  "font-medium",
+                  parseFloat(selectedLand.resource_reserves.toString()) > 0 
+                    ? "text-green-400" 
+                    : "text-red-400"
+                )}>
+                  {parseFloat(selectedLand.resource_reserves.toString()) > 0 
+                    ? `${parseFloat(selectedLand.resource_reserves.toString()).toFixed(2)} 单位`
+                    : '已耗尽'
+                  }
+                </span>
+              </div>
+            )}
+            
+            {/* 特殊标记 */}
+            {selectedLand.is_special && (
+              <div className="col-span-2">
+                <span className="text-purple-400">⭐ 特殊地块</span>
+              </div>
+            )}
+            
+            {/* 所有者信息（如果有） */}
+            {selectedLand.owner_name && (
+              <div className="col-span-2">
+                <span className="text-gray-400">所有者：</span>
+                <span className="text-white ml-1">{selectedLand.owner_name}</span>
+              </div>
+            )}
+          </div>
+          
+          {/* 土地描述（如果有） */}
+          {selectedLand.description && (
+            <div className="mt-2 pt-2 border-t border-gray-700">
+              <p className="text-xs text-gray-400">{selectedLand.description}</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 没有可用土地的提示 */}
+      {allLandsProducing && (
+        <div className="mt-2 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded">
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-400">⚠️</span>
+            <div className="text-xs">
+              <p className="text-yellow-400 font-medium">所有土地都在生产中</p>
+              <p className="text-gray-400 mt-1">
+                请等待现有挖矿会话结束，或购买新的土地
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 调试信息（仅在debug模式显示） */}
+      {debug && (
+        <div className="mt-2 p-2 bg-gray-900 rounded text-xs text-gray-500 font-mono">
+          <p className="font-bold text-gray-400 mb-1">🔧 调试信息</p>
+          <div className="space-y-0.5">
+            <p>总土地数: {lands.length}</p>
+            <p>可挖矿土地数: {minableLands.length}</p>
+            <p>活跃会话数: {activeSessions.length}</p>
+            <p>活跃土地ID: {Array.from(activeLandIds).join(', ') || '无'}</p>
+            {selectedLand && (
+              <>
+                <p className="mt-1 pt-1 border-t border-gray-800">选中土地:</p>
+                <p>  ID: {selectedLand.id}</p>
+                <p>  land_id: {selectedLand.land_id}</p>
+                <p>  类型: {selectedLand.blueprint?.land_type || 'unknown'}</p>
+                <p>  is_producing: {String(selectedLand.is_producing)}</p>
+                <p>  is_recruiting: {String(selectedLand.is_recruiting)}</p>
+                <p>  resource_reserves: {selectedLand.resource_reserves?.toString() || 'null'}</p>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
