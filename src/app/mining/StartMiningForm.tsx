@@ -75,6 +75,7 @@ interface StartMiningFormProps {
   onConfirm: () => void                                // 确认回调
   onCancel: () => void                                 // 取消回调
   loading?: boolean                                     // 加载状态
+  activeSessions?: any[]
 }
 
 /**
@@ -315,6 +316,7 @@ export const StartMiningForm = memo(({
           error={landError}
           showError={showLandError}
           disabled={loading}
+          activeSessions={activeSessions}  // 传递这个
         />
         
         {/* 土地类型提示 */}
