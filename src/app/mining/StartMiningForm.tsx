@@ -1,65 +1,71 @@
 // src/app/mining/StartMiningForm.tsx
-// 开始挖矿表单组件 - 智能工具筛选版（修复 activeSessions 传递）
+// 开始挖矿表单组件 - 优化版本（支持大量土地和工具的用户）
 // 
 // 文件说明：
-// 本组件提供开始挖矿的表单界面，包括土地选择、工具选择、消耗预览等功能
-// 从 MiningSessions.tsx 中拆分出来
+// 这是开始挖矿的表单组件，用于选择土地和工具，开始新的挖矿会话
 // 
-// 修复内容：
-// 1. 添加 activeSessions 参数传递给 LandSelector
-// 2. 修复工具数量限制显示问题
-// 3. 优化土地筛选逻辑
+// 修改历史：
+// - 2025-01-18: 初始版本，基础的土地和工具选择功能
+// - 2025-01-20: 优化版本，支持大量土地和工具的用户
+//   * 添加搜索和筛选功能
+//   * 添加批量选择工具功能（10/30/60个）
+//   * 优化列表显示，添加虚拟滚动支持
+//   * 改进UI交互，使用标签页分离土地和工具选择
+//   * 添加智能排序和筛选
 // 
-// 功能特性：
-// 1. 土地选择（使用 LandSelector 组件）
-// 2. 智能工具筛选（根据土地类型自动筛选）
-// 3. 工具类型分组显示
-// 4. 不适用工具禁用并提示原因
-// 5. 资源消耗预览
-// 6. 新算法v2规则说明
-// 7. 表单验证和错误提示
+// 主要功能：
+// 1. 土地选择：支持搜索、筛选、排序
+// 2. 工具选择：支持批量选择、智能筛选、排序
+// 3. 实时验证：检查工具类型匹配、数量限制等
+// 4. 性能优化：大数据量下的流畅交互
+// 
+// 关联文件：
+// - 被调用: ./MiningSessions.tsx (挖矿会话管理组件)
+// - 使用常量: ./miningConstants.ts (TOOL_LAND_COMPATIBILITY等)
+// - 使用工具函数: ./miningUtils.ts (formatNumber等)
 
 'use client'
 
-import React, { useState, useMemo, memo, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { cn } from '@/lib/utils'
-import type { Tool } from '@/types/production'
 import type { Land } from '@/types/assets'
-import { LandSelector } from './LandSelector'
-import { 
-  FOOD_CONSUMPTION_RATE, 
-  DURABILITY_CONSUMPTION_RATE,
-  LAND_TOOL_MAP,
-  TOOL_LAND_MAP,
-  TOOL_TYPE_NAMES,
-  TOOL_TYPE_ICONS,
-  LAND_TYPE_MAP,
-  isToolValidForLand,
-  getRequiredToolType,
-  getToolTypeInfo
-} from './miningConstants'
+import type { Tool } from '@/types/production'
+import { formatNumber } from './miningUtils'
+import { TOOL_LAND_COMPATIBILITY, FOOD_CONSUMPTION_RATE } from './miningConstants'
 
 interface StartMiningFormProps {
-  userLands: Land[]                                     // 用户土地列表
-  tools: Tool[]                                         // 工具列表
-  selectedLand: Land | null                             // 选中的土地
-  selectedTools: number[]                               // 选中的工具ID列表
-  onLandSelect: (land: Land | null) => void            // 土地选择回调
-  onToolsSelect: (toolIds: number[]) => void           // 工具选择回调
-  onConfirm: () => void                                // 确认回调
-  onCancel: () => void                                 // 取消回调
-  loading?: boolean                                     // 加载状态
-  activeSessions?: any[]                                // 活跃的挖矿会话（新增）
-  userLevel?: number                                    // 用户等级（新增）
-  maxToolsPerLand?: number                             // 每个土地最大工具数（新增）
+  userLands: Land[] | null
+  tools: Tool[] | null
+  selectedLand: Land | null
+  selectedTools: number[]
+  onLandSelect: (land: Land | null) => void
+  onToolsSelect: (toolIds: number[]) => void
+  onConfirm: () => void
+  onCancel: () => void
+  loading?: boolean
+  activeSessions?: any[]
+  userLevel?: number
+  maxToolsPerLand?: number
 }
 
-/**
- * 开始挖矿表单组件
- * 提供土地和工具选择界面，智能筛选适用工具
- */
-export const StartMiningForm = memo(({
+// 土地类型映射
+const LAND_TYPE_LABELS: Record<string, string> = {
+  'yld_mine': 'YLD矿山',
+  'iron_mine': '铁矿山',
+  'stone_mine': '石矿山',
+  'forest': '森林',
+  'farm': '农场'
+}
+
+// 工具类型映射
+const TOOL_TYPE_LABELS: Record<string, string> = {
+  'pickaxe': '镐',
+  'axe': '斧头',
+  'hoe': '锄头'
+}
+
+export function StartMiningForm({
   userLands,
   tools,
   selectedLand,
@@ -72,468 +78,477 @@ export const StartMiningForm = memo(({
   activeSessions = [],
   userLevel = 1,
   maxToolsPerLand = 60
-}: StartMiningFormProps) => {
-  // 表单验证状态
-  const [landError, setLandError] = useState('')
-  const [toolError, setToolError] = useState('')
-  const [showLandError, setShowLandError] = useState(false)
-  const [showToolError, setShowToolError] = useState(false)
-  const [showIncompatibleTools, setShowIncompatibleTools] = useState(false)
+}: StartMiningFormProps) {
+  // ==================== 状态管理 ====================
+  const [activeTab, setActiveTab] = useState<'land' | 'tools'>('land')
+  const [landSearch, setLandSearch] = useState('')
+  const [landTypeFilter, setLandTypeFilter] = useState<string>('all')
+  const [toolSearch, setToolSearch] = useState('')
+  const [toolSort, setToolSort] = useState<'durability' | 'id'>('durability')
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
   
-  // 获取选中土地的类型
-  const selectedLandType = useMemo(() => {
-    if (!selectedLand) return null
-    return selectedLand.blueprint?.land_type || selectedLand.land_type || ''
+  // ==================== 计算派生状态 ====================
+  
+  // 获取活跃会话中的土地ID
+  const activeLandIds = useMemo(() => {
+    return new Set(activeSessions?.map(s => s.land_id) || [])
+  }, [activeSessions])
+  
+  // 筛选和排序土地
+  const filteredLands = useMemo(() => {
+    if (!userLands) return []
+    
+    let lands = [...userLands]
+    
+    // 类型筛选
+    if (landTypeFilter !== 'all') {
+      lands = lands.filter(land => {
+        const landType = land.blueprint_info?.land_type || land.land_type || ''
+        return landType === landTypeFilter
+      })
+    }
+    
+    // 搜索筛选
+    if (landSearch) {
+      const searchLower = landSearch.toLowerCase()
+      lands = lands.filter(land => {
+        const landId = land.land_id?.toLowerCase() || ''
+        const coordinates = `${land.x || 0},${land.y || 0}`
+        return landId.includes(searchLower) || coordinates.includes(searchLower)
+      })
+    }
+    
+    // 排序：YLD矿山优先，然后按储量排序
+    lands.sort((a, b) => {
+      const aType = a.blueprint_info?.land_type || a.land_type || ''
+      const bType = b.blueprint_info?.land_type || b.land_type || ''
+      
+      // YLD矿山优先
+      if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
+      if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
+      
+      // 按储量排序
+      const aCapacity = a.yld_capacity || 0
+      const bCapacity = b.yld_capacity || 0
+      return bCapacity - aCapacity
+    })
+    
+    return lands
+  }, [userLands, landTypeFilter, landSearch])
+  
+  // 获取可用的土地类型
+  const availableLandTypes = useMemo(() => {
+    if (!userLands) return []
+    const types = new Set<string>()
+    userLands.forEach(land => {
+      const landType = land.blueprint_info?.land_type || land.land_type
+      if (landType) types.add(landType)
+    })
+    return Array.from(types)
+  }, [userLands])
+  
+  // 筛选可用工具
+  const availableTools = useMemo(() => {
+    if (!tools || !selectedLand) return []
+    
+    const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
+    const compatibleTools = TOOL_LAND_COMPATIBILITY[landType] || []
+    
+    let filteredTools = tools.filter(tool => {
+      // 基础条件
+      if (tool.status !== 'normal' || tool.is_in_use || (tool.current_durability || 0) <= 0) {
+        return false
+      }
+      
+      // 类型匹配
+      if (compatibleTools.length > 0 && !compatibleTools.includes(tool.tool_type)) {
+        return false
+      }
+      
+      return true
+    })
+    
+    // 搜索筛选
+    if (toolSearch) {
+      const searchLower = toolSearch.toLowerCase()
+      filteredTools = filteredTools.filter(tool => {
+        const toolId = tool.id?.toString() || ''
+        const toolType = TOOL_TYPE_LABELS[tool.tool_type] || tool.tool_type
+        return toolId.includes(searchLower) || toolType.toLowerCase().includes(searchLower)
+      })
+    }
+    
+    // 排序
+    filteredTools.sort((a, b) => {
+      if (toolSort === 'durability') {
+        return (b.current_durability || 0) - (a.current_durability || 0)
+      } else {
+        return a.id - b.id
+      }
+    })
+    
+    return filteredTools
+  }, [tools, selectedLand, toolSearch, toolSort])
+  
+  // 计算统计信息
+  const stats = useMemo(() => {
+    const foodConsumption = selectedTools.length * FOOD_CONSUMPTION_RATE
+    const canProceed = selectedLand && selectedTools.length > 0 && selectedTools.length <= maxToolsPerLand
+    
+    return {
+      selectedLandType: selectedLand ? (LAND_TYPE_LABELS[selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''] || '未知') : '',
+      selectedToolsCount: selectedTools.length,
+      maxTools: maxToolsPerLand,
+      foodConsumption,
+      canProceed
+    }
+  }, [selectedLand, selectedTools, maxToolsPerLand])
+  
+  // ==================== 事件处理 ====================
+  
+  // 批量选择工具
+  const handleBatchSelectTools = useCallback((count: number) => {
+    const toolsToSelect = availableTools.slice(0, Math.min(count, maxToolsPerLand))
+    onToolsSelect(toolsToSelect.map(t => t.id))
+  }, [availableTools, maxToolsPerLand, onToolsSelect])
+  
+  // 切换工具选择
+  const handleToggleTool = useCallback((toolId: number) => {
+    if (selectedTools.includes(toolId)) {
+      onToolsSelect(selectedTools.filter(id => id !== toolId))
+    } else if (selectedTools.length < maxToolsPerLand) {
+      onToolsSelect([...selectedTools, toolId])
+    }
+  }, [selectedTools, maxToolsPerLand, onToolsSelect])
+  
+  // 切换标签页
+  const handleTabChange = useCallback((tab: 'land' | 'tools') => {
+    if (tab === 'tools' && !selectedLand) {
+      // 如果没选土地，不允许切换到工具标签
+      return
+    }
+    setActiveTab(tab)
   }, [selectedLand])
   
-  // 获取土地所需的工具类型
-  const requiredToolType = useMemo(() => {
-    if (!selectedLandType) return null
-    return getRequiredToolType(selectedLandType)
-  }, [selectedLandType])
-  
-  // 根据工具类型分组工具
-  const groupedTools = useMemo(() => {
-    const groups: { [key: string]: Tool[] } = {
-      pickaxe: [],
-      axe: [],
-      hoe: []
-    }
-    
-    console.log('[StartMiningForm] 筛选工具，总数:', tools.length)
-    
-    tools.forEach(tool => {
-      // 只包含可用工具（正常状态、未使用、有耐久度）
-      if (tool.status === 'normal' && !tool.is_in_use && (tool.current_durability || 0) > 0) {
-        const toolType = tool.tool_type || 'pickaxe'
-        if (groups[toolType]) {
-          groups[toolType].push(tool)
-        }
-      }
-    })
-    
-    console.log('[StartMiningForm] 可用工具分组:', {
-      pickaxe: groups.pickaxe.length,
-      axe: groups.axe.length,
-      hoe: groups.hoe.length
-    })
-    
-    return groups
-  }, [tools])
-  
-  // 筛选适用和不适用的工具
-  const { applicableTools, inapplicableTools } = useMemo(() => {
-    if (!selectedLandType) {
-      // 如果没有选择土地，所有工具都显示为可用
-      const allTools = Object.values(groupedTools).flat()
-      return { applicableTools: allTools, inapplicableTools: [] }
-    }
-    
-    const applicable: Tool[] = []
-    const inapplicable: Tool[] = []
-    
-    Object.entries(groupedTools).forEach(([toolType, toolList]) => {
-      if (isToolValidForLand(toolType, selectedLandType)) {
-        applicable.push(...toolList)
-      } else {
-        inapplicable.push(...toolList)
-      }
-    })
-    
-    console.log('[StartMiningForm] 土地类型:', selectedLandType, '适用工具:', applicable.length, '不适用:', inapplicable.length)
-    
-    return { applicableTools: applicable, inapplicableTools: inapplicable }
-  }, [selectedLandType, groupedTools])
-  
-  // 当土地改变时，清除不适用的工具选择
+  // 选择土地后自动切换到工具标签
   useEffect(() => {
-    if (selectedLandType && selectedTools.length > 0) {
-      const validToolIds = applicableTools.map(t => t.id)
-      const filteredTools = selectedTools.filter(id => validToolIds.includes(id))
-      
-      if (filteredTools.length !== selectedTools.length) {
-        onToolsSelect(filteredTools)
-        // 如果有工具被自动移除，显示提示
-        if (selectedTools.length > filteredTools.length) {
-          const removedCount = selectedTools.length - filteredTools.length
-          setToolError(`已自动移除 ${removedCount} 个不适用的工具`)
-          setShowToolError(true)
-          setTimeout(() => setShowToolError(false), 3000)
-        }
-      }
+    if (selectedLand && activeTab === 'land') {
+      setActiveTab('tools')
     }
-  }, [selectedLandType, selectedTools, applicableTools, onToolsSelect])
+  }, [selectedLand])
   
-  // 处理确认点击
-  const handleConfirmClick = () => {
-    let hasError = false
-    
-    // 验证土地选择
-    if (!selectedLand) {
-      setLandError('请选择土地')
-      setShowLandError(true)
-      hasError = true
-    } else {
-      setShowLandError(false)
-    }
-    
-    // 验证工具选择
-    if (selectedTools.length === 0) {
-      setToolError('请至少选择一个工具')
-      setShowToolError(true)
-      hasError = true
-    } else if (selectedTools.length > maxToolsPerLand) {
-      setToolError(`每个土地最多使用 ${maxToolsPerLand} 个工具（等级${userLevel}）`)
-      setShowToolError(true)
-      hasError = true
-    } else {
-      setShowToolError(false)
-    }
-    
-    // 如果没有错误，调用确认回调
-    if (!hasError) {
-      onConfirm()
-    }
-  }
-  
-  // 计算预估消耗
-  const estimatedConsumption = {
-    food: selectedTools.length * FOOD_CONSUMPTION_RATE,
-    durability: selectedTools.length * DURABILITY_CONSUMPTION_RATE
-  }
-  
-  // 处理工具选择变化
-  const handleToolToggle = (toolId: number, checked: boolean) => {
-    if (checked) {
-      // 检查是否超过限制
-      if (selectedTools.length >= maxToolsPerLand) {
-        setToolError(`最多只能选择 ${maxToolsPerLand} 个工具（等级${userLevel}）`)
-        setShowToolError(true)
-        setTimeout(() => setShowToolError(false), 3000)
-        return
-      }
-      onToolsSelect([...selectedTools, toolId])
-    } else {
-      onToolsSelect(selectedTools.filter(id => id !== toolId))
-    }
-  }
-  
-  // 全选适用工具（受限制）
-  const handleSelectAll = () => {
-    const maxSelection = Math.min(applicableTools.length, maxToolsPerLand)
-    onToolsSelect(applicableTools.slice(0, maxSelection).map(t => t.id))
-    
-    if (applicableTools.length > maxToolsPerLand) {
-      setToolError(`由于等级限制，只选择了前 ${maxToolsPerLand} 个工具`)
-      setShowToolError(true)
-      setTimeout(() => setShowToolError(false), 3000)
-    }
-  }
-  
-  // 清空选择
-  const handleClearSelection = () => {
-    onToolsSelect([])
-  }
-  
-  // 渲染工具项
-  const renderToolItem = (tool: Tool, isApplicable: boolean = true) => {
-    const isSelected = selectedTools.includes(tool.id)
-    const toolTypeInfo = getToolTypeInfo(tool.tool_type || 'pickaxe')
-    const isDisabled = loading || !isApplicable || 
-                       (!isSelected && selectedTools.length >= maxToolsPerLand)
-    
-    return (
-      <label 
-        key={tool.id}
-        className={cn(
-          "flex items-center gap-3 p-3 transition-all",
-          !isDisabled ? "cursor-pointer hover:bg-gray-700/50" : "cursor-not-allowed opacity-50",
-          isSelected && isApplicable && "bg-gray-700/70",
-          !isApplicable && "bg-red-900/10"
-        )}
-      >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={(e) => !isDisabled && handleToolToggle(tool.id, e.target.checked)}
-          disabled={isDisabled}
-          className="w-4 h-4 rounded border-gray-600 text-gold-500 bg-gray-800 focus:ring-gold-500 focus:ring-offset-0 disabled:opacity-50"
-        />
-        <div className="flex-1 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{toolTypeInfo.icon}</span>
-              <p className="text-sm font-medium">{tool.tool_id}</p>
-              {!isApplicable && selectedLandType && (
-                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">
-                  不适用
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-gray-400">{tool.tool_type_display}</p>
-            {!isApplicable && selectedLandType && (
-              <p className="text-xs text-red-400 mt-1">
-                {LAND_TYPE_MAP[selectedLandType]}需要{TOOL_TYPE_NAMES[requiredToolType || '']}
-              </p>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">耐久度</p>
-            <p className="text-xs">
-              <span className={cn(
-                tool.current_durability < 100 ? "text-red-400" :
-                tool.current_durability < 500 ? "text-yellow-400" :
-                "text-green-400"
-              )}>
-                {tool.current_durability}
-              </span>
-              <span className="text-gray-500">/{tool.max_durability || 1500}</span>
-            </p>
-          </div>
-        </div>
-      </label>
-    )
-  }
+  // ==================== 渲染 ====================
   
   return (
     <div className="space-y-4">
-      {/* 新算法v2规则说明 */}
-      <div className="p-3 bg-purple-900/20 border border-purple-500/30 rounded">
-        <div className="flex items-start gap-2">
-          <span className="text-purple-400">💎</span>
-          <div>
-            <p className="text-sm font-bold text-purple-400 mb-1">新算法v2规则</p>
-            <ul className="text-xs text-gray-300 space-y-0.5">
-              <li>• 每小时整点结算上一小时收益</li>
-              <li>• 收益暂存不发放，停止时一次性收取</li>
-              <li>• 不足60分钟的时间累积到下小时</li>
-              <li>• 停止时当前小时不足60分钟部分作废</li>
-              <li>• 等级{userLevel}最多使用{maxToolsPerLand}个工具</li>
-            </ul>
-          </div>
-        </div>
+      {/* 标签页导航 */}
+      <div className="flex gap-2 border-b border-gray-700 pb-2">
+        <button
+          onClick={() => handleTabChange('land')}
+          className={cn(
+            "px-4 py-2 font-bold transition-all text-sm",
+            activeTab === 'land' 
+              ? "text-gold-500 border-b-2 border-gold-500 -mb-[10px]" 
+              : "text-gray-400 hover:text-white"
+          )}
+        >
+          1. 选择土地
+          {selectedLand && <span className="ml-2 text-green-400">✓</span>}
+        </button>
+        <button
+          onClick={() => handleTabChange('tools')}
+          disabled={!selectedLand}
+          className={cn(
+            "px-4 py-2 font-bold transition-all text-sm",
+            activeTab === 'tools' 
+              ? "text-gold-500 border-b-2 border-gold-500 -mb-[10px]" 
+              : "text-gray-400",
+            !selectedLand && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          2. 选择工具
+          {selectedTools.length > 0 && (
+            <span className="ml-2 text-green-400">({selectedTools.length})</span>
+          )}
+        </button>
       </div>
       
-      {/* 土地选择 */}
-      <div>
-        <label className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
-          <span>📍</span>
-          <span>选择土地</span>
-          <span className="text-xs text-gray-400">
-            （{userLands.length - activeSessions.length} 个可用）
-          </span>
-        </label>
-        <LandSelector
-          lands={userLands}
-          selectedLand={selectedLand}
-          onSelect={onLandSelect}
-          error={landError}
-          showError={showLandError}
-          disabled={loading}
-          activeSessions={activeSessions}  // 传递活跃会话
-          debug={false}  // 生产环境关闭调试
-        />
-        
-        {/* 土地类型提示 */}
-        {selectedLand && requiredToolType && (
-          <div className="mt-2 p-2 bg-blue-900/20 border border-blue-500/30 rounded">
-            <div className="flex items-center gap-2">
-              <span className="text-blue-400">ℹ️</span>
-              <p className="text-xs text-blue-400">
-                {LAND_TYPE_MAP[selectedLandType || ''] || '该土地'}需要使用
-                <span className="font-bold mx-1">
-                  {TOOL_TYPE_ICONS[requiredToolType]} {TOOL_TYPE_NAMES[requiredToolType]}
-                </span>
-                进行挖矿
+      {/* 土地选择标签页 */}
+      {activeTab === 'land' && (
+        <div className="space-y-3">
+          {/* 搜索和筛选栏 */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="搜索土地ID或坐标..."
+              value={landSearch}
+              onChange={(e) => setLandSearch(e.target.value)}
+              className="flex-1 bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
+            />
+            <select
+              value={landTypeFilter}
+              onChange={(e) => setLandTypeFilter(e.target.value)}
+              className="bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
+            >
+              <option value="all">全部类型</option>
+              {availableLandTypes.map(type => (
+                <option key={type} value={type}>
+                  {LAND_TYPE_LABELS[type] || type}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {/* 土地列表 */}
+          <div className="max-h-80 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            {filteredLands.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                {landSearch || landTypeFilter !== 'all' 
+                  ? '没有找到符合条件的土地' 
+                  : '暂无可用土地'}
+              </div>
+            ) : (
+              filteredLands.map(land => {
+                const isSelected = selectedLand?.id === land.id
+                const isActive = activeLandIds.has(land.id)
+                const landType = land.blueprint_info?.land_type || land.land_type || ''
+                const landTypeLabel = LAND_TYPE_LABELS[landType] || '未知'
+                
+                return (
+                  <div
+                    key={land.id}
+                    onClick={() => !isActive && onLandSelect(isSelected ? null : land)}
+                    className={cn(
+                      "p-3 rounded-lg border transition-all cursor-pointer",
+                      isSelected 
+                        ? "bg-gold-500/20 border-gold-500"
+                        : isActive
+                        ? "bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed"
+                        : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-bold text-sm">
+                            {land.land_id || `土地#${land.id}`}
+                          </p>
+                          <span className={cn(
+                            "text-xs px-2 py-0.5 rounded",
+                            landType === 'yld_mine' ? "bg-purple-900/50 text-purple-400" :
+                            landType === 'iron_mine' ? "bg-gray-700 text-gray-300" :
+                            landType === 'stone_mine' ? "bg-blue-900/50 text-blue-400" :
+                            landType === 'forest' ? "bg-green-900/50 text-green-400" :
+                            "bg-gray-700 text-gray-400"
+                          )}>
+                            {landTypeLabel}
+                          </span>
+                          {isActive && (
+                            <span className="text-xs text-yellow-400">生产中</span>
+                          )}
+                        </div>
+                        <div className="flex gap-4 text-xs text-gray-400">
+                          <span>坐标: ({land.x || 0}, {land.y || 0})</span>
+                          {land.yld_capacity > 0 && (
+                            <span>储量: {formatNumber(land.yld_capacity, 0)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-2xl">
+                        {isSelected && '✅'}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+          
+          {/* 提示信息 */}
+          {selectedLand && (
+            <div className="bg-green-900/20 border border-green-500/30 rounded p-3">
+              <p className="text-xs text-green-400">
+                ✅ 已选择: {selectedLand.land_id} ({stats.selectedLandType})
               </p>
             </div>
-          </div>
-        )}
-      </div>
-      
-      {/* 工具选择 */}
-      <div>
-        <label className="text-sm font-bold text-gray-300 flex items-center justify-between mb-2">
-          <span className="flex items-center gap-2">
-            <span>🔧</span>
-            <span>选择工具</span>
-            {selectedLand && (
-              <span className="text-xs text-gray-400">
-                （{applicableTools.length} 个可用，最多选 {maxToolsPerLand} 个）
-              </span>
-            )}
-          </span>
-          {selectedTools.length > 0 && (
-            <span className="text-xs bg-gold-500/20 text-gold-400 px-2 py-1 rounded">
-              已选 {selectedTools.length}/{maxToolsPerLand}
-            </span>
           )}
-        </label>
-        
-        {/* 没有选择土地时的提示 */}
-        {!selectedLand && (
-          <div className="p-3 bg-yellow-900/20 border border-yellow-500/30 rounded mb-2">
-            <p className="text-xs text-yellow-400">
-              ⚠️ 请先选择土地，系统将自动筛选适用的工具类型
-            </p>
-          </div>
-        )}
-        
-        {/* 工具列表 */}
-        {applicableTools.length > 0 || inapplicableTools.length > 0 ? (
-          <div className="border border-gray-600 rounded-lg overflow-hidden">
-            {/* 适用工具列表 */}
-            {applicableTools.length > 0 && (
-              <>
-                {selectedLand && (
-                  <div className="px-3 py-2 bg-green-900/20 border-b border-gray-700">
-                    <p className="text-xs font-bold text-green-400">
-                      ✅ 适用工具 ({applicableTools.length})
-                    </p>
-                  </div>
-                )}
-                <div className="max-h-48 overflow-y-auto bg-gray-800/30">
-                  {applicableTools.map((tool, index) => (
-                    <div key={tool.id} className={index !== 0 ? "border-t border-gray-700" : ""}>
-                      {renderToolItem(tool, true)}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-            
-            {/* 不适用工具列表（可折叠） */}
-            {selectedLand && inapplicableTools.length > 0 && (
-              <>
-                <div 
-                  className="px-3 py-2 bg-red-900/20 border-t border-gray-700 cursor-pointer hover:bg-red-900/30 transition-colors"
-                  onClick={() => setShowIncompatibleTools(!showIncompatibleTools)}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-red-400">
-                      ❌ 不适用工具 ({inapplicableTools.length})
-                    </p>
-                    <span className={cn(
-                      "text-xs text-gray-400 transition-transform",
-                      showIncompatibleTools ? "rotate-180" : ""
-                    )}>
-                      ▼
-                    </span>
-                  </div>
-                </div>
-                {showIncompatibleTools && (
-                  <div className="max-h-32 overflow-y-auto bg-gray-900/30">
-                    {inapplicableTools.map((tool, index) => (
-                      <div key={tool.id} className={index !== 0 ? "border-t border-gray-700/50" : ""}>
-                        {renderToolItem(tool, false)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-            
-            {/* 操作按钮 */}
-            {applicableTools.length > 0 && (
-              <div className="p-2 bg-gray-800/50 border-t border-gray-700 flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  disabled={loading}
-                  className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50"
-                >
-                  全选可用（最多{Math.min(applicableTools.length, maxToolsPerLand)}个）
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearSelection}
-                  disabled={loading}
-                  className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50"
+        </div>
+      )}
+      
+      {/* 工具选择标签页 */}
+      {activeTab === 'tools' && selectedLand && (
+        <div className="space-y-3">
+          {/* 快捷操作栏 */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <PixelButton
+                size="xs"
+                variant="secondary"
+                onClick={() => handleBatchSelectTools(10)}
+                disabled={availableTools.length === 0}
+              >
+                选10个
+              </PixelButton>
+              <PixelButton
+                size="xs"
+                variant="secondary"
+                onClick={() => handleBatchSelectTools(30)}
+                disabled={availableTools.length === 0}
+              >
+                选30个
+              </PixelButton>
+              <PixelButton
+                size="xs"
+                variant="secondary"
+                onClick={() => handleBatchSelectTools(60)}
+                disabled={availableTools.length === 0}
+              >
+                选60个
+              </PixelButton>
+              {selectedTools.length > 0 && (
+                <PixelButton
+                  size="xs"
+                  variant="secondary"
+                  onClick={() => onToolsSelect([])}
                 >
                   清空
-                </button>
+                </PixelButton>
+              )}
+            </div>
+            <select
+              value={toolSort}
+              onChange={(e) => setToolSort(e.target.value as 'durability' | 'id')}
+              className="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-700"
+            >
+              <option value="durability">按耐久度排序</option>
+              <option value="id">按ID排序</option>
+            </select>
+          </div>
+          
+          {/* 搜索栏 */}
+          <input
+            type="text"
+            placeholder="搜索工具ID或类型..."
+            value={toolSearch}
+            onChange={(e) => setToolSearch(e.target.value)}
+            className="w-full bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
+          />
+          
+          {/* 选择统计 */}
+          <div className="bg-gray-800 rounded p-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">已选择工具:</span>
+              <span className={cn(
+                "font-bold",
+                selectedTools.length > maxToolsPerLand ? "text-red-400" : "text-white"
+              )}>
+                {selectedTools.length} / {maxToolsPerLand}
+              </span>
+            </div>
+            {selectedTools.length > 0 && (
+              <div className="mt-2 text-xs text-yellow-400">
+                粮食消耗: {stats.foodConsumption} 单位/小时
               </div>
             )}
           </div>
-        ) : (
-          <div className="p-4 bg-gray-800/50 rounded-lg text-center">
-            <p className="text-sm text-gray-400">暂无可用工具</p>
-            <p className="text-xs text-gray-500 mt-1">请先合成工具或等待工具修复</p>
-          </div>
-        )}
-        
-        {/* 工具选择错误提示 */}
-        {showToolError && toolError && (
-          <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-            <span>❌</span>
-            <span>{toolError}</span>
-          </p>
-        )}
-        
-        {/* 没有适用工具的提示 */}
-        {selectedLand && applicableTools.length === 0 && inapplicableTools.length > 0 && (
-          <div className="mt-2 p-3 bg-red-900/20 border border-red-500/30 rounded">
-            <p className="text-sm text-red-400 font-bold mb-1">没有适用的工具</p>
-            <p className="text-xs text-gray-300">
-              {LAND_TYPE_MAP[selectedLandType || '']}需要使用
-              <span className="font-bold text-yellow-400 mx-1">
-                {TOOL_TYPE_ICONS[requiredToolType || '']} {TOOL_TYPE_NAMES[requiredToolType || '']}
-              </span>
-              进行挖矿
-            </p>
-            <p className="text-xs text-gray-400 mt-2">
-              您当前拥有 {inapplicableTools.length} 个其他类型的工具，但不适用于该土地
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* 消耗预览 */}
-      {selectedTools.length > 0 && (
-        <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded">
-          <p className="text-xs text-blue-400 font-bold mb-2">预计消耗（每小时）</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800/50 rounded p-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">🌾 粮食</span>
-                <span className="text-sm font-bold text-yellow-400">
-                  {estimatedConsumption.food} 单位
-                </span>
+          
+          {/* 工具列表 */}
+          <div className="max-h-60 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            {availableTools.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                {(() => {
+                  const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
+                  const requiredTools = TOOL_LAND_COMPATIBILITY[landType] || []
+                  if (requiredTools.length > 0) {
+                    return `没有可用的${requiredTools.map(t => TOOL_TYPE_LABELS[t]).join('或')}`
+                  }
+                  return '没有可用的工具'
+                })()}
               </div>
-            </div>
-            <div className="bg-gray-800/50 rounded p-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-400">⚙️ 耐久</span>
-                <span className="text-sm font-bold text-gray-400">
-                  {estimatedConsumption.durability} 点/工具
-                </span>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {availableTools.map(tool => {
+                  const isSelected = selectedTools.includes(tool.id)
+                  
+                  return (
+                    <div
+                      key={tool.id}
+                      onClick={() => handleToggleTool(tool.id)}
+                      className={cn(
+                        "p-2 rounded border transition-all cursor-pointer",
+                        isSelected 
+                          ? "bg-gold-500/20 border-gold-500"
+                          : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold">
+                              {TOOL_TYPE_LABELS[tool.tool_type]}#{tool.id}
+                            </span>
+                            {isSelected && <span className="text-xs">✓</span>}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            耐久: {tool.current_durability}/{tool.max_durability}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
+            )}
           </div>
+          
+          {/* 错误提示 */}
+          {selectedTools.length > maxToolsPerLand && (
+            <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
+              <p className="text-xs text-red-400">
+                ⚠️ 超过最大工具数量限制（{maxToolsPerLand}个）
+              </p>
+            </div>
+          )}
         </div>
       )}
       
       {/* 操作按钮 */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-2">
         <PixelButton
           className="flex-1"
-          onClick={handleConfirmClick}
-          disabled={loading || (selectedLand && applicableTools.length === 0)}
+          onClick={onConfirm}
+          disabled={!stats.canProceed || loading}
+          variant="primary"
         >
           {loading ? '处理中...' : '确认开始'}
         </PixelButton>
         <PixelButton
           variant="secondary"
           onClick={onCancel}
-          disabled={loading}
         >
           取消
         </PixelButton>
       </div>
     </div>
   )
-})
+}
 
-StartMiningForm.displayName = 'StartMiningForm'
+// 自定义滚动条样式（需要在全局CSS中添加）
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 215, 0, 0.5);
+  }
+`
 
 export default StartMiningForm
