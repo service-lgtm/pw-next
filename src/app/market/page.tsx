@@ -1,23 +1,6 @@
 // src/app/market/page.tsx
 // 交易市场页面 - 支持多种资源购买（使用 TDB 支付）
-//
-// 文件说明：
-// 1. 本页面提供资源购买功能，支持5种资源类型
-// 2. 使用新的统一资源购买API
-// 3. 保持向后兼容，粮食购买功能正常工作
-// 4. 提供友好的用户界面和购买体验
-//
-// 版本历史：
-// - 2025-01-28: 更新支持多资源购买
-//   - 添加5种资源的购买卡片
-//   - 使用新的 useResourcePurchase Hook
-//   - 优化UI布局和交互体验
-// - 2025-01-27: 初始版本（仅支持粮食购买）
-//
-// 关联文件：
-// - src/hooks/useResourcePurchase.ts: 资源购买Hook
-// - src/lib/api/resources.ts: 资源购买API
-// - src/components/shared/: UI组件
+// 版本：支持基于工具数量的粮食购买限额
 
 'use client'
 
@@ -45,6 +28,7 @@ export default function MarketPage() {
     status, 
     resourceStatus, 
     wallet,
+    userTools, // 新增：获取用户工具信息
     loading, 
     buying, 
     buyResource, 
@@ -124,21 +108,36 @@ export default function MarketPage() {
           购买生产所需的资源，使用 TDB 支付
         </p>
         
-        {/* TDB余额显示 */}
+        {/* TDB余额和工具数量显示 */}
         {wallet && (
-          <div className="mt-4 inline-flex items-center gap-4 px-4 py-2 bg-gray-800/50 rounded">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">TDB余额：</span>
-              <span className="font-bold text-gold-500">
-                {wallet.tdb_balance.toFixed(2)} TDB
-              </span>
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <div className="inline-flex items-center gap-4 px-4 py-2 bg-gray-800/50 rounded">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">TDB余额：</span>
+                <span className="font-bold text-gold-500">
+                  {wallet.tdb_balance.toFixed(2)} TDB
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">YLD余额：</span>
+                <span className="font-bold text-purple-400">
+                  {wallet.yld_balance.toFixed(2)} YLD
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">YLD余额：</span>
-              <span className="font-bold text-purple-400">
-                {wallet.yld_balance.toFixed(2)} YLD
-              </span>
-            </div>
+            
+            {/* 新增：显示工具数量 */}
+            {userTools && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900/30 rounded">
+                <span className="text-sm text-gray-400">我的工具：</span>
+                <span className="font-bold text-blue-400">
+                  {userTools.total_count} 个
+                </span>
+                <span className="text-xs text-gray-500">
+                  (粮食限额: {userTools.total_count} × {userTools.food_limit_per_tool})
+                </span>
+              </div>
+            )}
           </div>
         )}
       </motion.div>
@@ -162,6 +161,7 @@ export default function MarketPage() {
                 status={status}
                 loading={loading}
                 onBuy={() => handleOpenBuyModal(resourceType)}
+                userTools={userTools}
               />
             </motion.div>
           )
@@ -205,6 +205,7 @@ export default function MarketPage() {
           resourceInfo={RESOURCE_INFO[selectedResource]}
           resourceStatus={resourceStatus?.[selectedResource] || null}
           wallet={wallet}
+          userTools={userTools}
           onBuy={buyResource}
           buying={buying}
           onSuccess={() => {
@@ -225,6 +226,7 @@ interface ResourceCardProps {
   status?: any
   loading: boolean
   onBuy: () => void
+  userTools?: any
 }
 
 function ResourceCard({ 
@@ -232,9 +234,11 @@ function ResourceCard({
   info, 
   status, 
   loading, 
-  onBuy 
+  onBuy,
+  userTools
 }: ResourceCardProps) {
   const isSpecial = resourceType === 'food' || resourceType === 'yld'
+  const isFood = resourceType === 'food'
   
   return (
     <PixelCard className={cn(
@@ -249,6 +253,13 @@ function ResourceCard({
             <div>
               <h2 className="text-xl font-bold">{info.name}</h2>
               <p className="text-sm text-gray-400">{info.description}</p>
+              
+              {/* 粮食特殊说明 */}
+              {isFood && status?.limit_formula && (
+                <p className="text-xs text-blue-400 mt-1">
+                  💡 限额计算: {status.limit_formula}
+                </p>
+              )}
             </div>
           </div>
           
@@ -316,6 +327,16 @@ function ResourceCard({
                   />
                 </div>
               </div>
+              
+              {/* 粮食特殊提示 */}
+              {isFood && status.tool_count !== undefined && (
+                <div className="p-2 bg-blue-900/20 border border-blue-500/30 rounded text-xs">
+                  <p className="text-blue-400">
+                    🔧 您有 {status.tool_count} 个工具，每日可购买 {status.daily_limit} 个粮食
+                    {status.tool_count === 0 && ' (基础额度)'}
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-gray-400">加载失败</p>
@@ -325,11 +346,20 @@ function ResourceCard({
         {/* 右侧操作 */}
         <div className="flex flex-col justify-between items-center md:items-end gap-4">
           <div className="text-center md:text-right">
-            <p className="text-xs text-gray-400 mb-1">每日限购</p>
-            <p className="text-3xl font-bold text-gold-500">{info.dailyLimit}</p>
+            <p className="text-xs text-gray-400 mb-1">
+              {isFood ? '动态限购' : '每日限购'}
+            </p>
+            <p className="text-3xl font-bold text-gold-500">
+              {status?.daily_limit || info.dailyLimit}
+            </p>
             <p className="text-xs text-gray-400">个/天</p>
+            {isFood && userTools && (
+              <p className="text-xs text-blue-400 mt-1">
+                基于 {userTools.total_count} 个工具
+              </p>
+            )}
             <p className="text-xs text-gray-500 mt-2">
-              单价: {info.unitPrice} TDB | 单次最多: {info.singleLimit}个
+              单价: {info.unitPrice} TDB | 单次最多: {status?.single_limit || info.singleLimit}个
             </p>
           </div>
           
@@ -359,6 +389,7 @@ interface BuyResourceModalProps {
   resourceInfo: typeof RESOURCE_INFO[ResourceType]
   resourceStatus: any
   wallet: any
+  userTools?: any
   onBuy: (type: ResourceType, quantity: number) => Promise<any>
   buying: boolean
   onSuccess: () => void
@@ -371,6 +402,7 @@ function BuyResourceModal({
   resourceInfo,
   resourceStatus, 
   wallet,
+  userTools,
   onBuy,
   buying,
   onSuccess 
@@ -379,10 +411,16 @@ function BuyResourceModal({
   const [showSuccess, setShowSuccess] = useState(false)
   const [purchaseResult, setPurchaseResult] = useState<any>(null)
   
+  const isFood = resourceType === 'food'
+  
   // 根据资源类型设置默认数量和快捷按钮
   const getQuickAmounts = () => {
     switch (resourceType) {
       case 'food':
+        // 粮食的快捷按钮根据工具数量动态调整
+        if (resourceStatus?.tool_count > 0) {
+          return [10, 48, 96, Math.min(resourceStatus.today_remaining, 144)]
+        }
         return [1, 10, 20, 48]
       case 'wood':
         return [10, 50, 100, 200]
@@ -408,7 +446,9 @@ function BuyResourceModal({
         totalCost: result.total_cost.toFixed(2),
         newBalance: result.balance_after.toFixed(2),
         newResource: result.resource_after,
-        transactionId: result.transaction_id
+        transactionId: result.transaction_id,
+        toolCount: result.tool_count,
+        limitPerTool: result.limit_per_tool
       })
       setShowSuccess(true)
       onSuccess()
@@ -430,10 +470,13 @@ function BuyResourceModal({
   // 设置初始数量
   useEffect(() => {
     if (isOpen && resourceStatus) {
-      const defaultQty = Math.min(10, resourceStatus.max_can_buy || 10)
+      const defaultQty = Math.min(
+        isFood && resourceStatus.tool_count > 0 ? 48 : 10, 
+        resourceStatus.max_can_buy || 10
+      )
       setQuantity(defaultQty)
     }
-  }, [isOpen, resourceStatus])
+  }, [isOpen, resourceStatus, isFood])
   
   return (
     <PixelModal
@@ -485,6 +528,12 @@ function BuyResourceModal({
                   <span className="text-gray-400">花费 TDB：</span>
                   <span className="font-bold text-gold-500">{purchaseResult.totalCost} TDB</span>
                 </div>
+                {isFood && purchaseResult.toolCount !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">工具数量：</span>
+                    <span className="font-bold text-blue-400">{purchaseResult.toolCount} 个</span>
+                  </div>
+                )}
                 <div className="border-t border-gray-700 pt-3">
                   <div className="flex justify-between">
                     <span className="text-gray-400">当前{resourceInfo.name}：</span>
@@ -504,7 +553,10 @@ function BuyResourceModal({
                   onClick={() => {
                     setShowSuccess(false)
                     setPurchaseResult(null)
-                    setQuantity(Math.min(10, resourceStatus.max_can_buy || 10))
+                    setQuantity(Math.min(
+                      isFood && resourceStatus.tool_count > 0 ? 48 : 10, 
+                      resourceStatus.max_can_buy || 10
+                    ))
                   }}
                   variant="primary"
                   className="w-full"
@@ -553,6 +605,20 @@ function BuyResourceModal({
                     </p>
                   </div>
                 </div>
+                
+                {/* 粮食限额说明 */}
+                {isFood && resourceStatus.limit_formula && (
+                  <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500/30 rounded">
+                    <p className="text-xs text-blue-400">
+                      🔧 限额计算: {resourceStatus.limit_formula}
+                    </p>
+                    {resourceStatus.tool_count === 0 && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        提示：获得更多工具可增加每日购买限额
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               
               {/* 购买数量 */}
