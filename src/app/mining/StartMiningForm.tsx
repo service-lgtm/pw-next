@@ -32,7 +32,18 @@ import { cn } from '@/lib/utils'
 import type { Land } from '@/types/assets'
 import type { Tool } from '@/types/production'
 import { formatNumber } from './miningUtils'
-import { TOOL_LAND_COMPATIBILITY, FOOD_CONSUMPTION_RATE } from './miningConstants'
+
+// 定义常量（如果 miningConstants 中没有定义）
+const FOOD_CONSUMPTION_RATE = 10 // 每个工具每小时消耗10单位粮食
+
+// 工具与土地类型兼容性映射
+const TOOL_LAND_COMPATIBILITY: Record<string, string[]> = {
+  'yld_mine': ['pickaxe'],      // YLD矿山用镐
+  'iron_mine': ['pickaxe'],     // 铁矿山用镐
+  'stone_mine': ['pickaxe'],    // 石矿山用镐
+  'forest': ['axe'],             // 森林用斧头
+  'farm': ['hoe']                // 农场用锄头
+}
 
 interface StartMiningFormProps {
   userLands: Land[] | null
@@ -152,7 +163,8 @@ export function StartMiningForm({
     if (!tools || !selectedLand) return []
     
     const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
-    const compatibleTools = TOOL_LAND_COMPATIBILITY[landType] || []
+    // 安全获取兼容工具类型
+    const compatibleTools = landType && TOOL_LAND_COMPATIBILITY[landType] ? TOOL_LAND_COMPATIBILITY[landType] : []
     
     let filteredTools = tools.filter(tool => {
       // 基础条件
@@ -458,9 +470,9 @@ export function StartMiningForm({
               <div className="text-center py-8 text-gray-400 text-sm">
                 {(() => {
                   const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
-                  const requiredTools = TOOL_LAND_COMPATIBILITY[landType] || []
+                  const requiredTools = landType && TOOL_LAND_COMPATIBILITY[landType] ? TOOL_LAND_COMPATIBILITY[landType] : []
                   if (requiredTools.length > 0) {
-                    return `没有可用的${requiredTools.map(t => TOOL_TYPE_LABELS[t]).join('或')}`
+                    return `没有可用的${requiredTools.map(t => TOOL_TYPE_LABELS[t] || t).join('或')}`
                   }
                   return '没有可用的工具'
                 })()}
