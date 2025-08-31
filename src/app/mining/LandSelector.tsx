@@ -58,14 +58,6 @@ interface LandSelectorProps {
 }
 
 /**
- * 检查土地是否可挖矿
- * 使用导入的函数而不是内联定义
- */
-function isMinableLandType(landType: string): boolean {
-  return MINABLE_LAND_TYPES.includes(landType)
-}
-
-/**
  * 土地选择器组件
  * 提供土地选择下拉框，只显示可用于挖矿的土地
  */
