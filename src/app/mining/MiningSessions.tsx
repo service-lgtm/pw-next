@@ -565,7 +565,9 @@ export function MiningSessions({
               setSelectedTools([])
             }}
             loading={startMiningLoading}
-            activeSessions={displaySessions}
+            activeSessions={displaySessions}  // 添加这行
+            userLevel={request.user?.level || 6}  // 添加用户等级
+            maxToolsPerLand={60}  // 添加工具限制
           />
         )}
       </PixelModal>
