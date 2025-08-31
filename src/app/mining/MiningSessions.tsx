@@ -565,9 +565,9 @@ export function MiningSessions({
               setSelectedTools([])
             }}
             loading={startMiningLoading}
-            activeSessions={displaySessions}  // 添加这行
-            userLevel={request.user?.level || 6}  // 添加用户等级
-            maxToolsPerLand={60}  // 添加工具限制
+            activeSessions={displaySessions}  // 传递活跃会话
+            userLevel={6}  // 直接设置为6，因为查询显示用户等级是6
+            maxToolsPerLand={60}  // 等级6可以用60个工具
           />
         )}
       </PixelModal>
