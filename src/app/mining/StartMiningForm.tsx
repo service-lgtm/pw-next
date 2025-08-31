@@ -32,18 +32,12 @@ import { cn } from '@/lib/utils'
 import type { Land } from '@/types/assets'
 import type { Tool } from '@/types/production'
 import { formatNumber } from './miningUtils'
-
-// 定义常量（如果 miningConstants 中没有定义）
-const FOOD_CONSUMPTION_RATE = 10 // 每个工具每小时消耗10单位粮食
-
-// 工具与土地类型兼容性映射
-const TOOL_LAND_COMPATIBILITY: Record<string, string[]> = {
-  'yld_mine': ['pickaxe'],      // YLD矿山用镐
-  'iron_mine': ['pickaxe'],     // 铁矿山用镐
-  'stone_mine': ['pickaxe'],    // 石矿山用镐
-  'forest': ['axe'],             // 森林用斧头
-  'farm': ['hoe']                // 农场用锄头
-}
+import { 
+  FOOD_CONSUMPTION_RATE,
+  TOOL_LAND_MAP,
+  LAND_TOOL_MAP,
+  isToolValidForLand
+} from './miningConstants'
 
 interface StartMiningFormProps {
   userLands: Land[] | null
@@ -114,7 +108,21 @@ export function StartMiningForm({
     // 类型筛选
     if (landTypeFilter !== 'all') {
       lands = lands.filter(land => {
-        const landType = land.blueprint_info?.land_type || land.land_type || ''
+        // 获取土地类型，处理多种可能的数据结构
+        let landType = ''
+        if (land.blueprint_info?.land_type) {
+          landType = land.blueprint_info.land_type
+        } else if (land.land_type) {
+          landType = land.land_type
+        } else if (land.blueprint_name) {
+          // 从 blueprint_name 推断类型
+          const name = land.blueprint_name.toLowerCase()
+          if (name.includes('yld')) landType = 'yld_mine'
+          else if (name.includes('iron')) landType = 'iron_mine'
+          else if (name.includes('stone')) landType = 'stone_mine'
+          else if (name.includes('forest')) landType = 'forest'
+          else if (name.includes('farm')) landType = 'farm'
+        }
         return landType === landTypeFilter
       })
     }
@@ -124,24 +132,32 @@ export function StartMiningForm({
       const searchLower = landSearch.toLowerCase()
       lands = lands.filter(land => {
         const landId = land.land_id?.toLowerCase() || ''
-        const coordinates = `${land.x || 0},${land.y || 0}`
+        const coordinates = `${land.coordinate_x || land.x || 0},${land.coordinate_y || land.y || 0}`
         return landId.includes(searchLower) || coordinates.includes(searchLower)
       })
     }
     
     // 排序：YLD矿山优先，然后按储量排序
     lands.sort((a, b) => {
-      const aType = a.blueprint_info?.land_type || a.land_type || ''
-      const bType = b.blueprint_info?.land_type || b.land_type || ''
+      // 获取土地类型
+      const getType = (land: any) => {
+        if (land.blueprint_info?.land_type) return land.blueprint_info.land_type
+        if (land.land_type) return land.land_type
+        if (land.blueprint_name?.toLowerCase().includes('yld')) return 'yld_mine'
+        return ''
+      }
+      
+      const aType = getType(a)
+      const bType = getType(b)
       
       // YLD矿山优先
       if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
       if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
       
-      // 按储量排序
-      const aCapacity = a.yld_capacity || 0
-      const bCapacity = b.yld_capacity || 0
-      return bCapacity - aCapacity
+      // 按储量排序（如果有的话）
+      const aCapacity = a.yld_capacity || a.initial_price || 0
+      const bCapacity = b.yld_capacity || b.initial_price || 0
+      return Number(bCapacity) - Number(aCapacity)
     })
     
     return lands
@@ -152,7 +168,20 @@ export function StartMiningForm({
     if (!userLands) return []
     const types = new Set<string>()
     userLands.forEach(land => {
-      const landType = land.blueprint_info?.land_type || land.land_type
+      let landType = ''
+      if (land.blueprint_info?.land_type) {
+        landType = land.blueprint_info.land_type
+      } else if (land.land_type) {
+        landType = land.land_type
+      } else if (land.blueprint_name) {
+        // 从 blueprint_name 推断类型
+        const name = land.blueprint_name.toLowerCase()
+        if (name.includes('yld')) landType = 'yld_mine'
+        else if (name.includes('iron')) landType = 'iron_mine'
+        else if (name.includes('stone')) landType = 'stone_mine'
+        else if (name.includes('forest')) landType = 'forest'
+        else if (name.includes('farm')) landType = 'farm'
+      }
       if (landType) types.add(landType)
     })
     return Array.from(types)
@@ -162,9 +191,24 @@ export function StartMiningForm({
   const availableTools = useMemo(() => {
     if (!tools || !selectedLand) return []
     
-    const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
-    // 安全获取兼容工具类型
-    const compatibleTools = landType && TOOL_LAND_COMPATIBILITY[landType] ? TOOL_LAND_COMPATIBILITY[landType] : []
+    // 获取土地类型，处理多种可能的数据结构
+    let landType = ''
+    if (selectedLand.blueprint_info?.land_type) {
+      landType = selectedLand.blueprint_info.land_type
+    } else if (selectedLand.land_type) {
+      landType = selectedLand.land_type
+    } else if (selectedLand.blueprint_name) {
+      // 从 blueprint_name 推断类型
+      const name = selectedLand.blueprint_name.toLowerCase()
+      if (name.includes('yld')) landType = 'yld_mine'
+      else if (name.includes('iron')) landType = 'iron_mine'
+      else if (name.includes('stone')) landType = 'stone_mine'
+      else if (name.includes('forest')) landType = 'forest'
+      else if (name.includes('farm')) landType = 'farm'
+    }
+    
+    // 使用 LAND_TOOL_MAP 获取所需的工具类型
+    const requiredToolType = landType ? LAND_TOOL_MAP[landType] : null
     
     let filteredTools = tools.filter(tool => {
       // 基础条件
@@ -172,8 +216,8 @@ export function StartMiningForm({
         return false
       }
       
-      // 类型匹配
-      if (compatibleTools.length > 0 && !compatibleTools.includes(tool.tool_type)) {
+      // 如果有指定的工具类型要求，进行类型匹配
+      if (requiredToolType && tool.tool_type !== requiredToolType) {
         return false
       }
       
@@ -323,8 +367,23 @@ export function StartMiningForm({
               filteredLands.map(land => {
                 const isSelected = selectedLand?.id === land.id
                 const isActive = activeLandIds.has(land.id)
-                const landType = land.blueprint_info?.land_type || land.land_type || ''
-                const landTypeLabel = LAND_TYPE_LABELS[landType] || '未知'
+                  // 获取土地类型并安全处理
+                  let landType = ''
+                  if (land.blueprint_info?.land_type) {
+                    landType = land.blueprint_info.land_type
+                  } else if (land.land_type) {
+                    landType = land.land_type
+                  } else if (land.blueprint_name) {
+                    // 从 blueprint_name 推断类型
+                    const name = land.blueprint_name.toLowerCase()
+                    if (name.includes('yld')) landType = 'yld_mine'
+                    else if (name.includes('iron')) landType = 'iron_mine'
+                    else if (name.includes('stone')) landType = 'stone_mine'
+                    else if (name.includes('forest')) landType = 'forest'
+                    else if (name.includes('farm')) landType = 'farm'
+                  }
+                  
+                  const landTypeLabel = LAND_TYPE_LABELS[landType] || '未知'
                 
                 return (
                   <div
@@ -360,9 +419,9 @@ export function StartMiningForm({
                           )}
                         </div>
                         <div className="flex gap-4 text-xs text-gray-400">
-                          <span>坐标: ({land.x || 0}, {land.y || 0})</span>
-                          {land.yld_capacity > 0 && (
-                            <span>储量: {formatNumber(land.yld_capacity, 0)}</span>
+                          <span>坐标: ({land.coordinate_x || land.x || 0}, {land.coordinate_y || land.y || 0})</span>
+                          {(land.yld_capacity || land.initial_price) && Number(land.yld_capacity || land.initial_price) > 0 && (
+                            <span>储量: {formatNumber(Number(land.yld_capacity || land.initial_price), 0)}</span>
                           )}
                         </div>
                       </div>
@@ -469,10 +528,17 @@ export function StartMiningForm({
             {availableTools.length === 0 ? (
               <div className="text-center py-8 text-gray-400 text-sm">
                 {(() => {
-                  const landType = selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''
-                  const requiredTools = landType && TOOL_LAND_COMPATIBILITY[landType] ? TOOL_LAND_COMPATIBILITY[landType] : []
-                  if (requiredTools.length > 0) {
-                    return `没有可用的${requiredTools.map(t => TOOL_TYPE_LABELS[t] || t).join('或')}`
+                  // 获取土地类型
+                  let landType = ''
+                  if (selectedLand.blueprint_info?.land_type) {
+                    landType = selectedLand.blueprint_info.land_type
+                  } else if (selectedLand.land_type) {
+                    landType = selectedLand.land_type
+                  }
+                  
+                  const requiredToolType = landType ? LAND_TOOL_MAP[landType] : null
+                  if (requiredToolType) {
+                    return `没有可用的${TOOL_TYPE_LABELS[requiredToolType] || requiredToolType}`
                   }
                   return '没有可用的工具'
                 })()}
