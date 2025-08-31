@@ -565,6 +565,7 @@ export function MiningSessions({
               setSelectedTools([])
             }}
             loading={startMiningLoading}
+            activeSessions={displaySessions}
           />
         )}
       </PixelModal>
