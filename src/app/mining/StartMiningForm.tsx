@@ -1,20 +1,14 @@
 // src/app/mining/StartMiningForm.tsx
-// 开始挖矿表单组件 - 智能工具筛选版
+// 开始挖矿表单组件 - 智能工具筛选版（修复 activeSessions 传递）
 // 
 // 文件说明：
 // 本组件提供开始挖矿的表单界面，包括土地选择、工具选择、消耗预览等功能
 // 从 MiningSessions.tsx 中拆分出来
 // 
-// 创建原因：
-// - 开始挖矿表单是独立的功能模块，应该单独管理
-// - 表单逻辑复杂，包含验证、选择、预览等多个步骤
-// - 便于后续添加更多挖矿配置选项
-// 
-// 更新历史：
-// - 2025-01: 从 MiningSessions.tsx 拆分出来
-// - 2025-01: 集成 LandSelector 组件
-// - 2025-01: 添加智能工具筛选功能，根据土地类型自动筛选适用工具
-// - 2025-01: 改进交互体验，预防选择错误工具类型
+// 修复内容：
+// 1. 添加 activeSessions 参数传递给 LandSelector
+// 2. 修复工具数量限制显示问题
+// 3. 优化土地筛选逻辑
 // 
 // 功能特性：
 // 1. 土地选择（使用 LandSelector 组件）
@@ -24,25 +18,6 @@
 // 5. 资源消耗预览
 // 6. 新算法v2规则说明
 // 7. 表单验证和错误提示
-// 
-// 使用方式：
-// <StartMiningForm
-//   userLands={userLands}
-//   tools={tools}
-//   selectedLand={selectedLand}
-//   selectedTools={selectedTools}
-//   onLandSelect={setSelectedLand}
-//   onToolsSelect={setSelectedTools}
-//   onConfirm={handleConfirm}
-//   onCancel={handleCancel}
-//   loading={loading}
-// />
-// 
-// 关联文件：
-// - 被 MiningSessions.tsx 使用（主挖矿会话组件）
-// - 使用 LandSelector.tsx（土地选择器）
-// - 使用 miningConstants.ts 中的常量和工具映射
-// - 使用 @/components/shared 中的 UI 组件
 
 'use client'
 
@@ -75,7 +50,9 @@ interface StartMiningFormProps {
   onConfirm: () => void                                // 确认回调
   onCancel: () => void                                 // 取消回调
   loading?: boolean                                     // 加载状态
-  activeSessions?: any[]
+  activeSessions?: any[]                                // 活跃的挖矿会话（新增）
+  userLevel?: number                                    // 用户等级（新增）
+  maxToolsPerLand?: number                             // 每个土地最大工具数（新增）
 }
 
 /**
@@ -91,7 +68,10 @@ export const StartMiningForm = memo(({
   onToolsSelect,
   onConfirm,
   onCancel,
-  loading = false
+  loading = false,
+  activeSessions = [],
+  userLevel = 1,
+  maxToolsPerLand = 60
 }: StartMiningFormProps) => {
   // 表单验证状态
   const [landError, setLandError] = useState('')
@@ -120,6 +100,8 @@ export const StartMiningForm = memo(({
       hoe: []
     }
     
+    console.log('[StartMiningForm] 筛选工具，总数:', tools.length)
+    
     tools.forEach(tool => {
       // 只包含可用工具（正常状态、未使用、有耐久度）
       if (tool.status === 'normal' && !tool.is_in_use && (tool.current_durability || 0) > 0) {
@@ -128,6 +110,12 @@ export const StartMiningForm = memo(({
           groups[toolType].push(tool)
         }
       }
+    })
+    
+    console.log('[StartMiningForm] 可用工具分组:', {
+      pickaxe: groups.pickaxe.length,
+      axe: groups.axe.length,
+      hoe: groups.hoe.length
     })
     
     return groups
@@ -151,6 +139,8 @@ export const StartMiningForm = memo(({
         inapplicable.push(...toolList)
       }
     })
+    
+    console.log('[StartMiningForm] 土地类型:', selectedLandType, '适用工具:', applicable.length, '不适用:', inapplicable.length)
     
     return { applicableTools: applicable, inapplicableTools: inapplicable }
   }, [selectedLandType, groupedTools])
@@ -192,6 +182,10 @@ export const StartMiningForm = memo(({
       setToolError('请至少选择一个工具')
       setShowToolError(true)
       hasError = true
+    } else if (selectedTools.length > maxToolsPerLand) {
+      setToolError(`每个土地最多使用 ${maxToolsPerLand} 个工具（等级${userLevel}）`)
+      setShowToolError(true)
+      hasError = true
     } else {
       setShowToolError(false)
     }
@@ -211,15 +205,29 @@ export const StartMiningForm = memo(({
   // 处理工具选择变化
   const handleToolToggle = (toolId: number, checked: boolean) => {
     if (checked) {
+      // 检查是否超过限制
+      if (selectedTools.length >= maxToolsPerLand) {
+        setToolError(`最多只能选择 ${maxToolsPerLand} 个工具（等级${userLevel}）`)
+        setShowToolError(true)
+        setTimeout(() => setShowToolError(false), 3000)
+        return
+      }
       onToolsSelect([...selectedTools, toolId])
     } else {
       onToolsSelect(selectedTools.filter(id => id !== toolId))
     }
   }
   
-  // 全选适用工具
+  // 全选适用工具（受限制）
   const handleSelectAll = () => {
-    onToolsSelect(applicableTools.map(t => t.id))
+    const maxSelection = Math.min(applicableTools.length, maxToolsPerLand)
+    onToolsSelect(applicableTools.slice(0, maxSelection).map(t => t.id))
+    
+    if (applicableTools.length > maxToolsPerLand) {
+      setToolError(`由于等级限制，只选择了前 ${maxToolsPerLand} 个工具`)
+      setShowToolError(true)
+      setTimeout(() => setShowToolError(false), 3000)
+    }
   }
   
   // 清空选择
@@ -231,13 +239,15 @@ export const StartMiningForm = memo(({
   const renderToolItem = (tool: Tool, isApplicable: boolean = true) => {
     const isSelected = selectedTools.includes(tool.id)
     const toolTypeInfo = getToolTypeInfo(tool.tool_type || 'pickaxe')
+    const isDisabled = loading || !isApplicable || 
+                       (!isSelected && selectedTools.length >= maxToolsPerLand)
     
     return (
       <label 
         key={tool.id}
         className={cn(
           "flex items-center gap-3 p-3 transition-all",
-          isApplicable ? "cursor-pointer hover:bg-gray-700/50" : "cursor-not-allowed opacity-50",
+          !isDisabled ? "cursor-pointer hover:bg-gray-700/50" : "cursor-not-allowed opacity-50",
           isSelected && isApplicable && "bg-gray-700/70",
           !isApplicable && "bg-red-900/10"
         )}
@@ -245,8 +255,8 @@ export const StartMiningForm = memo(({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={(e) => isApplicable && handleToolToggle(tool.id, e.target.checked)}
-          disabled={loading || !isApplicable}
+          onChange={(e) => !isDisabled && handleToolToggle(tool.id, e.target.checked)}
+          disabled={isDisabled}
           className="w-4 h-4 rounded border-gray-600 text-gold-500 bg-gray-800 focus:ring-gold-500 focus:ring-offset-0 disabled:opacity-50"
         />
         <div className="flex-1 flex items-center justify-between">
@@ -298,6 +308,7 @@ export const StartMiningForm = memo(({
               <li>• 收益暂存不发放，停止时一次性收取</li>
               <li>• 不足60分钟的时间累积到下小时</li>
               <li>• 停止时当前小时不足60分钟部分作废</li>
+              <li>• 等级{userLevel}最多使用{maxToolsPerLand}个工具</li>
             </ul>
           </div>
         </div>
@@ -308,6 +319,9 @@ export const StartMiningForm = memo(({
         <label className="text-sm font-bold text-gray-300 flex items-center gap-2 mb-2">
           <span>📍</span>
           <span>选择土地</span>
+          <span className="text-xs text-gray-400">
+            （{userLands.length - activeSessions.length} 个可用）
+          </span>
         </label>
         <LandSelector
           lands={userLands}
@@ -316,7 +330,8 @@ export const StartMiningForm = memo(({
           error={landError}
           showError={showLandError}
           disabled={loading}
-          activeSessions={activeSessions}  // 传递这个
+          activeSessions={activeSessions}  // 传递活跃会话
+          debug={false}  // 生产环境关闭调试
         />
         
         {/* 土地类型提示 */}
@@ -344,13 +359,13 @@ export const StartMiningForm = memo(({
             <span>选择工具</span>
             {selectedLand && (
               <span className="text-xs text-gray-400">
-                （{applicableTools.length} 个可用）
+                （{applicableTools.length} 个可用，最多选 {maxToolsPerLand} 个）
               </span>
             )}
           </span>
           {selectedTools.length > 0 && (
             <span className="text-xs bg-gold-500/20 text-gold-400 px-2 py-1 rounded">
-              已选 {selectedTools.length} 个
+              已选 {selectedTools.length}/{maxToolsPerLand}
             </span>
           )}
         </label>
@@ -427,7 +442,7 @@ export const StartMiningForm = memo(({
                   disabled={loading}
                   className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors disabled:opacity-50"
                 >
-                  全选可用
+                  全选可用（最多{Math.min(applicableTools.length, maxToolsPerLand)}个）
                 </button>
                 <button
                   type="button"
