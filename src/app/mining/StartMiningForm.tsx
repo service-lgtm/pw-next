@@ -113,35 +113,29 @@ export function StartMiningForm({
     
     let lands = [...userLands]
     
-    // 过滤掉不能挖矿的土地类型（如城市地块）
+    // 调试：打印原始数据
+    console.log('[StartMiningForm] Processing lands:', lands.length, 'lands')
+    
+    // 过滤掉不能挖矿的土地类型（城市地块等）
     lands = lands.filter(land => {
       const landType = land.blueprint?.land_type || land.land_type || ''
-      // 排除城市地块等不能挖矿的土地
-      return landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial'
+      // 只排除明确不能挖矿的类型
+      const canMine = landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial'
+      if (!canMine) {
+        console.log('[StartMiningForm] Filtered out land:', land.land_id, 'type:', landType)
+      }
+      return canMine
     })
+    
+    console.log('[StartMiningForm] After mining filter:', lands.length, 'lands')
     
     // 类型筛选
     if (landTypeFilter !== 'all') {
       lands = lands.filter(land => {
-        // 获取土地类型，处理多种可能的数据结构
-        let landType = ''
-        if (land.blueprint?.land_type) {
-          landType = land.blueprint.land_type
-        } else if (land.blueprint_info?.land_type) {
-          landType = land.blueprint_info.land_type
-        } else if (land.land_type) {
-          landType = land.land_type
-        } else if (land.blueprint_name) {
-          // 从 blueprint_name 推断类型
-          const name = land.blueprint_name.toLowerCase()
-          if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
-          else if (name.includes('铁')) landType = 'iron_mine'
-          else if (name.includes('石')) landType = 'stone_mine'
-          else if (name.includes('森林')) landType = 'forest'
-          else if (name.includes('农')) landType = 'farm'
-        }
+        const landType = land.blueprint?.land_type || land.land_type || ''
         return landType === landTypeFilter
       })
+      console.log('[StartMiningForm] After type filter:', lands.length, 'lands, filter:', landTypeFilter)
     }
     
     // 搜索筛选
@@ -149,36 +143,26 @@ export function StartMiningForm({
       const searchLower = landSearch.toLowerCase()
       lands = lands.filter(land => {
         const landId = land.land_id?.toLowerCase() || ''
-        const coordinates = `${land.coordinate_x || land.x || 0},${land.coordinate_y || land.y || 0}`
-        const regionName = (land.region?.name || land.region_name || '').toLowerCase()
-        return landId.includes(searchLower) || coordinates.includes(searchLower) || regionName.includes(searchLower)
+        const regionName = (land.region?.name || '').toLowerCase()
+        return landId.includes(searchLower) || regionName.includes(searchLower)
       })
+      console.log('[StartMiningForm] After search filter:', lands.length, 'lands')
     }
     
-    // 排序：YLD矿山优先，然后按储量排序
+    // 排序：YLD矿山优先，然后按ID排序
     lands.sort((a, b) => {
-      // 获取土地类型
-      const getType = (land: any) => {
-        if (land.blueprint?.land_type) return land.blueprint.land_type
-        if (land.blueprint_info?.land_type) return land.blueprint_info.land_type
-        if (land.land_type) return land.land_type
-        if (land.blueprint_name?.includes('陨石') || land.blueprint_name?.toLowerCase().includes('yld')) return 'yld_mine'
-        return ''
-      }
-      
-      const aType = getType(a)
-      const bType = getType(b)
+      const aType = a.blueprint?.land_type || ''
+      const bType = b.blueprint?.land_type || ''
       
       // YLD矿山优先
       if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
       if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
       
-      // 按储量排序（如果有的话）
-      const aCapacity = a.yld_reserves || a.remaining_reserves || a.initial_reserves || a.yld_capacity || a.initial_price || 0
-      const bCapacity = b.yld_reserves || b.remaining_reserves || b.initial_reserves || b.yld_capacity || b.initial_price || 0
-      return Number(bCapacity) - Number(aCapacity)
+      // 按ID排序
+      return a.id - b.id
     })
     
+    console.log('[StartMiningForm] Final filtered lands:', lands)
     return lands
   }, [userLands, landTypeFilter, landSearch])
   
