@@ -92,6 +92,14 @@ export function StartMiningForm({
   const [toolSort, setToolSort] = useState<'durability' | 'id'>('durability')
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
   
+  // 调试：打印接收到的土地数据
+  useEffect(() => {
+    console.log('[StartMiningForm] userLands:', userLands)
+    if (userLands && userLands.length > 0) {
+      console.log('[StartMiningForm] First land example:', userLands[0])
+    }
+  }, [userLands])
+  
   // ==================== 计算派生状态 ====================
   
   // 获取活跃会话中的土地ID
