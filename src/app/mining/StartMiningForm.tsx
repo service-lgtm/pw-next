@@ -105,23 +105,32 @@ export function StartMiningForm({
     
     let lands = [...userLands]
     
+    // 过滤掉不能挖矿的土地类型（如城市地块）
+    lands = lands.filter(land => {
+      const landType = land.blueprint?.land_type || land.land_type || ''
+      // 排除城市地块等不能挖矿的土地
+      return landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial'
+    })
+    
     // 类型筛选
     if (landTypeFilter !== 'all') {
       lands = lands.filter(land => {
         // 获取土地类型，处理多种可能的数据结构
         let landType = ''
-        if (land.blueprint_info?.land_type) {
+        if (land.blueprint?.land_type) {
+          landType = land.blueprint.land_type
+        } else if (land.blueprint_info?.land_type) {
           landType = land.blueprint_info.land_type
         } else if (land.land_type) {
           landType = land.land_type
         } else if (land.blueprint_name) {
           // 从 blueprint_name 推断类型
           const name = land.blueprint_name.toLowerCase()
-          if (name.includes('yld')) landType = 'yld_mine'
-          else if (name.includes('iron')) landType = 'iron_mine'
-          else if (name.includes('stone')) landType = 'stone_mine'
-          else if (name.includes('forest')) landType = 'forest'
-          else if (name.includes('farm')) landType = 'farm'
+          if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
+          else if (name.includes('铁')) landType = 'iron_mine'
+          else if (name.includes('石')) landType = 'stone_mine'
+          else if (name.includes('森林')) landType = 'forest'
+          else if (name.includes('农')) landType = 'farm'
         }
         return landType === landTypeFilter
       })
@@ -133,7 +142,8 @@ export function StartMiningForm({
       lands = lands.filter(land => {
         const landId = land.land_id?.toLowerCase() || ''
         const coordinates = `${land.coordinate_x || land.x || 0},${land.coordinate_y || land.y || 0}`
-        return landId.includes(searchLower) || coordinates.includes(searchLower)
+        const regionName = (land.region?.name || land.region_name || '').toLowerCase()
+        return landId.includes(searchLower) || coordinates.includes(searchLower) || regionName.includes(searchLower)
       })
     }
     
@@ -141,9 +151,10 @@ export function StartMiningForm({
     lands.sort((a, b) => {
       // 获取土地类型
       const getType = (land: any) => {
+        if (land.blueprint?.land_type) return land.blueprint.land_type
         if (land.blueprint_info?.land_type) return land.blueprint_info.land_type
         if (land.land_type) return land.land_type
-        if (land.blueprint_name?.toLowerCase().includes('yld')) return 'yld_mine'
+        if (land.blueprint_name?.includes('陨石') || land.blueprint_name?.toLowerCase().includes('yld')) return 'yld_mine'
         return ''
       }
       
@@ -155,8 +166,8 @@ export function StartMiningForm({
       if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
       
       // 按储量排序（如果有的话）
-      const aCapacity = a.yld_capacity || a.initial_price || 0
-      const bCapacity = b.yld_capacity || b.initial_price || 0
+      const aCapacity = a.yld_reserves || a.remaining_reserves || a.initial_reserves || a.yld_capacity || a.initial_price || 0
+      const bCapacity = b.yld_reserves || b.remaining_reserves || b.initial_reserves || b.yld_capacity || b.initial_price || 0
       return Number(bCapacity) - Number(aCapacity)
     })
     
@@ -169,20 +180,25 @@ export function StartMiningForm({
     const types = new Set<string>()
     userLands.forEach(land => {
       let landType = ''
-      if (land.blueprint_info?.land_type) {
+      if (land.blueprint?.land_type) {
+        landType = land.blueprint.land_type
+      } else if (land.blueprint_info?.land_type) {
         landType = land.blueprint_info.land_type
       } else if (land.land_type) {
         landType = land.land_type
       } else if (land.blueprint_name) {
         // 从 blueprint_name 推断类型
         const name = land.blueprint_name.toLowerCase()
-        if (name.includes('yld')) landType = 'yld_mine'
-        else if (name.includes('iron')) landType = 'iron_mine'
-        else if (name.includes('stone')) landType = 'stone_mine'
-        else if (name.includes('forest')) landType = 'forest'
-        else if (name.includes('farm')) landType = 'farm'
+        if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
+        else if (name.includes('铁')) landType = 'iron_mine'
+        else if (name.includes('石')) landType = 'stone_mine'
+        else if (name.includes('森林')) landType = 'forest'
+        else if (name.includes('农')) landType = 'farm'
       }
-      if (landType) types.add(landType)
+      // 过滤掉不能挖矿的土地类型
+      if (landType && landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial') {
+        types.add(landType)
+      }
     })
     return Array.from(types)
   }, [userLands])
