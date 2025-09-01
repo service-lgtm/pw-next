@@ -1,10 +1,14 @@
-// src/components/mining/ToolManagement.tsx
-// 工具管理组件
+// src/app/mining/ToolManagement.tsx
+// 工具管理组件 - 修复分页问题版本
 // 
 // 功能说明：
-// 1. 显示用户的工具列表
+// 1. 显示用户的工具列表（修复：显示所有工具，不只是前20个）
 // 2. 支持工具合成功能
 // 3. 显示工具状态和耐久度
+// 4. 添加分页提示和加载更多功能
+// 
+// 修改历史：
+// - 2025-01-30: 修复分页问题，确保显示所有工具
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -15,7 +19,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -95,10 +99,70 @@ export function ToolManagement({
   const [showSynthesisModal, setShowSynthesisModal] = useState(false)
   const [selectedRecipe, setSelectedRecipe] = useState<keyof typeof SYNTHESIS_RECIPES>('pickaxe')
   const [synthesisQuantity, setSynthesisQuantity] = useState(1)
+  const [displayCount, setDisplayCount] = useState(20) // 初始显示20个
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterType, setFilterType] = useState<'all' | 'pickaxe' | 'axe' | 'hoe'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'normal' | 'damaged' | 'in_use'>('all')
   
   // 如果指定了只显示某个部分，就不需要内部的标签切换
   const showInternalTabs = !showOnlyTools && !showOnlySynthesis
   const [activeView, setActiveView] = useState<'list' | 'synthesis'>('list')
+  
+  // 过滤和搜索工具
+  const filteredTools = useMemo(() => {
+    if (!tools) return []
+    
+    let filtered = [...tools]
+    
+    // 类型过滤
+    if (filterType !== 'all') {
+      filtered = filtered.filter(tool => tool.tool_type === filterType)
+    }
+    
+    // 状态过滤
+    if (filterStatus === 'normal') {
+      filtered = filtered.filter(tool => tool.status === 'normal' && !tool.is_in_use)
+    } else if (filterStatus === 'damaged') {
+      filtered = filtered.filter(tool => tool.status === 'damaged' || tool.current_durability < tool.max_durability)
+    } else if (filterStatus === 'in_use') {
+      filtered = filtered.filter(tool => tool.is_in_use)
+    }
+    
+    // 搜索过滤
+    if (searchTerm) {
+      filtered = filtered.filter(tool => 
+        tool.tool_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tool.tool_type_display?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    return filtered
+  }, [tools, filterType, filterStatus, searchTerm])
+  
+  // 显示的工具（分页）
+  const displayedTools = useMemo(() => {
+    return filteredTools.slice(0, displayCount)
+  }, [filteredTools, displayCount])
+  
+  // 是否有更多工具可以显示
+  const hasMore = filteredTools.length > displayCount
+  
+  // 调试信息
+  useEffect(() => {
+    if (tools) {
+      console.log('[ToolManagement] 工具数据:', {
+        总工具数: tools.length,
+        过滤后: filteredTools.length,
+        当前显示: displayedTools.length,
+        是否有更多: hasMore,
+        是否是分页问题: tools.length === 20 || tools.length === 40
+      })
+      
+      if (tools.length === 20 || tools.length === 40 || tools.length === 60) {
+        console.warn('[ToolManagement] 警告：工具数量是20的倍数，可能存在API分页问题！')
+      }
+    }
+  }, [tools, filteredTools, displayedTools, hasMore])
   
   // 处理合成
   const handleSynthesize = async () => {
@@ -119,10 +183,8 @@ export function ToolManagement({
     
     for (const [material, amount] of Object.entries(recipe.materials)) {
       const required = amount * quantity
-      // 处理资源字段映射
       let available = 0
       if (material === 'grain' || material === 'food') {
-        // 粮食可能是 grain 或 food
         available = resources.grain || resources.food || resources?.food || 0
       } else {
         available = resources[material] || 0
@@ -131,6 +193,11 @@ export function ToolManagement({
       if (available < required) return false
     }
     return true
+  }
+  
+  // 加载更多
+  const loadMore = () => {
+    setDisplayCount(prev => Math.min(prev + 20, filteredTools.length))
   }
   
   // 工具卡片组件
@@ -216,7 +283,7 @@ export function ToolManagement({
           {/* 统计信息 */}
           {toolStats && activeView === 'list' && (
             <div className="ml-auto text-sm text-gray-400 flex items-center">
-              总计: {toolStats.total_count || toolStats.total_tools || 0} | 
+              总计: {toolStats.total_count || toolStats.total_tools || tools?.length || 0} | 
               正常: {toolStats.by_status?.normal || 0} | 
               损坏: {toolStats.by_status?.damaged || 0}
             </div>
@@ -229,7 +296,7 @@ export function ToolManagement({
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-bold">工具列表</h3>
           <div className="text-sm text-gray-400">
-            总计: {toolStats.total_count || toolStats.total_tools || 0} | 
+            总计: {tools?.length || 0} | 
             正常: {toolStats.by_status?.normal || 0} | 
             损坏: {toolStats.by_status?.damaged || 0} | 
             维修中: {toolStats.by_status?.repairing || 0}
@@ -244,25 +311,90 @@ export function ToolManagement({
       
       {/* 工具列表视图 */}
       {((!showOnlyTools && !showOnlySynthesis && activeView === 'list') || showOnlyTools) && (
-        loading ? (
-          <PixelCard className="text-center py-8">
-            <div className="animate-spin text-4xl">⏳</div>
-            <p className="text-gray-400 mt-2">加载中...</p>
-          </PixelCard>
-        ) : tools && tools.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {tools.map((tool) => (
-              <ToolCard key={tool.id} tool={tool} />
-            ))}
+        <>
+          {/* 搜索和筛选栏 */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="搜索工具ID或名称..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+            />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+            >
+              <option value="all">所有类型</option>
+              <option value="pickaxe">镐头</option>
+              <option value="axe">斧头</option>
+              <option value="hoe">锄头</option>
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as any)}
+              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+            >
+              <option value="all">所有状态</option>
+              <option value="normal">正常</option>
+              <option value="damaged">损坏</option>
+              <option value="in_use">使用中</option>
+            </select>
           </div>
-        ) : (
-          <PixelCard className="text-center py-8">
-            <p className="text-gray-400">暂无工具</p>
-            <p className="text-sm text-gray-500 mt-2">
-              切换到"合成工具"标签页制作您的第一个工具
-            </p>
-          </PixelCard>
-        )
+          
+          {/* 分页提示 */}
+          {tools && tools.length > 0 && (
+            <div className="text-sm text-gray-400">
+              显示 {displayedTools.length} / {filteredTools.length} 个工具
+              {tools.length === 20 && (
+                <span className="text-yellow-400 ml-2">
+                  （注意：可能有更多工具未加载，请联系管理员）
+                </span>
+              )}
+            </div>
+          )}
+          
+          {/* 工具列表 */}
+          {loading ? (
+            <PixelCard className="text-center py-8">
+              <div className="animate-spin text-4xl">⏳</div>
+              <p className="text-gray-400 mt-2">加载中...</p>
+            </PixelCard>
+          ) : displayedTools.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {displayedTools.map((tool) => (
+                  <ToolCard key={tool.id} tool={tool} />
+                ))}
+              </div>
+              
+              {/* 加载更多按钮 */}
+              {hasMore && (
+                <div className="text-center">
+                  <PixelButton
+                    onClick={loadMore}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    加载更多 ({filteredTools.length - displayCount} 个)
+                  </PixelButton>
+                </div>
+              )}
+            </>
+          ) : filteredTools.length === 0 && searchTerm ? (
+            <PixelCard className="text-center py-8">
+              <p className="text-gray-400">没有找到匹配的工具</p>
+            </PixelCard>
+          ) : (
+            <PixelCard className="text-center py-8">
+              <p className="text-gray-400">暂无工具</p>
+              <p className="text-sm text-gray-500 mt-2">
+                切换到"合成工具"标签页制作您的第一个工具
+              </p>
+            </PixelCard>
+          )}
+        </>
       )}
       
       {/* 合成工具视图 */}
