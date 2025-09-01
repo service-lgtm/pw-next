@@ -1,642 +1,1019 @@
-// src/app/mining/StartMiningForm.tsx
-// 开始挖矿表单组件 - 优化版本（支持大量土地和工具的用户）
+// src/app/mining/SynthesisSystem.tsx
+// 合成系统组件 - v2.3.0 修复版
 // 
-// 文件说明：
-// 这是开始挖矿的表单组件，用于选择土地和工具，开始新的挖矿会话
-// 
-// 修改历史：
-// - 2025-01-18: 初始版本，基础的土地和工具选择功能
-// - 2025-01-20: 优化版本，支持大量土地和工具的用户
-//   * 添加搜索和筛选功能
-//   * 添加批量选择工具功能（10/30/60个）
-//   * 优化列表显示，添加虚拟滚动支持
-//   * 改进UI交互，使用标签页分离土地和工具选择
-//   * 添加智能排序和筛选
-// 
-// 主要功能：
-// 1. 土地选择：支持搜索、筛选、排序
-// 2. 工具选择：支持批量选择、智能筛选、排序
-// 3. 实时验证：检查工具类型匹配、数量限制等
-// 4. 性能优化：大数据量下的流畅交互
+// 功能说明：
+// 1. 工具合成功能（镐头、斧头、锄头）
+// 2. 砖头合成功能
+// 3. 显示合成配方和价格信息
+// 4. 实时显示用户资源
+// 5. 支持批量合成和快捷操作
+// 6. 合成历史记录查看
+// 7. 合成统计和成就展示
+// 8. 响应式设计，完美适配移动端
+// 9. 修复：合成数量限制问题
 // 
 // 关联文件：
-// - 被调用: ./MiningSessions.tsx (挖矿会话管理组件)
-// - 使用常量: ./miningConstants.ts (TOOL_LAND_COMPATIBILITY等)
-// - 使用工具函数: ./miningUtils.ts (formatNumber等)
+// - 被 @/app/mining/page.tsx 使用
+// - 使用 @/hooks/useSynthesis (独立 Hooks)
+// - 使用 @/lib/api/synthesisApi (独立 API)
+// - 使用 @/components/shared 系列组件
 
 'use client'
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
-import { cn } from '@/lib/utils'
-import type { Land } from '@/types/assets'
-import type { Tool } from '@/types/production'
-import { formatNumber } from './miningUtils'
+import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
 import { 
-  FOOD_CONSUMPTION_RATE,
-  TOOL_LAND_MAP,
-  LAND_TOOL_MAP,
-  isToolValidForLand
-} from './miningConstants'
+  useSynthesisSystem, 
+  useSynthesisHistory,
+  useSynthesisStats,
+  TOOL_TYPE_MAP, 
+  TOOL_USAGE_MAP,
+  QUALITY_CONFIG
+} from '@/hooks/useSynthesis'
+import toast from 'react-hot-toast'
+import { format } from 'date-fns'
+import { zhCN } from 'date-fns/locale'
 
-interface StartMiningFormProps {
-  userLands: Land[] | null
-  tools: Tool[] | null
-  selectedLand: Land | null
-  selectedTools: number[]
-  onLandSelect: (land: Land | null) => void
-  onToolsSelect: (toolIds: number[]) => void
-  onConfirm: () => void
-  onCancel: () => void
-  loading?: boolean
-  activeSessions?: any[]
-  userLevel?: number
-  maxToolsPerLand?: number
+interface SynthesisSystemProps {
+  className?: string
+  isMobile?: boolean
 }
 
-// 土地类型映射
-const LAND_TYPE_LABELS: Record<string, string> = {
-  'yld_mine': 'YLD矿山',
-  'iron_mine': '铁矿山',
-  'stone_mine': '石矿山',
-  'forest': '森林',
-  'farm': '农场'
-}
+// 工具图标映射
+const TOOL_ICONS = {
+  pickaxe: '⛏️',
+  axe: '🪓',
+  hoe: '🌾'
+} as const
 
-// 工具类型映射
-const TOOL_TYPE_LABELS: Record<string, string> = {
-  'pickaxe': '镐',
-  'axe': '斧头',
-  'hoe': '锄头'
-}
+// 资源图标和颜色映射
+const RESOURCE_CONFIG = {
+  wood: { icon: '🪵', color: 'text-green-400', name: '木材' },
+  iron: { icon: '⚙️', color: 'text-gray-400', name: '铁矿' },
+  stone: { icon: '🪨', color: 'text-blue-400', name: '石材' },
+  yld: { icon: '💎', color: 'text-purple-400', name: 'YLD' },
+  brick: { icon: '🧱', color: 'text-orange-400', name: '砖头' }
+} as const
 
-export function StartMiningForm({
-  userLands,
-  tools,
-  selectedLand,
-  selectedTools,
-  onLandSelect,
-  onToolsSelect,
-  onConfirm,
-  onCancel,
-  loading = false,
-  activeSessions = [],
-  userLevel = 1,
-  maxToolsPerLand = 60
-}: StartMiningFormProps) {
-  // ==================== 状态管理 ====================
-  const [activeTab, setActiveTab] = useState<'land' | 'tools'>('land')
-  const [landSearch, setLandSearch] = useState('')
-  const [landTypeFilter, setLandTypeFilter] = useState<string>('all')
-  const [toolSearch, setToolSearch] = useState('')
-  const [toolSort, setToolSort] = useState<'durability' | 'id'>('durability')
-  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true)
-  
-  // 调试：打印接收到的土地数据
-  useEffect(() => {
-    console.log('[StartMiningForm] userLands:', userLands)
-    if (userLands && userLands.length > 0) {
-      console.log('[StartMiningForm] First land example:', userLands[0])
-    }
-  }, [userLands])
-  
-  // ==================== 计算派生状态 ====================
-  
-  // 获取活跃会话中的土地ID
-  const activeLandIds = useMemo(() => {
-    return new Set(activeSessions?.map(s => s.land_id) || [])
-  }, [activeSessions])
-  
-  // 筛选和排序土地
-  const filteredLands = useMemo(() => {
-    if (!userLands) return []
-    
-    let lands = [...userLands]
-    
-    // 调试：打印原始数据
-    console.log('[StartMiningForm] Processing lands:', lands.length, 'lands')
-    
-    // 过滤掉不能挖矿的土地类型（城市地块等）
-    lands = lands.filter(land => {
-      const landType = land.blueprint?.land_type || land.land_type || ''
-      // 只排除明确不能挖矿的类型
-      const canMine = landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial'
-      if (!canMine) {
-        console.log('[StartMiningForm] Filtered out land:', land.land_id, 'type:', landType)
-      }
-      return canMine
-    })
-    
-    console.log('[StartMiningForm] After mining filter:', lands.length, 'lands')
-    
-    // 类型筛选
-    if (landTypeFilter !== 'all') {
-      lands = lands.filter(land => {
-        const landType = land.blueprint?.land_type || land.land_type || ''
-        return landType === landTypeFilter
-      })
-      console.log('[StartMiningForm] After type filter:', lands.length, 'lands, filter:', landTypeFilter)
-    }
-    
-    // 搜索筛选
-    if (landSearch) {
-      const searchLower = landSearch.toLowerCase()
-      lands = lands.filter(land => {
-        const landId = land.land_id?.toLowerCase() || ''
-        const regionName = (land.region?.name || '').toLowerCase()
-        return landId.includes(searchLower) || regionName.includes(searchLower)
-      })
-      console.log('[StartMiningForm] After search filter:', lands.length, 'lands')
-    }
-    
-    // 排序：YLD矿山优先，然后按ID排序
-    lands.sort((a, b) => {
-      const aType = a.blueprint?.land_type || ''
-      const bType = b.blueprint?.land_type || ''
-      
-      // YLD矿山优先
-      if (aType === 'yld_mine' && bType !== 'yld_mine') return -1
-      if (aType !== 'yld_mine' && bType === 'yld_mine') return 1
-      
-      // 按ID排序
-      return a.id - b.id
-    })
-    
-    console.log('[StartMiningForm] Final filtered lands:', lands)
-    return lands
-  }, [userLands, landTypeFilter, landSearch])
-  
-  // 获取可用的土地类型
-  const availableLandTypes = useMemo(() => {
-    if (!userLands) return []
-    const types = new Set<string>()
-    userLands.forEach(land => {
-      let landType = ''
-      if (land.blueprint?.land_type) {
-        landType = land.blueprint.land_type
-      } else if (land.blueprint_info?.land_type) {
-        landType = land.blueprint_info.land_type
-      } else if (land.land_type) {
-        landType = land.land_type
-      } else if (land.blueprint_name) {
-        // 从 blueprint_name 推断类型
-        const name = land.blueprint_name.toLowerCase()
-        if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
-        else if (name.includes('铁')) landType = 'iron_mine'
-        else if (name.includes('石')) landType = 'stone_mine'
-        else if (name.includes('森林')) landType = 'forest'
-        else if (name.includes('农')) landType = 'farm'
-      }
-      // 过滤掉不能挖矿的土地类型
-      if (landType && landType !== 'urban' && landType !== 'commercial' && landType !== 'residential' && landType !== 'industrial') {
-        types.add(landType)
-      }
-    })
-    return Array.from(types)
-  }, [userLands])
-  
-  // 筛选可用工具
-  const availableTools = useMemo(() => {
-    if (!tools || !selectedLand) return []
-    
-    // 获取土地类型，处理多种可能的数据结构
-    let landType = ''
-    if (selectedLand.blueprint?.land_type) {
-      landType = selectedLand.blueprint.land_type
-    } else if (selectedLand.blueprint_info?.land_type) {
-      landType = selectedLand.blueprint_info.land_type
-    } else if (selectedLand.land_type) {
-      landType = selectedLand.land_type
-    } else if (selectedLand.blueprint_name) {
-      // 从 blueprint_name 推断类型
-      const name = selectedLand.blueprint_name.toLowerCase()
-      if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
-      else if (name.includes('铁')) landType = 'iron_mine'
-      else if (name.includes('石')) landType = 'stone_mine'
-      else if (name.includes('森林')) landType = 'forest'
-      else if (name.includes('农')) landType = 'farm'
-    }
-    
-    // 使用 LAND_TOOL_MAP 获取所需的工具类型
-    const requiredToolType = landType ? LAND_TOOL_MAP[landType] : null
-    
-    let filteredTools = tools.filter(tool => {
-      // 基础条件
-      if (tool.status !== 'normal' || tool.is_in_use || (tool.current_durability || 0) <= 0) {
-        return false
-      }
-      
-      // 如果有指定的工具类型要求，进行类型匹配
-      if (requiredToolType && tool.tool_type !== requiredToolType) {
-        return false
-      }
-      
-      return true
-    })
-    
-    // 搜索筛选
-    if (toolSearch) {
-      const searchLower = toolSearch.toLowerCase()
-      filteredTools = filteredTools.filter(tool => {
-        const toolId = tool.id?.toString() || ''
-        const toolType = TOOL_TYPE_LABELS[tool.tool_type] || tool.tool_type
-        return toolId.includes(searchLower) || toolType.toLowerCase().includes(searchLower)
-      })
-    }
-    
-    // 排序
-    filteredTools.sort((a, b) => {
-      if (toolSort === 'durability') {
-        return (b.current_durability || 0) - (a.current_durability || 0)
-      } else {
-        return a.id - b.id
-      }
-    })
-    
-    return filteredTools
-  }, [tools, selectedLand, toolSearch, toolSort])
-  
-  // 计算统计信息
-  const stats = useMemo(() => {
-    const foodConsumption = selectedTools.length * FOOD_CONSUMPTION_RATE
-    const canProceed = selectedLand && selectedTools.length > 0 && selectedTools.length <= maxToolsPerLand
-    
-    return {
-      selectedLandType: selectedLand ? (LAND_TYPE_LABELS[selectedLand.blueprint_info?.land_type || selectedLand.land_type || ''] || '未知') : '',
-      selectedToolsCount: selectedTools.length,
-      maxTools: maxToolsPerLand,
-      foodConsumption,
-      canProceed
-    }
-  }, [selectedLand, selectedTools, maxToolsPerLand])
-  
-  // ==================== 事件处理 ====================
-  
-  // 批量选择工具
-  const handleBatchSelectTools = useCallback((count: number) => {
-    const toolsToSelect = availableTools.slice(0, Math.min(count, maxToolsPerLand))
-    onToolsSelect(toolsToSelect.map(t => t.id))
-  }, [availableTools, maxToolsPerLand, onToolsSelect])
-  
-  // 切换工具选择
-  const handleToggleTool = useCallback((toolId: number) => {
-    if (selectedTools.includes(toolId)) {
-      onToolsSelect(selectedTools.filter(id => id !== toolId))
-    } else if (selectedTools.length < maxToolsPerLand) {
-      onToolsSelect([...selectedTools, toolId])
-    }
-  }, [selectedTools, maxToolsPerLand, onToolsSelect])
-  
-  // 切换标签页
-  const handleTabChange = useCallback((tab: 'land' | 'tools') => {
-    if (tab === 'tools' && !selectedLand) {
-      // 如果没选土地，不允许切换到工具标签
-      return
-    }
-    setActiveTab(tab)
-  }, [selectedLand])
-  
-  // 选择土地后自动切换到工具标签
-  useEffect(() => {
-    if (selectedLand && activeTab === 'land') {
-      setActiveTab('tools')
-    }
-  }, [selectedLand])
-  
-  // ==================== 渲染 ====================
+// 批量合成限制配置
+const BATCH_LIMITS = {
+  tool: 50,      // 工具最大批量合成数量（提高到50）
+  brick: 100     // 砖头最大批量合成数量
+} as const
+
+// 资源显示组件
+function ResourceDisplay(props: { 
+  type: keyof typeof RESOURCE_CONFIG
+  amount: number
+  required?: number
+  showRequired?: boolean
+}) {
+  const { type, amount, required, showRequired = false } = props
+  const config = RESOURCE_CONFIG[type]
+  const isInsufficient = showRequired && required && amount < required
   
   return (
-    <div className="space-y-4">
-      {/* 标签页导航 */}
-      <div className="flex gap-2 border-b border-gray-700 pb-2">
-        <button
-          onClick={() => handleTabChange('land')}
-          className={cn(
-            "px-4 py-2 font-bold transition-all text-sm",
-            activeTab === 'land' 
-              ? "text-gold-500 border-b-2 border-gold-500 -mb-[10px]" 
-              : "text-gray-400 hover:text-white"
-          )}
-        >
-          1. 选择土地
-          {selectedLand && <span className="ml-2 text-green-400">✓</span>}
-        </button>
-        <button
-          onClick={() => handleTabChange('tools')}
-          disabled={!selectedLand}
-          className={cn(
-            "px-4 py-2 font-bold transition-all text-sm",
-            activeTab === 'tools' 
-              ? "text-gold-500 border-b-2 border-gold-500 -mb-[10px]" 
-              : "text-gray-400",
-            !selectedLand && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          2. 选择工具
-          {selectedTools.length > 0 && (
-            <span className="ml-2 text-green-400">({selectedTools.length})</span>
-          )}
-        </button>
+    <div className="flex items-center justify-between p-2 bg-gray-900/30 rounded">
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{config.icon}</span>
+        <span className="text-xs text-gray-400">{config.name}</span>
       </div>
-      
-      {/* 土地选择标签页 */}
-      {activeTab === 'land' && (
-        <div className="space-y-3">
-          {/* 搜索和筛选栏 */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="搜索土地ID或坐标..."
-              value={landSearch}
-              onChange={(e) => setLandSearch(e.target.value)}
-              className="flex-1 bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
-            />
-            <select
-              value={landTypeFilter}
-              onChange={(e) => setLandTypeFilter(e.target.value)}
-              className="bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
-            >
-              <option value="all">全部类型</option>
-              {availableLandTypes.map(type => (
-                <option key={type} value={type}>
-                  {LAND_TYPE_LABELS[type] || type}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {/* 土地列表 */}
-          <div className="max-h-80 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-            {filteredLands.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                {landSearch || landTypeFilter !== 'all' 
-                  ? '没有找到符合条件的土地' 
-                  : '暂无可用土地'}
-              </div>
-            ) : (
-              filteredLands.map(land => {
-                const isSelected = selectedLand?.id === land.id
-                const isActive = activeLandIds.has(land.id)
-                  // 获取土地类型并安全处理
-                  let landType = ''
-                  if (land.blueprint_info?.land_type) {
-                    landType = land.blueprint_info.land_type
-                  } else if (land.land_type) {
-                    landType = land.land_type
-                  } else if (land.blueprint_name) {
-                    // 从 blueprint_name 推断类型
-                    const name = land.blueprint_name.toLowerCase()
-                    if (name.includes('yld')) landType = 'yld_mine'
-                    else if (name.includes('iron')) landType = 'iron_mine'
-                    else if (name.includes('stone')) landType = 'stone_mine'
-                    else if (name.includes('forest')) landType = 'forest'
-                    else if (name.includes('farm')) landType = 'farm'
-                  }
-                  
-                  const landTypeLabel = LAND_TYPE_LABELS[landType] || '未知'
-                
-                return (
-                  <div
-                    key={land.id}
-                    onClick={() => !isActive && onLandSelect(isSelected ? null : land)}
-                    className={cn(
-                      "p-3 rounded-lg border transition-all cursor-pointer",
-                      isSelected 
-                        ? "bg-gold-500/20 border-gold-500"
-                        : isActive
-                        ? "bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed"
-                        : "bg-gray-800 border-gray-700 hover:border-gray-600"
-                    )}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-bold text-sm">
-                            {land.land_id || `土地#${land.id}`}
-                          </p>
-                          <span className={cn(
-                            "text-xs px-2 py-0.5 rounded",
-                            landType === 'yld_mine' ? "bg-purple-900/50 text-purple-400" :
-                            landType === 'iron_mine' ? "bg-gray-700 text-gray-300" :
-                            landType === 'stone_mine' ? "bg-blue-900/50 text-blue-400" :
-                            landType === 'forest' ? "bg-green-900/50 text-green-400" :
-                            "bg-gray-700 text-gray-400"
-                          )}>
-                            {landTypeLabel}
-                          </span>
-                          {isActive && (
-                            <span className="text-xs text-yellow-400">生产中</span>
-                          )}
-                        </div>
-                        <div className="flex gap-4 text-xs text-gray-400">
-                          <span>坐标: ({land.coordinate_x || land.x || 0}, {land.coordinate_y || land.y || 0})</span>
-                          {(land.yld_capacity || land.initial_price) && Number(land.yld_capacity || land.initial_price) > 0 && (
-                            <span>储量: {formatNumber(Number(land.yld_capacity || land.initial_price), 0)}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-2xl">
-                        {isSelected && '✅'}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-          
-          {/* 提示信息 */}
-          {selectedLand && (
-            <div className="bg-green-900/20 border border-green-500/30 rounded p-3">
-              <p className="text-xs text-green-400">
-                ✅ 已选择: {selectedLand.land_id} ({stats.selectedLandType})
-              </p>
-            </div>
-          )}
+      <div className="text-right">
+        <div className={`font-bold ${isInsufficient ? 'text-red-400' : config.color}`}>
+          {type === 'yld' ? amount.toFixed(4) : amount.toFixed(2)}
         </div>
-      )}
-      
-      {/* 工具选择标签页 */}
-      {activeTab === 'tools' && selectedLand && (
-        <div className="space-y-3">
-          {/* 快捷操作栏 */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex gap-2">
-              <PixelButton
-                size="xs"
-                variant="secondary"
-                onClick={() => handleBatchSelectTools(10)}
-                disabled={availableTools.length === 0}
-              >
-                选10个
-              </PixelButton>
-              <PixelButton
-                size="xs"
-                variant="secondary"
-                onClick={() => handleBatchSelectTools(30)}
-                disabled={availableTools.length === 0}
-              >
-                选30个
-              </PixelButton>
-              <PixelButton
-                size="xs"
-                variant="secondary"
-                onClick={() => handleBatchSelectTools(60)}
-                disabled={availableTools.length === 0}
-              >
-                选60个
-              </PixelButton>
-              {selectedTools.length > 0 && (
-                <PixelButton
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => onToolsSelect([])}
-                >
-                  清空
-                </PixelButton>
-              )}
-            </div>
-            <select
-              value={toolSort}
-              onChange={(e) => setToolSort(e.target.value as 'durability' | 'id')}
-              className="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-700"
-            >
-              <option value="durability">按耐久度排序</option>
-              <option value="id">按ID排序</option>
-            </select>
+        {showRequired && required !== undefined && (
+          <div className="text-xs text-gray-500">
+            需要: {type === 'yld' ? required.toFixed(4) : required.toFixed(2)}
           </div>
-          
-          {/* 搜索栏 */}
-          <input
-            type="text"
-            placeholder="搜索工具ID或类型..."
-            value={toolSearch}
-            onChange={(e) => setToolSearch(e.target.value)}
-            className="w-full bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-700 focus:border-gold-500 focus:outline-none"
-          />
-          
-          {/* 选择统计 */}
-          <div className="bg-gray-800 rounded p-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">已选择工具:</span>
-              <span className={cn(
-                "font-bold",
-                selectedTools.length > maxToolsPerLand ? "text-red-400" : "text-white"
-              )}>
-                {selectedTools.length} / {maxToolsPerLand}
-              </span>
-            </div>
-            {selectedTools.length > 0 && (
-              <div className="mt-2 text-xs text-yellow-400">
-                粮食消耗: {stats.foodConsumption} 单位/小时
-              </div>
-            )}
-          </div>
-          
-          {/* 工具列表 */}
-          <div className="max-h-60 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-            {availableTools.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                {(() => {
-                  // 获取土地类型
-                  let landType = ''
-                  if (selectedLand.blueprint_info?.land_type) {
-                    landType = selectedLand.blueprint_info.land_type
-                  } else if (selectedLand.land_type) {
-                    landType = selectedLand.land_type
-                  }
-                  
-                  const requiredToolType = landType ? LAND_TOOL_MAP[landType] : null
-                  if (requiredToolType) {
-                    return `没有可用的${TOOL_TYPE_LABELS[requiredToolType] || requiredToolType}`
-                  }
-                  return '没有可用的工具'
-                })()}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {availableTools.map(tool => {
-                  const isSelected = selectedTools.includes(tool.id)
-                  
-                  return (
-                    <div
-                      key={tool.id}
-                      onClick={() => handleToggleTool(tool.id)}
-                      className={cn(
-                        "p-2 rounded border transition-all cursor-pointer",
-                        isSelected 
-                          ? "bg-gold-500/20 border-gold-500"
-                          : "bg-gray-800 border-gray-700 hover:border-gray-600"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold">
-                              {TOOL_TYPE_LABELS[tool.tool_type]}#{tool.id}
-                            </span>
-                            {isSelected && <span className="text-xs">✓</span>}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            耐久: {tool.current_durability}/{tool.max_durability}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          
-          {/* 错误提示 */}
-          {selectedTools.length > maxToolsPerLand && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
-              <p className="text-xs text-red-400">
-                ⚠️ 超过最大工具数量限制（{maxToolsPerLand}个）
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* 操作按钮 */}
-      <div className="flex gap-3 pt-2">
-        <PixelButton
-          className="flex-1"
-          onClick={onConfirm}
-          disabled={!stats.canProceed || loading}
-          variant="primary"
-        >
-          {loading ? '处理中...' : '确认开始'}
-        </PixelButton>
-        <PixelButton
-          variant="secondary"
-          onClick={onCancel}
-        >
-          取消
-        </PixelButton>
+        )}
       </div>
     </div>
   )
 }
 
-// 自定义滚动条样式（需要在全局CSS中添加）
-const scrollbarStyles = `
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+// 快捷数量选择组件（修复版）
+function QuickAmountSelector(props: { 
+  value: number
+  onChange: (value: number) => void
+  max: number
+  presets?: number[]
+  batchLimit?: number  // 添加批量限制参数
+}) {
+  const { value, onChange, max, presets = [1, 5, 10, 25], batchLimit = BATCH_LIMITS.tool } = props
+  
+  // 实际最大值为资源允许的最大值和批量限制的较小值
+  const effectiveMax = Math.min(max, batchLimit)
+  
+  // 动态生成预设值，确保不超过有效最大值
+  const effectivePresets = presets.filter(p => p <= effectiveMax)
+  
+  // 如果所有预设值都太大，至少显示一些有用的选项
+  if (effectivePresets.length === 0 && effectiveMax > 0) {
+    if (effectiveMax >= 5) {
+      effectivePresets.push(1, 5)
+    } else {
+      for (let i = 1; i <= effectiveMax && i <= 3; i++) {
+        effectivePresets.push(i)
+      }
+    }
   }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 215, 0, 0.3);
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 215, 0, 0.5);
-  }
-`
+  
+  return (
+    <div className="space-y-2">
+      {/* 显示限制信息 */}
+      {max > batchLimit && (
+        <div className="text-xs text-yellow-400 bg-yellow-900/20 p-2 rounded">
+          ⚠️ 单次最多合成 {batchLimit} 个（资源充足可合成 {max} 个）
+        </div>
+      )}
+      
+      <div className="flex gap-1">
+        {effectivePresets.map(preset => (
+          <button
+            key={preset}
+            onClick={() => onChange(preset)}
+            className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
+              value === preset 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {preset}
+          </button>
+        ))}
+        {effectiveMax > Math.max(...effectivePresets) && (
+          <button
+            onClick={() => onChange(effectiveMax)}
+            className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
+              value === effectiveMax 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-blue-700 text-blue-300 hover:bg-blue-600'
+            }`}
+          >
+            最大({effectiveMax})
+          </button>
+        )}
+      </div>
+      
+      <input
+        type="number"
+        min="1"
+        max={effectiveMax}
+        value={value}
+        onChange={(e) => {
+          const val = parseInt(e.target.value) || 1
+          onChange(Math.min(Math.max(1, val), effectiveMax))
+        }}
+        className="w-full px-3 py-2 bg-gray-900/50 border border-gray-700 rounded text-white text-sm"
+        placeholder={`自定义数量 (1-${effectiveMax})`}
+      />
+      
+      {/* 显示当前选择的数量信息 */}
+      <div className="text-xs text-gray-400 text-center">
+        将合成 <span className="text-purple-400 font-bold">{value}</span> 个
+        {max < value && (
+          <span className="text-red-400"> (资源不足)</span>
+        )}
+      </div>
+    </div>
+  )
+}
 
-export default StartMiningForm
+// 合成系统主组件
+export function SynthesisSystem({ className = '', isMobile = false }: SynthesisSystemProps) {
+  const [hasMiningAccess, setHasMiningAccess] = useState(false)
+  const [showBetaModal, setShowBetaModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'history' | 'stats'>('synthesis')
+  const [synthTab, setSynthTab] = useState<'tools' | 'bricks'>('tools')
+  const [selectedTool, setSelectedTool] = useState<'pickaxe' | 'axe' | 'hoe'>('pickaxe')
+  const [toolQuantity, setToolQuantity] = useState(1)
+  const [brickBatches, setBrickBatches] = useState(1)
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'tool' | 'brick'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  
+  // 检查内测权限
+  useEffect(() => {
+    const access = hasBetaAccess()
+    setHasMiningAccess(access)
+  }, [])
+  
+  // 使用合成系统 Hook
+  const {
+    recipes,
+    userResources,
+    loading,
+    synthesizing,
+    error,
+    synthesizeTool,
+    synthesizeBricks,
+    calculateMaxSynthesizable,
+    refetch
+  } = useSynthesisSystem({
+    enabled: hasMiningAccess,
+    autoRefresh: false
+  })
+  
+  // 使用历史记录 Hook
+  const {
+    history,
+    pagination,
+    statistics,
+    loading: historyLoading,
+    refetch: refetchHistory
+  } = useSynthesisHistory({
+    type: historyFilter,
+    page: currentPage,
+    pageSize: 10,
+    enabled: hasMiningAccess && activeTab === 'history'
+  })
+  
+  // 使用统计 Hook
+  const {
+    stats,
+    loading: statsLoading,
+    refetch: refetchStats
+  } = useSynthesisStats({
+    enabled: hasMiningAccess && activeTab === 'stats',
+    autoRefresh: true,
+    refreshInterval: 300000
+  })
+  
+  // 计算当前选中工具的消耗
+  const toolConsumption = useMemo(() => {
+    const recipe = recipes[selectedTool]
+    if (!recipe) return null
+    
+    return {
+      iron: (recipe.materials.iron || 0) * toolQuantity,
+      wood: (recipe.materials.wood || 0) * toolQuantity,
+      stone: (recipe.materials.stone || 0) * toolQuantity,
+      yld: (recipe.yld_cost || 0) * toolQuantity
+    }
+  }, [selectedTool, toolQuantity, recipes])
+  
+  // 计算砖头合成的消耗
+  const brickConsumption = useMemo(() => {
+    const recipe = recipes.brick
+    if (!recipe) return null
+    
+    return {
+      stone: (recipe.materials.stone || 0) * brickBatches,
+      wood: (recipe.materials.wood || 0) * brickBatches,
+      yld: (recipe.yld_cost || 0) * brickBatches,
+      output: (recipe.output_per_batch || 100) * brickBatches
+    }
+  }, [brickBatches, recipes])
+  
+  // 处理工具合成（修复版）
+  const handleSynthesizeTool = async () => {
+    if (toolQuantity <= 0) {
+      toast.error('请输入有效的合成数量')
+      return
+    }
+    
+    // 检查是否超过批量限制
+    if (toolQuantity > BATCH_LIMITS.tool) {
+      toast.error(`单次最多合成 ${BATCH_LIMITS.tool} 个工具`)
+      return
+    }
+    
+    const maxAvailable = calculateMaxSynthesizable(selectedTool)
+    if (toolQuantity > maxAvailable) {
+      toast.error(`资源不足，最多可合成 ${maxAvailable} 个`)
+      return
+    }
+    
+    try {
+      const result = await synthesizeTool({
+        tool_type: selectedTool,
+        quantity: toolQuantity
+      })
+      
+      if (result) {
+        setToolQuantity(1) // 重置数量
+        refetch() // 刷新配方和资源数据
+        
+        // 如果在历史记录页面，也刷新历史
+        if (activeTab === 'history') {
+          refetchHistory()
+        }
+        
+        // 成功提示
+        toast.success(`成功合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}！`)
+        console.log('[SynthesisSystem] 合成成功:', result)
+      }
+    } catch (error: any) {
+      console.error('[SynthesisSystem] 合成失败:', error)
+      
+      // 处理特定的错误消息
+      if (error?.message?.includes('1-10')) {
+        toast.error('服务器限制：单次最多合成10个工具')
+        // 自动调整数量到10
+        if (toolQuantity > 10) {
+          setToolQuantity(10)
+        }
+      }
+    }
+  }
+  
+  // 处理砖头合成
+  const handleSynthesizeBricks = async () => {
+    if (brickBatches <= 0) {
+      toast.error('请输入有效的批次数量')
+      return
+    }
+    
+    // 检查是否超过批量限制
+    if (brickBatches > BATCH_LIMITS.brick) {
+      toast.error(`单次最多合成 ${BATCH_LIMITS.brick} 批砖头`)
+      return
+    }
+    
+    const maxBatches = calculateMaxSynthesizable('brick')
+    if (brickBatches > maxBatches) {
+      toast.error(`资源不足，最多可合成 ${maxBatches} 批`)
+      return
+    }
+    
+    const result = await synthesizeBricks(brickBatches)
+    
+    if (result) {
+      setBrickBatches(1)
+      if (activeTab === 'history') {
+        refetchHistory()
+      }
+    }
+  }
+  
+  // 如果没有权限
+  if (!hasMiningAccess) {
+    return (
+      <div className={className}>
+        <PixelCard className="text-center py-8 sm:py-12">
+          <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
+          <h3 className="text-lg sm:text-xl font-bold mb-2">合成系统</h3>
+          <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">
+            需要内测权限才能使用
+          </p>
+          <PixelButton 
+            size={isMobile ? "sm" : "md"} 
+            onClick={() => setShowBetaModal(true)}
+          >
+            输入内测密码
+          </PixelButton>
+        </PixelCard>
+        
+        <BetaPasswordModal
+          isOpen={showBetaModal}
+          onClose={() => setShowBetaModal(false)}
+          onSuccess={() => {
+            setHasMiningAccess(true)
+            setShowBetaModal(false)
+            toast.success('验证成功！欢迎使用合成系统')
+          }}
+          title="合成系统内测验证"
+        />
+      </div>
+    )
+  }
+  
+  // 加载状态
+  if (loading && !recipes.pickaxe) {
+    return (
+      <div className={className}>
+        <PixelCard className="text-center py-8">
+          <div className="text-2xl mb-2">⏳</div>
+          <p className="text-gray-400">加载合成配方中...</p>
+        </PixelCard>
+      </div>
+    )
+  }
+  
+  // 渲染主界面
+  return (
+    <div className={className}>
+      <div className="space-y-4">
+        {/* 头部信息 */}
+        <PixelCard className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-lg mb-1 text-purple-400">🔨 合成工坊</h3>
+              <p className="text-xs sm:text-sm text-gray-400">
+                使用资源合成工具和材料
+              </p>
+            </div>
+            <PixelButton
+              onClick={refetch}
+              disabled={loading}
+              variant="secondary"
+              size="sm"
+            >
+              {loading ? '刷新中...' : '🔄 刷新'}
+            </PixelButton>
+          </div>
+        </PixelCard>
+        
+        {/* 资源概览 */}
+        <PixelCard className="p-3">
+          <h4 className="text-sm font-bold mb-3 text-gray-300">📦 我的资源</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {Object.entries(RESOURCE_CONFIG).filter(([key]) => key !== 'brick').map(([key, config]) => (
+              <div key={key} className="bg-gray-900/30 rounded p-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-sm">{config.icon}</span>
+                  <span className="text-xs text-gray-500">{config.name}</span>
+                </div>
+                <p className={`font-bold text-sm ${config.color}`}>
+                  {key === 'yld' 
+                    ? (userResources[key as keyof typeof userResources] || 0).toFixed(4)
+                    : Math.floor(userResources[key as keyof typeof userResources] || 0)
+                  }
+                </p>
+              </div>
+            ))}
+          </div>
+        </PixelCard>
+        
+        {/* 主标签页切换 */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('synthesis')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'synthesis'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            🔨 合成工坊
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'history'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            📜 历史记录
+          </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+              activeTab === 'stats'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            📊 统计数据
+          </button>
+        </div>
+        
+        {/* 内容区域 */}
+        {activeTab === 'synthesis' && (
+          <>
+            {/* 子标签页切换 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setSynthTab('tools')}
+                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+                  synthTab === 'tools'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                ⚒️ 工具合成
+              </button>
+              {/* 暂时隐藏砖头合成
+              <button
+                onClick={() => setSynthTab('bricks')}
+                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
+                  synthTab === 'bricks'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                🧱 砖头合成
+              </button>
+              */}
+            </div>
+            
+            {/* 工具合成内容 */}
+            {synthTab === 'tools' && (
+              <PixelCard className="p-4">
+                {/* 工具选择 */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
+                    const recipe = recipes[tool]
+                    const maxCount = calculateMaxSynthesizable(tool)
+                    const effectiveMax = Math.min(maxCount, BATCH_LIMITS.tool)
+                    const isSelected = selectedTool === tool
+                    
+                    return (
+                      <button
+                        key={tool}
+                        onClick={() => {
+                          setSelectedTool(tool)
+                          setToolQuantity(1)
+                        }}
+                        className={`p-3 rounded transition-all border-2 ${
+                          isSelected
+                            ? 'bg-purple-900/40 border-purple-400 transform scale-105'
+                            : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
+                        <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
+                        <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          可合成: {effectiveMax}
+                        </p>
+                        {maxCount > BATCH_LIMITS.tool && (
+                          <p className="text-xs text-yellow-400">
+                            (限{BATCH_LIMITS.tool})
+                          </p>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                {/* 配方详情和合成操作 */}
+                {selectedTool && recipes[selectedTool] && (
+                  <div className="space-y-4">
+                    {/* 配方信息 */}
+                    <div className="p-3 bg-gray-900/30 rounded">
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-bold text-sm flex items-center gap-2">
+                          {TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
+                        </h5>
+                        <span className="text-xs text-yellow-400">
+                          耐久: {recipes[selectedTool].durability}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mb-3">
+                        {TOOL_USAGE_MAP[selectedTool]}
+                      </p>
+                      
+                      {/* 材料需求 */}
+                      <div className="space-y-2">
+                        {toolConsumption && (
+                          <>
+                            {toolConsumption.iron > 0 && (
+                              <ResourceDisplay
+                                type="iron"
+                                amount={userResources.iron || 0}
+                                required={toolConsumption.iron}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.wood > 0 && (
+                              <ResourceDisplay
+                                type="wood"
+                                amount={userResources.wood || 0}
+                                required={toolConsumption.wood}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.stone > 0 && (
+                              <ResourceDisplay
+                                type="stone"
+                                amount={userResources.stone || 0}
+                                required={toolConsumption.stone}
+                                showRequired
+                              />
+                            )}
+                            {toolConsumption.yld > 0 && (
+                              <ResourceDisplay
+                                type="yld"
+                                amount={userResources.yld || 0}
+                                required={toolConsumption.yld}
+                                showRequired
+                              />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* 数量选择 */}
+                    <div>
+                      <label className="text-sm font-bold text-gray-300 mb-2 block">
+                        合成数量 (最多: {Math.min(calculateMaxSynthesizable(selectedTool), BATCH_LIMITS.tool)} 个)
+                      </label>
+                      <QuickAmountSelector
+                        value={toolQuantity}
+                        onChange={setToolQuantity}
+                        max={calculateMaxSynthesizable(selectedTool)}
+                        batchLimit={BATCH_LIMITS.tool}
+                        presets={[1, 5, 10, 25]}
+                      />
+                    </div>
+                    
+                    {/* 合成按钮 */}
+                    <PixelButton
+                      onClick={handleSynthesizeTool}
+                      disabled={synthesizing || calculateMaxSynthesizable(selectedTool) === 0 || toolQuantity === 0}
+                      variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
+                      className="w-full"
+                    >
+                      {synthesizing 
+                        ? '合成中...' 
+                        : `合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}`
+                      }
+                    </PixelButton>
+                    
+                    {/* 提示信息 */}
+                    {calculateMaxSynthesizable(selectedTool) > BATCH_LIMITS.tool && (
+                      <div className="text-xs text-gray-400 bg-gray-900/30 p-2 rounded">
+                        💡 提示：虽然资源充足可合成 {calculateMaxSynthesizable(selectedTool)} 个，
+                        但系统限制单次最多合成 {BATCH_LIMITS.tool} 个。您可以分多次合成。
+                      </div>
+                    )}
+                  </div>
+                )}
+              </PixelCard>
+            )}
+            
+            {/* 砖头合成内容 - 暂时隐藏
+            {synthTab === 'bricks' && (
+              <PixelCard className="p-4">
+                {recipes.brick ? (
+                  <div className="space-y-4">
+                    <div className="text-center py-4">
+                      <div className="text-5xl mb-2">🧱</div>
+                      <h4 className="font-bold text-lg mb-1">砖头合成</h4>
+                      <p className="text-sm text-gray-400">
+                        建筑材料，用于建造和升级建筑
+                      </p>
+                    </div>
+                    
+                    <div className="p-3 bg-gray-900/30 rounded">
+                      <h5 className="font-bold text-sm mb-3">每批次配方</h5>
+                      <div className="space-y-2">
+                        {brickConsumption && (
+                          <>
+                            <ResourceDisplay
+                              type="stone"
+                              amount={userResources.stone || 0}
+                              required={brickConsumption.stone}
+                              showRequired
+                            />
+                            <ResourceDisplay
+                              type="wood"
+                              amount={userResources.wood || 0}
+                              required={brickConsumption.wood}
+                              showRequired
+                            />
+                            <ResourceDisplay
+                              type="yld"
+                              amount={userResources.yld || 0}
+                              required={brickConsumption.yld}
+                              showRequired
+                            />
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-3 p-2 bg-green-900/30 rounded">
+                        <p className="text-sm text-green-400 font-bold text-center">
+                          产出: {brickConsumption?.output || 0} 个砖头
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-bold text-gray-300 mb-2 block">
+                        合成批次
+                      </label>
+                      <QuickAmountSelector
+                        value={brickBatches}
+                        onChange={setBrickBatches}
+                        max={calculateMaxSynthesizable('brick')}
+                        batchLimit={BATCH_LIMITS.brick}
+                        presets={[1, 5, 10, 25]}
+                      />
+                      <p className="text-xs text-gray-400 mt-2 text-center">
+                        将产出 {brickConsumption?.output || 0} 个砖头
+                      </p>
+                    </div>
+                    
+                    <PixelButton
+                      onClick={handleSynthesizeBricks}
+                      disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
+                      variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
+                      className="w-full"
+                    >
+                      {synthesizing 
+                        ? '合成中...' 
+                        : `合成 ${brickConsumption?.output || 0} 个砖头`
+                      }
+                    </PixelButton>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">砖头配方加载中...</p>
+                  </div>
+                )}
+              </PixelCard>
+            )}
+            */}
+          </>
+        )}
+        
+        {/* 历史记录标签页内容 */}
+        {activeTab === 'history' && (
+          <PixelCard className="p-4">
+            <div className="mb-4">
+              <div className="flex gap-2 mb-4">
+                {(['all', 'tool'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => {
+                      setHistoryFilter(filter as 'all' | 'tool' | 'brick')
+                      setCurrentPage(1)
+                    }}
+                    className={`px-3 py-1 text-xs rounded transition-all ${
+                      historyFilter === filter
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {filter === 'all' ? '全部' : '工具'}
+                  </button>
+                ))}
+                {/* 暂时隐藏砖头筛选
+                <button
+                  onClick={() => {
+                    setHistoryFilter('brick')
+                    setCurrentPage(1)
+                  }}
+                  className={`px-3 py-1 text-xs rounded transition-all ${
+                    historyFilter === 'brick'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
+                >
+                  砖头
+                </button>
+                */}
+              </div>
+              
+              {/* 统计信息 */}
+              {statistics && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">总合成</p>
+                    <p className="text-lg font-bold">{statistics.total_synthesis}</p>
+                  </div>
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">工具</p>
+                    <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
+                  </div>
+                  {/* 暂时隐藏砖头统计
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">砖头</p>
+                    <p className="text-lg font-bold text-orange-400">{statistics.bricks_crafted}</p>
+                  </div>
+                  */}
+                  <div className="bg-gray-900/30 rounded p-2">
+                    <p className="text-xs text-gray-400">幸运值</p>
+                    <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2) || '0.00'}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* 历史记录列表 */}
+              {historyLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">加载中...</p>
+                </div>
+              ) : history && history.length > 0 ? (
+                <div className="space-y-2">
+                  {history.map((item) => (
+                    <div key={item.id} className="bg-gray-900/30 rounded p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {item.type === 'brick' ? '🧱' : 
+                             item.tool_type === 'pickaxe' ? '⛏️' :
+                             item.tool_type === 'axe' ? '🪓' : '🌾'}
+                          </span>
+                          <span className="font-bold">{item.tool_display || '砖头'}</span>
+                          {item.quality && QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG] && (
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].bgColor
+                            } ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].color}`}>
+                              {QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].name}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500">
+                          {new Date(item.created_at).toLocaleString('zh-CN', { 
+                            month: '2-digit', 
+                            day: '2-digit', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        消耗: 
+                        {item.materials_consumed.iron && ` 铁${item.materials_consumed.iron}`}
+                        {item.materials_consumed.wood && ` 木${item.materials_consumed.wood}`}
+                        {item.materials_consumed.stone && ` 石${item.materials_consumed.stone}`}
+                        {item.materials_consumed.yld && ` YLD${item.materials_consumed.yld}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">暂无合成记录</p>
+                </div>
+              )}
+              
+              {/* 分页 */}
+              {pagination && pagination.total_pages > 1 && (
+                <div className="flex justify-center gap-2 mt-4">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
+                  >
+                    上一页
+                  </button>
+                  <span className="px-3 py-1 text-sm">
+                    {currentPage} / {pagination.total_pages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(pagination.total_pages, currentPage + 1))}
+                    disabled={currentPage === pagination.total_pages}
+                    className="px-3 py-1 text-sm bg-gray-700 rounded disabled:opacity-50"
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </div>
+          </PixelCard>
+        )}
+        
+        {/* 统计数据标签页内容 */}
+        {activeTab === 'stats' && (
+          <PixelCard className="p-4">
+            {statsLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">加载统计数据...</p>
+              </div>
+            ) : stats ? (
+              <div className="space-y-4">
+                {/* 总体统计 */}
+                <div>
+                  <h4 className="font-bold text-sm mb-3 text-yellow-400">📊 合成统计</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">历史总计</p>
+                      <p className="text-lg font-bold">{stats.synthesis.total_all_time}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">本周</p>
+                      <p className="text-lg font-bold text-green-400">{stats.synthesis.total_this_week}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">本月</p>
+                      <p className="text-lg font-bold text-blue-400">{stats.synthesis.total_this_month}</p>
+                    </div>
+                    <div className="bg-gray-900/30 rounded p-2">
+                      <p className="text-xs text-gray-400">日均</p>
+                      <p className="text-lg font-bold text-purple-400">{stats.synthesis.average_per_day.toFixed(1)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 工具统计 */}
+                {stats.tools && stats.tools.by_type && (
+                  <div>
+                    <h4 className="font-bold text-sm mb-3 text-purple-400">⚒️ 工具分布</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {stats.tools.by_type.map((item) => (
+                        <div key={item.tool_type} className="bg-gray-900/30 rounded p-2 text-center">
+                          <span className="text-lg">
+                            {item.tool_type === 'pickaxe' ? '⛏️' :
+                             item.tool_type === 'axe' ? '🪓' : '🌾'}
+                          </span>
+                          <p className="text-xs text-gray-400 mt-1">{TOOL_TYPE_MAP[item.tool_type as keyof typeof TOOL_TYPE_MAP] || item.tool_type}</p>
+                          <p className="font-bold">{item.count}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 品质分布 */}
+                {stats.tools && stats.tools.by_quality && (
+                  <div>
+                    <h4 className="font-bold text-sm mb-3 text-blue-400">💎 品质分布</h4>
+                    <div className="space-y-2">
+                      {stats.tools.by_quality.map((item) => {
+                        const config = QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG]
+                        if (!config) return null
+                        const percentage = stats.tools.total > 0 
+                          ? (item.count / stats.tools.total * 100).toFixed(1)
+                          : '0'
+                        
+                        return (
+                          <div key={item.quality} className="flex items-center gap-2">
+                            <span className={`text-xs w-12 ${config.color}`}>{config.name}</span>
+                            <div className="flex-1 bg-gray-800 rounded-full h-4 relative overflow-hidden">
+                              <div 
+                                className={`h-full ${config.bgColor} transition-all`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs w-16 text-right">{item.count} ({percentage}%)</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 幸运合成 */}
+                {stats.lucky_synthesis && (
+                  <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded p-3">
+                    <h4 className="font-bold text-sm mb-2 text-yellow-400">🍀 最幸运的合成</h4>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm">
+                          {QUALITY_CONFIG[stats.lucky_synthesis.quality as keyof typeof QUALITY_CONFIG]?.name || stats.lucky_synthesis.quality} 
+                          {' '}
+                          {TOOL_TYPE_MAP[stats.lucky_synthesis.tool_type as keyof typeof TOOL_TYPE_MAP] || stats.lucky_synthesis.tool_type}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          概率: {stats.lucky_synthesis.probability}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {new Date(stats.lucky_synthesis.date).toLocaleDateString('zh-CN', { 
+                          month: '2-digit', 
+                          day: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 成就系统 */}
+                {stats.achievements && stats.achievements.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-sm mb-3 text-green-400">🏆 成就</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {stats.achievements.slice(0, 6).map((achievement, index) => (
+                        <div 
+                          key={index} 
+                          className={`p-2 rounded border ${
+                            achievement.unlocked 
+                              ? 'bg-green-900/20 border-green-600' 
+                              : 'bg-gray-900/20 border-gray-700 opacity-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">{achievement.unlocked ? '✅' : '🔒'}</span>
+                            <div className="flex-1">
+                              <p className="text-xs font-bold">{achievement.name}</p>
+                              <p className="text-xs text-gray-400">{achievement.description}</p>
+                              {achievement.progress && (
+                                <p className="text-xs text-green-400 mt-1">进度: {achievement.progress}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">暂无统计数据</p>
+              </div>
+            )}
+          </PixelCard>
+        )}
+        
+        {/* 错误提示 */}
+        {error && (
+          <PixelCard className="p-3 bg-red-900/20 border border-red-500/50">
+            <p className="text-sm text-red-400 flex items-center gap-2">
+              <span>⚠️</span>
+              {error}
+            </p>
+          </PixelCard>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default SynthesisSystem
