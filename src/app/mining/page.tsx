@@ -96,9 +96,9 @@ const MODULES = {
 // ==================== 子组件 ====================
 
 /**
- * 浮动资源栏
+ * 资源展示栏
  */
-const FloatingResourceBar = memo(({ 
+const ResourceBar = memo(({ 
   resources,
   grainWarning,
   onClick
@@ -108,39 +108,39 @@ const FloatingResourceBar = memo(({
   onClick?: (type: string) => void
 }) => {
   const resourceTypes = [
-    { key: 'wood', icon: '🌲', color: 'text-green-400' },
-    { key: 'iron', icon: '⛏️', color: 'text-gray-400' },
-    { key: 'stone', icon: '🪨', color: 'text-blue-400' },
-    { key: 'food', icon: '🌾', color: grainWarning ? 'text-red-400' : 'text-yellow-400' },
-    { key: 'yld', icon: '💎', color: 'text-purple-400' }
+    { key: 'wood', icon: '🌲', color: 'text-green-400', bgColor: 'bg-green-900/20' },
+    { key: 'iron', icon: '⛏️', color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+    { key: 'stone', icon: '🪨', color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
+    { key: 'food', icon: '🌾', color: grainWarning ? 'text-red-400' : 'text-yellow-400', bgColor: grainWarning ? 'bg-red-900/20' : 'bg-yellow-900/20' },
+    { key: 'yld', icon: '💎', color: 'text-purple-400', bgColor: 'bg-purple-900/20' }
   ]
   
   return (
-    <div className="fixed top-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
-      <div className="container mx-auto px-3 py-2">
-        <div className="flex items-center justify-between gap-2 overflow-x-auto">
-          {resourceTypes.map(({ key, icon, color }) => (
-            <button
-              key={key}
-              onClick={() => onClick?.(key)}
-              className="flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-800/50 transition-all min-w-fit"
-            >
-              <span className="text-base">{icon}</span>
-              <span className={cn("text-xs font-bold", color)}>
-                {formatResource(resources[key] || 0)}
-              </span>
-              {key === 'food' && grainWarning && (
-                <span className="text-xs text-red-400">!</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="grid grid-cols-5 gap-2 mb-4">
+      {resourceTypes.map(({ key, icon, color, bgColor }) => (
+        <button
+          key={key}
+          onClick={() => onClick?.(key)}
+          className={cn(
+            "flex flex-col items-center justify-center p-2 rounded-lg transition-all",
+            bgColor,
+            "hover:scale-105 active:scale-95"
+          )}
+        >
+          <span className="text-xl mb-1">{icon}</span>
+          <span className={cn("text-xs font-bold", color)}>
+            {formatResource(resources[key] || 0)}
+          </span>
+          {key === 'food' && grainWarning && (
+            <span className="text-xs text-red-400">!</span>
+          )}
+        </button>
+      ))}
     </div>
   )
 })
 
-FloatingResourceBar.displayName = 'FloatingResourceBar'
+ResourceBar.displayName = 'ResourceBar'
 
 /**
  * 模块卡片
@@ -201,29 +201,52 @@ const ModuleCard = memo(({
 ModuleCard.displayName = 'ModuleCard'
 
 /**
- * 快速统计卡片
+ * 快速统计卡片 - 可点击跳转
  */
-const QuickStats = memo(({ stats }: { stats: any }) => {
+const QuickStats = memo(({ 
+  stats,
+  onMinesClick,
+  onSessionsClick,
+  onToolsClick
+}: { 
+  stats: any
+  onMinesClick: () => void
+  onSessionsClick: () => void
+  onToolsClick: () => void
+}) => {
   return (
-    <div className="grid grid-cols-4 gap-2 mb-4">
-      <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-        <p className="text-lg font-bold text-white">{stats.totalMines}</p>
+    <div className="grid grid-cols-3 gap-2 mb-4">
+      <button
+        onClick={onMinesClick}
+        className="bg-gray-800/50 hover:bg-gray-800 rounded-lg p-3 text-center transition-all hover:scale-105 active:scale-95"
+      >
+        <p className="text-2xl font-bold text-white">{stats.totalMines}</p>
         <p className="text-xs text-gray-400">矿山</p>
-      </div>
-      <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-        <p className="text-lg font-bold text-green-400">{stats.activeSessions}</p>
+      </button>
+      <button
+        onClick={onSessionsClick}
+        className="bg-gray-800/50 hover:bg-gray-800 rounded-lg p-3 text-center transition-all hover:scale-105 active:scale-95 relative"
+      >
+        {stats.collectibleSessions > 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+            <span className="text-white text-xs font-bold">{stats.collectibleSessions}</span>
+          </div>
+        )}
+        <p className="text-2xl font-bold text-green-400">{stats.activeSessions}</p>
         <p className="text-xs text-gray-400">生产中</p>
-      </div>
-      <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-        <p className="text-lg font-bold text-blue-400">{stats.totalTools}</p>
+      </button>
+      <button
+        onClick={onToolsClick}
+        className="bg-gray-800/50 hover:bg-gray-800 rounded-lg p-3 text-center transition-all hover:scale-105 active:scale-95 relative"
+      >
+        {stats.damagedTools > 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs font-bold">{stats.damagedTools}</span>
+          </div>
+        )}
+        <p className="text-2xl font-bold text-blue-400">{stats.totalTools}</p>
         <p className="text-xs text-gray-400">工具</p>
-      </div>
-      <div className="bg-gray-800/50 rounded-lg p-2 text-center">
-        <p className="text-lg font-bold text-purple-400">
-          {formatResource(stats.totalOutput)}
-        </p>
-        <p className="text-xs text-gray-400">总产出</p>
-      </div>
+      </button>
     </div>
   )
 })
@@ -550,29 +573,34 @@ export default function MiningPage() {
   
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* 浮动资源栏 */}
-      <FloatingResourceBar
-        resources={resourceData}
-        grainWarning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
-        onClick={(type) => {
-          if (type === 'food') {
-            toast('粮食市场即将开放', { icon: '🌾' })
-          }
-        }}
-      />
-      
       {/* 主内容区 */}
-      <div className="container mx-auto px-3 pt-16 pb-20 sm:pb-8">
+      <div className="container mx-auto px-3 py-4 pb-20 sm:pb-8">
         {/* 标题 */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-white mb-2">⛏️ 挖矿中心</h1>
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-bold text-white mb-1">⛏️ 挖矿中心</h1>
           <p className="text-sm text-gray-400">
             欢迎回来，{user?.nickname || user?.username}
           </p>
         </div>
         
-        {/* 快速统计 */}
-        <QuickStats stats={stats} />
+        {/* 资源展示栏 */}
+        <ResourceBar
+          resources={resourceData}
+          grainWarning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
+          onClick={(type) => {
+            if (type === 'food') {
+              toast('粮食市场即将开放', { icon: '🌾' })
+            }
+          }}
+        />
+        
+        {/* 快速统计 - 可点击跳转 */}
+        <QuickStats 
+          stats={stats}
+          onMinesClick={() => handleModuleClick('mines')}
+          onSessionsClick={() => handleModuleClick('sessions')}
+          onToolsClick={() => handleModuleClick('tools')}
+        />
         
         {/* 模块卡片网格 */}
         <div className="grid grid-cols-2 gap-4">
@@ -612,9 +640,14 @@ export default function MiningPage() {
         {/* 快速提示 */}
         {stats.collectibleSessions > 0 && (
           <div className="mt-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-            <p className="text-sm text-green-400">
-              💰 你有 {stats.collectibleSessions} 个会话可以收取产出
-            </p>
+            <button
+              onClick={() => handleModuleClick('sessions')}
+              className="w-full text-left"
+            >
+              <p className="text-sm text-green-400">
+                💰 你有 {stats.collectibleSessions} 个会话可以收取产出 →
+              </p>
+            </button>
           </div>
         )}
         
