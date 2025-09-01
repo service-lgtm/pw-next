@@ -209,18 +209,20 @@ export function StartMiningForm({
     
     // 获取土地类型，处理多种可能的数据结构
     let landType = ''
-    if (selectedLand.blueprint_info?.land_type) {
+    if (selectedLand.blueprint?.land_type) {
+      landType = selectedLand.blueprint.land_type
+    } else if (selectedLand.blueprint_info?.land_type) {
       landType = selectedLand.blueprint_info.land_type
     } else if (selectedLand.land_type) {
       landType = selectedLand.land_type
     } else if (selectedLand.blueprint_name) {
       // 从 blueprint_name 推断类型
       const name = selectedLand.blueprint_name.toLowerCase()
-      if (name.includes('yld')) landType = 'yld_mine'
-      else if (name.includes('iron')) landType = 'iron_mine'
-      else if (name.includes('stone')) landType = 'stone_mine'
-      else if (name.includes('forest')) landType = 'forest'
-      else if (name.includes('farm')) landType = 'farm'
+      if (name.includes('陨石') || name.includes('yld')) landType = 'yld_mine'
+      else if (name.includes('铁')) landType = 'iron_mine'
+      else if (name.includes('石')) landType = 'stone_mine'
+      else if (name.includes('森林')) landType = 'forest'
+      else if (name.includes('农')) landType = 'farm'
     }
     
     // 使用 LAND_TOOL_MAP 获取所需的工具类型
