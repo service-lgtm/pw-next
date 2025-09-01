@@ -1,28 +1,20 @@
 // src/app/mining/StartMiningForm.tsx
-// 开始挖矿表单组件 - 修复分页问题完整版
+// 开始挖矿表单组件 - 保持原有交互的修复版
 // 
 // 文件说明：
 // 这是开始挖矿的表单组件，用于选择土地和工具，开始新的挖矿会话
 // 
 // 修改历史：
-// - 2025-01-18: 初始版本，基础的土地和工具选择功能
-// - 2025-01-30: 修复分页问题
+// - 2025-01-30: 仅修复分页问题，保持原有交互方式
 //   * 修复工具只显示20个的问题
+//   * 修复等级限制计算问题
 //   * 添加调试日志帮助定位问题
-//   * 强制使用等级计算工具数量限制
-//   * 添加分页检测和警告
-// 
-// 主要功能：
-// 1. 土地选择：支持搜索、筛选、排序
-// 2. 工具选择：支持批量选择、智能筛选、排序
-// 3. 实时验证：检查工具数量限制等
-// 4. 分页问题修复：确保显示所有工具
+//   * 保持原有的上下布局，不改变交互方式
 // 
 // 关联文件：
 // - 被 MiningSessions.tsx 使用（主挖矿会话组件）
 // - 使用 LandSelector.tsx（土地选择器）
 // - 使用 miningConstants.ts（挖矿常量定义）
-// - 调用 useProduction hooks（数据获取）
 
 'use client'
 
@@ -81,11 +73,6 @@ export function StartMiningForm({
   userLevel = 6,
   maxToolsPerLand
 }: StartMiningFormProps) {
-  const [activeTab, setActiveTab] = useState<'land' | 'tools'>('land')
-  const [toolSearchTerm, setToolSearchTerm] = useState('')
-  const [toolSortBy, setToolSortBy] = useState<'id' | 'durability'>('durability')
-  const [showAllTools, setShowAllTools] = useState(false)
-  
   // 使用传入的或默认的等级和限制
   const actualUserLevel = userLevel ?? 6
   // 强制使用等级计算的值，忽略传入的 maxToolsPerLand
@@ -93,15 +80,15 @@ export function StartMiningForm({
   
   // 调试日志 - 帮助定位问题
   useEffect(() => {
-    console.log('[StartMiningForm] 调试信息（修复版）:', {
+    console.log('[StartMiningForm] 调试信息:', {
       传入的userLevel: userLevel,
       传入的maxToolsPerLand: maxToolsPerLand,
       实际使用的等级: actualUserLevel,
       实际最大工具数: actualMaxTools,
-      根据等级计算的工具数: getMaxToolsForLevel(actualUserLevel),
-      注意: '现在强制使用等级计算的值'
+      总工具数: tools?.length || 0,
+      可用工具数: availableTools.length
     })
-  }, [userLevel, maxToolsPerLand, actualUserLevel, actualMaxTools])
+  }, [userLevel, maxToolsPerLand, actualUserLevel, actualMaxTools, tools, availableTools])
   
   // 筛选可用工具 - 修复：确保显示所有工具
   const availableTools = useMemo(() => {
@@ -129,35 +116,6 @@ export function StartMiningForm({
       console.warn('建议：检查 useMyTools Hook 是否设置了足够大的 page_size')
     }
   }, [tools])
-  
-  // 搜索和排序工具
-  const displayedTools = useMemo(() => {
-    let filtered = [...availableTools]
-    
-    // 搜索
-    if (toolSearchTerm) {
-      filtered = filtered.filter(tool =>
-        tool.tool_id.toLowerCase().includes(toolSearchTerm.toLowerCase()) ||
-        tool.tool_type_display?.toLowerCase().includes(toolSearchTerm.toLowerCase())
-      )
-    }
-    
-    // 排序
-    filtered.sort((a, b) => {
-      if (toolSortBy === 'durability') {
-        return (b.current_durability || 0) - (a.current_durability || 0)
-      } else {
-        return a.tool_id.localeCompare(b.tool_id)
-      }
-    })
-    
-    // 限制显示数量（性能优化）
-    if (!showAllTools && filtered.length > 50) {
-      return filtered.slice(0, 50)
-    }
-    
-    return filtered
-  }, [availableTools, toolSearchTerm, toolSortBy, showAllTools])
   
   // 处理工具选择
   const handleToolSelection = (toolId: number) => {
@@ -223,197 +181,93 @@ export function StartMiningForm({
   
   return (
     <div className="space-y-4">
-      {/* 标签页切换 */}
-      <div className="flex gap-2 border-b border-gray-700">
-        <button
-          onClick={() => setActiveTab('land')}
-          className={cn(
-            "px-4 py-2 text-sm font-bold transition-all",
-            activeTab === 'land'
-              ? "text-gold-500 border-b-2 border-gold-500"
-              : "text-gray-400 hover:text-white"
-          )}
-        >
-          1. 选择土地
-          {selectedLand && " ✓"}
-        </button>
-        <button
-          onClick={() => setActiveTab('tools')}
-          className={cn(
-            "px-4 py-2 text-sm font-bold transition-all",
-            activeTab === 'tools'
-              ? "text-gold-500 border-b-2 border-gold-500"
-              : "text-gray-400 hover:text-white",
-            !selectedLand && "opacity-50 cursor-not-allowed"
-          )}
-          disabled={!selectedLand}
-        >
-          2. 选择工具
-          {selectedTools.length > 0 && ` (${selectedTools.length})`}
-        </button>
+      {/* 土地选择 */}
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-gray-300">选择土地</label>
+        <LandSelector
+          lands={userLands || []}
+          selectedLand={selectedLand}
+          onSelect={onLandSelect}
+          activeSessions={activeSessions}
+          showError={false}
+          className="w-full"
+        />
       </div>
       
-      {/* 土地选择标签页 */}
-      {activeTab === 'land' && (
-        <div className="space-y-4">
-          <div className="text-sm text-gray-400">
-            选择一块可用的土地开始挖矿
-          </div>
-          
-          <LandSelector
-            lands={userLands || []}
-            selectedLand={selectedLand}
-            onSelect={onLandSelect}
-            activeSessions={activeSessions}
-            showError={false}
-            className="w-full"
-          />
-          
-          {selectedLand && (
-            <div className="flex justify-end">
-              <PixelButton
-                size="sm"
-                onClick={() => setActiveTab('tools')}
+      {/* 工具选择 */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-bold text-gray-300">
+            选择工具（最多 {actualMaxTools} 个，L{actualUserLevel}等级）
+          </label>
+          {tools && availableTools.length < tools.length && (
+            <span className="text-xs text-gray-400">
+              （{availableTools.length}/{tools.length} 个可用）
+            </span>
+          )}
+        </div>
+        
+        {/* 快捷选择按钮 */}
+        <div className="flex gap-2 flex-wrap">
+          <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(10)}>
+            选10个
+          </PixelButton>
+          <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(30)}>
+            选30个
+          </PixelButton>
+          <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(actualMaxTools)}>
+            选最多({actualMaxTools})
+          </PixelButton>
+          <PixelButton size="xs" variant="secondary" onClick={() => onToolsSelect([])}>
+            清空
+          </PixelButton>
+        </div>
+        
+        {/* 选择状态 */}
+        <div className="flex justify-between items-center p-2 bg-gray-800 rounded text-sm">
+          <span>已选择: {selectedTools.length} / {actualMaxTools}</span>
+          <span className="text-yellow-400">消耗: {foodConsumption} 粮食/小时</span>
+        </div>
+        
+        {/* 工具列表 */}
+        <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-700 rounded p-2">
+          {availableTools.length > 0 ? (
+            availableTools.map(tool => (
+              <div
+                key={tool.id}
+                onClick={() => handleToolSelection(tool.id)}
+                className={cn(
+                  "p-2 rounded cursor-pointer transition-all text-sm",
+                  "hover:bg-gray-700",
+                  selectedTools.includes(tool.id) 
+                    ? "bg-gold-900/30 border border-gold-500/50" 
+                    : "bg-gray-800"
+                )}
               >
-                下一步：选择工具
-              </PixelButton>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedTools.includes(tool.id)}
+                    onChange={() => {}}
+                    className="pointer-events-none"
+                  />
+                  <span className="flex-1">{tool.tool_id}</span>
+                  <span className="text-xs text-gray-400">
+                    {tool.tool_type_display} · 耐久: {tool.current_durability}/{tool.max_durability}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-4 text-gray-400 text-sm">
+              没有可用的工具
             </div>
           )}
         </div>
-      )}
+      </div>
       
-      {/* 工具选择标签页 */}
-      {activeTab === 'tools' && selectedLand && (
-        <div className="space-y-4">
-          <div className="text-sm text-gray-400">
-            选择工具用于挖矿（最多 {actualMaxTools} 个，基于L{actualUserLevel}等级）
-            {availableTools.length === 20 && (
-              <span className="text-yellow-400 block mt-1">
-                ⚠️ 注意：如果您有超过20个工具但只显示20个，请联系管理员修复
-              </span>
-            )}
-          </div>
-          
-          {/* 工具搜索和排序 */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="搜索工具..."
-              value={toolSearchTerm}
-              onChange={(e) => setToolSearchTerm(e.target.value)}
-              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-            />
-            <select
-              value={toolSortBy}
-              onChange={(e) => setToolSortBy(e.target.value as 'id' | 'durability')}
-              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
-            >
-              <option value="durability">按耐久度排序</option>
-              <option value="id">按ID排序</option>
-            </select>
-          </div>
-          
-          {/* 快捷选择按钮 */}
-          <div className="flex gap-2 flex-wrap">
-            <span className="text-sm text-gray-400 self-center">快速选择:</span>
-            <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(10)}>
-              10个
-            </PixelButton>
-            <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(30)}>
-              30个
-            </PixelButton>
-            <PixelButton size="xs" variant="secondary" onClick={() => handleQuickSelect(actualMaxTools)}>
-              最大({actualMaxTools}个)
-            </PixelButton>
-            <PixelButton size="xs" variant="secondary" onClick={() => onToolsSelect([])}>
-              清空
-            </PixelButton>
-          </div>
-          
-          {/* 选择状态 */}
-          <div className="flex justify-between items-center p-3 bg-gray-800 rounded">
-            <span className="text-sm">
-              已选择: {selectedTools.length} / {actualMaxTools} 个工具
-            </span>
-            <span className="text-sm text-yellow-400">
-              预计消耗: {foodConsumption} 粮食/小时
-            </span>
-          </div>
-          
-          {/* 工具列表 */}
-          <div className="max-h-96 overflow-y-auto space-y-2">
-            {displayedTools.length > 0 ? (
-              <>
-                {displayedTools.map(tool => (
-                  <div
-                    key={tool.id}
-                    onClick={() => handleToolSelection(tool.id)}
-                    className={cn(
-                      "p-3 bg-gray-800 rounded cursor-pointer transition-all",
-                      "hover:bg-gray-700",
-                      selectedTools.includes(tool.id) && "bg-gold-900/20 border border-gold-500/50"
-                    )}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedTools.includes(tool.id)}
-                          onChange={() => {}}
-                          className="text-gold-500"
-                        />
-                        <div>
-                          <p className="font-bold text-sm">{tool.tool_id}</p>
-                          <p className="text-xs text-gray-400">
-                            {tool.tool_type_display} · 耐久度: {tool.current_durability}/{tool.max_durability}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full",
-                              tool.current_durability > tool.max_durability * 0.5
-                                ? "bg-green-500"
-                                : tool.current_durability > tool.max_durability * 0.2
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
-                            )}
-                            style={{
-                              width: `${(tool.current_durability / tool.max_durability) * 100}%`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* 显示更多按钮 */}
-                {!showAllTools && availableTools.length > 50 && (
-                  <button
-                    onClick={() => setShowAllTools(true)}
-                    className="w-full py-2 text-center text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    显示全部 {availableTools.length} 个工具
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <p>没有可用的工具</p>
-                <p className="text-sm mt-2">
-                  请先合成或修复工具
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* 底部操作按钮 */}
-      <div className="flex gap-3 pt-4 border-t border-gray-700">
+      {/* 操作按钮 */}
+      <div className="flex gap-3 pt-2">
         <PixelButton
           className="flex-1"
           onClick={handleConfirm}
