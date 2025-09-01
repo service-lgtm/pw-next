@@ -1,29 +1,20 @@
 // src/hooks/useProduction.ts
-// 生产系统 Hooks - 完全修复版（解决所有 API 响应格式问题）
+// 生产系统 Hooks - 修复分页问题完整版
 //
 // 修复说明：
 // 1. 修复了所有 "Cannot read properties of undefined" 错误
-// 2. 正确处理两种不同的 API 响应格式：
-//    - ListAPIView 格式：{results: [...], count: ..., stats: ...}
-//    - ProductionBaseView 格式：{success: true, data: {...}}
-// 3. 确保所有 Hook 返回正确的数据
-// 4. 添加详细的调试日志
+// 2. 修复分页问题：将默认 page_size 从 20 改为 200
+// 3. 正确处理两种不同的 API 响应格式
+// 4. 添加分页检测和警告
 //
-// API 响应格式说明：
-// - tools.getMyTools: ListAPIView 格式，数据在 results 字段
-// - resources.getMyResources: ListAPIView 格式，数据在 results 字段
-// - resources.getResourceStats: BaseView 格式，数据在 data 字段
-// - mining.getMySessions: ListAPIView 格式，数据在 results 字段
-// - mining.getSummary: BaseView 格式，数据在 data 字段
-// - stats.checkFoodStatus: BaseView 格式，数据在 data 字段
-// - yld.getSystemStatus: BaseView 格式，数据在 data 字段
+// 修改历史：
+// - 2025-01-30: 修复分页问题，确保获取所有工具和土地数据
 //
 // 关联文件：
 // - src/lib/api/production.ts: API 调用
 // - src/types/production.ts: 类型定义
 // - src/app/mining/page.tsx: 主页面使用
 // - src/app/mining/MiningSessions.tsx: 会话管理使用
-// - src/app/mining/MiningStats.tsx: 统计显示使用
 
 'use client'
 
@@ -42,7 +33,7 @@ import type {
 } from '@/types/production'
 import type { Land } from '@/types/assets'
 
-// ==================== 工具管理 ====================
+// ==================== 工具管理（修复分页） ====================
 
 export function useMyTools(options?: {
   enabled?: boolean
@@ -66,9 +57,11 @@ export function useMyTools(options?: {
     setError(null)
     
     try {
-      console.log('[useMyTools] Fetching tools...')
+      console.log('[useMyTools] Fetching tools with page_size: 200')
+      
+      // 重要修复：使用 page_size: 200 获取所有工具
       const response = await productionApi.tools.getMyTools({
-        page_size: 100
+        page_size: 200  // 从默认的 20 改为 200
       })
       
       console.log('[useMyTools] Raw response:', response)
@@ -77,8 +70,17 @@ export function useMyTools(options?: {
       if (response?.results) {
         setTools(response.results)
         setStats(response.stats || null)
+        
+        // 添加警告：如果有下一页数据
+        if (response.next) {
+          console.warn('[useMyTools] 警告：工具数量超过200个，可能需要进一步增加page_size')
+          toast.error('工具数量过多，部分工具可能未显示')
+        }
+        
+        console.log(`[useMyTools] 成功获取 ${response.results.length} 个工具`)
       } else if (Array.isArray(response)) {
         setTools(response)
+        console.log(`[useMyTools] 成功获取 ${response.length} 个工具（数组格式）`)
       } else {
         console.warn('[useMyTools] Unexpected response format:', response)
         setTools([])
@@ -124,238 +126,6 @@ export function useMyTools(options?: {
     }
   }
 }
-// ==================== 待收取收益查询（新增） ====================
-/**
- * 查询待收取收益
- * 对应 API: /api/production/collect/pending/
- * 用于显示用户所有pending状态的收益
- * 
- * 使用场景：
- * - 显示所有会话的待收取收益总和
- * - 整点结算后查询最新的待收取金额
- * 
- * @param options - 配置选项
- * @param options.resourceType - 资源类型过滤（可选）
- * @param options.enabled - 是否启用查询
- */
-export function useCollectPending(options?: {
-  resourceType?: string
-  enabled?: boolean
-}) {
-  const { resourceType, enabled = true } = options || {}
-  
-  const [pendingData, setPendingData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const hasFetchedRef = useRef(false)
-  const fetchingRef = useRef(false)
-  
-  const fetchPending = useCallback(async () => {
-    if (!enabled || fetchingRef.current) return
-    
-    fetchingRef.current = true
-    setLoading(true)
-    setError(null)
-    
-    try {
-      console.log('[useCollectPending] Fetching pending rewards...')
-      
-      // 构建查询参数
-      const params = resourceType ? { resource_type: resourceType } : {}
-      
-      // 调用 API - 如果 productionApi 中没有这个方法，直接使用 request
-      const response = await request<{
-        success: boolean
-        data: {
-          total_pending: number
-          sessions: Array<{
-            session_id: string
-            resource_type: string
-            hours_settled: number
-            total_pending: number
-            last_settlement: string
-          }>
-          can_collect: boolean
-          update_time: string
-          message: string
-          summary: {
-            active_sessions: number
-            total_hours_settled: number
-          }
-        }
-      }>(`/production/collect/pending/`, { params })
-      
-      console.log('[useCollectPending] Response:', response)
-      
-      // ProductionBaseView 格式：数据在 data 字段中
-      const data = response?.data || response
-      setPendingData(data)
-      hasFetchedRef.current = true
-    } catch (err: any) {
-      console.error('[useCollectPending] Error:', err)
-      setError(err?.message || '获取待收取收益失败')
-      // 即使失败也设置空数据，避免界面卡住
-      if (!pendingData) {
-        setPendingData({
-          total_pending: 0,
-          sessions: [],
-          can_collect: false,
-          summary: {
-            active_sessions: 0,
-            total_hours_settled: 0
-          }
-        })
-      }
-    } finally {
-      setLoading(false)
-      fetchingRef.current = false
-    }
-  }, [enabled, resourceType, pendingData])
-  
-  // 初始加载
-  useEffect(() => {
-    if (enabled && !hasFetchedRef.current) {
-      fetchPending()
-    }
-  }, [enabled])
-  
-  return {
-    pendingData,
-    loading,
-    error,
-    refetch: () => {
-      hasFetchedRef.current = false
-      return fetchPending()
-    }
-  }
-}
-
-// ==================== 小时结算状态查询（新增） ====================
-/**
- * 查询小时结算状态
- * 对应 API: /api/production/settlement/hourly/
- * 用于显示最近的结算记录和全网状态
- * 
- * 使用场景：
- * - 查看最近24小时的结算记录
- * - 查看当前小时的全网挖矿状态
- * - 了解自己的工具权重占比
- * 
- * @param options - 配置选项
- * @param options.hours - 查询最近几小时，默认24
- * @param options.resourceType - 资源类型，默认yld
- * @param options.enabled - 是否启用查询
- */
-export function useHourlySettlement(options?: {
-  hours?: number
-  resourceType?: string
-  enabled?: boolean
-}) {
-  const { hours = 24, resourceType = 'yld', enabled = true } = options || {}
-  
-  const [settlementData, setSettlementData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const hasFetchedRef = useRef(false)
-  const fetchingRef = useRef(false)
-  
-  const fetchSettlement = useCallback(async () => {
-    if (!enabled || fetchingRef.current) return
-    
-    fetchingRef.current = true
-    setLoading(true)
-    setError(null)
-    
-    try {
-      console.log('[useHourlySettlement] Fetching settlement status...')
-      
-      // 调用 API - 如果 productionApi 中没有这个方法，直接使用 request
-      const response = await request<{
-        success: boolean
-        data: {
-          resource_type: string
-          snapshots: Array<{
-            hour: string
-            hourly_rate: number
-            total_tools: number
-            metadata: {
-              tool_distribution: {
-                total_tools: number
-                session_count: number
-                details: Array<{
-                  session_id: number
-                  user: string
-                  tools: number
-                  weight_percent: number
-                  minutes: number
-                }>
-              }
-            }
-          }>
-          current_hour: {
-            hour: string
-            hourly_rate: number
-            active_sessions: number
-            minutes_passed: number
-            minutes_remaining: number
-          }
-          user_settlements: Array<{
-            hour: string
-            status: 'pending' | 'distributed'
-            net_output: number
-            tool_weight: number
-          }>
-          query_hours: number
-        }
-      }>(`/production/settlement/hourly/`, { 
-        params: { 
-          hours, 
-          resource_type: resourceType 
-        }
-      })
-      
-      console.log('[useHourlySettlement] Response:', response)
-      
-      // ProductionBaseView 格式：数据在 data 字段中
-      const data = response?.data || response
-      setSettlementData(data)
-      hasFetchedRef.current = true
-    } catch (err: any) {
-      console.error('[useHourlySettlement] Error:', err)
-      setError(err?.message || '获取结算状态失败')
-      // 即使失败也设置空数据
-      if (!settlementData) {
-        setSettlementData({
-          resource_type: resourceType,
-          snapshots: [],
-          current_hour: null,
-          user_settlements: [],
-          query_hours: hours
-        })
-      }
-    } finally {
-      setLoading(false)
-      fetchingRef.current = false
-    }
-  }, [enabled, hours, resourceType, settlementData])
-  
-  // 初始加载
-  useEffect(() => {
-    if (enabled && !hasFetchedRef.current) {
-      fetchSettlement()
-    }
-  }, [enabled])
-  
-  return {
-    settlementData,
-    loading,
-    error,
-    refetch: () => {
-      hasFetchedRef.current = false
-      return fetchSettlement()
-    }
-  }
-}
 
 // ==================== 资源管理 ====================
 
@@ -392,7 +162,6 @@ export function useMyResources(options?: {
         const response = await productionApi.resources.getResourceStats()
         console.log('[useMyResources] Stats response:', response)
         
-        // ProductionBaseView 格式：数据在 data 字段中
         const data = response?.data || response
         if (data?.resources) {
           const balance: ResourceBalance = {
@@ -419,7 +188,6 @@ export function useMyResources(options?: {
         const response = await productionApi.resources.getMyResources()
         console.log('[useMyResources] Resources response:', response)
         
-        // ListAPIView 格式：数据在 results 字段
         if (response?.results) {
           const balance: ResourceBalance = {
             wood: 0, iron: 0, stone: 0, yld: 0,
@@ -493,6 +261,8 @@ export function useMyResources(options?: {
   }
 }
 
+// ==================== 资源统计 ====================
+
 export function useResourceStats(options?: {
   enabled?: boolean
   autoRefresh?: boolean
@@ -518,9 +288,7 @@ export function useResourceStats(options?: {
       const response = await productionApi.resources.getResourceStats()
       console.log('[useResourceStats] Raw response:', response)
       
-      // ProductionBaseView 格式：数据在 data 字段中
       setStats(response)
-      
       hasFetchedRef.current = true
     } catch (err: any) {
       console.error('[useResourceStats] Error:', err)
@@ -560,7 +328,7 @@ export function useResourceStats(options?: {
   }
 }
 
-// ==================== 挖矿会话管理 ====================
+// ==================== 挖矿会话管理（修复分页） ====================
 
 export function useMiningSessions(options?: {
   status?: 'active' | 'paused' | 'completed'
@@ -589,17 +357,26 @@ export function useMiningSessions(options?: {
     setError(null)
     
     try {
-      console.log('[useMiningSessions] Fetching sessions...')
+      console.log('[useMiningSessions] Fetching sessions with page_size: 200')
+      
+      // 重要修复：使用 page_size: 200
       const response = await productionApi.mining.getMySessions({
         status,
-        page_size: 100
+        page_size: 200  // 从默认的 20 改为 200
       })
       
       console.log('[useMiningSessions] Raw response:', response)
       
-      // ListAPIView 格式：数据在 results 字段
       if (response?.results) {
         setSessions(response.results)
+        
+        // 添加警告
+        if (response.next) {
+          console.warn('[useMiningSessions] 警告：会话数量超过200个')
+          toast.error('会话数量过多，部分会话可能未显示')
+        }
+        
+        console.log(`[useMiningSessions] 成功获取 ${response.results.length} 个会话`)
       } else if (Array.isArray(response)) {
         setSessions(response)
       } else {
@@ -643,6 +420,113 @@ export function useMiningSessions(options?: {
     refetch: () => {
       hasFetchedRef.current = false
       return fetchSessions()
+    }
+  }
+}
+
+// ==================== 土地相关 Hooks（修复分页） ====================
+
+export function useUserLands(options?: {
+  enabled?: boolean
+  autoRefresh?: boolean
+  refreshInterval?: number
+}) {
+  const { enabled = true, autoRefresh = false, refreshInterval = 60000 } = options || {}
+  
+  const [lands, setLands] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+  
+  const fetchLands = useCallback(async () => {
+    if (!enabled || fetchingRef.current) return
+    
+    fetchingRef.current = true
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useUserLands] Fetching lands with page_size: 200')
+      
+      // 重要修复：使用 page_size: 200
+      const response = await productionApi.lands.getAvailableLands({
+        ownership: 'mine',
+        page_size: 200  // 从默认的 20 改为 200
+      })
+      
+      console.log('[useUserLands] Response from getAvailableLands:', response)
+      
+      if (response?.data?.results) {
+        setLands(response.data.results)
+        
+        // 添加警告
+        if (response.data.next) {
+          console.warn('[useUserLands] 警告：土地数量超过200个')
+          toast.error('土地数量过多，部分土地可能未显示')
+        }
+        
+        console.log(`[useUserLands] 成功获取 ${response.data.results.length} 块土地`)
+      } else if (response?.results) {
+        setLands(response.results)
+      } else if (Array.isArray(response)) {
+        setLands(response)
+      } else {
+        console.warn('[useUserLands] Unexpected response format:', response)
+        setLands([])
+      }
+      
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useUserLands] Error fetching lands:', err)
+      
+      // 尝试备用接口
+      try {
+        console.log('[useUserLands] Trying alternate endpoint getUserLands...')
+        const alternateResponse = await productionApi.lands.getUserLands()
+        
+        if (alternateResponse?.data?.results) {
+          setLands(alternateResponse.data.results)
+        } else if (alternateResponse?.results) {
+          setLands(alternateResponse.results)
+        } else {
+          setLands([])
+        }
+      } catch (alternateErr) {
+        console.error('[useUserLands] All attempts failed:', alternateErr)
+        setLands([])
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled])
+  
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchLands()
+    }
+  }, [enabled])
+  
+  useEffect(() => {
+    if (!autoRefresh || !enabled) return
+    
+    const interval = setInterval(() => {
+      if (!fetchingRef.current) {
+        fetchLands()
+      }
+    }, refreshInterval)
+    
+    return () => clearInterval(interval)
+  }, [autoRefresh, enabled, refreshInterval, fetchLands])
+  
+  return {
+    lands,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchLands()
     }
   }
 }
@@ -826,7 +710,6 @@ export function useGrainStatus(options?: {
       const response = await productionApi.stats.checkFoodStatus()
       console.log('[useGrainStatus] Raw response:', response)
       
-      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setStatus(data)
       
@@ -896,7 +779,6 @@ export function useYLDStatus(options?: {
       const response = await productionApi.yld.getSystemStatus()
       console.log('[useYLDStatus] Raw response:', response)
       
-      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setStatus(data)
       
@@ -939,35 +821,6 @@ export function useYLDStatus(options?: {
   }
 }
 
-export function useHandleYLDExhausted() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
-  const handleExhausted = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    
-    try {
-      const response = await productionApi.yld.handleExhausted()
-      toast.success('YLD耗尽处理完成')
-      return response
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err?.message || '处理失败'
-      setError(errorMessage)
-      toast.error(errorMessage)
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-  
-  return {
-    handleExhausted,
-    loading,
-    error
-  }
-}
-
 // ==================== 挖矿预检查 ====================
 
 export function useMiningPreCheck() {
@@ -981,7 +834,6 @@ export function useMiningPreCheck() {
     
     try {
       const response = await productionApi.mining.preCheck()
-      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setCheckResult(data)
       return data
@@ -1022,7 +874,8 @@ export function useMiningSummary(options?: {
       count: 0,
       sessions: [],
       total_hourly_output: 0,
-      total_food_consumption: 0
+      total_food_consumption: 0,
+      total_pending_rewards: 0
     },
     resources: {
       iron: 0,
@@ -1041,14 +894,16 @@ export function useMiningSummary(options?: {
     },
     food_sustainability_hours: 0,
     today_production: {
-      total_output: 0,
-      collection_count: 0
+      total: 0,
+      distributed: { amount: 0 },
+      pending: { amount: 0, hours: 0 }
     },
     yld_status: {
       daily_limit: 208,
       remaining: 208,
       percentage_used: 0,
-      is_exhausted: false
+      is_exhausted: false,
+      current_hourly_rate: 0
     }
   })
   
@@ -1071,7 +926,6 @@ export function useMiningSummary(options?: {
       const response = await productionApi.mining.getSummary()
       console.log('[useMiningSummary] Raw response:', response)
       
-      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       if (data) {
         setSummary(data)
@@ -1095,7 +949,7 @@ export function useMiningSummary(options?: {
     if (enabled && !hasFetchedRef.current && !summary) {
       fetchSummary()
     }
-  }, [enabled]) // 注意：不要添加 fetchSummary 作为依赖，避免循环
+  }, [enabled])
   
   useEffect(() => {
     if (!autoRefresh || !enabled) return
@@ -1108,7 +962,7 @@ export function useMiningSummary(options?: {
     }, Math.max(refreshInterval, 60000))
     
     return () => clearInterval(interval)
-  }, [autoRefresh, enabled, refreshInterval]) // 移除 fetchSummary 依赖，避免循环
+  }, [autoRefresh, enabled, refreshInterval])
   
   return {
     summary,
@@ -1141,7 +995,6 @@ export function useSessionRateHistory(sessionId: number | null, options?: {
     
     try {
       const response = await productionApi.mining.getSessionRateHistory(sessionId)
-      // ProductionBaseView 格式：数据在 data 字段中
       const data = response?.data || response
       setHistory(data)
     } catch (err: any) {
@@ -1166,106 +1019,7 @@ export function useSessionRateHistory(sessionId: number | null, options?: {
   }
 }
 
-// ==================== 土地相关 Hooks ====================
-
-export function useUserLands(options?: {
-  enabled?: boolean
-  autoRefresh?: boolean
-  refreshInterval?: number
-}) {
-  const { enabled = true, autoRefresh = false, refreshInterval = 60000 } = options || {}
-  
-  const [lands, setLands] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const hasFetchedRef = useRef(false)
-  const fetchingRef = useRef(false)
-  
-  const fetchLands = useCallback(async () => {
-    if (!enabled || fetchingRef.current) return
-    
-    fetchingRef.current = true
-    setLoading(true)
-    setError(null)
-    
-    try {
-      console.log('[useUserLands] Fetching lands...')
-      
-      // 根据API文档，使用正确的接口：/api/v1/production/lands/available/
-      // 参数 ownership=mine 获取自己的土地
-      const response = await productionApi.lands.getAvailableLands({
-        ownership: 'mine'
-      })
-      
-      console.log('[useUserLands] Response from getAvailableLands:', response)
-      
-      // 根据API文档，响应格式是 {success: true, data: {results: [...]}}
-      if (response?.data?.results) {
-        setLands(response.data.results)
-      } else if (response?.results) {
-        // 兼容直接返回 results 的情况
-        setLands(response.results)
-      } else if (Array.isArray(response)) {
-        setLands(response)
-      } else {
-        console.warn('[useUserLands] Unexpected response format:', response)
-        setLands([])
-      }
-      
-      hasFetchedRef.current = true
-    } catch (err: any) {
-      console.error('[useUserLands] Error fetching lands:', err)
-      
-      // 如果失败，尝试其他可能的接口
-      try {
-        console.log('[useUserLands] Trying alternate endpoint getUserLands...')
-        const alternateResponse = await productionApi.lands.getUserLands()
-        
-        if (alternateResponse?.data?.results) {
-          setLands(alternateResponse.data.results)
-        } else if (alternateResponse?.results) {
-          setLands(alternateResponse.results)
-        } else {
-          setLands([])
-        }
-      } catch (alternateErr) {
-        console.error('[useUserLands] All attempts failed:', alternateErr)
-        setLands([])
-      }
-    } finally {
-      setLoading(false)
-      fetchingRef.current = false
-    }
-  }, [enabled])
-  
-  useEffect(() => {
-    if (enabled && !hasFetchedRef.current) {
-      fetchLands()
-    }
-  }, [enabled])
-  
-  useEffect(() => {
-    if (!autoRefresh || !enabled) return
-    
-    const interval = setInterval(() => {
-      if (!fetchingRef.current) {
-        fetchLands()
-      }
-    }, refreshInterval)
-    
-    return () => clearInterval(interval)
-  }, [autoRefresh, enabled, refreshInterval, fetchLands])
-  
-  return {
-    lands,
-    loading,
-    error,
-    refetch: () => {
-      hasFetchedRef.current = false
-      return fetchLands()
-    }
-  }
-}
+// ==================== 其他可用土地 ====================
 
 export function useAvailableLands(options?: {
   enabled?: boolean
@@ -1284,8 +1038,10 @@ export function useAvailableLands(options?: {
     
     try {
       if (productionApi.lands?.getAvailableLands) {
-        const response = await productionApi.lands.getAvailableLands()
-        // 处理不同的响应格式
+        const response = await productionApi.lands.getAvailableLands({
+          page_size: 200  // 修复：增加 page_size
+        })
+        
         if (response?.results) {
           setLands(response.results)
         } else if (response?.data?.results) {
@@ -1338,7 +1094,6 @@ export function useLandMiningInfo(landId: string | null, options?: {
     try {
       if (productionApi.lands?.getLandMiningInfo) {
         const response = await productionApi.lands.getLandMiningInfo(landId)
-        // 处理不同的响应格式
         const data = response?.data || response
         setInfo(data)
       } else {
@@ -1363,5 +1118,175 @@ export function useLandMiningInfo(landId: string | null, options?: {
     loading,
     error,
     refetch: fetchInfo
+  }
+}
+
+export function useHandleYLDExhausted() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const handleExhausted = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await productionApi.yld.handleExhausted()
+      toast.success('YLD耗尽处理完成')
+      return response
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || '处理失败'
+      setError(errorMessage)
+      toast.error(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+  
+  return {
+    handleExhausted,
+    loading,
+    error
+  }
+}
+
+// ==================== 待收取收益查询 ====================
+
+export function useCollectPending(options?: {
+  resourceType?: string
+  enabled?: boolean
+}) {
+  const { resourceType, enabled = true } = options || {}
+  
+  const [pendingData, setPendingData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+  
+  const fetchPending = useCallback(async () => {
+    if (!enabled || fetchingRef.current) return
+    
+    fetchingRef.current = true
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useCollectPending] Fetching pending rewards...')
+      
+      const params = resourceType ? { resource_type: resourceType } : {}
+      const response = await productionApi.mining.getCollectPending(params)
+      
+      console.log('[useCollectPending] Response:', response)
+      
+      const data = response?.data || response
+      setPendingData(data)
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useCollectPending] Error:', err)
+      setError(err?.message || '获取待收取收益失败')
+      
+      if (!pendingData) {
+        setPendingData({
+          total_pending: 0,
+          sessions: [],
+          can_collect: false,
+          summary: {
+            active_sessions: 0,
+            total_hours_settled: 0
+          }
+        })
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled, resourceType, pendingData])
+  
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchPending()
+    }
+  }, [enabled])
+  
+  return {
+    pendingData,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchPending()
+    }
+  }
+}
+
+// ==================== 小时结算状态查询 ====================
+
+export function useHourlySettlement(options?: {
+  hours?: number
+  resourceType?: string
+  enabled?: boolean
+}) {
+  const { hours = 24, resourceType = 'yld', enabled = true } = options || {}
+  
+  const [settlementData, setSettlementData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const hasFetchedRef = useRef(false)
+  const fetchingRef = useRef(false)
+  
+  const fetchSettlement = useCallback(async () => {
+    if (!enabled || fetchingRef.current) return
+    
+    fetchingRef.current = true
+    setLoading(true)
+    setError(null)
+    
+    try {
+      console.log('[useHourlySettlement] Fetching settlement status...')
+      
+      const response = await productionApi.mining.getHourlySettlement({ 
+        hours, 
+        resource_type: resourceType 
+      })
+      
+      console.log('[useHourlySettlement] Response:', response)
+      
+      const data = response?.data || response
+      setSettlementData(data)
+      hasFetchedRef.current = true
+    } catch (err: any) {
+      console.error('[useHourlySettlement] Error:', err)
+      setError(err?.message || '获取结算状态失败')
+      
+      if (!settlementData) {
+        setSettlementData({
+          resource_type: resourceType,
+          snapshots: [],
+          current_hour: null,
+          user_settlements: [],
+          query_hours: hours
+        })
+      }
+    } finally {
+      setLoading(false)
+      fetchingRef.current = false
+    }
+  }, [enabled, hours, resourceType, settlementData])
+  
+  useEffect(() => {
+    if (enabled && !hasFetchedRef.current) {
+      fetchSettlement()
+    }
+  }, [enabled])
+  
+  return {
+    settlementData,
+    loading,
+    error,
+    refetch: () => {
+      hasFetchedRef.current = false
+      return fetchSettlement()
+    }
   }
 }
