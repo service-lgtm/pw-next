@@ -1,15 +1,14 @@
 // src/app/mining/StartMiningForm.tsx
-// 开始挖矿表单组件 - 保持原有交互的修复版
+// 开始挖矿表单组件 - 修复变量初始化错误版本
 // 
 // 文件说明：
 // 这是开始挖矿的表单组件，用于选择土地和工具，开始新的挖矿会话
 // 
 // 修改历史：
-// - 2025-01-30: 仅修复分页问题，保持原有交互方式
-//   * 修复工具只显示20个的问题
-//   * 修复等级限制计算问题
-//   * 添加调试日志帮助定位问题
-//   * 保持原有的上下布局，不改变交互方式
+// - 2025-01-30: 修复 "Cannot access 'v' before initialization" 错误
+//   * 修复变量声明顺序问题
+//   * 修复 availableTools 依赖问题
+//   * 保持原有功能不变
 // 
 // 关联文件：
 // - 被 MiningSessions.tsx 使用（主挖矿会话组件）
@@ -78,18 +77,6 @@ export function StartMiningForm({
   // 强制使用等级计算的值，忽略传入的 maxToolsPerLand
   const actualMaxTools = getMaxToolsForLevel(actualUserLevel)  // 直接使用等级计算
   
-  // 调试日志 - 帮助定位问题
-  useEffect(() => {
-    console.log('[StartMiningForm] 调试信息:', {
-      传入的userLevel: userLevel,
-      传入的maxToolsPerLand: maxToolsPerLand,
-      实际使用的等级: actualUserLevel,
-      实际最大工具数: actualMaxTools,
-      总工具数: tools?.length || 0,
-      可用工具数: availableTools.length
-    })
-  }, [userLevel, maxToolsPerLand, actualUserLevel, actualMaxTools, tools, availableTools])
-  
   // 筛选可用工具 - 修复：确保显示所有工具
   const availableTools = useMemo(() => {
     const filtered = tools?.filter(tool => 
@@ -108,6 +95,19 @@ export function StartMiningForm({
     
     return filtered
   }, [tools, actualMaxTools])
+  
+  // 调试日志 - 帮助定位问题
+  // 注意：这个 useEffect 必须在 availableTools 定义之后
+  useEffect(() => {
+    console.log('[StartMiningForm] 调试信息:', {
+      传入的userLevel: userLevel,
+      传入的maxToolsPerLand: maxToolsPerLand,
+      实际使用的等级: actualUserLevel,
+      实际最大工具数: actualMaxTools,
+      总工具数: tools?.length || 0,
+      可用工具数: availableTools.length
+    })
+  }, [userLevel, maxToolsPerLand, actualUserLevel, actualMaxTools, tools, availableTools])
   
   // 检测分页问题
   useEffect(() => {
