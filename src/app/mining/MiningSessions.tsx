@@ -1,27 +1,25 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理主组件 - 完整修复版
+// 挖矿会话管理主组件 - 现代化设计版本
 // 
 // 文件说明：
-// 这是挖矿会话管理的主组件，负责协调各个子组件，处理业务逻辑
-// 经过重构，将展示组件和工具函数拆分到独立文件中
+// 优化后的挖矿会话管理，采用卡片式设计，简化信息展示
 // 
-// 修复历史：
+// 修改历史：
 // - 2025-01-18: 修复 yldSystemStatus 未定义错误
-// - 2025-01-18: 添加 yldStatus 属性并传递给 SessionSummary
-// - 2025-01-18: 确保所有功能完全兼容
+// - 2025-01-29: 全新卡片式设计
+//   * 简化会话卡片信息
+//   * 突出操作按钮
+//   * 优化移动端布局
+//   * 改进视觉层级
 // 
 // 主要功能：
 // 1. 管理挖矿会话的生命周期（开始、停止、收取）
-// 2. 处理用户交互和业务逻辑
-// 3. 协调各个子组件的数据流
-// 4. 处理错误和显示提示
+// 2. 显示会话状态和收益
+// 3. 快速开始新会话
 // 
 // 关联文件：
-// - 子组件: ./LandSelector, ./SessionCard, ./SessionSummary, ./StartMiningForm
-// - 工具函数: ./miningUtils, ./miningConstants
-// - 其他组件: ./MiningPreCheck, ./SessionRateHistory
+// - 子组件: ./StartMiningForm (开始挖矿表单)
 // - 被调用: @/app/mining/page.tsx (主页面)
-// - API调用: 通过 props 传入的回调函数与后端交互
 
 'use client'
 
@@ -31,26 +29,268 @@ import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
 import { MiningPreCheck } from './MiningPreCheck'
 import { SessionRateHistory } from './SessionRateHistory'
+import { StartMiningForm } from './StartMiningForm'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { MiningSession, Tool } from '@/types/production'
 import type { Land } from '@/types/assets'
 import { useStopAllSessions } from '@/hooks/useProduction'
 
-// 导入拆分的组件
-import { LandSelector } from './LandSelector'
-import { SessionCard } from './SessionCard'
-import { SessionSummary, SettlementCountdown } from './SessionSummary'
-import { StartMiningForm } from './StartMiningForm'
+// ==================== 工具函数 ====================
 
-// 导入工具函数和常量
-import { formatNumber, formatDuration } from './miningUtils'
-import { 
-  FOOD_CONSUMPTION_RATE, 
-  LAND_TYPE_MAP,
-  ERROR_TYPES,
-  TOAST_DURATION
-} from './miningConstants'
+/**
+ * 格式化数字
+ */
+function formatNumber(value: number, decimals: number = 2): string {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
+  return value.toFixed(decimals)
+}
+
+/**
+ * 格式化时长
+ */
+function formatDuration(startTime: string): string {
+  const start = new Date(startTime).getTime()
+  const now = Date.now()
+  const diff = now - start
+  
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  
+  if (hours > 24) {
+    const days = Math.floor(hours / 24)
+    return `${days}天${hours % 24}小时`
+  }
+  if (hours > 0) {
+    return `${hours}小时${minutes}分钟`
+  }
+  return `${minutes}分钟`
+}
+
+/**
+ * 获取下次结算信息
+ */
+function getNextSettlementInfo(): { time: string; minutes: number } {
+  const now = new Date()
+  const nextHour = new Date(now)
+  nextHour.setHours(now.getHours() + 1, 0, 0, 0)
+  
+  const minutes = Math.floor((nextHour.getTime() - now.getTime()) / (1000 * 60))
+  const time = nextHour.toLocaleTimeString('zh-CN', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  })
+  
+  return { time, minutes }
+}
+
+// ==================== 配置 ====================
+
+const RESOURCE_TYPES = {
+  'yld': { label: 'YLD', icon: '💎', color: 'text-purple-400', bgColor: 'bg-purple-900/20' },
+  'iron': { label: '铁矿', icon: '⛏️', color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+  'stone': { label: '石头', icon: '🪨', color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
+  'wood': { label: '木材', icon: '🌲', color: 'text-green-400', bgColor: 'bg-green-900/20' },
+  'food': { label: '粮食', icon: '🌾', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' }
+}
+
+// ==================== 子组件 ====================
+
+/**
+ * 会话统计卡片
+ */
+const SessionStats = ({ 
+  summary,
+  yldStatus,
+  onStartNew
+}: {
+  summary: any
+  yldStatus: any
+  onStartNew: () => void
+}) => {
+  const nextSettlement = getNextSettlementInfo()
+  
+  const stats = {
+    activeCount: summary?.active_sessions?.count || 0,
+    totalPending: summary?.active_sessions?.total_pending_rewards || 0,
+    foodConsumption: summary?.active_sessions?.total_food_consumption || 0,
+    foodHours: summary?.food_sustainability_hours || 0,
+    yldRemaining: yldStatus?.data?.remaining || yldStatus?.remaining || 0,
+    yldPercentage: yldStatus?.data?.percentage_used || yldStatus?.percentage_used || 0
+  }
+  
+  return (
+    <div className="space-y-3 mb-4">
+      {/* 主要统计 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="bg-gray-800 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-white">{stats.activeCount}</p>
+          <p className="text-xs text-gray-400">活跃会话</p>
+        </div>
+        <div className="bg-green-900/20 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-green-400">
+            {formatNumber(stats.totalPending, 2)}
+          </p>
+          <p className="text-xs text-gray-400">待收取</p>
+        </div>
+        <div className="bg-yellow-900/20 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-yellow-400">
+            {stats.foodHours.toFixed(1)}h
+          </p>
+          <p className="text-xs text-gray-400">粮食剩余</p>
+        </div>
+        <div className="bg-purple-900/20 rounded-lg p-3 text-center">
+          <p className="text-2xl font-bold text-purple-400">
+            {formatNumber(stats.yldRemaining, 1)}
+          </p>
+          <p className="text-xs text-gray-400">YLD剩余</p>
+        </div>
+      </div>
+      
+      {/* 下次结算倒计时 */}
+      {stats.activeCount > 0 && (
+        <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-400">⏰</span>
+            <span className="text-sm text-gray-300">下次结算</span>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold text-blue-400">{nextSettlement.time}</p>
+            <p className="text-xs text-gray-400">{nextSettlement.minutes}分钟后</p>
+          </div>
+        </div>
+      )}
+      
+      {/* 快速开始按钮 */}
+      <button
+        onClick={onStartNew}
+        className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <span className="flex items-center justify-center gap-2">
+          <span className="text-xl">⛏️</span>
+          <span>开始新的挖矿</span>
+        </span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * 会话卡片 - 简化版
+ */
+const SessionCardSimple = ({ 
+  session,
+  onStop,
+  onViewHistory
+}: {
+  session: any
+  onStop: () => void
+  onViewHistory: () => void
+}) => {
+  const sessionId = session.session_id || `Session-${session.id}`
+  const landName = session.land_name || session.land_id || '未知土地'
+  const resourceType = session.resource_type || 'yld'
+  const resourceConfig = RESOURCE_TYPES[resourceType as keyof typeof RESOURCE_TYPES] || RESOURCE_TYPES.yld
+  
+  const pendingOutput = session.pending_output || session.pending_rewards || 0
+  const settledHours = session.settled_hours || session.hours_settled || 0
+  const currentHourMinutes = session.current_hour_minutes || 0
+  const startTime = session.started_at
+  
+  return (
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-gray-700 overflow-hidden hover:border-gold-500/50 transition-all">
+      {/* 顶部状态条 */}
+      <div className={cn("h-1 bg-gradient-to-r from-green-600 to-green-500")} />
+      
+      <div className="p-4">
+        {/* 头部信息 */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{resourceConfig.icon}</span>
+            <div>
+              <p className="font-bold text-sm text-white">{sessionId}</p>
+              <p className="text-xs text-gray-400">{landName}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="bg-green-500/20 text-green-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              生产中
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{formatDuration(startTime)}</p>
+          </div>
+        </div>
+        
+        {/* 核心数据 - 只显示最重要的 */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">待收取</p>
+            <p className="text-lg font-bold text-green-400">
+              {formatNumber(pendingOutput, 2)}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-400">已结算</p>
+            <p className="text-lg font-bold text-blue-400">
+              {settledHours}h
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-400">当前进度</p>
+            <p className="text-lg font-bold text-yellow-400">
+              {currentHourMinutes}/60
+            </p>
+          </div>
+        </div>
+        
+        {/* 当前小时进度条 */}
+        <div className="mb-3">
+          <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all"
+              style={{ width: `${(currentHourMinutes / 60) * 100}%` }}
+            />
+          </div>
+        </div>
+        
+        {/* 操作按钮 */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onStop}
+            className="bg-red-900/50 hover:bg-red-900/70 text-red-400 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95"
+          >
+            停止挖矿
+          </button>
+          <button
+            onClick={onViewHistory}
+            className="bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95"
+          >
+            查看历史
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 空状态
+ */
+const EmptyState = ({ onStart }: { onStart: () => void }) => (
+  <div className="text-center py-12">
+    <div className="text-6xl mb-4">⛏️</div>
+    <h3 className="text-lg font-bold text-white mb-2">暂无活跃的挖矿会话</h3>
+    <p className="text-sm text-gray-400 mb-6">
+      点击下方按钮开始您的第一个挖矿会话
+    </p>
+    <PixelButton onClick={onStart} size="md">
+      开始挖矿
+    </PixelButton>
+  </div>
+)
+
+// ==================== 主组件 ====================
 
 interface MiningSessionsProps {
   sessions: MiningSession[] | null
@@ -64,14 +304,10 @@ interface MiningSessionsProps {
   onSynthesizeTool?: () => void
   startMiningLoading?: boolean
   miningSummary?: any
-  yldStatus?: any  // 新增：YLD 状态数据（来自 /api/v1/production/yld/status/）
+  yldStatus?: any
   onRefresh?: () => void
 }
 
-/**
- * 挖矿会话管理主组件
- * 负责协调各个子组件，处理业务逻辑
- */
 export function MiningSessions({
   sessions,
   loading,
@@ -84,10 +320,10 @@ export function MiningSessions({
   onSynthesizeTool,
   startMiningLoading = false,
   miningSummary,
-  yldStatus,  // 接收 YLD 状态
+  yldStatus,
   onRefresh
 }: MiningSessionsProps) {
-  // ==================== 状态管理 ====================
+  // 状态管理
   const [showStartModal, setShowStartModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showPreCheck, setShowPreCheck] = useState(false)
@@ -97,29 +333,10 @@ export function MiningSessions({
   const [selectedTools, setSelectedTools] = useState<number[]>([])
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'stopAll' | null>(null)
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
-  const [isMobile, setIsMobile] = useState(false)
   
   const { stopAll, loading: stopAllLoading } = useStopAllSessions()
   
-  // ==================== 副作用 ====================
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-  
-  // 调试：打印 YLD 状态
-  useEffect(() => {
-    if (yldStatus) {
-      console.log('[MiningSessions] YLD Status received:', yldStatus)
-    }
-  }, [yldStatus])
-  
-  // ==================== 数据处理 ====================
-  // 合并会话数据（优先使用 miningSummary 中的完整数据）
+  // 合并会话数据
   const displaySessions = useMemo(() => {
     if (miningSummary?.active_sessions?.sessions?.length > 0) {
       return miningSummary.active_sessions.sessions
@@ -133,273 +350,7 @@ export function MiningSessions({
     [tools]
   )
   
-  // ==================== 业务逻辑处理 ====================
-  
-  /**
-   * 处理其他类型错误
-   */
-  const handleOtherErrors = useCallback((errorData: any) => {
-    const errorMessage = errorData?.message || errorData?.detail || '请求参数错误'
-    
-    if (errorMessage.includes(ERROR_TYPES.INSUFFICIENT_FOOD)) {
-      toast.error(
-        <div>
-          <p className="font-bold">粮食不足！</p>
-          <p className="text-sm">建议先购买粮食</p>
-        </div>,
-        {
-          duration: TOAST_DURATION.MEDIUM,
-          position: 'top-center',
-          icon: '🌾'
-        }
-      )
-    } else {
-      toast.error(errorMessage, {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center'
-      })
-    }
-  }, [])
-  
-  /**
-   * 处理开始挖矿错误
-   */
-  const handleStartMiningError = useCallback((err: any) => {
-    console.error('[handleExecuteStart] 开始挖矿失败:', err)
-    
-    const errorResponse = err?.response
-    const errorData = errorResponse?.data
-    const statusCode = errorResponse?.status
-    
-    // 处理400错误
-    if (statusCode === 400 && errorData) {
-      const errorMessage = errorData.message || ''
-      
-      // 处理工具类型不匹配错误
-      if (errorMessage.includes('只能使用') || errorMessage.includes('不适用的工具')) {
-        // 解析错误信息，提取关键信息
-        const landTypeMatch = errorMessage.match(/([\u4e00-\u9fa5]+矿山|森林|农场)/g)
-        const requiredToolMatch = errorMessage.match(/只能使用([\u4e00-\u9fa5]+)/g)
-        const wrongToolsMatch = errorMessage.match(/不适用的工具：(.+?)。/g)
-        
-        const landType = landTypeMatch ? landTypeMatch[0] : '该土地'
-        const requiredTool = requiredToolMatch ? requiredToolMatch[0].replace('只能使用', '') : '正确的工具'
-        const wrongTools = wrongToolsMatch ? wrongToolsMatch[0].replace('不适用的工具：', '').replace('。', '') : ''
-        
-        toast.error(
-          <div>
-            <p className="font-bold mb-2">🔧 工具类型不匹配</p>
-            <div className="text-xs space-y-1">
-              <p className="text-yellow-400">{landType}需要使用{requiredTool}</p>
-              {wrongTools && (
-                <div className="mt-2">
-                  <p className="text-gray-300">您选择了不适用的工具：</p>
-                  <p className="text-red-400 text-[10px] mt-1">{wrongTools}</p>
-                </div>
-              )}
-              <div className="mt-3 p-2 bg-blue-900/30 rounded">
-                <p className="font-bold text-blue-400 mb-1">工具使用规则：</p>
-                <ul className="space-y-0.5 text-gray-300">
-                  <li>• 镐 → 铁矿山、石矿山、YLD矿山</li>
-                  <li>• 斧头 → 森林</li>
-                  <li>• 锄头 → 农场</li>
-                </ul>
-              </div>
-            </div>
-          </div>,
-          {
-            duration: TOAST_DURATION.LONG,
-            position: 'top-center',
-            icon: '❌'
-          }
-        )
-        // 不关闭模态框，让用户重新选择工具
-        return
-      }
-      
-      // 处理土地类型不支持挖矿
-      if (errorData.message?.includes(ERROR_TYPES.LAND_NOT_SUPPORTED)) {
-        const landType = errorData.data?.land_type || '未知'
-        const landName = errorData.data?.land_name || selectedLand?.land_id || '未知土地'
-        const supportedTypes = errorData.data?.supported_types || []
-        
-        toast.error(
-          <div>
-            <p className="font-bold mb-2">⚠️ 该土地不支持挖矿</p>
-            <div className="text-xs space-y-1">
-              <p>土地编号: {landName}</p>
-              <p>土地类型: {LAND_TYPE_MAP[landType] || landType}</p>
-              {supportedTypes.length > 0 && (
-                <>
-                  <p className="mt-2">支持挖矿的土地类型：</p>
-                  <ul className="ml-2">
-                    {supportedTypes.map((type: string) => (
-                      <li key={type}>• {LAND_TYPE_MAP[type] || type}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          </div>,
-          {
-            duration: TOAST_DURATION.LONG,
-            position: 'top-center',
-            icon: '🚫'
-          }
-        )
-        return // 不关闭模态框，让用户重新选择
-      }
-      
-      // 其他400错误
-      handleOtherErrors(errorData)
-    } else if (statusCode === 401) {
-      toast.error('登录已过期，请重新登录', {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center',
-        icon: '🔒'
-      })
-    } else if (statusCode === 403) {
-      toast.error('没有权限执行此操作', {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center',
-        icon: '🚫'
-      })
-    } else if (statusCode >= 500) {
-      toast.error('服务器错误，请稍后重试', {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center',
-        icon: '⚠️'
-      })
-    } else {
-      const errorMessage = errorData?.message || errorData?.detail || err?.message || '开始挖矿失败'
-      toast.error(errorMessage, {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center'
-      })
-    }
-  }, [selectedLand, handleOtherErrors])
-  
-  /**
-   * 执行开始挖矿
-   */
-  const handleExecuteStart = useCallback(async () => {
-    if (!selectedLand || selectedTools.length === 0) return
-    
-    try {
-      const response = await onStartMining(selectedLand.id, selectedTools)
-      
-      // 成功提示
-      if (response?.data) {
-        const data = response.data
-        toast.success(
-          <div>
-            <p className="font-bold">挖矿已开始！</p>
-            <p className="text-sm">会话ID: {data.session_id}</p>
-            <p className="text-sm">算法版本: {data.algorithm_version}</p>
-            <p className="text-sm">资源类型: {data.resource_type?.toUpperCase()}</p>
-          </div>,
-          {
-            duration: TOAST_DURATION.LONG,
-            position: 'top-center',
-            icon: '⛏️'
-          }
-        )
-      } else {
-        toast.success('挖矿已开始！', {
-          duration: TOAST_DURATION.SHORT,
-          position: 'top-center',
-          icon: '⛏️'
-        })
-      }
-      
-      // 关闭模态框并刷新
-      setShowStartModal(false)
-      setShowConfirmModal(false)
-      setSelectedLand(null)
-      setSelectedTools([])
-      setConfirmAction(null)
-      onRefresh?.()
-    } catch (err: any) {
-      handleStartMiningError(err)
-    }
-  }, [selectedLand, selectedTools, onStartMining, onRefresh, handleStartMiningError])
-  
-  /**
-   * 执行停止会话
-   */
-  const handleExecuteStop = useCallback(async () => {
-    if (!targetSessionId) return
-    
-    try {
-      const session = displaySessions.find((s: any) => 
-        s.session_pk === targetSessionId || s.id === targetSessionId
-      )
-      const response = await onStopSession(targetSessionId)
-      
-      if (response?.data) {
-        const data = response.data
-        toast.success(
-          <div>
-            <p className="font-bold">挖矿已结束！</p>
-            <p className="text-sm">总净收益: {formatNumber(data.total_collected || 0, 4)} YLD</p>
-            <p className="text-sm">结算小时数: {data.hours_settled || 0}</p>
-          </div>,
-          {
-            duration: TOAST_DURATION.MEDIUM,
-            position: 'top-center',
-            icon: '💰'
-          }
-        )
-      } else {
-        toast.success('挖矿已结束，产出已自动收取！', {
-          duration: TOAST_DURATION.SHORT,
-          position: 'top-center',
-          icon: '💰'
-        })
-      }
-      
-      setShowConfirmModal(false)
-      setTargetSessionId(null)
-      setConfirmAction(null)
-      onRefresh?.()
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err?.message || '停止生产失败'
-      toast.error(errorMessage, {
-        duration: TOAST_DURATION.MEDIUM,
-        position: 'top-center',
-        icon: '❌'
-      })
-    }
-  }, [targetSessionId, displaySessions, onStopSession, onRefresh])
-  
-  /**
-   * 停止所有会话
-   */
-  const handleStopAll = useCallback(async () => {
-    try {
-      const result = await stopAll()
-      
-      if (result?.data) {
-        toast.success('批量停止成功！', {
-          duration: TOAST_DURATION.MEDIUM,
-          position: 'top-center',
-          icon: '✅'
-        })
-      }
-      
-      setShowConfirmModal(false)
-      setConfirmAction(null)
-      
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
-    } catch (error) {
-      console.error('批量停止失败:', error)
-    }
-  }, [stopAll])
-  
-  // ==================== UI 事件处理 ====================
-  
+  // 事件处理
   const handleOpenStartModal = useCallback(() => {
     setShowPreCheck(true)
   }, [])
@@ -421,114 +372,146 @@ export function MiningSessions({
     setShowConfirmModal(true)
   }, [selectedLand, selectedTools])
   
+  const handleExecuteStart = useCallback(async () => {
+    if (!selectedLand || selectedTools.length === 0) return
+    
+    try {
+      await onStartMining(selectedLand.id, selectedTools)
+      
+      toast.success('挖矿已开始！', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '⛏️'
+      })
+      
+      setShowStartModal(false)
+      setShowConfirmModal(false)
+      setSelectedLand(null)
+      setSelectedTools([])
+      setConfirmAction(null)
+      onRefresh?.()
+    } catch (err: any) {
+      console.error('开始挖矿失败:', err)
+    }
+  }, [selectedLand, selectedTools, onStartMining, onRefresh])
+  
   const handleConfirmStop = useCallback((sessionPk: number) => {
     setTargetSessionId(sessionPk)
     setConfirmAction('stop')
     setShowConfirmModal(true)
   }, [])
   
+  const handleExecuteStop = useCallback(async () => {
+    if (!targetSessionId) return
+    
+    try {
+      await onStopSession(targetSessionId)
+      
+      toast.success('挖矿已结束，产出已收取！', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '💰'
+      })
+      
+      setShowConfirmModal(false)
+      setTargetSessionId(null)
+      setConfirmAction(null)
+      onRefresh?.()
+    } catch (err: any) {
+      console.error('停止生产失败:', err)
+    }
+  }, [targetSessionId, onStopSession, onRefresh])
+  
+  const handleStopAll = useCallback(async () => {
+    try {
+      await stopAll()
+      
+      toast.success('已停止所有会话', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '✅'
+      })
+      
+      setShowConfirmModal(false)
+      setConfirmAction(null)
+      
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (error) {
+      console.error('批量停止失败:', error)
+    }
+  }, [stopAll])
+  
   const handleViewHistory = useCallback((sessionPk: number) => {
     setSelectedSessionId(sessionPk)
     setShowRateHistory(true)
   }, [])
   
-  // ==================== 渲染 ====================
+  // 渲染
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-4xl animate-spin mb-2">⏳</div>
+        <p className="text-gray-400">加载中...</p>
+      </div>
+    )
+  }
   
   return (
     <div className="space-y-4">
-      {/* 头部操作栏 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-bold">活跃挖矿会话</h3>
-          {displaySessions.length > 0 && <SettlementCountdown />}
-        </div>
-        <div className="flex gap-2">
-          {displaySessions.length > 0 && (
+      {/* 统计概览 */}
+      <SessionStats
+        summary={miningSummary}
+        yldStatus={yldStatus}
+        onStartNew={handleOpenStartModal}
+      />
+      
+      {/* 会话列表或空状态 */}
+      {displaySessions.length > 0 ? (
+        <>
+          {/* 批量操作栏 */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">
+              活跃会话 ({displaySessions.length})
+            </h3>
             <PixelButton
               onClick={() => {
                 setConfirmAction('stopAll')
                 setShowConfirmModal(true)
               }}
               variant="secondary"
-              size={isMobile ? "xs" : "sm"}
+              size="sm"
             >
-              <span className="flex items-center gap-2">
-                <span>⏹️</span>
-                <span>全部停止</span>
-              </span>
+              全部停止
             </PixelButton>
-          )}
-          <PixelButton
-            onClick={handleOpenStartModal}
-            disabled={!userLands || userLands.length === 0 || !tools || tools.length === 0}
-            size={isMobile ? "xs" : "sm"}
-          >
-            <span className="flex items-center gap-2">
-              <span>⛏️</span>
-              <span>开始挖矿</span>
-            </span>
-          </PixelButton>
-        </div>
-      </div>
-      
-      {/* 挖矿汇总信息 - 传递 yldStatus */}
-      {miningSummary && (
-        <SessionSummary 
-          summary={miningSummary} 
-          yldStatus={yldStatus}  // 传递 YLD 状态数据
-          compact={isMobile} 
-        />
-      )}
-      
-      {/* 会话列表或空状态 */}
-      {loading ? (
-        <PixelCard className="text-center py-8">
-          <div className="text-4xl animate-spin">⏳</div>
-          <p className="text-gray-400 mt-2">加载中...</p>
-        </PixelCard>
-      ) : displaySessions.length > 0 ? (
-        <div className={cn(
-          "grid gap-4",
-          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"
-        )}>
-          {displaySessions.map((session: any) => (
-            <SessionCard
-              key={session.session_pk || session.id}
-              session={session}
-              onStop={() => handleConfirmStop(session.session_pk || session.id)}
-              onViewHistory={() => handleViewHistory(session.session_pk || session.id)}
-              isMobile={isMobile}
-            />
-          ))}
-        </div>
+          </div>
+          
+          {/* 会话网格 */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {displaySessions.map((session: any) => (
+              <SessionCardSimple
+                key={session.session_pk || session.id}
+                session={session}
+                onStop={() => handleConfirmStop(session.session_pk || session.id)}
+                onViewHistory={() => handleViewHistory(session.session_pk || session.id)}
+              />
+            ))}
+          </div>
+        </>
       ) : (
-        <PixelCard className="text-center py-12">
-          <div className="text-6xl mb-4">⛏️</div>
-          <p className="text-gray-400 mb-2">暂无活跃的挖矿会话</p>
-          <p className="text-sm text-gray-500 mb-4">
-            {!userLands || userLands.length === 0 
-              ? '您需要先拥有土地才能开始挖矿'
-              : !tools || tools.length === 0
-              ? '您需要先合成工具才能开始挖矿' 
-              : '点击"开始挖矿"按钮创建新的挖矿会话'}
-          </p>
-          {userLands && userLands.length > 0 && tools && tools.length > 0 && (
-            <PixelButton onClick={handleOpenStartModal} size="sm">
-              开始挖矿
-            </PixelButton>
-          )}
-        </PixelCard>
+        <EmptyState onStart={handleOpenStartModal} />
       )}
       
       {/* ==================== 模态框 ==================== */}
       
-      {/* 挖矿预检查模态框 */}
+      {/* 挖矿预检查 */}
       {showPreCheck && (
         <PixelModal
           isOpen={showPreCheck}
           onClose={() => setShowPreCheck(false)}
           title="挖矿条件检查"
-          size={isMobile ? "small" : "medium"}
+          size="medium"
         >
           <MiningPreCheck
             onProceed={handlePreCheckProceed}
@@ -539,7 +522,7 @@ export function MiningSessions({
         </PixelModal>
       )}
       
-      {/* 开始挖矿模态框 */}
+      {/* 开始挖矿 */}
       <PixelModal
         isOpen={showStartModal}
         onClose={() => {
@@ -547,8 +530,8 @@ export function MiningSessions({
           setSelectedLand(null)
           setSelectedTools([])
         }}
-        title="开始自主挖矿"
-        size={isMobile ? "small" : "medium"}
+        title="开始挖矿"
+        size="medium"
       >
         {userLands && tools && (
           <StartMiningForm
@@ -565,14 +548,14 @@ export function MiningSessions({
               setSelectedTools([])
             }}
             loading={startMiningLoading}
-            activeSessions={displaySessions}  // 传递活跃会话
-            userLevel={6}  // 直接设置为6，因为查询显示用户等级是6
-            maxToolsPerLand={60}  // 等级6可以用60个工具
+            activeSessions={displaySessions}
+            userLevel={6}
+            maxToolsPerLand={60}
           />
         )}
       </PixelModal>
       
-      {/* 确认操作模态框 */}
+      {/* 确认操作 */}
       <PixelModal
         isOpen={showConfirmModal}
         onClose={() => {
@@ -588,81 +571,32 @@ export function MiningSessions({
         size="small"
       >
         <div className="space-y-4">
-          {/* 开始挖矿确认 */}
           {confirmAction === 'start' && (
-            <>
-              <div className="text-center py-4">
-                <div className="text-5xl mb-3">⛏️</div>
-                <p className="text-sm text-gray-300 mb-2">
-                  您确定要开始挖矿吗？
-                </p>
-              </div>
-              
-              {selectedLand && (
-                <div className="bg-gray-800 rounded p-3 text-xs space-y-1">
-                  <p>土地：{selectedLand.land_id}</p>
-                  <p>工具数量：{selectedTools.length} 个</p>
-                  <p className="text-yellow-400">
-                    粮食消耗：{selectedTools.length * FOOD_CONSUMPTION_RATE} 单位/小时
-                  </p>
-                </div>
-              )}
-            </>
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">⛏️</div>
+              <p className="text-sm text-gray-300">确定要开始挖矿吗？</p>
+            </div>
           )}
           
-          {/* 停止会话确认 */}
           {confirmAction === 'stop' && targetSessionId && (
-            <>
-              <div className="text-center py-4">
-                <div className="text-5xl mb-3">💰</div>
-                <p className="text-sm text-gray-300 mb-2">
-                  您确定要结束挖矿吗？
-                </p>
-              </div>
-              
-              {(() => {
-                const session = displaySessions.find((s: any) => 
-                  s.session_pk === targetSessionId || s.id === targetSessionId
-                )
-                if (!session) return null
-                
-                return (
-                  <div className="bg-gray-800 rounded p-3 text-xs">
-                    <p>会话ID：{session.session_id}</p>
-                    <p className="text-green-400 font-bold">
-                      待收取净收益：{formatNumber(session.pending_output || 0, 4)} YLD
-                    </p>
-                    <p className="text-blue-400">
-                      已结算：{session.settled_hours || 0} 小时
-                    </p>
-                  </div>
-                )
-              })()}
-            </>
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">💰</div>
+              <p className="text-sm text-gray-300">确定要结束挖矿并收取产出吗？</p>
+            </div>
           )}
           
-          {/* 停止所有会话确认 */}
           {confirmAction === 'stopAll' && (
-            <>
-              <div className="text-center py-4">
-                <div className="text-5xl mb-3">⏹️</div>
-                <p className="text-sm text-gray-300 mb-2">
-                  您确定要结束所有 {displaySessions.length} 个挖矿会话吗？
-                </p>
-              </div>
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded p-3">
-                <p className="text-xs text-yellow-400">
-                  ⚠️ 所有会话的待收取收益将被自动收取
-                </p>
-              </div>
-            </>
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">⏹️</div>
+              <p className="text-sm text-gray-300">
+                确定要结束所有 {displaySessions.length} 个挖矿会话吗？
+              </p>
+            </div>
           )}
           
-          {/* 操作按钮 */}
           <div className="flex gap-3">
             <PixelButton
               className="flex-1"
-              variant={confirmAction === 'stop' || confirmAction === 'stopAll' ? 'secondary' : 'primary'}
               onClick={
                 confirmAction === 'start' ? handleExecuteStart : 
                 confirmAction === 'stopAll' ? handleStopAll :
@@ -686,7 +620,7 @@ export function MiningSessions({
         </div>
       </PixelModal>
       
-      {/* 历史记录模态框 */}
+      {/* 历史记录 */}
       {showRateHistory && selectedSessionId && (
         <PixelModal
           isOpen={showRateHistory}
@@ -695,7 +629,7 @@ export function MiningSessions({
             setSelectedSessionId(null)
           }}
           title="产出率历史"
-          size={isMobile ? "small" : "large"}
+          size="large"
         >
           <SessionRateHistory
             sessionId={selectedSessionId}
@@ -713,7 +647,7 @@ export function MiningSessions({
               setShowRateHistory(false)
               setSelectedSessionId(null)
             }}
-            compact={isMobile}
+            compact={false}
           />
         </PixelModal>
       )}
