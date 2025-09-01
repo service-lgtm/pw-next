@@ -59,32 +59,45 @@ export function useMyTools(options?: {
     try {
       console.log('[useMyTools] Fetching tools with page_size: 200')
       
-      // 重要修复：使用 page_size: 200 获取所有工具
-      const response = await productionApi.tools.getMyTools({
-        page_size: 200  // 从默认的 20 改为 200
-      })
+      // 初始请求
+      let allTools: Tool[] = []
+      let currentPage = 1
+      let hasNext = true
+      let totalStats = null
       
-      console.log('[useMyTools] Raw response:', response)
-      
-      // ListAPIView 格式：数据直接在 results 字段
-      if (response?.results) {
-        setTools(response.results)
-        setStats(response.stats || null)
+      // 循环获取所有页面
+      while (hasNext && currentPage <= 10) { // 最多获取10页，防止无限循环
+        console.log(`[useMyTools] Fetching page ${currentPage}`)
         
-        // 添加警告：如果有下一页数据
-        if (response.next) {
-          console.warn('[useMyTools] 警告：工具数量超过200个，可能需要进一步增加page_size')
-          toast.error('工具数量过多，部分工具可能未显示')
+        const response = await productionApi.tools.getMyTools({
+          page: currentPage,
+          page_size: 200  // 尝试200，但后端可能限制为20
+        })
+        
+        console.log(`[useMyTools] Page ${currentPage} response:`, {
+          count: response?.count,
+          resultsLength: response?.results?.length,
+          next: response?.next
+        })
+        
+        if (response?.results) {
+          allTools = [...allTools, ...response.results]
+          totalStats = response.stats // 使用最新的统计信息
+          hasNext = !!response.next
+          currentPage++
+        } else {
+          hasNext = false
         }
-        
-        console.log(`[useMyTools] 成功获取 ${response.results.length} 个工具`)
-      } else if (Array.isArray(response)) {
-        setTools(response)
-        console.log(`[useMyTools] 成功获取 ${response.length} 个工具（数组格式）`)
-      } else {
-        console.warn('[useMyTools] Unexpected response format:', response)
-        setTools([])
       }
+      
+      setTools(allTools)
+      setStats(totalStats)
+      
+      console.log(`[useMyTools] 成功获取所有工具:`, {
+        总数: totalStats?.total_count || allTools.length,
+        实际获取: allTools.length,
+        页数: currentPage - 1
+      })
       
       hasFetchedRef.current = true
     } catch (err: any) {
