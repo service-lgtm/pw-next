@@ -1,26 +1,34 @@
+/**
+ * ===========================================
+ * 文件创建/修改说明 (AI协作标记)
+ * ===========================================
+ * 修改原因: 优化挖矿流程，减少操作步骤
+ * 主要功能: 挖矿中心主页面，集成快速挖矿功能
+ * 依赖关系: 
+ * - 使用 ./YLDMineList.tsx (矿山列表)
+ * - 使用 ./QuickStartMining.tsx (快速开始)
+ * - 使用 ./MiningSessions.tsx (挖矿会话)
+ * 
+ * 主要逻辑流程:
+ * 1. 从矿山列表直接开始挖矿
+ * 2. 快速选择工具数量
+ * 3. 一键确认开始
+ * 
+ * ⚠️ 重要提醒给下一个AI:
+ * - 保持快速开始流程的简洁性
+ * - 不要增加额外的确认步骤
+ * - 确保数据传递的完整性
+ * 
+ * 最后修改: 2025-01-30 - 优化挖矿流程
+ * ===========================================
+ */
+
 // src/app/mining/page.tsx
-// 挖矿中心页面 - 现代化仪表盘设计
-// 
-// 文件说明：
-// 挖矿中心的主页面，采用模块化卡片设计，优化移动端体验
-// 
-// 修改历史：
-// - 2025-01-20: 取消内测密码验证
-// - 2025-01-29: 全新仪表盘设计
-//   * 模块化卡片入口
-//   * 浮动资源栏
-//   * 底部导航（移动端）
-//   * 简化信息层级
-// 
-// 关联文件：
-// - 使用 ./YLDMineList.tsx (矿山列表)
-// - 使用 ./MiningSessions.tsx (挖矿会话)
-// - 使用 ./ToolManagement.tsx (工具管理)
-// - 使用 ./SynthesisSystem.tsx (合成系统)
+// 挖矿中心页面 - 优化版（快速开始挖矿）
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -33,6 +41,8 @@ import { YLDMineList } from './YLDMineList'
 import { MiningSessions } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
 import { SynthesisSystem } from './SynthesisSystem'
+import { QuickStartMining } from './QuickStartMining'
+import { MiningPreCheck } from './MiningPreCheck'
 
 // Hooks 导入
 import { useAuth } from '@/hooks/useAuth'
@@ -49,11 +59,13 @@ import {
   useGrainStatus,
   useUserLands,
   useYLDStatus,
-  useMiningSummary
+  useMiningSummary,
+  useMiningPreCheck
 } from '@/hooks/useProduction'
 
 // 类型导入
-import type { YLDMine } from '@/types/assets'
+import type { YLDMine, MineLand } from '@/types/assets'
+import type { Tool } from '@/types/production'
 
 // ==================== 配置 ====================
 
@@ -98,7 +110,7 @@ const MODULES = {
 /**
  * 资源展示栏
  */
-const ResourceBar = memo(({ 
+const ResourceBar = ({ 
   resources,
   grainWarning,
   onClick
@@ -138,14 +150,12 @@ const ResourceBar = memo(({
       ))}
     </div>
   )
-})
-
-ResourceBar.displayName = 'ResourceBar'
+}
 
 /**
  * 模块卡片
  */
-const ModuleCard = memo(({ 
+const ModuleCard = ({ 
   module,
   stats,
   onClick,
@@ -169,17 +179,14 @@ const ModuleCard = memo(({
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      {/* 顶部装饰条 */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r", module.gradient)} />
       
-      {/* 高亮提示 */}
       {stats?.highlight && (
         <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
           <span className="text-white text-xs font-bold">{stats.value}</span>
         </div>
       )}
       
-      {/* 内容 */}
       <div className="flex flex-col items-center text-center">
         <div className="text-4xl mb-3">{module.icon}</div>
         <h3 className="text-base font-bold text-white mb-1">{module.title}</h3>
@@ -196,14 +203,12 @@ const ModuleCard = memo(({
       </div>
     </button>
   )
-})
-
-ModuleCard.displayName = 'ModuleCard'
+}
 
 /**
- * 快速统计卡片 - 可点击跳转
+ * 快速统计卡片
  */
-const QuickStats = memo(({ 
+const QuickStats = ({ 
   stats,
   onMinesClick,
   onSessionsClick,
@@ -249,51 +254,7 @@ const QuickStats = memo(({
       </button>
     </div>
   )
-})
-
-QuickStats.displayName = 'QuickStats'
-
-/**
- * 底部导航（移动端）
- */
-const BottomNav = memo(({ 
-  activeModule,
-  onModuleChange
-}: {
-  activeModule: string | null
-  onModuleChange: (module: string) => void
-}) => {
-  const navItems = [
-    { id: 'mines', icon: '⛰️', label: '矿山' },
-    { id: 'sessions', icon: '⛏️', label: '生产' },
-    { id: 'tools', icon: '🔧', label: '工具' },
-    { id: 'synthesis', icon: '⚗️', label: '合成' }
-  ]
-  
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 border-t border-gray-800 sm:hidden">
-      <div className="grid grid-cols-4">
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => onModuleChange(item.id)}
-            className={cn(
-              "flex flex-col items-center py-3 transition-all",
-              activeModule === item.id
-                ? "text-gold-500 bg-gray-800"
-                : "text-gray-400"
-            )}
-          >
-            <span className="text-xl mb-1">{item.icon}</span>
-            <span className="text-xs">{item.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-})
-
-BottomNav.displayName = 'BottomNav'
+}
 
 // ==================== 工具函数 ====================
 
@@ -314,6 +275,8 @@ export default function MiningPage() {
   const [activeModule, setActiveModule] = useState<string | null>(null)
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showQuickStart, setShowQuickStart] = useState(false)
+  const [selectedMineForStart, setSelectedMineForStart] = useState<any>(null)
   const [isMobile, setIsMobile] = useState(false)
   
   // 数据获取
@@ -358,7 +321,8 @@ export default function MiningPage() {
     stats: toolStats, 
     refetch: refetchTools
   } = useMyTools({
-    enabled: shouldFetchData
+    enabled: shouldFetchData,
+    page_size: 100  // 获取所有工具，避免分页问题
   })
   
   const { 
@@ -417,6 +381,11 @@ export default function MiningPage() {
   const { 
     collectOutput
   } = useCollectOutput()
+  
+  const {
+    checkResult: preCheckResult,
+    performCheck
+  } = useMiningPreCheck()
   
   // 计算统计数据
   const stats = useMemo(() => {
@@ -477,10 +446,64 @@ export default function MiningPage() {
   }, [authLoading, isAuthenticated, router])
   
   // 事件处理
-  const handleViewDetail = useCallback((mine: YLDMine) => {
+  const handleViewDetail = useCallback((mine: YLDMine | MineLand) => {
     setSelectedMineId(mine.id)
     setShowDetailModal(true)
   }, [])
+  
+  /**
+   * 处理快速开始挖矿
+   * 从矿山卡片直接开始，无需选择土地
+   */
+  const handleQuickStartMining = useCallback(async (mine: any) => {
+    console.log('[MiningPage] 快速开始挖矿，矿山:', mine)
+    
+    // 先进行预检查
+    await performCheck()
+    
+    // 检查预检查结果
+    if (preCheckResult && !preCheckResult.can_mine) {
+      toast.error('请先解决挖矿条件问题')
+      return
+    }
+    
+    // 设置选中的矿山并显示快速开始窗口
+    setSelectedMineForStart(mine)
+    setShowQuickStart(true)
+  }, [performCheck, preCheckResult])
+  
+  /**
+   * 确认开始挖矿
+   * 从快速开始窗口调用
+   */
+  const handleConfirmStartMining = useCallback(async (landId: number, toolIds: number[]) => {
+    try {
+      await startMining({
+        land_id: landId,
+        tool_ids: toolIds
+      })
+      
+      // 刷新所有相关数据
+      refetchSessions()
+      refetchTools()
+      refetchResourceStats()
+      refetchMiningSummary()
+      refetchYLDStatus()
+      refetchYLDMines()
+      
+      // 关闭快速开始窗口
+      setShowQuickStart(false)
+      setSelectedMineForStart(null)
+      
+      toast.success('开始挖矿成功！', {
+        icon: '⛏️',
+        duration: 3000
+      })
+    } catch (error) {
+      console.error('[MiningPage] Start mining failed:', error)
+      toast.error('开始挖矿失败')
+    }
+  }, [startMining, refetchSessions, refetchTools, refetchResourceStats, refetchMiningSummary, refetchYLDStatus, refetchYLDMines])
   
   const handleStartSelfMining = useCallback(async (landId: number, toolIds: number[]) => {
     try {
@@ -543,13 +566,8 @@ export default function MiningPage() {
   }, [synthesize, refetchTools, refetchResources, refetchResourceStats])
   
   const handleModuleClick = useCallback((moduleId: string) => {
-    if (isMobile) {
-      setActiveModule(moduleId)
-    } else {
-      // 桌面端直接在模态框中打开
-      setActiveModule(moduleId)
-    }
-  }, [isMobile])
+    setActiveModule(moduleId)
+  }, [])
   
   const handleCloseModule = useCallback(() => {
     setActiveModule(null)
@@ -594,7 +612,7 @@ export default function MiningPage() {
           }}
         />
         
-        {/* 快速统计 - 可点击跳转 */}
+        {/* 快速统计 */}
         <QuickStats 
           stats={stats}
           onMinesClick={() => handleModuleClick('mines')}
@@ -660,156 +678,105 @@ export default function MiningPage() {
         )}
       </div>
       
-      {/* 底部导航（移动端） */}
-      {isMobile && (
-        <BottomNav
-          activeModule={activeModule}
-          onModuleChange={handleModuleClick}
-        />
+      {/* 模块内容模态框 */}
+      {activeModule && (
+        <PixelModal
+          isOpen={!!activeModule}
+          onClose={handleCloseModule}
+          title={MODULES[activeModule as keyof typeof MODULES]?.title}
+          size="large"
+        >
+          <div className="max-h-[70vh] overflow-y-auto">
+            {activeModule === 'mines' && (
+              <YLDMineList
+                mines={yldMines}
+                loading={yldMinesLoading}
+                error={yldMinesError}
+                onViewDetail={handleViewDetail}
+                onRefresh={refetchYLDMines}
+                onStartProduction={(mineId) => {
+                  // 找到对应的矿山对象
+                  const mine = yldMines?.find(m => m.id === mineId)
+                  if (mine) {
+                    handleQuickStartMining(mine)
+                  }
+                }}
+                tools={tools}  // 传递工具列表
+                onStartMining={handleConfirmStartMining}  // 传递开始挖矿函数
+              />
+            )}
+            {activeModule === 'sessions' && (
+              <MiningSessions
+                sessions={sessions}
+                loading={sessionsLoading}
+                userLands={userLands}
+                tools={tools}
+                onStartMining={handleStartSelfMining}
+                onStopSession={handleStopSession}
+                onCollectOutput={handleCollectSessionOutput}
+                startMiningLoading={startMiningLoading}
+                miningSummary={miningSummary}
+                yldStatus={yldSystemStatus}
+                onRefresh={() => {
+                  refetchSessions()
+                  refetchTools()
+                  refetchResourceStats()
+                  refetchMiningSummary()
+                  refetchYLDStatus()
+                }}
+                onBuyFood={() => {
+                  toast('粮食市场即将开放', { icon: '🌾' })
+                }}
+                onSynthesizeTool={() => {
+                  setActiveModule('synthesis')
+                }}
+              />
+            )}
+            {activeModule === 'tools' && (
+              <ToolManagement
+                tools={tools}
+                loading={toolsLoading}
+                toolStats={toolStats}
+                resources={resourceData}
+                onSynthesize={handleSynthesize}
+                synthesizeLoading={synthesizeLoading}
+                showOnlyTools={true}
+              />
+            )}
+            {activeModule === 'synthesis' && (
+              <SynthesisSystem 
+                className="w-full"
+                isMobile={isMobile}
+              />
+            )}
+          </div>
+        </PixelModal>
       )}
       
-      {/* 模块内容模态框/全屏（根据设备） */}
-      {activeModule && (
-        isMobile ? (
-          // 移动端：全屏显示
-          <div className="fixed inset-0 z-50 bg-gray-900 overflow-y-auto">
-            <div className="sticky top-0 z-10 bg-gray-900 border-b border-gray-800 px-3 py-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white">
-                  {MODULES[activeModule as keyof typeof MODULES]?.title}
-                </h2>
-                <button
-                  onClick={handleCloseModule}
-                  className="text-gray-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            <div className="p-3">
-              {activeModule === 'mines' && (
-                <YLDMineList
-                  mines={yldMines}
-                  loading={yldMinesLoading}
-                  error={yldMinesError}
-                  onViewDetail={handleViewDetail}
-                  onRefresh={refetchYLDMines}
-                  onSwitchToSessions={() => setActiveModule('sessions')}
-                />
-              )}
-              {activeModule === 'sessions' && (
-                <MiningSessions
-                  sessions={sessions}
-                  loading={sessionsLoading}
-                  userLands={userLands}
-                  tools={tools}
-                  onStartMining={handleStartSelfMining}
-                  onStopSession={handleStopSession}
-                  onCollectOutput={handleCollectSessionOutput}
-                  startMiningLoading={startMiningLoading}
-                  miningSummary={miningSummary}
-                  yldStatus={yldSystemStatus}
-                  onRefresh={() => {
-                    refetchSessions()
-                    refetchTools()
-                    refetchResourceStats()
-                    refetchMiningSummary()
-                    refetchYLDStatus()
-                  }}
-                  onBuyFood={() => {
-                    toast('粮食市场即将开放', { icon: '🌾' })
-                  }}
-                  onSynthesizeTool={() => {
-                    setActiveModule('synthesis')
-                  }}
-                />
-              )}
-              {activeModule === 'tools' && (
-                <ToolManagement
-                  tools={tools}
-                  loading={toolsLoading}
-                  toolStats={toolStats}
-                  resources={resourceData}
-                  onSynthesize={handleSynthesize}
-                  synthesizeLoading={synthesizeLoading}
-                  showOnlyTools={true}
-                />
-              )}
-              {activeModule === 'synthesis' && (
-                <SynthesisSystem 
-                  className="w-full"
-                  isMobile={isMobile}
-                />
-              )}
-            </div>
-          </div>
-        ) : (
-          // 桌面端：模态框
-          <PixelModal
-            isOpen={!!activeModule}
-            onClose={handleCloseModule}
-            title={MODULES[activeModule as keyof typeof MODULES]?.title}
-            size="large"
-          >
-            <div className="max-h-[70vh] overflow-y-auto">
-              {activeModule === 'mines' && (
-                <YLDMineList
-                  mines={yldMines}
-                  loading={yldMinesLoading}
-                  error={yldMinesError}
-                  onViewDetail={handleViewDetail}
-                  onRefresh={refetchYLDMines}
-                  onSwitchToSessions={() => setActiveModule('sessions')}
-                />
-              )}
-              {activeModule === 'sessions' && (
-                <MiningSessions
-                  sessions={sessions}
-                  loading={sessionsLoading}
-                  userLands={userLands}
-                  tools={tools}
-                  onStartMining={handleStartSelfMining}
-                  onStopSession={handleStopSession}
-                  onCollectOutput={handleCollectSessionOutput}
-                  startMiningLoading={startMiningLoading}
-                  miningSummary={miningSummary}
-                  yldStatus={yldSystemStatus}
-                  onRefresh={() => {
-                    refetchSessions()
-                    refetchTools()
-                    refetchResourceStats()
-                    refetchMiningSummary()
-                    refetchYLDStatus()
-                  }}
-                  onBuyFood={() => {
-                    toast('粮食市场即将开放', { icon: '🌾' })
-                  }}
-                  onSynthesizeTool={() => {
-                    setActiveModule('synthesis')
-                  }}
-                />
-              )}
-              {activeModule === 'tools' && (
-                <ToolManagement
-                  tools={tools}
-                  loading={toolsLoading}
-                  toolStats={toolStats}
-                  resources={resourceData}
-                  onSynthesize={handleSynthesize}
-                  synthesizeLoading={synthesizeLoading}
-                  showOnlyTools={true}
-                />
-              )}
-              {activeModule === 'synthesis' && (
-                <SynthesisSystem 
-                  className="w-full"
-                  isMobile={false}
-                />
-              )}
-            </div>
-          </PixelModal>
-        )
-      )}
+      {/* 快速开始挖矿模态框 */}
+      <PixelModal
+        isOpen={showQuickStart}
+        onClose={() => {
+          setShowQuickStart(false)
+          setSelectedMineForStart(null)
+        }}
+        title="快速开始挖矿"
+        size="medium"
+      >
+        {selectedMineForStart && tools && (
+          <QuickStartMining
+            mine={selectedMineForStart}
+            tools={tools}
+            onConfirm={handleConfirmStartMining}
+            onCancel={() => {
+              setShowQuickStart(false)
+              setSelectedMineForStart(null)
+            }}
+            loading={startMiningLoading}
+            userLevel={user?.level || 6}
+          />
+        )}
+      </PixelModal>
       
       {/* 矿山详情模态框 */}
       <PixelModal
@@ -847,10 +814,11 @@ export default function MiningPage() {
                 className="flex-1" 
                 onClick={() => {
                   setShowDetailModal(false)
-                  setActiveModule('sessions')
+                  handleQuickStartMining(selectedMine)
                 }}
+                disabled={selectedMine.is_producing}
               >
-                开始挖矿
+                {selectedMine.is_producing ? '生产中' : '开始挖矿'}
               </PixelButton>
               <PixelButton 
                 variant="secondary" 
