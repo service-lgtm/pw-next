@@ -61,6 +61,8 @@ interface YLDMineListProps {
   onRefresh: () => void
   onStartProduction?: (mineId: number) => void
   onSwitchToSessions?: () => void
+  tools?: any[]  // 新增：传入工具列表
+  onStartMining?: (landId: number, toolIds: number[]) => Promise<any>  // 新增：直接开始挖矿
 }
 
 // ==================== 配置 ====================
