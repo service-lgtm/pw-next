@@ -10,15 +10,17 @@
  * 
  * 主要逻辑流程:
  * 1. 接收选中的土地信息
- * 2. 自动筛选可用工具
+ * 2. 根据土地类型筛选对应工具
  * 3. 快速选择并开始挖矿
  * 
  * ⚠️ 重要提醒给下一个AI:
  * - 这是优化用户体验的核心组件
  * - 保持简洁，避免增加复杂度
  * - 确保一键操作的流畅性
+ * - 不同土地类型需要不同的工具类型
  * 
  * 创建时间: 2025-01-30
+ * 更新时间: 2025-01-30 - 添加工具类型筛选
  * ===========================================
  */
 
@@ -62,15 +64,39 @@ export function QuickStartMining({
   // 最大工具数
   const maxTools = LEVEL_TOOL_LIMITS[userLevel] || 60
   
-  // 筛选可用工具
+  // 获取矿山类型对应的工具类型
+  const getRequiredToolType = (mine: any): string => {
+    const mineType = mine.land_type || mine.mine_type || 'yld_mine'
+    
+    // 根据矿山类型返回对应的工具类型
+    switch (mineType) {
+      case 'forest':
+        return 'axe'  // 森林使用斧头
+      case 'farm':
+        return 'hoe'  // 农场使用锄头
+      case 'yld_mine':
+      case 'yld_converted':
+      case 'iron_mine':
+      case 'stone_mine':
+        return 'pickaxe'  // 矿山使用镐
+      default:
+        return 'pickaxe'  // 默认使用镐
+    }
+  }
+  
+  // 筛选可用工具（只选择对应类型的工具）
   const availableTools = useMemo(() => {
-    if (!tools) return []
+    if (!tools || !mine) return []
+    
+    const requiredToolType = getRequiredToolType(mine)
+    
     return tools.filter(tool => 
+      tool.tool_type === requiredToolType &&  // 只选择对应类型的工具
       tool.status === 'normal' && 
       !tool.is_in_use && 
       tool.current_durability > 0
     ).sort((a, b) => (b.current_durability || 0) - (a.current_durability || 0))
-  }, [tools])
+  }, [tools, mine])
   
   // 快速选择预设
   const quickSelectOptions = useMemo(() => {
@@ -123,27 +149,48 @@ export function QuickStartMining({
     }
   }
   
+  // 获取工具类型名称
+  const getToolTypeName = (toolType: string): string => {
+    switch (toolType) {
+      case 'axe':
+        return '斧头'
+      case 'hoe':
+        return '锄头'
+      case 'pickaxe':
+        return '镐'
+      default:
+        return '工具'
+    }
+  }
+  
   // 计算资源消耗
   const foodConsumption = selectedCount * 2  // 每个工具2粮食/小时
   
   // 获取矿山类型显示
   const getMineTypeDisplay = () => {
-    if (mine.land_type === 'yld_mine' || mine.special_type === 'yld_converted') {
-      return { icon: '💎', name: 'YLD矿山', color: 'text-purple-400' }
+    const mineType = mine.land_type || mine.mine_type || 'yld_mine'
+    
+    // 直接根据实际的 land_type 判断
+    switch (mineType) {
+      case 'yld_mine':
+        return { icon: '💎', name: 'YLD矿山', color: 'text-purple-400' }
+      case 'yld_converted':
+        return { icon: '💎', name: 'YLD转换矿山', color: 'text-purple-400' }
+      case 'iron_mine':
+        return { icon: '⛏️', name: '铁矿山', color: 'text-gray-400' }
+      case 'stone_mine':
+        return { icon: '🪨', name: '石矿山', color: 'text-blue-400' }
+      case 'forest':
+        return { icon: '🌲', name: '森林', color: 'text-green-400' }
+      case 'farm':
+        return { icon: '🌾', name: '农场', color: 'text-yellow-400' }
+      default:
+        // 对于 special_type 的处理
+        if (mine.special_type === 'yld_converted') {
+          return { icon: '💎', name: 'YLD转换矿山', color: 'text-purple-400' }
+        }
+        return { icon: '⛏️', name: '矿山', color: 'text-gray-400' }
     }
-    if (mine.land_type === 'iron_mine') {
-      return { icon: '⛏️', name: '铁矿山', color: 'text-gray-400' }
-    }
-    if (mine.land_type === 'stone_mine') {
-      return { icon: '🪨', name: '石矿山', color: 'text-blue-400' }
-    }
-    if (mine.land_type === 'forest') {
-      return { icon: '🌲', name: '森林', color: 'text-green-400' }
-    }
-    if (mine.land_type === 'farm') {
-      return { icon: '🌾', name: '农场', color: 'text-yellow-400' }
-    }
-    return { icon: '⛏️', name: '矿山', color: 'text-gray-400' }
   }
   
   const mineType = getMineTypeDisplay()
@@ -167,7 +214,9 @@ export function QuickStartMining({
       {/* 工具选择 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-bold text-gray-300">选择工具数量</label>
+          <label className="text-sm font-bold text-gray-300">
+            选择{getToolTypeName(getRequiredToolType(mine))}数量
+          </label>
           <span className="text-xs text-gray-400">
             可用: {availableTools.length} / 最多: {maxTools}
           </span>
@@ -225,7 +274,7 @@ export function QuickStartMining({
       {availableTools.length === 0 && (
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
           <p className="text-sm text-red-400">
-            ❌ 没有可用的工具，请先合成工具
+            ❌ 没有可用的{getToolTypeName(getRequiredToolType(mine))}，请先合成{getToolTypeName(getRequiredToolType(mine))}
           </p>
         </div>
       )}
@@ -237,7 +286,9 @@ export function QuickStartMining({
           onClick={handleConfirm}
           disabled={loading || isConfirming || availableTools.length === 0}
         >
-          {isConfirming ? '启动中...' : `开始挖矿 (${selectedCount}个工具)`}
+          {isConfirming ? '启动中...' : availableTools.length === 0 ? 
+            `需要${getToolTypeName(getRequiredToolType(mine))}` : 
+            `开始挖矿 (${selectedCount}个${getToolTypeName(getRequiredToolType(mine))})`}
         </PixelButton>
         <PixelButton
           variant="secondary"
