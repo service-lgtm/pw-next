@@ -207,6 +207,7 @@ function getRemainingReserves(mine: YLDMine | MineLand | any): number {
 /**
  * 获取初始储量
  * 支持所有矿山类型
+ * 修复：对于YLD矿山，如果没有初始储量数据，使用当前initial_price
  */
 function getInitialReserves(mine: YLDMine | MineLand | any): number {
   // 1. 使用initial_reserves_display（新API）
@@ -231,19 +232,25 @@ function getInitialReserves(mine: YLDMine | MineLand | any): number {
     return parseFloat(mine.initial_price || '0')
   }
   
-  // 4. 对于普通YLD矿山，从metadata获取
+  // 4. 对于普通YLD矿山
   const mineType = getMineType(mine)
   if (mineType === 'yld_mine') {
+    // 从metadata获取
     if (mine.metadata?.initial_reserves !== undefined) {
       return parseFloat(mine.metadata.initial_reserves)
     }
     if (mine.metadata?.yld_capacity !== undefined) {
       return parseFloat(mine.metadata.yld_capacity)
     }
+    // 使用initial_price作为后备（对于YLD矿山，这通常是初始储量）
+    if (mine.initial_price) {
+      return parseFloat(mine.initial_price)
+    }
   }
   
-  // 5. 默认返回当前剩余储量作为初始值
-  return getRemainingReserves(mine)
+  // 5. 对于其他矿山，initial_price可能代表不同的含义
+  // 返回0以避免误导
+  return 0
 }
 
 /**
