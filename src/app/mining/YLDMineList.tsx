@@ -2,7 +2,7 @@
  * ===========================================
  * 文件创建/修改说明 (AI协作标记)
  * ===========================================
- * 修改原因: 修复储量显示逻辑、生产状态兼容性和UI问题
+ * 修改原因: 修复储量显示逻辑、生产状态兼容性和UI问题，添加工具类型支持
  * 主要功能: 显示用户的所有矿山列表（包括YLD矿山和其他资源矿山）
  * 依赖关系: 
  * - 使用 @/types/assets 中的 MineLand 类型
@@ -12,37 +12,20 @@
  * 1. 从API获取矿山数据
  * 2. 根据矿山类型处理不同的储量字段
  * 3. 显示矿山卡片和统计信息
+ * 4. 根据矿山类型确定需要的工具类型
  * 
  * ⚠️ 重要提醒给下一个AI:
  * - YLD矿山的储量逻辑特殊，需要区分converted和普通类型
  * - resource_reserves字段只对非YLD矿山有效
  * - 保持向后兼容，支持旧的数据结构
- * - 不使用backdrop-blur避免兼容性问题
+ * - 不同矿山类型需要不同的工具类型
  * 
- * 最后修改: 2025-01-30 - 修复生产状态判断和UI兼容性
+ * 最后修改: 2025-01-30 - 添加工具类型支持
  * ===========================================
  */
 
 // src/app/mining/YLDMineList.tsx
 // YLD 矿山列表组件 - 卡片收集式设计
-// 
-// 文件说明：
-// 优化后的矿山列表，采用卡片收集式设计，简化信息展示，优化移动端体验
-// 
-// 修改历史：
-// - 2025-01-19: 支持新的矿山 API 结构
-// - 2025-01-29: 全新卡片收集式设计
-// - 2025-01-30: 修复储量显示和生产状态兼容性
-//   * 修复YLD矿山储量显示逻辑
-//   * 支持resource_reserves字段
-//   * 修复is_producing状态判断
-//   * 移除backdrop-blur避免兼容性问题
-//   * 移除详情按钮简化操作
-// 
-// 关联文件：
-// - 被 @/app/mining/page.tsx 使用
-// - 使用 @/types/assets 中的 MineLand 类型
-// - 使用 @/components/shared 中的组件
 
 'use client'
 
@@ -76,7 +59,8 @@ const MINE_TYPES = {
     bgColor: 'bg-purple-900/20',
     borderColor: 'border-purple-500/30',
     textColor: 'text-purple-400',
-    accentColor: 'purple'
+    accentColor: 'purple',
+    toolType: 'pickaxe'  // 使用镐
   },
   'yld_converted': {
     label: 'YLD转换矿山',
@@ -85,7 +69,8 @@ const MINE_TYPES = {
     bgColor: 'bg-purple-900/30',
     borderColor: 'border-purple-600/40',
     textColor: 'text-purple-500',
-    accentColor: 'purple'
+    accentColor: 'purple',
+    toolType: 'pickaxe'  // 使用镐
   },
   'iron_mine': {
     label: '铁矿',
@@ -94,7 +79,8 @@ const MINE_TYPES = {
     bgColor: 'bg-gray-900/20',
     borderColor: 'border-gray-500/30',
     textColor: 'text-gray-400',
-    accentColor: 'gray'
+    accentColor: 'gray',
+    toolType: 'pickaxe'  // 使用镐
   },
   'stone_mine': {
     label: '石矿',
@@ -103,7 +89,8 @@ const MINE_TYPES = {
     bgColor: 'bg-blue-900/20',
     borderColor: 'border-blue-500/30',
     textColor: 'text-blue-400',
-    accentColor: 'blue'
+    accentColor: 'blue',
+    toolType: 'pickaxe'  // 使用镐
   },
   'forest': {
     label: '森林',
@@ -112,7 +99,8 @@ const MINE_TYPES = {
     bgColor: 'bg-green-900/20',
     borderColor: 'border-green-500/30',
     textColor: 'text-green-400',
-    accentColor: 'green'
+    accentColor: 'green',
+    toolType: 'axe'  // 使用斧头
   },
   'farm': {
     label: '农场',
@@ -121,7 +109,8 @@ const MINE_TYPES = {
     bgColor: 'bg-yellow-900/20',
     borderColor: 'border-yellow-500/30',
     textColor: 'text-yellow-400',
-    accentColor: 'yellow'
+    accentColor: 'yellow',
+    toolType: 'hoe'  // 使用锄头
   }
 }
 
@@ -209,7 +198,6 @@ function getRemainingReserves(mine: YLDMine | MineLand | any): number {
 /**
  * 获取初始储量
  * 支持所有矿山类型
- * 修复：对于YLD矿山，如果没有初始储量数据，使用当前initial_price
  */
 function getInitialReserves(mine: YLDMine | MineLand | any): number {
   // 1. 使用initial_reserves_display（新API）
@@ -289,7 +277,6 @@ function calculateEfficiency(mine: YLDMine | MineLand | any): number {
 
 /**
  * 检查是否正在生产
- * 重要：检查多个可能的情况
  */
 function isProducing(mine: YLDMine | MineLand | any): boolean {
   // 1. 明确的生产状态字段
@@ -299,13 +286,8 @@ function isProducing(mine: YLDMine | MineLand | any): boolean {
   if (mine.status === 'producing') return true
   
   // 2. 根据累计产出判断（如果有产出且储量未耗尽，可能在生产）
-  // 注意：这个判断不够准确，因为可能是历史产出
-  // 但在某些情况下可以作为补充判断
   const accumulated = parseFloat(mine.accumulated_output || '0')
   const remaining = getRemainingReserves(mine)
-  
-  // 特殊处理：对于YLD转换矿山，如果有产出记录，可能表示正在生产
-  // 但这需要结合其他信息判断，这里暂时不使用这个逻辑
   
   // 3. 默认返回false
   return false
