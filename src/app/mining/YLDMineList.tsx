@@ -2,7 +2,7 @@
  * ===========================================
  * 文件创建/修改说明 (AI协作标记)
  * ===========================================
- * 修改原因: 修复储量显示逻辑、生产状态兼容性和UI问题，添加工具类型支持
+ * 修改原因: 修复矿山类型判断错误
  * 主要功能: 显示用户的所有矿山列表（包括YLD矿山和其他资源矿山）
  * 依赖关系: 
  * - 使用 @/types/assets 中的 MineLand 类型
@@ -15,12 +15,11 @@
  * 4. 根据矿山类型确定需要的工具类型
  * 
  * ⚠️ 重要提醒给下一个AI:
- * - YLD矿山的储量逻辑特殊，需要区分converted和普通类型
- * - resource_reserves字段只对非YLD矿山有效
- * - 保持向后兼容，支持旧的数据结构
- * - 不同矿山类型需要不同的工具类型
+ * - land_type 是真正的土地类型字段（forest, farm, yld_mine等）
+ * - mine_type 可能是 "resource_land" 等分类字段，不是具体类型
+ * - 判断类型时优先使用 land_type 字段
  * 
- * 最后修改: 2025-01-30 - 添加工具类型支持
+ * 最后修改: 2025-01-30 - 修复类型判断逻辑
  * ===========================================
  */
 
@@ -118,30 +117,44 @@ const MINE_TYPES = {
 
 /**
  * 获取矿山类型
- * 增强版：区分YLD转换矿山和普通YLD矿山
+ * 重要：优先使用 land_type 字段，这是真正的土地类型
  */
 function getMineType(mine: YLDMine | MineLand | any): string {
-  // 优先检查special_type
+  // 调试日志
+  console.log(`[getMineType] 判断矿山类型:`, {
+    land_id: mine.land_id,
+    land_type: mine.land_type,
+    mine_type: mine.mine_type,
+    special_type: mine.special_type,
+    blueprint_land_type: mine.blueprint_info?.land_type
+  })
+  
+  // 1. 优先检查special_type（YLD转换矿山）
   if (mine.special_type === 'yld_converted') {
     return 'yld_converted'
   }
   
-  // 检查mine_type字段（新API返回）
-  if (mine.mine_type) {
-    return mine.mine_type
+  // 2. 最重要：使用 land_type 字段（这是真正的土地类型）
+  if (mine.land_type) {
+    // land_type 直接对应实际类型：forest, farm, yld_mine, stone_mine, iron_mine
+    return mine.land_type
   }
   
-  // 检查blueprint_info
+  // 3. 检查blueprint_info（备用）
   if (mine.blueprint_info?.land_type) {
     return mine.blueprint_info.land_type
   }
   
-  // 检查land_type
-  if (mine.land_type) {
-    return mine.land_type
+  // 4. mine_type 字段通常是分类（如 "resource_land"），不是具体类型
+  // 只有当它是具体类型时才使用
+  if (mine.mine_type && 
+      mine.mine_type !== 'resource_land' && 
+      mine.mine_type !== 'land' &&
+      MINE_TYPES[mine.mine_type as keyof typeof MINE_TYPES]) {
+    return mine.mine_type
   }
   
-  // 默认返回YLD矿山
+  // 5. 默认返回YLD矿山
   return 'yld_mine'
 }
 
@@ -169,7 +182,7 @@ function getRemainingReserves(mine: YLDMine | MineLand | any): number {
   }
   
   // 3. 对于YLD转换矿山，计算剩余储量
-  if (mine.special_type === 'yld_converted' || mine.mine_type === 'yld_converted') {
+  if (mine.special_type === 'yld_converted' || mineType === 'yld_converted') {
     const initial = parseFloat(mine.initial_price || '0')
     const accumulated = parseFloat(mine.accumulated_output || '0')
     return initial - accumulated
@@ -218,7 +231,7 @@ function getInitialReserves(mine: YLDMine | MineLand | any): number {
   }
   
   // 3. 对于YLD转换矿山，使用initial_price
-  if (mine.special_type === 'yld_converted' || mine.mine_type === 'yld_converted') {
+  if (mine.special_type === 'yld_converted' || getMineType(mine) === 'yld_converted') {
     return parseFloat(mine.initial_price || '0')
   }
   
@@ -285,11 +298,7 @@ function isProducing(mine: YLDMine | MineLand | any): boolean {
   if (mine.production_status === 'active') return true
   if (mine.status === 'producing') return true
   
-  // 2. 根据累计产出判断（如果有产出且储量未耗尽，可能在生产）
-  const accumulated = parseFloat(mine.accumulated_output || '0')
-  const remaining = getRemainingReserves(mine)
-  
-  // 3. 默认返回false
+  // 2. 默认返回false
   return false
 }
 
@@ -372,14 +381,6 @@ const MineCard = ({
   // 显示储量信息的条件
   const showReserves = initial > 0 || remaining > 0
   
-  // 调试：打印生产状态
-  console.log(`[MineCard] ${landId} 生产状态:`, {
-    is_producing: mine.is_producing,
-    producing: producing,
-    accumulated: accumulated,
-    mine_type: mineType
-  })
-  
   return (
     <div
       className={cn(
@@ -395,7 +396,7 @@ const MineCard = ({
       {/* 顶部彩条 */}
       <div className={cn("h-2 bg-gradient-to-r", config.gradient)} />
       
-      {/* 生产状态标签 - 移除backdrop-blur */}
+      {/* 生产状态标签 */}
       {producing && (
         <div className="absolute top-4 right-4">
           <div className="bg-green-500/30 text-green-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -657,7 +658,7 @@ export function YLDMineList({
           {availableTypes.map(type => {
             const config = MINE_TYPES[type as keyof typeof MINE_TYPES]
             const count = mines.filter(m => getMineType(m) === type).length
-            return (
+            return config ? (
               <button
                 key={type}
                 onClick={() => setFilterType(type)}
@@ -668,10 +669,10 @@ export function YLDMineList({
                     : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 )}
               >
-                <span>{config?.icon}</span>
-                <span>{config?.label} ({count})</span>
+                <span>{config.icon}</span>
+                <span>{config.label} ({count})</span>
               </button>
-            )
+            ) : null
           })}
         </div>
         
