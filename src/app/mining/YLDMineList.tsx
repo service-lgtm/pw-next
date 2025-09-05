@@ -1,8 +1,8 @@
 /**
  * ===========================================
- * 文件创建/修改说明 
+ * 文件创建/修改说明 (AI协作标记)
  * ===========================================
- * 修改原因: 修复储量显示逻辑和生产状态兼容性问题
+ * 修改原因: 修复储量显示逻辑、生产状态兼容性和UI问题
  * 主要功能: 显示用户的所有矿山列表（包括YLD矿山和其他资源矿山）
  * 依赖关系: 
  * - 使用 @/types/assets 中的 MineLand 类型
@@ -13,12 +13,13 @@
  * 2. 根据矿山类型处理不同的储量字段
  * 3. 显示矿山卡片和统计信息
  * 
- * ⚠️ 重要提醒:
+ * ⚠️ 重要提醒给下一个AI:
  * - YLD矿山的储量逻辑特殊，需要区分converted和普通类型
  * - resource_reserves字段只对非YLD矿山有效
  * - 保持向后兼容，支持旧的数据结构
+ * - 不使用backdrop-blur避免兼容性问题
  * 
- * 最后修改: 2025-01-30 - 修复储量显示和生产状态
+ * 最后修改: 2025-01-30 - 修复生产状态判断和UI兼容性
  * ===========================================
  */
 
@@ -34,7 +35,9 @@
 // - 2025-01-30: 修复储量显示和生产状态兼容性
 //   * 修复YLD矿山储量显示逻辑
 //   * 支持resource_reserves字段
-//   * 兼容is_producing状态判断
+//   * 修复is_producing状态判断
+//   * 移除backdrop-blur避免兼容性问题
+//   * 移除详情按钮简化操作
 // 
 // 关联文件：
 // - 被 @/app/mining/page.tsx 使用
@@ -277,14 +280,26 @@ function calculateEfficiency(mine: YLDMine | MineLand | any): number {
 
 /**
  * 检查是否正在生产
- * 兼容不同的字段名
+ * 重要：检查多个可能的情况
  */
 function isProducing(mine: YLDMine | MineLand | any): boolean {
-  // 检查多个可能的字段
-  return mine.is_producing === true || 
-         mine.isProducing === true || 
-         mine.production_status === 'active' ||
-         mine.status === 'producing'
+  // 1. 明确的生产状态字段
+  if (mine.is_producing === true) return true
+  if (mine.isProducing === true) return true
+  if (mine.production_status === 'active') return true
+  if (mine.status === 'producing') return true
+  
+  // 2. 根据累计产出判断（如果有产出且储量未耗尽，可能在生产）
+  // 注意：这个判断不够准确，因为可能是历史产出
+  // 但在某些情况下可以作为补充判断
+  const accumulated = parseFloat(mine.accumulated_output || '0')
+  const remaining = getRemainingReserves(mine)
+  
+  // 特殊处理：对于YLD转换矿山，如果有产出记录，可能表示正在生产
+  // 但这需要结合其他信息判断，这里暂时不使用这个逻辑
+  
+  // 3. 默认返回false
+  return false
 }
 
 // ==================== 子组件 ====================
@@ -366,6 +381,14 @@ const MineCard = ({
   // 显示储量信息的条件
   const showReserves = initial > 0 || remaining > 0
   
+  // 调试：打印生产状态
+  console.log(`[MineCard] ${landId} 生产状态:`, {
+    is_producing: mine.is_producing,
+    producing: producing,
+    accumulated: accumulated,
+    mine_type: mineType
+  })
+  
   return (
     <div
       className={cn(
@@ -375,14 +398,16 @@ const MineCard = ({
         "border-2",
         producing ? "border-green-500/50" : config.borderColor
       )}
+      onClick={() => onViewDetail(mine)}
+      style={{ cursor: 'pointer' }}
     >
       {/* 顶部彩条 */}
       <div className={cn("h-2 bg-gradient-to-r", config.gradient)} />
       
-      {/* 生产状态标签 */}
+      {/* 生产状态标签 - 移除backdrop-blur */}
       {producing && (
-        <div className="absolute top-4 right-4 animate-pulse">
-          <div className="bg-green-500/20 backdrop-blur text-green-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+        <div className="absolute top-4 right-4">
+          <div className="bg-green-500/30 text-green-400 text-xs px-2 py-1 rounded-full flex items-center gap-1">
             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
             生产中
           </div>
@@ -453,16 +478,21 @@ const MineCard = ({
           )}
         </div>
         
-        {/* 操作按钮 */}
+        {/* 操作按钮 - 根据生产状态显示 */}
         <div className="flex gap-2">
           {producing ? (
+            // 生产中状态 - 显示禁用的按钮
             <button
               className="flex-1 py-2 bg-gray-700/50 text-gray-400 rounded-lg text-sm font-bold cursor-not-allowed"
               disabled
+              onClick={(e) => {
+                e.stopPropagation()
+              }}
             >
               生产中
             </button>
           ) : (
+            // 未生产状态 - 显示开始挖矿按钮
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -478,15 +508,6 @@ const MineCard = ({
               开始挖矿
             </button>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onViewDetail()
-            }}
-            className="px-3 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-bold transition-all"
-          >
-            详情
-          </button>
         </div>
       </div>
     </div>
