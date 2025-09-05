@@ -2,7 +2,7 @@
  * ===========================================
  * 文件创建/修改说明 (AI协作标记)
  * ===========================================
- * 修改原因: 优化挖矿流程，减少操作步骤
+ * 修改原因: 优化挖矿流程，减少操作步骤，资源点击跳转市场
  * 主要功能: 挖矿中心主页面，集成快速挖矿功能
  * 依赖关系: 
  * - 使用 ./YLDMineList.tsx (矿山列表)
@@ -13,13 +13,14 @@
  * 1. 从矿山列表直接开始挖矿
  * 2. 快速选择工具数量
  * 3. 一键确认开始
+ * 4. 点击资源跳转到市场页面
  * 
  * ⚠️ 重要提醒给下一个AI:
  * - 保持快速开始流程的简洁性
  * - 不要增加额外的确认步骤
  * - 确保数据传递的完整性
  * 
- * 最后修改: 2025-01-30 - 优化挖矿流程
+ * 最后修改: 2025-01-30 - 资源点击跳转市场
  * ===========================================
  */
 
@@ -445,6 +446,12 @@ export default function MiningPage() {
     }
   }, [authLoading, isAuthenticated, router])
   
+  // 处理资源点击 - 跳转到市场
+  const handleResourceClick = useCallback((resourceType: string) => {
+    // 所有资源点击都跳转到市场页面
+    router.push('/market')
+  }, [router])
+  
   // 事件处理
   const handleViewDetail = useCallback((mine: YLDMine | MineLand) => {
     setSelectedMineId(mine.id)
@@ -605,11 +612,7 @@ export default function MiningPage() {
         <ResourceBar
           resources={resourceData}
           grainWarning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
-          onClick={(type) => {
-            if (type === 'food') {
-              toast('粮食市场即将开放', { icon: '🌾' })
-            }
-          }}
+          onClick={handleResourceClick}
         />
         
         {/* 快速统计 */}
@@ -725,7 +728,7 @@ export default function MiningPage() {
                   refetchYLDStatus()
                 }}
                 onBuyFood={() => {
-                  toast('粮食市场即将开放', { icon: '🌾' })
+                  router.push('/market')
                 }}
                 onSynthesizeTool={() => {
                   setActiveModule('synthesis')
