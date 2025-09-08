@@ -1,5 +1,5 @@
 // src/app/mining/SynthesisSystem.tsx
-// 合成系统组件 - v2.2.0 增强版
+// 合成系统组件 - v2.2.0 增强版（移除内测密码限制）
 // 
 // 功能说明：
 // 1. 工具合成功能（镐头、斧头、锄头）
@@ -22,7 +22,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
-import { BetaPasswordModal, hasBetaAccess } from './BetaPasswordModal'
 import { 
   useSynthesisSystem, 
   useSynthesisHistory,
@@ -147,8 +146,6 @@ function QuickAmountSelector(props: {
 
 // 合成系统主组件
 export function SynthesisSystem({ className = '', isMobile = false }: SynthesisSystemProps) {
-  const [hasMiningAccess, setHasMiningAccess] = useState(false)
-  const [showBetaModal, setShowBetaModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'synthesis' | 'history' | 'stats'>('synthesis')
   const [synthTab, setSynthTab] = useState<'tools' | 'bricks'>('tools')
   const [selectedTool, setSelectedTool] = useState<'pickaxe' | 'axe' | 'hoe'>('pickaxe')
@@ -156,12 +153,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
   const [brickBatches, setBrickBatches] = useState(1)
   const [historyFilter, setHistoryFilter] = useState<'all' | 'tool' | 'brick'>('all')
   const [currentPage, setCurrentPage] = useState(1)
-  
-  // 检查内测权限
-  useEffect(() => {
-    const access = hasBetaAccess()
-    setHasMiningAccess(access)
-  }, [])
   
   // 使用合成系统 Hook
   const {
@@ -175,7 +166,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     calculateMaxSynthesizable,
     refetch
   } = useSynthesisSystem({
-    enabled: hasMiningAccess,
+    enabled: true, // 直接启用，不需要权限检查
     autoRefresh: false
   })
   
@@ -190,7 +181,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     type: historyFilter,
     page: currentPage,
     pageSize: 10,
-    enabled: hasMiningAccess && activeTab === 'history'
+    enabled: activeTab === 'history'
   })
   
   // 使用统计 Hook
@@ -199,7 +190,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     loading: statsLoading,
     refetch: refetchStats
   } = useSynthesisStats({
-    enabled: hasMiningAccess && activeTab === 'stats',
+    enabled: activeTab === 'stats',
     autoRefresh: true,
     refreshInterval: 300000
   })
@@ -258,7 +249,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
           refetchHistory()
         }
         
-        // 额外的成功提示（可选，因为 Hook 里已经有了）
         console.log('[SynthesisSystem] 合成成功:', result)
       }
     } catch (error) {
@@ -287,38 +277,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
         refetchHistory()
       }
     }
-  }
-  
-  // 如果没有权限
-  if (!hasMiningAccess) {
-    return (
-      <div className={className}>
-        <PixelCard className="text-center py-8 sm:py-12">
-          <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🔒</div>
-          <h3 className="text-lg sm:text-xl font-bold mb-2">合成系统</h3>
-          <p className="text-sm sm:text-base text-gray-400 mb-3 sm:mb-4">
-            需要内测权限才能使用
-          </p>
-          <PixelButton 
-            size={isMobile ? "sm" : "md"} 
-            onClick={() => setShowBetaModal(true)}
-          >
-            输入内测密码
-          </PixelButton>
-        </PixelCard>
-        
-        <BetaPasswordModal
-          isOpen={showBetaModal}
-          onClose={() => setShowBetaModal(false)}
-          onSuccess={() => {
-            setHasMiningAccess(true)
-            setShowBetaModal(false)
-            toast.success('验证成功！欢迎使用合成系统')
-          }}
-          title="合成系统内测验证"
-        />
-      </div>
-    )
   }
   
   // 加载状态
@@ -427,18 +385,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               >
                 ⚒️ 工具合成
               </button>
-              {/* 暂时隐藏砖头合成
-              <button
-                onClick={() => setSynthTab('bricks')}
-                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-                  synthTab === 'bricks'
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
-                🧱 砖头合成
-              </button>
-              */}
             </div>
             
             {/* 工具合成内容 */}
@@ -561,88 +507,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                 )}
               </PixelCard>
             )}
-            
-            {/* 砖头合成内容 - 暂时隐藏
-            {synthTab === 'bricks' && (
-              <PixelCard className="p-4">
-                {recipes.brick ? (
-                  <div className="space-y-4">
-                    <div className="text-center py-4">
-                      <div className="text-5xl mb-2">🧱</div>
-                      <h4 className="font-bold text-lg mb-1">砖头合成</h4>
-                      <p className="text-sm text-gray-400">
-                        建筑材料，用于建造和升级建筑
-                      </p>
-                    </div>
-                    
-                    <div className="p-3 bg-gray-900/30 rounded">
-                      <h5 className="font-bold text-sm mb-3">每批次配方</h5>
-                      <div className="space-y-2">
-                        {brickConsumption && (
-                          <>
-                            <ResourceDisplay
-                              type="stone"
-                              amount={userResources.stone || 0}
-                              required={brickConsumption.stone}
-                              showRequired
-                            />
-                            <ResourceDisplay
-                              type="wood"
-                              amount={userResources.wood || 0}
-                              required={brickConsumption.wood}
-                              showRequired
-                            />
-                            <ResourceDisplay
-                              type="yld"
-                              amount={userResources.yld || 0}
-                              required={brickConsumption.yld}
-                              showRequired
-                            />
-                          </>
-                        )}
-                      </div>
-                      <div className="mt-3 p-2 bg-green-900/30 rounded">
-                        <p className="text-sm text-green-400 font-bold text-center">
-                          产出: {brickConsumption?.output || 0} 个砖头
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-bold text-gray-300 mb-2 block">
-                        合成批次
-                      </label>
-                      <QuickAmountSelector
-                        value={brickBatches}
-                        onChange={setBrickBatches}
-                        max={calculateMaxSynthesizable('brick')}
-                        presets={[1, 5, 10]}
-                      />
-                      <p className="text-xs text-gray-400 mt-2 text-center">
-                        将产出 {brickConsumption?.output || 0} 个砖头
-                      </p>
-                    </div>
-                    
-                    <PixelButton
-                      onClick={handleSynthesizeBricks}
-                      disabled={synthesizing || calculateMaxSynthesizable('brick') === 0 || brickBatches === 0}
-                      variant={calculateMaxSynthesizable('brick') > 0 ? 'primary' : 'secondary'}
-                      className="w-full"
-                    >
-                      {synthesizing 
-                        ? '合成中...' 
-                        : `合成 ${brickConsumption?.output || 0} 个砖头`
-                      }
-                    </PixelButton>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">砖头配方加载中...</p>
-                  </div>
-                )}
-              </PixelCard>
-            )}
-            */}
           </>
         )}
         
@@ -667,21 +531,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     {filter === 'all' ? '全部' : '工具'}
                   </button>
                 ))}
-                {/* 暂时隐藏砖头筛选
-                <button
-                  onClick={() => {
-                    setHistoryFilter('brick')
-                    setCurrentPage(1)
-                  }}
-                  className={`px-3 py-1 text-xs rounded transition-all ${
-                    historyFilter === 'brick'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  砖头
-                </button>
-                */}
               </div>
               
               {/* 统计信息 */}
@@ -695,12 +544,6 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <p className="text-xs text-gray-400">工具</p>
                     <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
                   </div>
-                  {/* 暂时隐藏砖头统计
-                  <div className="bg-gray-900/30 rounded p-2">
-                    <p className="text-xs text-gray-400">砖头</p>
-                    <p className="text-lg font-bold text-orange-400">{statistics.bricks_crafted}</p>
-                  </div>
-                  */}
                   <div className="bg-gray-900/30 rounded p-2">
                     <p className="text-xs text-gray-400">幸运值</p>
                     <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2) || '0.00'}</p>
