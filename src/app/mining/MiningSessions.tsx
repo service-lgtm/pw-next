@@ -1,5 +1,5 @@
 // src/app/mining/MiningSessions.tsx
-// 挖矿会话管理主组件 - 现代化设计版本
+// 挖矿会话管理主组件 - 现代化设计版本（添加快速开始功能）
 // 
 // 文件说明：
 // 优化后的挖矿会话管理，采用卡片式设计，简化信息展示
@@ -7,19 +7,7 @@
 // 修改历史：
 // - 2025-01-18: 修复 yldSystemStatus 未定义错误
 // - 2025-01-29: 全新卡片式设计
-//   * 简化会话卡片信息
-//   * 突出操作按钮
-//   * 优化移动端布局
-//   * 改进视觉层级
-// 
-// 主要功能：
-// 1. 管理挖矿会话的生命周期（开始、停止、收取）
-// 2. 显示会话状态和收益
-// 3. 快速开始新会话
-// 
-// 关联文件：
-// - 子组件: ./StartMiningForm (开始挖矿表单)
-// - 被调用: @/app/mining/page.tsx (主页面)
+// - 2025-01-30: 添加快速开始挖矿功能，与"我的矿山"页面体验一致
 
 'use client'
 
@@ -30,6 +18,7 @@ import { PixelModal } from '@/components/shared/PixelModal'
 import { MiningPreCheck } from './MiningPreCheck'
 import { SessionRateHistory } from './SessionRateHistory'
 import { StartMiningForm } from './StartMiningForm'
+import { QuickStartMining } from './QuickStartMining'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import type { MiningSession, Tool } from '@/types/production'
@@ -327,12 +316,14 @@ export function MiningSessions({
   const [showStartModal, setShowStartModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showPreCheck, setShowPreCheck] = useState(false)
+  const [showQuickStart, setShowQuickStart] = useState(false)
   const [showRateHistory, setShowRateHistory] = useState(false)
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null)
   const [selectedLand, setSelectedLand] = useState<Land | null>(null)
   const [selectedTools, setSelectedTools] = useState<number[]>([])
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'stopAll' | null>(null)
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
+  const [quickStartLand, setQuickStartLand] = useState<Land | null>(null)
   
   const { stopAll, loading: stopAllLoading } = useStopAllSessions()
   
@@ -350,10 +341,39 @@ export function MiningSessions({
     [tools]
   )
   
-  // 事件处理
+  // 筛选可用土地（新增）
+  const availableLands = useMemo(() => {
+    if (!userLands) return []
+    return userLands.filter(land => 
+      !land.is_producing && 
+      land.blueprint?.land_type && 
+      ['yld_mine', 'iron_mine', 'stone_mine', 'forest', 'farm'].includes(land.blueprint.land_type)
+    )
+  }, [userLands])
+  
+  // 事件处理 - 修改为快速开始流程
   const handleOpenStartModal = useCallback(() => {
-    setShowPreCheck(true)
-  }, [])
+    // 如果有可用土地和工具，直接使用快速开始
+    if (availableLands.length > 0 && availableTools.length > 0) {
+      // 优先选择 YLD 矿山，否则选择第一个可用土地
+      const preferredLand = availableLands.find(land => 
+        land.blueprint?.land_type === 'yld_mine'
+      ) || availableLands[0]
+      
+      setQuickStartLand(preferredLand)
+      setShowQuickStart(true)
+    } else if (availableLands.length === 0) {
+      toast.error('没有可用的土地，请先获取土地')
+    } else if (availableTools.length === 0) {
+      toast.error('没有可用的工具，请先合成工具')
+      if (onSynthesizeTool) {
+        setTimeout(() => onSynthesizeTool(), 1500)
+      }
+    } else {
+      // 如果条件不满足，走原流程
+      setShowPreCheck(true)
+    }
+  }, [availableLands, availableTools, onSynthesizeTool])
   
   const handlePreCheckProceed = useCallback(() => {
     setShowPreCheck(false)
@@ -394,6 +414,25 @@ export function MiningSessions({
       console.error('开始挖矿失败:', err)
     }
   }, [selectedLand, selectedTools, onStartMining, onRefresh])
+  
+  // 快速开始确认（新增）
+  const handleQuickStartConfirm = useCallback(async (landId: number, toolIds: number[]) => {
+    try {
+      await onStartMining(landId, toolIds)
+      
+      toast.success('挖矿已开始！', {
+        duration: 3000,
+        position: 'top-center',
+        icon: '⛏️'
+      })
+      
+      setShowQuickStart(false)
+      setQuickStartLand(null)
+      onRefresh?.()
+    } catch (err: any) {
+      console.error('开始挖矿失败:', err)
+    }
+  }, [onStartMining, onRefresh])
   
   const handleConfirmStop = useCallback((sessionPk: number) => {
     setTargetSessionId(sessionPk)
@@ -504,6 +543,31 @@ export function MiningSessions({
       )}
       
       {/* ==================== 模态框 ==================== */}
+      
+      {/* 快速开始挖矿（新增） */}
+      <PixelModal
+        isOpen={showQuickStart}
+        onClose={() => {
+          setShowQuickStart(false)
+          setQuickStartLand(null)
+        }}
+        title="快速开始挖矿"
+        size="medium"
+      >
+        {quickStartLand && tools && (
+          <QuickStartMining
+            mine={quickStartLand}
+            tools={tools}
+            onConfirm={handleQuickStartConfirm}
+            onCancel={() => {
+              setShowQuickStart(false)
+              setQuickStartLand(null)
+            }}
+            loading={startMiningLoading}
+            userLevel={6}
+          />
+        )}
+      </PixelModal>
       
       {/* 挖矿预检查 */}
       {showPreCheck && (
