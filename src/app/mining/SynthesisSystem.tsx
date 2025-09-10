@@ -22,11 +22,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
-import { 
-  useSynthesisSystem, 
+import {
+  useSynthesisSystem,
   useSynthesisHistory,
   useSynthesisStats,
-  TOOL_TYPE_MAP, 
+  TOOL_TYPE_MAP,
   TOOL_USAGE_MAP,
   QUALITY_CONFIG
 } from '@/hooks/useSynthesis'
@@ -56,7 +56,7 @@ const RESOURCE_CONFIG = {
 } as const
 
 // 资源显示组件
-function ResourceDisplay(props: { 
+function ResourceDisplay(props: {
   type: keyof typeof RESOURCE_CONFIG
   amount: number
   required?: number
@@ -65,7 +65,7 @@ function ResourceDisplay(props: {
   const { type, amount, required, showRequired = false } = props
   const config = RESOURCE_CONFIG[type]
   const isInsufficient = showRequired && required && amount < required
-  
+
   return (
     <div className="flex items-center justify-between p-2 bg-gray-900/30 rounded">
       <div className="flex items-center gap-2">
@@ -87,14 +87,14 @@ function ResourceDisplay(props: {
 }
 
 // 快捷数量选择组件
-function QuickAmountSelector(props: { 
+function QuickAmountSelector(props: {
   value: number
   onChange: (value: number) => void
   max: number
   presets?: number[]
 }) {
   const { value, onChange, max, presets = [1, 5, 10] } = props
-  
+
   return (
     <div className="space-y-2">
       <div className="flex gap-1">
@@ -103,13 +103,12 @@ function QuickAmountSelector(props: {
             key={preset}
             onClick={() => onChange(Math.min(preset, max))}
             disabled={preset > max}
-            className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
-              value === preset 
-                ? 'bg-purple-600 text-white' 
-                : preset <= max
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-            }`}
+            className={`flex-1 px-2 py-1 text-xs rounded transition-all ${value === preset
+              ? 'bg-purple-600 text-white'
+              : preset <= max
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+              }`}
           >
             {preset}
           </button>
@@ -117,13 +116,12 @@ function QuickAmountSelector(props: {
         <button
           onClick={() => onChange(max)}
           disabled={max === 0}
-          className={`flex-1 px-2 py-1 text-xs rounded transition-all ${
-            value === max 
-              ? 'bg-purple-600 text-white' 
-              : max > 0
-                ? 'bg-blue-700 text-blue-300 hover:bg-blue-600'
-                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
-          }`}
+          className={`flex-1 px-2 py-1 text-xs rounded transition-all ${value === max
+            ? 'bg-purple-600 text-white'
+            : max > 0
+              ? 'bg-blue-700 text-blue-300 hover:bg-blue-600'
+              : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+            }`}
         >
           最大
         </button>
@@ -153,7 +151,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
   const [brickBatches, setBrickBatches] = useState(1)
   const [historyFilter, setHistoryFilter] = useState<'all' | 'tool' | 'brick'>('all')
   const [currentPage, setCurrentPage] = useState(1)
-  
+
   // 使用合成系统 Hook
   const {
     recipes,
@@ -169,7 +167,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     enabled: true, // 直接启用，不需要权限检查
     autoRefresh: false
   })
-  
+
   // 使用历史记录 Hook
   const {
     history,
@@ -183,7 +181,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     pageSize: 10,
     enabled: activeTab === 'history'
   })
-  
+
   // 使用统计 Hook
   const {
     stats,
@@ -194,12 +192,12 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     autoRefresh: true,
     refreshInterval: 300000
   })
-  
+
   // 计算当前选中工具的消耗
   const toolConsumption = useMemo(() => {
     const recipe = recipes[selectedTool]
     if (!recipe) return null
-    
+
     return {
       iron: (recipe.materials.iron || 0) * toolQuantity,
       wood: (recipe.materials.wood || 0) * toolQuantity,
@@ -207,12 +205,12 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
       yld: (recipe.yld_cost || 0) * toolQuantity
     }
   }, [selectedTool, toolQuantity, recipes])
-  
+
   // 计算砖头合成的消耗
   const brickConsumption = useMemo(() => {
     const recipe = recipes.brick
     if (!recipe) return null
-    
+
     return {
       stone: (recipe.materials.stone || 0) * brickBatches,
       wood: (recipe.materials.wood || 0) * brickBatches,
@@ -220,57 +218,57 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
       output: (recipe.output_per_batch || 100) * brickBatches
     }
   }, [brickBatches, recipes])
-  
+
   // 处理工具合成
   const handleSynthesizeTool = async () => {
     if (toolQuantity <= 0) {
       toast.error('请输入有效的合成数量')
       return
     }
-    
+
     const maxAvailable = calculateMaxSynthesizable(selectedTool)
     if (toolQuantity > maxAvailable) {
       toast.error(`资源不足，最多可合成 ${maxAvailable} 个`)
       return
     }
-    
+
     try {
       const result = await synthesizeTool({
         tool_type: selectedTool,
         quantity: toolQuantity
       })
-      
+
       if (result) {
         setToolQuantity(1) // 重置数量
         refetch() // 刷新配方和资源数据
-        
+
         // 如果在历史记录页面，也刷新历史
         if (activeTab === 'history') {
           refetchHistory()
         }
-        
+
         console.log('[SynthesisSystem] 合成成功:', result)
       }
     } catch (error) {
       console.error('[SynthesisSystem] 合成失败:', error)
     }
   }
-  
+
   // 处理砖头合成
   const handleSynthesizeBricks = async () => {
     if (brickBatches <= 0) {
       toast.error('请输入有效的批次数量')
       return
     }
-    
+
     const maxBatches = calculateMaxSynthesizable('brick')
     if (brickBatches > maxBatches) {
       toast.error(`资源不足，最多可合成 ${maxBatches} 批`)
       return
     }
-    
+
     const result = await synthesizeBricks(brickBatches)
-    
+
     if (result) {
       setBrickBatches(1)
       if (activeTab === 'history') {
@@ -278,7 +276,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
       }
     }
   }
-  
+
   // 加载状态
   if (loading && !recipes.pickaxe) {
     return (
@@ -290,7 +288,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
       </div>
     )
   }
-  
+
   // 渲染主界面
   return (
     <div className={className}>
@@ -314,7 +312,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             </PixelButton>
           </div>
         </PixelCard>
-        
+
         {/* 资源概览 */}
         <PixelCard className="p-3">
           <h4 className="text-sm font-bold mb-3 text-gray-300">📦 我的资源</h4>
@@ -326,50 +324,47 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                   <span className="text-xs text-gray-500">{config.name}</span>
                 </div>
                 <p className={`font-bold text-sm ${config.color}`}>
-                  {key === 'yld' 
+                  {key === 'yld'
                     ? (userResources[key as keyof typeof userResources] || 0).toFixed(4)
-                    : Math.floor(userResources[key as keyof typeof userResources] || 0)
+                    : Math.floor(userResources[key as keyof typeof userResources] || 0).toFixed(2)
                   }
                 </p>
               </div>
             ))}
           </div>
         </PixelCard>
-        
+
         {/* 主标签页切换 */}
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab('synthesis')}
-            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-              activeTab === 'synthesis'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${activeTab === 'synthesis'
+              ? 'bg-purple-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
           >
             🔨 合成工坊
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-              activeTab === 'history'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${activeTab === 'history'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
           >
             📜 历史记录
           </button>
-          <button
+          {/* <button
             onClick={() => setActiveTab('stats')}
-            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-              activeTab === 'stats'
+            className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${activeTab === 'stats'
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
+              }`}
           >
             📊 统计数据
-          </button>
+          </button> */}
         </div>
-        
+
         {/* 内容区域 */}
         {activeTab === 'synthesis' && (
           <>
@@ -377,16 +372,15 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setSynthTab('tools')}
-                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${
-                  synthTab === 'tools'
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${synthTab === 'tools'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  }`}
               >
                 ⚒️ 工具合成
               </button>
             </div>
-            
+
             {/* 工具合成内容 */}
             {synthTab === 'tools' && (
               <PixelCard className="p-4">
@@ -396,7 +390,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     const recipe = recipes[tool]
                     const maxCount = calculateMaxSynthesizable(tool)
                     const isSelected = selectedTool === tool
-                    
+
                     return (
                       <button
                         key={tool}
@@ -404,11 +398,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                           setSelectedTool(tool)
                           setToolQuantity(1)
                         }}
-                        className={`p-3 rounded transition-all border-2 ${
-                          isSelected
-                            ? 'bg-purple-900/40 border-purple-400 transform scale-105'
-                            : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
-                        }`}
+                        className={`p-3 rounded transition-all border-2 ${isSelected
+                          ? 'bg-purple-900/40 border-purple-400 transform scale-105'
+                          : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
+                          }`}
                       >
                         <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
                         <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
@@ -419,7 +412,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     )
                   })}
                 </div>
-                
+
                 {/* 配方详情和合成操作 */}
                 {selectedTool && recipes[selectedTool] && (
                   <div className="space-y-4">
@@ -436,7 +429,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       <p className="text-xs text-gray-400 mb-3">
                         {TOOL_USAGE_MAP[selectedTool]}
                       </p>
-                      
+
                       {/* 材料需求 */}
                       <div className="space-y-2">
                         {toolConsumption && (
@@ -477,7 +470,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                         )}
                       </div>
                     </div>
-                    
+
                     {/* 数量选择 */}
                     <div>
                       <label className="text-sm font-bold text-gray-300 mb-2 block">
@@ -490,7 +483,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                         presets={[1, 5, 10]}
                       />
                     </div>
-                    
+
                     {/* 合成按钮 */}
                     <PixelButton
                       onClick={handleSynthesizeTool}
@@ -498,8 +491,8 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       variant={calculateMaxSynthesizable(selectedTool) > 0 ? 'primary' : 'secondary'}
                       className="w-full"
                     >
-                      {synthesizing 
-                        ? '合成中...' 
+                      {synthesizing
+                        ? '合成中...'
                         : `合成 ${toolQuantity} 个${TOOL_TYPE_MAP[selectedTool]}`
                       }
                     </PixelButton>
@@ -509,7 +502,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             )}
           </>
         )}
-        
+
         {/* 历史记录标签页内容 */}
         {activeTab === 'history' && (
           <PixelCard className="p-4">
@@ -522,17 +515,16 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       setHistoryFilter(filter as 'all' | 'tool' | 'brick')
                       setCurrentPage(1)
                     }}
-                    className={`px-3 py-1 text-xs rounded transition-all ${
-                      historyFilter === filter
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
+                    className={`px-3 py-1 text-xs rounded transition-all ${historyFilter === filter
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
                   >
                     {filter === 'all' ? '全部' : '工具'}
                   </button>
                 ))}
               </div>
-              
+
               {/* 统计信息 */}
               {statistics && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
@@ -544,13 +536,13 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <p className="text-xs text-gray-400">工具</p>
                     <p className="text-lg font-bold text-purple-400">{statistics.tools_crafted}</p>
                   </div>
-                  <div className="bg-gray-900/30 rounded p-2">
+                  {/* <div className="bg-gray-900/30 rounded p-2">
                     <p className="text-xs text-gray-400">幸运值</p>
                     <p className="text-lg font-bold text-yellow-400">{statistics.luck_score?.toFixed(2) || '0.00'}</p>
-                  </div>
+                  </div> */}
                 </div>
               )}
-              
+
               {/* 历史记录列表 */}
               {historyLoading ? (
                 <div className="text-center py-8">
@@ -563,30 +555,29 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">
-                            {item.type === 'brick' ? '🧱' : 
-                             item.tool_type === 'pickaxe' ? '⛏️' :
-                             item.tool_type === 'axe' ? '🪓' : '🌾'}
+                            {item.type === 'brick' ? '🧱' :
+                              item.tool_type === 'pickaxe' ? '⛏️' :
+                                item.tool_type === 'axe' ? '🪓' : '🌾'}
                           </span>
                           <span className="font-bold">{item.tool_display || '砖头'}</span>
                           {item.quality && QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG] && (
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].bgColor
-                            } ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].color}`}>
+                            <span className={`text-xs px-2 py-1 rounded ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].bgColor
+                              } ${QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].color}`}>
                               {QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG].name}
                             </span>
                           )}
                         </div>
                         <span className="text-xs text-gray-500">
-                          {new Date(item.created_at).toLocaleString('zh-CN', { 
-                            month: '2-digit', 
-                            day: '2-digit', 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
+                          {new Date(item.created_at).toLocaleString('zh-CN', {
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
                           })}
                         </span>
                       </div>
                       <div className="text-xs text-gray-400">
-                        消耗: 
+                        消耗:
                         {item.materials_consumed.iron && ` 铁${item.materials_consumed.iron}`}
                         {item.materials_consumed.wood && ` 木${item.materials_consumed.wood}`}
                         {item.materials_consumed.stone && ` 石${item.materials_consumed.stone}`}
@@ -600,7 +591,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                   <p className="text-gray-400">暂无合成记录</p>
                 </div>
               )}
-              
+
               {/* 分页 */}
               {pagination && pagination.total_pages > 1 && (
                 <div className="flex justify-center gap-2 mt-4">
@@ -626,7 +617,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             </div>
           </PixelCard>
         )}
-        
+
         {/* 统计数据标签页内容 */}
         {activeTab === 'stats' && (
           <PixelCard className="p-4">
@@ -658,7 +649,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     </div>
                   </div>
                 </div>
-                
+
                 {/* 工具统计 */}
                 {stats.tools && stats.tools.by_type && (
                   <div>
@@ -668,7 +659,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                         <div key={item.tool_type} className="bg-gray-900/30 rounded p-2 text-center">
                           <span className="text-lg">
                             {item.tool_type === 'pickaxe' ? '⛏️' :
-                             item.tool_type === 'axe' ? '🪓' : '🌾'}
+                              item.tool_type === 'axe' ? '🪓' : '🌾'}
                           </span>
                           <p className="text-xs text-gray-400 mt-1">{TOOL_TYPE_MAP[item.tool_type as keyof typeof TOOL_TYPE_MAP] || item.tool_type}</p>
                           <p className="font-bold">{item.count}</p>
@@ -677,7 +668,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     </div>
                   </div>
                 )}
-                
+
                 {/* 品质分布 */}
                 {stats.tools && stats.tools.by_quality && (
                   <div>
@@ -686,15 +677,15 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                       {stats.tools.by_quality.map((item) => {
                         const config = QUALITY_CONFIG[item.quality as keyof typeof QUALITY_CONFIG]
                         if (!config) return null
-                        const percentage = stats.tools.total > 0 
+                        const percentage = stats.tools.total > 0
                           ? (item.count / stats.tools.total * 100).toFixed(1)
                           : '0'
-                        
+
                         return (
                           <div key={item.quality} className="flex items-center gap-2">
                             <span className={`text-xs w-12 ${config.color}`}>{config.name}</span>
                             <div className="flex-1 bg-gray-800 rounded-full h-4 relative overflow-hidden">
-                              <div 
+                              <div
                                 className={`h-full ${config.bgColor} transition-all`}
                                 style={{ width: `${percentage}%` }}
                               />
@@ -706,7 +697,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     </div>
                   </div>
                 )}
-                
+
                 {/* 幸运合成 */}
                 {stats.lucky_synthesis && (
                   <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 rounded p-3">
@@ -714,7 +705,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm">
-                          {QUALITY_CONFIG[stats.lucky_synthesis.quality as keyof typeof QUALITY_CONFIG]?.name || stats.lucky_synthesis.quality} 
+                          {QUALITY_CONFIG[stats.lucky_synthesis.quality as keyof typeof QUALITY_CONFIG]?.name || stats.lucky_synthesis.quality}
                           {' '}
                           {TOOL_TYPE_MAP[stats.lucky_synthesis.tool_type as keyof typeof TOOL_TYPE_MAP] || stats.lucky_synthesis.tool_type}
                         </p>
@@ -723,28 +714,27 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                         </p>
                       </div>
                       <span className="text-xs text-gray-500">
-                        {new Date(stats.lucky_synthesis.date).toLocaleDateString('zh-CN', { 
-                          month: '2-digit', 
-                          day: '2-digit' 
+                        {new Date(stats.lucky_synthesis.date).toLocaleDateString('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit'
                         })}
                       </span>
                     </div>
                   </div>
                 )}
-                
+
                 {/* 成就系统 */}
                 {stats.achievements && stats.achievements.length > 0 && (
                   <div>
                     <h4 className="font-bold text-sm mb-3 text-green-400">🏆 成就</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {stats.achievements.slice(0, 6).map((achievement, index) => (
-                        <div 
-                          key={index} 
-                          className={`p-2 rounded border ${
-                            achievement.unlocked 
-                              ? 'bg-green-900/20 border-green-600' 
-                              : 'bg-gray-900/20 border-gray-700 opacity-50'
-                          }`}
+                        <div
+                          key={index}
+                          className={`p-2 rounded border ${achievement.unlocked
+                            ? 'bg-green-900/20 border-green-600'
+                            : 'bg-gray-900/20 border-gray-700 opacity-50'
+                            }`}
                         >
                           <div className="flex items-start gap-2">
                             <span className="text-lg">{achievement.unlocked ? '✅' : '🔒'}</span>
@@ -769,7 +759,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
             )}
           </PixelCard>
         )}
-        
+
         {/* 错误提示 */}
         {error && (
           <PixelCard className="p-3 bg-red-900/20 border border-red-500/50">

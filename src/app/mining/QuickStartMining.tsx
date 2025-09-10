@@ -35,8 +35,10 @@ import { cn } from '@/lib/utils'
 import type { Tool } from '@/types/production'
 import type { MineLand, YLDMine } from '@/types/assets'
 import toast from 'react-hot-toast'
+import { ERROR_TYPES } from './miningConstants'
 
 interface QuickStartMiningProps {
+  foodHours: number; //粮食剩余
   mine: MineLand | YLDMine | any  // 选中的矿山
   tools: Tool[] | null  // 可用工具列表
   onConfirm: (landId: number, toolIds: number[]) => Promise<void>
@@ -51,6 +53,7 @@ const LEVEL_TOOL_LIMITS: Record<number, number> = {
 }
 
 export function QuickStartMining({
+  foodHours,
   mine,
   tools,
   onConfirm,
@@ -60,14 +63,17 @@ export function QuickStartMining({
 }: QuickStartMiningProps) {
   const [selectedCount, setSelectedCount] = useState(10)  // 默认选择10个
   const [isConfirming, setIsConfirming] = useState(false)
-  
+
   // 最大工具数
-  const maxTools = LEVEL_TOOL_LIMITS[userLevel] || 60
-  
+  const maxTools = LEVEL_TOOL_LIMITS[userLevel] || 60;
+
+  // 计算资源消耗
+  const foodConsumption = selectedCount * 2  // 每个工具2粮食/小时
+
   // 获取矿山类型对应的工具类型
   const getRequiredToolType = (mine: any): string => {
     const mineType = mine.land_type || mine.mine_type || 'yld_mine'
-    
+
     // 根据矿山类型返回对应的工具类型
     switch (mineType) {
       case 'forest':
@@ -83,21 +89,21 @@ export function QuickStartMining({
         return 'pickaxe'  // 默认使用镐
     }
   }
-  
+
   // 筛选可用工具（只选择对应类型的工具）
   const availableTools = useMemo(() => {
     if (!tools || !mine) return []
-    
+
     const requiredToolType = getRequiredToolType(mine)
-    
-    return tools.filter(tool => 
+
+    return tools.filter(tool =>
       tool.tool_type === requiredToolType &&  // 只选择对应类型的工具
-      tool.status === 'normal' && 
-      !tool.is_in_use && 
+      tool.status === 'normal' &&
+      !tool.is_in_use &&
       tool.current_durability > 0
     ).sort((a, b) => (b.current_durability || 0) - (a.current_durability || 0))
   }, [tools, mine])
-  
+
   // 快速选择预设
   const quickSelectOptions = useMemo(() => {
     const options = []
@@ -109,37 +115,43 @@ export function QuickStartMining({
     }
     return options
   }, [availableTools.length, maxTools])
-  
+
   // 自动调整选择数量
   useEffect(() => {
     if (selectedCount > availableTools.length) {
       setSelectedCount(Math.min(10, availableTools.length))
     }
   }, [availableTools.length, selectedCount])
-  
+
   // 处理确认
   const handleConfirm = async () => {
     if (!mine || availableTools.length === 0) {
       toast.error('无法开始挖矿')
       return
     }
-    
+
+    // 粮食不足
+    if (foodHours < foodConsumption) {
+      toast.error(ERROR_TYPES.INSUFFICIENT_FOOD)
+      return
+    }
+
     setIsConfirming(true)
-    
+
     try {
       // 选择工具
       const selectedTools = availableTools
         .slice(0, selectedCount)
         .map(tool => tool.id)
-      
+
       // 开始挖矿
       await onConfirm(mine.id, selectedTools)
-      
+
       toast.success(`已在 ${mine.land_id} 开始挖矿！`, {
         icon: '⛏️',
         duration: 3000
       })
-      
+
       onCancel()  // 关闭窗口
     } catch (error: any) {
       console.error('开始挖矿失败:', error)
@@ -148,7 +160,7 @@ export function QuickStartMining({
       setIsConfirming(false)
     }
   }
-  
+
   // 获取工具类型名称
   const getToolTypeName = (toolType: string): string => {
     switch (toolType) {
@@ -162,14 +174,11 @@ export function QuickStartMining({
         return '工具'
     }
   }
-  
-  // 计算资源消耗
-  const foodConsumption = selectedCount * 2  // 每个工具2粮食/小时
-  
+
   // 获取矿山类型显示
   const getMineTypeDisplay = () => {
     const mineType = mine.land_type || mine.mine_type || 'yld_mine'
-    
+
     // 直接根据实际的 land_type 判断
     switch (mineType) {
       case 'yld_mine':
@@ -192,9 +201,9 @@ export function QuickStartMining({
         return { icon: '⛏️', name: '矿山', color: 'text-gray-400' }
     }
   }
-  
+
   const mineType = getMineTypeDisplay()
-  
+
   return (
     <div className="space-y-4">
       {/* 矿山信息 */}
@@ -210,7 +219,7 @@ export function QuickStartMining({
           <p className="text-xs text-gray-400">📍 {mine.region_name}</p>
         )}
       </div>
-      
+
       {/* 工具选择 */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -221,7 +230,7 @@ export function QuickStartMining({
             可用: {availableTools.length} / 最多: {maxTools}
           </span>
         </div>
-        
+
         {/* 快速选择按钮 */}
         <div className="grid grid-cols-3 gap-2">
           {quickSelectOptions.map(count => (
@@ -239,7 +248,7 @@ export function QuickStartMining({
             </button>
           ))}
         </div>
-        
+
         {/* 自定义数量滑块 */}
         <div className="space-y-2">
           <input
@@ -256,7 +265,7 @@ export function QuickStartMining({
             <span>{Math.min(availableTools.length, maxTools)}</span>
           </div>
         </div>
-        
+
         {/* 消耗提示 */}
         <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
           <div className="flex items-center justify-between">
@@ -269,7 +278,7 @@ export function QuickStartMining({
           </div>
         </div>
       </div>
-      
+
       {/* 工具不足提示 */}
       {availableTools.length === 0 && (
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
@@ -278,7 +287,7 @@ export function QuickStartMining({
           </p>
         </div>
       )}
-      
+
       {/* 操作按钮 */}
       <div className="flex gap-3">
         <PixelButton
@@ -286,8 +295,8 @@ export function QuickStartMining({
           onClick={handleConfirm}
           disabled={loading || isConfirming || availableTools.length === 0}
         >
-          {isConfirming ? '启动中...' : availableTools.length === 0 ? 
-            `需要${getToolTypeName(getRequiredToolType(mine))}` : 
+          {isConfirming ? '启动中...' : availableTools.length === 0 ?
+            `需要${getToolTypeName(getRequiredToolType(mine))}` :
             `开始挖矿 (${selectedCount}个${getToolTypeName(getRequiredToolType(mine))})`}
         </PixelButton>
         <PixelButton

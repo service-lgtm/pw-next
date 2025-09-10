@@ -48,7 +48,8 @@ const TOKEN_CONFIG = {
     color: 'from-yellow-500 to-orange-500',
     textColor: 'text-yellow-400',
     description: '稳定交易通证',
-    features: ['游戏内通用货币', '可兑换现实资产']
+    // features: ['游戏内通用货币', '可兑换现实资产']
+    features: []
   },
   yld: {
     name: '陨石通证',
@@ -57,7 +58,8 @@ const TOKEN_CONFIG = {
     color: 'from-purple-500 to-pink-500',
     textColor: 'text-purple-400',
     description: '治理通证',
-    features: ['参与治理投票', '挖矿产出', '限量发行']
+    // features: ['参与治理投票', '挖矿产出', '限量发行']
+    features: []
   }
 } as const
 
@@ -67,33 +69,34 @@ const MATERIAL_CONFIG = {
   stone: { name: '石材', icon: '🪨', color: 'text-blue-400' },
   wood: { name: '木材', icon: '🪵', color: 'text-green-400' },
   food: { name: '粮食', icon: '🌾', color: 'text-yellow-400' },
-  seed: { name: '种子', icon: '🌱', color: 'text-green-300' },
-  brick: { name: '砖头', icon: '🧱', color: 'text-orange-400' }
+  // brick: { name: '砖头', icon: '🧱', color: 'text-orange-400' }
 } as const
 
 // 工具配置
 const TOOL_CONFIG = {
   pickaxe: { name: '镐头', icon: '⛏️', usage: '开采矿石' },
   axe: { name: '斧头', icon: '🪓', usage: '砍伐木材' },
-  hoe: { name: '锄头', icon: '🌾', usage: '农业生产' }
+  hoe: { name: '锄头', icon: '🌾', usage: '农业生产' },
+  brick: { name: '砖头', icon: '🧱', usage: '城市地块建设' },
+  seed: { name: '种子', icon: '🌱', usage: '播种农田' },
 } as const
 
 /**
  * 通证卡片组件
  */
-function TokenCard({ 
-  type, 
-  balance, 
+function TokenCard({
+  type,
+  balance,
   value,
-  onAction 
-}: { 
+  onAction
+}: {
   type: 'tdb' | 'yld'
   balance: number
   value?: number
   onAction?: (action: string) => void
 }) {
   const config = TOKEN_CONFIG[type]
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -104,7 +107,7 @@ function TokenCard({
       <PixelCard className="p-4 sm:p-6">
         {/* 背景渐变 */}
         <div className={`absolute inset-0 bg-gradient-to-br ${config.color} opacity-10`} />
-        
+
         <div className="relative z-10">
           {/* 头部 */}
           <div className="flex items-start justify-between mb-4">
@@ -119,11 +122,11 @@ function TokenCard({
               {config.symbol}
             </span>
           </div>
-          
+
           {/* 余额 */}
           <div className="mb-4">
             <p className={`text-3xl font-black ${config.textColor}`}>
-              {balance.toLocaleString(undefined, { 
+              {balance.toLocaleString(undefined, {
                 minimumFractionDigits: type === 'yld' ? 4 : 2,
                 maximumFractionDigits: type === 'yld' ? 4 : 2
               })}
@@ -134,7 +137,7 @@ function TokenCard({
               </p>
             )}
           </div>
-          
+
           {/* 特性列表 */}
           <div className="space-y-1 mb-4">
             {config.features.map((feature, index) => (
@@ -144,27 +147,27 @@ function TokenCard({
               </div>
             ))}
           </div>
-          
+
           {/* 操作按钮 */}
           <div className="grid grid-cols-2 gap-2">
             {type === 'tdb' ? (
               <>
-                <button 
+                <button
                   onClick={() => onAction?.('buy')}
                   className="px-3 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 text-sm rounded transition-all"
                 >
                   购买
                 </button>
-                <button 
+                {/* <button
                   onClick={() => onAction?.('exchange')}
                   className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm rounded transition-all"
                 >
                   兑换
-                </button>
+                </button> */}
               </>
             ) : (
               <>
-                
+
               </>
             )}
           </div>
@@ -177,11 +180,11 @@ function TokenCard({
 /**
  * 资产卡片组件
  */
-function AssetCard({ 
-  title, 
-  icon, 
+function AssetCard({
+  title,
+  icon,
   items,
-  onViewMore 
+  onViewMore
 }: {
   title: string
   icon: string
@@ -229,12 +232,12 @@ export default function AssetsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const { lands, loading: landsLoading } = useMyLands()
   const { inventory, loading: inventoryLoading } = useInventory({ category: 'all' })
-  
+
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<AssetTab>('overview')
   const [showExchangeModal, setShowExchangeModal] = useState(false)
-  
+
   // 检查认证状态
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -242,7 +245,7 @@ export default function AssetsPage() {
       router.push('/login?redirect=/assets')
     }
   }, [authLoading, isAuthenticated, router])
-  
+
   // 获取用户资料
   useEffect(() => {
     const fetchProfile = async () => {
@@ -250,17 +253,17 @@ export default function AssetsPage() {
         setLoading(false)
         return
       }
-      
+
       try {
         setLoading(true)
         const response = await api.accounts.profile()
-        
+
         if (response.success && response.data) {
           setProfileData(response.data)
         }
       } catch (error) {
         console.error('[Assets] Error fetching profile:', error)
-        
+
         if (error instanceof ApiError && error.status === 401) {
           toast.error('登录已过期，请重新登录')
           router.push('/login?redirect=/assets')
@@ -269,28 +272,28 @@ export default function AssetsPage() {
         setLoading(false)
       }
     }
-    
+
     if (isAuthenticated) {
       fetchProfile()
     }
   }, [isAuthenticated, router])
-  
+
   // 计算统计数据
   const stats = useMemo(() => {
     const tdbBalance = profileData?.tdb_balance ? parseFloat(profileData.tdb_balance) : 0
     const yldBalance = profileData?.yld_balance ? parseFloat(profileData.yld_balance) : 0
     const yldValue = yldBalance * 2.84 // 1 YLD = 2.84 TDB
-    
+
     // 计算材料总价值
     const materialValue = Object.values(inventory?.materials || {}).reduce((sum: number, item: any) => {
       return sum + (item.value || 0)
     }, 0)
-    
+
     // 计算工具总数
     const toolCount = Object.values(inventory?.tools || {}).reduce((sum: number, item: any) => {
       return sum + (item.count || 0)
     }, 0)
-    
+
     return {
       tdbBalance,
       yldBalance,
@@ -300,7 +303,7 @@ export default function AssetsPage() {
       toolCount
     }
   }, [profileData, lands, inventory])
-  
+
   // 处理操作
   const handleTokenAction = (token: 'tdb' | 'yld', action: string) => {
     switch (action) {
@@ -316,7 +319,7 @@ export default function AssetsPage() {
         break
     }
   }
-  
+
   // 加载状态
   if (authLoading || loading) {
     return (
@@ -334,11 +337,11 @@ export default function AssetsPage() {
       </div>
     )
   }
-  
+
   if (!isAuthenticated) {
     return null
   }
-  
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* 页面头部 */}
@@ -365,7 +368,7 @@ export default function AssetsPage() {
           </PixelButton>
         </div>
       </motion.div>
-      
+
       {/* 双通证展示 */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <TokenCard
@@ -380,7 +383,7 @@ export default function AssetsPage() {
           onAction={(action) => handleTokenAction('yld', action)}
         />
       </div>
-      
+
       {/* 快捷统计 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -400,12 +403,12 @@ export default function AssetsPage() {
           <p className="text-xs text-purple-400 mb-1">材料价值</p>
           <p className="text-xl font-bold text-gray-400">待估算</p>
         </div>
-        <div className="bg-gradient-to-br from-orange-900/20 to-orange-900/10 rounded-lg p-3 border border-orange-900/30">
+        {/* <div className="bg-gradient-to-br from-orange-900/20 to-orange-900/10 rounded-lg p-3 border border-orange-900/30">
           <p className="text-xs text-orange-400 mb-1">活跃度</p>
           <p className="text-xl font-bold">100%</p>
-        </div>
+        </div> */}
       </motion.div>
-      
+
       {/* 资产分类标签 */}
       <div className="mb-6">
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -432,7 +435,7 @@ export default function AssetsPage() {
           ))}
         </div>
       </div>
-      
+
       {/* 内容区域 */}
       <AnimatePresence mode="wait">
         {/* 总览 */}
@@ -457,7 +460,7 @@ export default function AssetsPage() {
                 onViewMore={() => setActiveTab('land')}
               />
             )}
-            
+
             {/* 材料资产 */}
             <AssetCard
               title="材料资产"
@@ -469,7 +472,7 @@ export default function AssetsPage() {
               ]}
               onViewMore={() => setActiveTab('material')}
             />
-            
+
             {/* 工具资产 */}
             <AssetCard
               title="工具资产"
@@ -483,7 +486,7 @@ export default function AssetsPage() {
             />
           </motion.div>
         )}
-        
+
         {/* 土地详情 */}
         {activeTab === 'land' && (
           <motion.div
@@ -538,7 +541,7 @@ export default function AssetsPage() {
             )}
           </motion.div>
         )}
-        
+
         {/* 材料详情 */}
         {activeTab === 'material' && (
           <motion.div
@@ -552,7 +555,7 @@ export default function AssetsPage() {
               const material = inventory?.materials?.[key]
               const amount = material?.amount || 0
               const value = material?.value || 0
-              
+
               return (
                 <PixelCard key={key} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -565,25 +568,26 @@ export default function AssetsPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">数量</span>
-                      <span className="font-bold">{Math.floor(amount)}</span>
+                      {/* 粮食保留整数，其余保留四位小数 */}
+                      <span className="font-bold">{key === "food" ? Math.floor(amount || 0) : (amount || 0).toFixed(4)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    {/* <div className="flex justify-between text-sm">
                       <span className="text-gray-400">价值</span>
                       <span className="text-gray-400">待估算</span>
-                    </div>
-                    <div className="pt-2 border-t border-gray-800">
+                    </div> */}
+                    {/* <div className="pt-2 border-t border-gray-800">
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>单价</span>
                         <span>{amount > 0 ? (value / amount).toFixed(4) : '0'} TDB</span>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </PixelCard>
               )
             })}
           </motion.div>
         )}
-        
+
         {/* 工具详情 */}
         {activeTab === 'tool' && (
           <motion.div
@@ -598,7 +602,7 @@ export default function AssetsPage() {
               const count = tool?.count || 0
               const working = tool?.working || 0
               const value = tool?.value || 0
-              
+
               return (
                 <PixelCard key={key} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -631,7 +635,7 @@ export default function AssetsPage() {
                 </PixelCard>
               )
             })}
-            
+
             {/* 砖头特殊处理 */}
             {inventory?.special?.brick && (
               <PixelCard className="p-4">
@@ -656,7 +660,7 @@ export default function AssetsPage() {
             )}
           </motion.div>
         )}
-        
+
         {/* 提货单 */}
         {activeTab === 'voucher' && (
           <motion.div
@@ -674,7 +678,7 @@ export default function AssetsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* 兑换弹窗 */}
       <AnimatePresence>
         {showExchangeModal && (

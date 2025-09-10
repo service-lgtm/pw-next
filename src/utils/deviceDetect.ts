@@ -25,7 +25,7 @@
  */
 export function isAndroidDevice(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   const userAgent = window.navigator.userAgent.toLowerCase()
   return /android/i.test(userAgent)
 }
@@ -35,9 +35,9 @@ export function isAndroidDevice(): boolean {
  */
 export function isIOSDevice(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   const userAgent = window.navigator.userAgent.toLowerCase()
-  return /iphone|ipad|ipod/i.test(userAgent) || 
+  return /iphone|ipad|ipod/i.test(userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPad Pro
 }
 
@@ -46,18 +46,18 @@ export function isIOSDevice(): boolean {
  */
 export function isMobileDevice(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   // 检测触摸能力
-  const hasTouchScreen = 'ontouchstart' in window || 
+  const hasTouchScreen = 'ontouchstart' in window ||
     navigator.maxTouchPoints > 0 ||
     (navigator as any).msMaxTouchPoints > 0
-  
+
   // 检测屏幕尺寸
   const isSmallScreen = window.innerWidth < 768
-  
+
   // 检测 User Agent
   const mobileUA = isAndroidDevice() || isIOSDevice()
-  
+
   return mobileUA || (hasTouchScreen && isSmallScreen)
 }
 
@@ -66,9 +66,9 @@ export function isMobileDevice(): boolean {
  */
 export function isInWebView(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   const ua = window.navigator.userAgent.toLowerCase()
-  
+
   // 检测各种 WebView 环境
   const webViewPatterns = [
     /wv/,                    // Android WebView
@@ -83,7 +83,7 @@ export function isInWebView(): boolean {
     /instagram/i,           // Instagram
     /line/i,                // Line
   ]
-  
+
   return webViewPatterns.some(pattern => pattern.test(ua))
 }
 
@@ -92,7 +92,7 @@ export function isInWebView(): boolean {
  */
 export function getAndroidVersion(): number | null {
   if (!isAndroidDevice()) return null
-  
+
   const match = navigator.userAgent.match(/Android\s([0-9.]*)/i)
   if (match && match[1]) {
     return parseFloat(match[1])
@@ -105,7 +105,7 @@ export function getAndroidVersion(): number | null {
  */
 export function getIOSVersion(): number | null {
   if (!isIOSDevice()) return null
-  
+
   const match = navigator.userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/i)
   if (match && match[1]) {
     return parseInt(match[1], 10)
@@ -126,21 +126,21 @@ export function isOldAndroid(): boolean {
  */
 export function supportsCSSFeature(property: string, value?: string): boolean {
   if (typeof window === 'undefined') return false
-  
+
   const element = document.createElement('div')
   const style = element.style as any
-  
+
   // 检查属性是否存在
   if (!(property in style)) {
     return false
   }
-  
+
   // 如果提供了值，检查值是否支持
   if (value !== undefined) {
     style[property] = value
     return style[property] === value
   }
-  
+
   return true
 }
 
@@ -149,7 +149,7 @@ export function supportsCSSFeature(property: string, value?: string): boolean {
  */
 export function supportsLocalStorage(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   try {
     const test = '__localStorage_test__'
     window.localStorage.setItem(test, test)
@@ -165,7 +165,7 @@ export function supportsLocalStorage(): boolean {
  */
 export function supportsSessionStorage(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   try {
     const test = '__sessionStorage_test__'
     window.sessionStorage.setItem(test, test)
@@ -181,7 +181,7 @@ export function supportsSessionStorage(): boolean {
  */
 export function supportsServiceWorker(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   return 'serviceWorker' in navigator
 }
 
@@ -190,7 +190,7 @@ export function supportsServiceWorker(): boolean {
  */
 export function supportsWebWorker(): boolean {
   if (typeof window === 'undefined') return false
-  
+
   return typeof Worker !== 'undefined'
 }
 
@@ -199,7 +199,7 @@ export function supportsWebWorker(): boolean {
  */
 export function isOnline(): boolean {
   if (typeof window === 'undefined') return true
-  
+
   return navigator.onLine
 }
 
@@ -208,15 +208,15 @@ export function isOnline(): boolean {
  */
 export function getConnectionType(): string {
   if (typeof window === 'undefined') return 'unknown'
-  
-  const connection = (navigator as any).connection || 
-                    (navigator as any).mozConnection || 
-                    (navigator as any).webkitConnection
-  
+
+  const connection = (navigator as any).connection ||
+    (navigator as any).mozConnection ||
+    (navigator as any).webkitConnection
+
   if (connection) {
     return connection.effectiveType || connection.type || 'unknown'
   }
-  
+
   return 'unknown'
 }
 
@@ -271,7 +271,7 @@ export function getDeviceInfo(): DeviceInfo {
       userAgent: ''
     }
   }
-  
+
   return {
     isAndroid: isAndroidDevice(),
     isIOS: isIOSDevice(),
@@ -308,8 +308,8 @@ export function logDeviceInfo(): void {
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   window.addEventListener('load', () => {
     logDeviceInfo()
-  })
-  
+  });
+
   // 暴露到 window 对象方便调试
   (window as any).__deviceInfo = getDeviceInfo
 }

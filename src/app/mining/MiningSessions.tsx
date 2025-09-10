@@ -43,10 +43,10 @@ function formatDuration(startTime: string): string {
   const start = new Date(startTime).getTime()
   const now = Date.now()
   const diff = now - start
-  
+
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  
+
   if (hours > 24) {
     const days = Math.floor(hours / 24)
     return `${days}天${hours % 24}小时`
@@ -64,13 +64,13 @@ function getNextSettlementInfo(): { time: string; minutes: number } {
   const now = new Date()
   const nextHour = new Date(now)
   nextHour.setHours(now.getHours() + 1, 0, 0, 0)
-  
+
   const minutes = Math.floor((nextHour.getTime() - now.getTime()) / (1000 * 60))
-  const time = nextHour.toLocaleTimeString('zh-CN', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  const time = nextHour.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
   })
-  
+
   return { time, minutes }
 }
 
@@ -89,7 +89,7 @@ const RESOURCE_TYPES = {
 /**
  * 会话统计卡片
  */
-const SessionStats = ({ 
+const SessionStats = ({
   summary,
   yldStatus,
   onStartNew
@@ -99,7 +99,7 @@ const SessionStats = ({
   onStartNew: () => void
 }) => {
   const nextSettlement = getNextSettlementInfo()
-  
+
   const stats = {
     activeCount: summary?.active_sessions?.count || 0,
     totalPending: summary?.active_sessions?.total_pending_rewards || 0,
@@ -108,7 +108,7 @@ const SessionStats = ({
     yldRemaining: yldStatus?.data?.remaining || yldStatus?.remaining || 0,
     yldPercentage: yldStatus?.data?.percentage_used || yldStatus?.percentage_used || 0
   }
-  
+
   return (
     <div className="space-y-3 mb-4">
       {/* 主要统计 */}
@@ -136,7 +136,7 @@ const SessionStats = ({
           <p className="text-xs text-gray-400">YLD剩余</p>
         </div>
       </div>
-      
+
       {/* 下次结算倒计时 */}
       {stats.activeCount > 0 && (
         <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 flex items-center justify-between">
@@ -150,7 +150,7 @@ const SessionStats = ({
           </div>
         </div>
       )}
-      
+
       {/* 快速开始按钮 */}
       <button
         onClick={onStartNew}
@@ -168,7 +168,7 @@ const SessionStats = ({
 /**
  * 会话卡片 - 简化版
  */
-const SessionCardSimple = ({ 
+const SessionCardSimple = ({
   session,
   onStop,
   onViewHistory
@@ -181,17 +181,17 @@ const SessionCardSimple = ({
   const landName = session.land_name || session.land_id || '未知土地'
   const resourceType = session.resource_type || 'yld'
   const resourceConfig = RESOURCE_TYPES[resourceType as keyof typeof RESOURCE_TYPES] || RESOURCE_TYPES.yld
-  
+
   const pendingOutput = session.pending_output || session.pending_rewards || 0
   const settledHours = session.settled_hours || session.hours_settled || 0
   const currentHourMinutes = session.current_hour_minutes || 0
   const startTime = session.started_at
-  
+
   return (
     <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-gray-700 overflow-hidden hover:border-gold-500/50 transition-all">
       {/* 顶部状态条 */}
       <div className={cn("h-1 bg-gradient-to-r from-green-600 to-green-500")} />
-      
+
       <div className="p-4">
         {/* 头部信息 */}
         <div className="flex items-start justify-between mb-3">
@@ -210,7 +210,7 @@ const SessionCardSimple = ({
             <p className="text-xs text-gray-500 mt-1">{formatDuration(startTime)}</p>
           </div>
         </div>
-        
+
         {/* 核心数据 - 只显示最重要的 */}
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="text-center">
@@ -232,17 +232,17 @@ const SessionCardSimple = ({
             </p>
           </div>
         </div>
-        
+
         {/* 当前小时进度条 */}
         <div className="mb-3">
           <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all"
               style={{ width: `${(currentHourMinutes / 60) * 100}%` }}
             />
           </div>
         </div>
-        
+
         {/* 操作按钮 */}
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -324,9 +324,9 @@ export function MiningSessions({
   const [confirmAction, setConfirmAction] = useState<'start' | 'stop' | 'stopAll' | null>(null)
   const [targetSessionId, setTargetSessionId] = useState<number | null>(null)
   const [quickStartLand, setQuickStartLand] = useState<Land | null>(null)
-  
+
   const { stopAll, loading: stopAllLoading } = useStopAllSessions()
-  
+
   // 合并会话数据
   const displaySessions = useMemo(() => {
     if (miningSummary?.active_sessions?.sessions?.length > 0) {
@@ -334,32 +334,32 @@ export function MiningSessions({
     }
     return sessions || []
   }, [miningSummary, sessions])
-  
+
   // 筛选可用工具
-  const availableTools = useMemo(() => 
+  const availableTools = useMemo(() =>
     tools?.filter(t => t.status === 'normal' && !t.is_in_use && (t.current_durability || 0) > 0) || [],
     [tools]
   )
-  
+
   // 筛选可用土地（新增）
   const availableLands = useMemo(() => {
     if (!userLands) return []
-    return userLands.filter(land => 
-      !land.is_producing && 
-      land.blueprint?.land_type && 
+    return userLands.filter(land =>
+      !land.is_producing &&
+      land.blueprint?.land_type &&
       ['yld_mine', 'iron_mine', 'stone_mine', 'forest', 'farm'].includes(land.blueprint.land_type)
     )
   }, [userLands])
-  
+
   // 事件处理 - 修改为快速开始流程
   const handleOpenStartModal = useCallback(() => {
     // 如果有可用土地和工具，直接使用快速开始
     if (availableLands.length > 0 && availableTools.length > 0) {
       // 优先选择 YLD 矿山，否则选择第一个可用土地
-      const preferredLand = availableLands.find(land => 
+      const preferredLand = availableLands.find(land =>
         land.blueprint?.land_type === 'yld_mine'
       ) || availableLands[0]
-      
+
       setQuickStartLand(preferredLand)
       setShowQuickStart(true)
     } else if (availableLands.length === 0) {
@@ -374,36 +374,36 @@ export function MiningSessions({
       setShowPreCheck(true)
     }
   }, [availableLands, availableTools, onSynthesizeTool])
-  
+
   const handlePreCheckProceed = useCallback(() => {
     setShowPreCheck(false)
     setShowStartModal(true)
     setSelectedLand(null)
     setSelectedTools([])
   }, [])
-  
+
   const handleConfirmStart = useCallback(() => {
     if (!selectedLand || selectedTools.length === 0) {
       toast.error('请选择土地和工具')
       return
     }
-    
+
     setConfirmAction('start')
     setShowConfirmModal(true)
   }, [selectedLand, selectedTools])
-  
+
   const handleExecuteStart = useCallback(async () => {
     if (!selectedLand || selectedTools.length === 0) return
-    
+
     try {
       await onStartMining(selectedLand.id, selectedTools)
-      
+
       toast.success('挖矿已开始！', {
         duration: 3000,
         position: 'top-center',
         icon: '⛏️'
       })
-      
+
       setShowStartModal(false)
       setShowConfirmModal(false)
       setSelectedLand(null)
@@ -414,18 +414,18 @@ export function MiningSessions({
       console.error('开始挖矿失败:', err)
     }
   }, [selectedLand, selectedTools, onStartMining, onRefresh])
-  
+
   // 快速开始确认（新增）
   const handleQuickStartConfirm = useCallback(async (landId: number, toolIds: number[]) => {
     try {
       await onStartMining(landId, toolIds)
-      
+
       toast.success('挖矿已开始！', {
         duration: 3000,
         position: 'top-center',
         icon: '⛏️'
       })
-      
+
       setShowQuickStart(false)
       setQuickStartLand(null)
       onRefresh?.()
@@ -433,25 +433,25 @@ export function MiningSessions({
       console.error('开始挖矿失败:', err)
     }
   }, [onStartMining, onRefresh])
-  
+
   const handleConfirmStop = useCallback((sessionPk: number) => {
     setTargetSessionId(sessionPk)
     setConfirmAction('stop')
     setShowConfirmModal(true)
   }, [])
-  
+
   const handleExecuteStop = useCallback(async () => {
     if (!targetSessionId) return
-    
+
     try {
       await onStopSession(targetSessionId)
-      
+
       toast.success('挖矿已结束，产出已收取！', {
         duration: 3000,
         position: 'top-center',
         icon: '💰'
       })
-      
+
       setShowConfirmModal(false)
       setTargetSessionId(null)
       setConfirmAction(null)
@@ -460,20 +460,20 @@ export function MiningSessions({
       console.error('停止生产失败:', err)
     }
   }, [targetSessionId, onStopSession, onRefresh])
-  
+
   const handleStopAll = useCallback(async () => {
     try {
       await stopAll()
-      
+
       toast.success('已停止所有会话', {
         duration: 3000,
         position: 'top-center',
         icon: '✅'
       })
-      
+
       setShowConfirmModal(false)
       setConfirmAction(null)
-      
+
       setTimeout(() => {
         window.location.reload()
       }, 2000)
@@ -481,12 +481,12 @@ export function MiningSessions({
       console.error('批量停止失败:', error)
     }
   }, [stopAll])
-  
+
   const handleViewHistory = useCallback((sessionPk: number) => {
     setSelectedSessionId(sessionPk)
     setShowRateHistory(true)
   }, [])
-  
+
   // 渲染
   if (loading) {
     return (
@@ -496,7 +496,10 @@ export function MiningSessions({
       </div>
     )
   }
-  
+
+  // 粮食剩余
+  const foodHours = miningSummary?.food_sustainability_hours || 0;
+
   return (
     <div className="space-y-4">
       {/* 统计概览 */}
@@ -505,7 +508,7 @@ export function MiningSessions({
         yldStatus={yldStatus}
         onStartNew={handleOpenStartModal}
       />
-      
+
       {/* 会话列表或空状态 */}
       {displaySessions.length > 0 ? (
         <>
@@ -525,7 +528,7 @@ export function MiningSessions({
               全部停止
             </PixelButton>
           </div>
-          
+
           {/* 会话网格 */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {displaySessions.map((session: any) => (
@@ -541,9 +544,9 @@ export function MiningSessions({
       ) : (
         <EmptyState onStart={handleOpenStartModal} />
       )}
-      
+
       {/* ==================== 模态框 ==================== */}
-      
+
       {/* 快速开始挖矿（新增） */}
       <PixelModal
         isOpen={showQuickStart}
@@ -556,6 +559,7 @@ export function MiningSessions({
       >
         {quickStartLand && tools && (
           <QuickStartMining
+            foodHours={foodHours}
             mine={quickStartLand}
             tools={tools}
             onConfirm={handleQuickStartConfirm}
@@ -568,7 +572,7 @@ export function MiningSessions({
           />
         )}
       </PixelModal>
-      
+
       {/* 挖矿预检查 */}
       {showPreCheck && (
         <PixelModal
@@ -585,7 +589,7 @@ export function MiningSessions({
           />
         </PixelModal>
       )}
-      
+
       {/* 开始挖矿 */}
       <PixelModal
         isOpen={showStartModal}
@@ -618,7 +622,7 @@ export function MiningSessions({
           />
         )}
       </PixelModal>
-      
+
       {/* 确认操作 */}
       <PixelModal
         isOpen={showConfirmModal}
@@ -628,9 +632,9 @@ export function MiningSessions({
           setTargetSessionId(null)
         }}
         title={
-          confirmAction === 'start' ? '确认开始挖矿' : 
-          confirmAction === 'stopAll' ? '确认结束所有会话' :
-          '确认结束挖矿'
+          confirmAction === 'start' ? '确认开始挖矿' :
+            confirmAction === 'stopAll' ? '确认结束所有会话' :
+              '确认结束挖矿'
         }
         size="small"
       >
@@ -641,14 +645,14 @@ export function MiningSessions({
               <p className="text-sm text-gray-300">确定要开始挖矿吗？</p>
             </div>
           )}
-          
+
           {confirmAction === 'stop' && targetSessionId && (
             <div className="text-center py-4">
               <div className="text-5xl mb-3">💰</div>
               <p className="text-sm text-gray-300">确定要结束挖矿并收取产出吗？</p>
             </div>
           )}
-          
+
           {confirmAction === 'stopAll' && (
             <div className="text-center py-4">
               <div className="text-5xl mb-3">⏹️</div>
@@ -657,14 +661,14 @@ export function MiningSessions({
               </p>
             </div>
           )}
-          
+
           <div className="flex gap-3">
             <PixelButton
               className="flex-1"
               onClick={
-                confirmAction === 'start' ? handleExecuteStart : 
-                confirmAction === 'stopAll' ? handleStopAll :
-                handleExecuteStop
+                confirmAction === 'start' ? handleExecuteStart :
+                  confirmAction === 'stopAll' ? handleStopAll :
+                    handleExecuteStop
               }
               disabled={confirmAction === 'stopAll' && stopAllLoading}
             >
@@ -683,7 +687,7 @@ export function MiningSessions({
           </div>
         </div>
       </PixelModal>
-      
+
       {/* 历史记录 */}
       {showRateHistory && selectedSessionId && (
         <PixelModal
@@ -698,7 +702,7 @@ export function MiningSessions({
           <SessionRateHistory
             sessionId={selectedSessionId}
             sessionInfo={(() => {
-              const session = displaySessions.find((s: any) => 
+              const session = displaySessions.find((s: any) =>
                 s.session_pk === selectedSessionId || s.id === selectedSessionId
               )
               return session ? {

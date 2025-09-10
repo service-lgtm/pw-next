@@ -128,32 +128,32 @@ function getMineType(mine: YLDMine | MineLand | any): string {
     special_type: mine.special_type,
     blueprint_land_type: mine.blueprint_info?.land_type
   })
-  
+
   // 1. 优先检查special_type（YLD转换矿山）
   if (mine.special_type === 'yld_converted') {
     return 'yld_converted'
   }
-  
+
   // 2. 最重要：使用 land_type 字段（这是真正的土地类型）
   if (mine.land_type) {
     // land_type 直接对应实际类型：forest, farm, yld_mine, stone_mine, iron_mine
     return mine.land_type
   }
-  
+
   // 3. 检查blueprint_info（备用）
   if (mine.blueprint_info?.land_type) {
     return mine.blueprint_info.land_type
   }
-  
+
   // 4. mine_type 字段通常是分类（如 "resource_land"），不是具体类型
   // 只有当它是具体类型时才使用
-  if (mine.mine_type && 
-      mine.mine_type !== 'resource_land' && 
-      mine.mine_type !== 'land' &&
-      MINE_TYPES[mine.mine_type as keyof typeof MINE_TYPES]) {
+  if (mine.mine_type &&
+    mine.mine_type !== 'resource_land' &&
+    mine.mine_type !== 'land' &&
+    MINE_TYPES[mine.mine_type as keyof typeof MINE_TYPES]) {
     return mine.mine_type
   }
-  
+
   // 5. 默认返回YLD矿山
   return 'yld_mine'
 }
@@ -165,29 +165,29 @@ function getMineType(mine: YLDMine | MineLand | any): string {
 function getRemainingReserves(mine: YLDMine | MineLand | any): number {
   // 1. 优先使用remaining_reserves字段（新API）
   if (mine.remaining_reserves !== undefined && mine.remaining_reserves !== null) {
-    return typeof mine.remaining_reserves === 'string' 
-      ? parseFloat(mine.remaining_reserves) 
+    return typeof mine.remaining_reserves === 'string'
+      ? parseFloat(mine.remaining_reserves)
       : mine.remaining_reserves
   }
-  
+
   // 2. 对于非YLD矿山，使用resource_reserves
   const mineType = getMineType(mine)
   if (!['yld_mine', 'yld_converted'].includes(mineType)) {
     if (mine.resource_reserves !== undefined && mine.resource_reserves !== null) {
-      const reserves = typeof mine.resource_reserves === 'string' 
-        ? parseFloat(mine.resource_reserves) 
+      const reserves = typeof mine.resource_reserves === 'string'
+        ? parseFloat(mine.resource_reserves)
         : mine.resource_reserves
       return isNaN(reserves) ? 0 : reserves
     }
   }
-  
+
   // 3. 对于YLD转换矿山，计算剩余储量
   if (mine.special_type === 'yld_converted' || mineType === 'yld_converted') {
     const initial = parseFloat(mine.initial_price || '0')
     const accumulated = parseFloat(mine.accumulated_output || '0')
     return initial - accumulated
   }
-  
+
   // 4. 对于普通YLD矿山，从metadata获取
   if (mineType === 'yld_mine') {
     if (mine.metadata?.yld_reserves !== undefined) {
@@ -197,14 +197,14 @@ function getRemainingReserves(mine: YLDMine | MineLand | any): number {
       return parseFloat(mine.metadata.remaining_reserves)
     }
   }
-  
+
   // 5. 使用yld_capacity字段（向后兼容）
   if (mine.yld_capacity !== undefined) {
-    return typeof mine.yld_capacity === 'string' 
-      ? parseFloat(mine.yld_capacity) 
+    return typeof mine.yld_capacity === 'string'
+      ? parseFloat(mine.yld_capacity)
       : mine.yld_capacity
   }
-  
+
   return 0
 }
 
@@ -215,26 +215,26 @@ function getRemainingReserves(mine: YLDMine | MineLand | any): number {
 function getInitialReserves(mine: YLDMine | MineLand | any): number {
   // 1. 使用initial_reserves_display（新API）
   if (mine.initial_reserves_display !== undefined && mine.initial_reserves_display !== null) {
-    return typeof mine.initial_reserves_display === 'string' 
-      ? parseFloat(mine.initial_reserves_display) 
+    return typeof mine.initial_reserves_display === 'string'
+      ? parseFloat(mine.initial_reserves_display)
       : mine.initial_reserves_display
   }
-  
+
   // 2. 使用initial_reserves字段
   if (mine.initial_reserves !== undefined && mine.initial_reserves !== null) {
-    const reserves = typeof mine.initial_reserves === 'string' 
-      ? parseFloat(mine.initial_reserves) 
+    const reserves = typeof mine.initial_reserves === 'string'
+      ? parseFloat(mine.initial_reserves)
       : mine.initial_reserves
     if (!isNaN(reserves) && reserves > 0) {
       return reserves
     }
   }
-  
+
   // 3. 对于YLD转换矿山，使用initial_price
   if (mine.special_type === 'yld_converted' || getMineType(mine) === 'yld_converted') {
     return parseFloat(mine.initial_price || '0')
   }
-  
+
   // 4. 对于普通YLD矿山
   const mineType = getMineType(mine)
   if (mineType === 'yld_mine') {
@@ -250,7 +250,7 @@ function getInitialReserves(mine: YLDMine | MineLand | any): number {
       return parseFloat(mine.initial_price)
     }
   }
-  
+
   // 5. 对于其他矿山，initial_price可能代表不同的含义
   // 返回0以避免误导
   return 0
@@ -263,7 +263,7 @@ function formatAmount(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '0'
   const num = typeof value === 'string' ? parseFloat(value) : value
   if (isNaN(num)) return '0'
-  
+
   // 大数字简化显示
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
@@ -276,14 +276,14 @@ function formatAmount(value: string | number | null | undefined): string {
 function calculateEfficiency(mine: YLDMine | MineLand | any): number {
   const initial = getInitialReserves(mine)
   const remaining = getRemainingReserves(mine)
-  
+
   if (initial === 0) return 0
-  
+
   // 使用reserves_percentage字段（如果存在）
   if (mine.reserves_percentage !== undefined && mine.reserves_percentage !== null) {
     return mine.reserves_percentage
   }
-  
+
   // 计算剩余百分比
   return Math.min((remaining / initial) * 100, 100)
 }
@@ -297,7 +297,7 @@ function isProducing(mine: YLDMine | MineLand | any): boolean {
   if (mine.isProducing === true) return true
   if (mine.production_status === 'active') return true
   if (mine.status === 'producing') return true
-  
+
   // 2. 默认返回false
   return false
 }
@@ -307,7 +307,7 @@ function isProducing(mine: YLDMine | MineLand | any): boolean {
 /**
  * 矿山统计卡片
  */
-const MineStatsCard = ({ 
+const MineStatsCard = ({
   mines,
   onFilter
 }: {
@@ -319,7 +319,7 @@ const MineStatsCard = ({
     let totalProducing = 0
     let totalOutput = 0
     let totalReserves = 0
-    
+
     mines.forEach(mine => {
       const type = getMineType(mine)
       typeCount[type] = (typeCount[type] || 0) + 1
@@ -327,10 +327,10 @@ const MineStatsCard = ({
       totalOutput += parseFloat(mine.accumulated_output || '0')
       totalReserves += getRemainingReserves(mine)
     })
-    
+
     return { typeCount, totalProducing, totalOutput, totalReserves }
   }, [mines])
-  
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-3 text-center">
@@ -341,14 +341,14 @@ const MineStatsCard = ({
         <p className="text-2xl font-bold text-green-400">{stats.totalProducing}</p>
         <p className="text-xs text-gray-400">生产中</p>
       </div>
-      <div className="bg-gradient-to-br from-purple-900/50 to-gray-900 rounded-lg p-3 text-center">
+      {/* <div className="bg-gradient-to-br from-purple-900/50 to-gray-900 rounded-lg p-3 text-center">
         <p className="text-2xl font-bold text-purple-400">{formatAmount(stats.totalOutput)}</p>
         <p className="text-xs text-gray-400">总产出</p>
       </div>
       <div className="bg-gradient-to-br from-gold-900/50 to-gray-900 rounded-lg p-3 text-center">
         <p className="text-2xl font-bold text-gold-400">{formatAmount(stats.totalReserves)}</p>
         <p className="text-xs text-gray-400">总储量</p>
-      </div>
+      </div> */}
     </div>
   )
 }
@@ -371,16 +371,16 @@ const MineCard = ({
   const config = MINE_TYPES[mineType as keyof typeof MINE_TYPES] || MINE_TYPES['yld_mine']
   const producing = isProducing(mine)
   const efficiency = calculateEfficiency(mine)
-  
+
   // 关键数据
   const landId = mine.land_id || `矿山#${mine.id}`
   const remaining = getRemainingReserves(mine)
   const initial = getInitialReserves(mine)
   const accumulated = mine.accumulated_output || '0'
-  
+
   // 显示储量信息的条件
   const showReserves = initial > 0 || remaining > 0
-  
+
   return (
     <div
       className={cn(
@@ -395,7 +395,7 @@ const MineCard = ({
     >
       {/* 顶部彩条 */}
       <div className={cn("h-2 bg-gradient-to-r", config.gradient)} />
-      
+
       {/* 生产状态标签 */}
       {producing && (
         <div className="absolute top-4 right-4">
@@ -405,7 +405,7 @@ const MineCard = ({
           </div>
         </div>
       )}
-      
+
       {/* 主体内容 */}
       <div className="p-4">
         {/* 图标和标题 */}
@@ -420,7 +420,7 @@ const MineCard = ({
             </p>
           </div>
         </div>
-        
+
         {/* 核心数据 - 简化显示 */}
         <div className="space-y-2 mb-4">
           {/* 储量信息 */}
@@ -437,7 +437,7 @@ const MineCard = ({
               </span>
             </div>
           )}
-          
+
           {/* 累计产出 */}
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">累计产出</span>
@@ -445,7 +445,7 @@ const MineCard = ({
               {formatAmount(accumulated)}
             </span>
           </div>
-          
+
           {/* 效率进度条 */}
           {showReserves && (
             <div>
@@ -453,23 +453,23 @@ const MineCard = ({
                 <span className="text-xs text-gray-400">储量剩余</span>
                 <span className="text-xs text-gray-400">{efficiency.toFixed(1)}%</span>
               </div>
-              <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+              {/* <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
                     "bg-gradient-to-r",
                     efficiency > 80 ? "from-green-600 to-green-500" :
-                    efficiency > 50 ? "from-yellow-600 to-yellow-500" :
-                    efficiency > 20 ? "from-orange-600 to-orange-500" :
-                    "from-red-600 to-red-500"
+                      efficiency > 50 ? "from-yellow-600 to-yellow-500" :
+                        efficiency > 20 ? "from-orange-600 to-orange-500" :
+                          "from-red-600 to-red-500"
                   )}
                   style={{ width: `${efficiency}%` }}
                 />
-              </div>
+              </div> */}
             </div>
           )}
         </div>
-        
+
         {/* 操作按钮 - 根据生产状态显示 */}
         <div className="flex gap-2">
           {producing ? (
@@ -559,7 +559,7 @@ export function YLDMineList({
   const [filterType, setFilterType] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'default' | 'output' | 'status' | 'reserves'>('default')
   const [isMobile, setIsMobile] = useState(false)
-  
+
   // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
@@ -569,13 +569,13 @@ export function YLDMineList({
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-  
+
   // 筛选和排序矿山
   const displayMines = useMemo(() => {
     if (!mines) return []
-    
+
     let filtered = [...mines]
-    
+
     // 筛选
     if (filterType !== 'all') {
       filtered = filtered.filter(mine => {
@@ -583,7 +583,7 @@ export function YLDMineList({
         return mineType === filterType
       })
     }
-    
+
     // 排序
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -605,10 +605,10 @@ export function YLDMineList({
           return a.id - b.id
       }
     })
-    
+
     return filtered
   }, [mines, filterType, sortBy])
-  
+
   // 获取可用的矿山类型
   const availableTypes = useMemo(() => {
     if (!mines) return []
@@ -618,7 +618,7 @@ export function YLDMineList({
     })
     return Array.from(types)
   }, [mines])
-  
+
   // 处理开始生产
   const handleStartProduction = useCallback((mineId: number) => {
     if (onSwitchToSessions) {
@@ -629,17 +629,17 @@ export function YLDMineList({
       onStartProduction(mineId)
     }
   }, [onSwitchToSessions, onStartProduction])
-  
+
   // 渲染状态
   if (loading) return <LoadingState />
   if (error) return <ErrorState error={error} onRefresh={onRefresh} />
   if (!mines || mines.length === 0) return <EmptyState onRefresh={onRefresh} />
-  
+
   return (
     <div className="space-y-4">
       {/* 统计概览 */}
       <MineStatsCard mines={mines} onFilter={setFilterType} />
-      
+
       {/* 筛选和排序栏 */}
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
         {/* 类型筛选 */}
@@ -675,7 +675,7 @@ export function YLDMineList({
             ) : null
           })}
         </div>
-        
+
         {/* 排序选项 */}
         <div className="flex gap-2">
           <select
@@ -693,7 +693,7 @@ export function YLDMineList({
           </PixelButton>
         </div>
       </div>
-      
+
       {/* 矿山网格 */}
       <div className={cn(
         "grid gap-3",
@@ -709,7 +709,7 @@ export function YLDMineList({
           />
         ))}
       </div>
-      
+
       {/* 筛选结果为空 */}
       {filterType !== 'all' && displayMines.length === 0 && (
         <div className="text-center py-8">

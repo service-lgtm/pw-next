@@ -128,7 +128,7 @@ export function TeamSection() {
       </div>
 
       {/* 个人贡献统计 */}
-      <div className="mt-6 grid md:grid-cols-3 gap-4">
+      {/* <div className="mt-6 grid md:grid-cols-3 gap-4">
         <div className="text-center p-4 bg-gray-800/50 rounded">
           <p className="text-2xl font-black text-blue-500">
             {displayData?.direct_referrals_count || 0}
@@ -147,7 +147,7 @@ export function TeamSection() {
           </p>
           <p className="text-sm text-gray-400 mt-1">当前等级</p>
         </div>
-      </div>
+      </div> */}
 
       {/* 推荐链接 */}
       <div className="mt-8 p-4 bg-gold-500/10 border-2 border-gold-500/30 rounded">

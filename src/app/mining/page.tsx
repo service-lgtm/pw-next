@@ -111,7 +111,7 @@ const MODULES = {
 /**
  * 资源展示栏
  */
-const ResourceBar = ({ 
+const ResourceBar = ({
   resources,
   grainWarning,
   onClick
@@ -127,7 +127,7 @@ const ResourceBar = ({
     { key: 'food', icon: '🌾', color: grainWarning ? 'text-red-400' : 'text-yellow-400', bgColor: grainWarning ? 'bg-red-900/20' : 'bg-yellow-900/20' },
     { key: 'yld', icon: '💎', color: 'text-purple-400', bgColor: 'bg-purple-900/20' }
   ]
-  
+
   return (
     <div className="grid grid-cols-5 gap-2 mb-4">
       {resourceTypes.map(({ key, icon, color, bgColor }) => (
@@ -156,7 +156,7 @@ const ResourceBar = ({
 /**
  * 模块卡片
  */
-const ModuleCard = ({ 
+const ModuleCard = ({
   module,
   stats,
   onClick,
@@ -181,13 +181,13 @@ const ModuleCard = ({
       )}
     >
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-2xl bg-gradient-to-r", module.gradient)} />
-      
+
       {stats?.highlight && (
         <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
           <span className="text-white text-xs font-bold">{stats.value}</span>
         </div>
       )}
-      
+
       <div className="flex flex-col items-center text-center">
         <div className="text-4xl mb-3">{module.icon}</div>
         <h3 className="text-base font-bold text-white mb-1">{module.title}</h3>
@@ -209,12 +209,12 @@ const ModuleCard = ({
 /**
  * 快速统计卡片
  */
-const QuickStats = ({ 
+const QuickStats = ({
   stats,
   onMinesClick,
   onSessionsClick,
   onToolsClick
-}: { 
+}: {
   stats: any
   onMinesClick: () => void
   onSessionsClick: () => void
@@ -271,7 +271,7 @@ export default function MiningPage() {
   // 认证状态
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
-  
+
   // 状态管理
   const [activeModule, setActiveModule] = useState<string | null>(null)
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
@@ -279,14 +279,14 @@ export default function MiningPage() {
   const [showQuickStart, setShowQuickStart] = useState(false)
   const [selectedMineForStart, setSelectedMineForStart] = useState<any>(null)
   const [isMobile, setIsMobile] = useState(false)
-  
+
   // 数据获取
   const shouldFetchData = !authLoading && isAuthenticated
-  
-  const { 
-    mines: yldMines, 
-    loading: yldMinesLoading, 
-    error: yldMinesError, 
+
+  const {
+    mines: yldMines,
+    loading: yldMinesLoading,
+    error: yldMinesError,
     stats: yldStats,
     totalCount: yldTotalCount,
     refetch: refetchYLDMines
@@ -295,59 +295,59 @@ export default function MiningPage() {
     page_size: 100,
     ordering: '-created_at'
   } : null)
-  
-  const { 
-    mine: selectedMine, 
+
+  const {
+    mine: selectedMine,
     loading: detailLoading
   } = useYLDMineDetail(shouldFetchData ? selectedMineId : null)
-  
-  const { 
+
+  const {
     lands: userLands
   } = useUserLands({
     enabled: shouldFetchData
   })
-  
-  const { 
-    sessions, 
-    loading: sessionsLoading, 
+
+  const {
+    sessions,
+    loading: sessionsLoading,
     refetch: refetchSessions
   } = useMiningSessions({
     status: 'active',
     enabled: shouldFetchData
   })
-  
-  const { 
-    tools, 
-    loading: toolsLoading, 
-    stats: toolStats, 
+
+  const {
+    tools,
+    loading: toolsLoading,
+    stats: toolStats,
     refetch: refetchTools
   } = useMyTools({
     enabled: shouldFetchData,
     page_size: 100  // 获取所有工具，避免分页问题
   })
-  
-  const { 
-    resources, 
+
+  const {
+    resources,
     refetch: refetchResources
   } = useMyResources({
     enabled: shouldFetchData,
     useStats: true
   })
-  
+
   const {
     stats: resourceStats,
     refetch: refetchResourceStats
   } = useResourceStats({
     enabled: shouldFetchData
   })
-  
-  const { 
-    status: grainStatus 
+
+  const {
+    status: grainStatus
   } = useGrainStatus({
     enabled: shouldFetchData
   })
-  
-  const { 
+
+  const {
     status: yldSystemStatus,
     refetch: refetchYLDStatus
   } = useYLDStatus({
@@ -355,8 +355,8 @@ export default function MiningPage() {
     autoRefresh: true,
     refreshInterval: 60000
   })
-  
-  const { 
+
+  const {
     summary: miningSummary,
     refetch: refetchMiningSummary
   } = useMiningSummary({
@@ -364,37 +364,37 @@ export default function MiningPage() {
     autoRefresh: true,
     refreshInterval: 30000
   })
-  
-  const { 
-    startMining, 
+
+  const {
+    startMining,
     loading: startMiningLoading
   } = useStartSelfMining()
-  
-  const { 
-    synthesize, 
+
+  const {
+    synthesize,
     loading: synthesizeLoading
   } = useSynthesizeTool()
-  
-  const { 
+
+  const {
     stopProduction
   } = useStopProduction()
-  
-  const { 
+
+  const {
     collectOutput
   } = useCollectOutput()
-  
+
   const {
     checkResult: preCheckResult,
     performCheck
   } = useMiningPreCheck()
-  
+
   // 计算统计数据
   const stats = useMemo(() => {
     const activeSessions = sessions?.length || 0
     const totalTools = tools?.length || 0
     const damagedTools = tools?.filter(t => t.current_durability < t.max_durability).length || 0
     const collectibleSessions = sessions?.filter(s => s.can_collect).length || 0
-    
+
     return {
       activeSessions,
       totalTools,
@@ -405,7 +405,7 @@ export default function MiningPage() {
       totalOutput: yldStats?.total_accumulated_output || 0
     }
   }, [sessions, tools, yldTotalCount, yldStats])
-  
+
   // 获取资源数据
   const getResourceAmount = useCallback((type: string) => {
     if (miningSummary?.resources?.[type] !== undefined) {
@@ -419,7 +419,7 @@ export default function MiningPage() {
     }
     return 0
   }, [miningSummary, resourceStats, resources])
-  
+
   const resourceData = useMemo(() => ({
     wood: getResourceAmount('wood'),
     iron: getResourceAmount('iron'),
@@ -427,7 +427,7 @@ export default function MiningPage() {
     food: getResourceAmount('food') || getResourceAmount('grain'),
     yld: getResourceAmount('yld')
   }), [getResourceAmount])
-  
+
   // 副作用
   useEffect(() => {
     const checkMobile = () => {
@@ -437,7 +437,7 @@ export default function MiningPage() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-  
+
   useEffect(() => {
     if (authLoading) return
     if (!isAuthenticated) {
@@ -445,40 +445,40 @@ export default function MiningPage() {
       router.push('/login?redirect=/mining')
     }
   }, [authLoading, isAuthenticated, router])
-  
+
   // 处理资源点击 - 跳转到市场
   const handleResourceClick = useCallback((resourceType: string) => {
     // 所有资源点击都跳转到市场页面
     router.push('/market')
   }, [router])
-  
+
   // 事件处理
   const handleViewDetail = useCallback((mine: YLDMine | MineLand) => {
     setSelectedMineId(mine.id)
     setShowDetailModal(true)
   }, [])
-  
+
   /**
    * 处理快速开始挖矿
    * 从矿山卡片直接开始，无需选择土地
    */
   const handleQuickStartMining = useCallback(async (mine: any) => {
     console.log('[MiningPage] 快速开始挖矿，矿山:', mine)
-    
+
     // 先进行预检查
     await performCheck()
-    
+
     // 检查预检查结果
     if (preCheckResult && !preCheckResult.can_mine) {
       toast.error('请先解决挖矿条件问题')
       return
     }
-    
+
     // 设置选中的矿山并显示快速开始窗口
     setSelectedMineForStart(mine)
     setShowQuickStart(true)
   }, [performCheck, preCheckResult])
-  
+
   /**
    * 确认开始挖矿
    * 从快速开始窗口调用
@@ -489,7 +489,7 @@ export default function MiningPage() {
         land_id: landId,
         tool_ids: toolIds
       })
-      
+
       // 刷新所有相关数据
       refetchSessions()
       refetchTools()
@@ -497,11 +497,11 @@ export default function MiningPage() {
       refetchMiningSummary()
       refetchYLDStatus()
       refetchYLDMines()
-      
+
       // 关闭快速开始窗口
       setShowQuickStart(false)
       setSelectedMineForStart(null)
-      
+
       toast.success('开始挖矿成功！', {
         icon: '⛏️',
         duration: 3000
@@ -511,7 +511,7 @@ export default function MiningPage() {
       toast.error('开始挖矿失败')
     }
   }, [startMining, refetchSessions, refetchTools, refetchResourceStats, refetchMiningSummary, refetchYLDStatus, refetchYLDMines])
-  
+
   const handleStartSelfMining = useCallback(async (landId: number, toolIds: number[]) => {
     try {
       await startMining({
@@ -528,7 +528,7 @@ export default function MiningPage() {
       console.error('[MiningPage] Start mining failed:', error)
     }
   }, [startMining, refetchSessions, refetchTools, refetchResourceStats, refetchMiningSummary, refetchYLDStatus])
-  
+
   const handleStopSession = useCallback(async (sessionId: number) => {
     try {
       await stopProduction(sessionId)
@@ -543,7 +543,7 @@ export default function MiningPage() {
       console.error('[MiningPage] Stop session failed:', error)
     }
   }, [stopProduction, refetchSessions, refetchTools, refetchResources, refetchResourceStats, refetchMiningSummary, refetchYLDStatus])
-  
+
   const handleCollectSessionOutput = useCallback(async (sessionId: number) => {
     try {
       await collectOutput(sessionId)
@@ -556,7 +556,7 @@ export default function MiningPage() {
       console.error('[MiningPage] Collect output failed:', error)
     }
   }, [collectOutput, refetchSessions, refetchResources, refetchResourceStats, refetchMiningSummary])
-  
+
   const handleSynthesize = useCallback(async (toolType: string, quantity: number) => {
     try {
       await synthesize({
@@ -571,15 +571,27 @@ export default function MiningPage() {
       console.error('[MiningPage] Synthesize failed:', error)
     }
   }, [synthesize, refetchTools, refetchResources, refetchResourceStats])
-  
+
   const handleModuleClick = useCallback((moduleId: string) => {
-    setActiveModule(moduleId)
+    // setActiveModule(moduleId)
+
+    if (!selectedMine) {
+      toast.error('暂无矿山可挖')
+      return
+    }
+    // 设置选中的矿山并显示快速开始窗口
+    setSelectedMineForStart(selectedMine)
+    // 设置显示快速挖矿弹窗
+    setShowQuickStart(true);
   }, [])
-  
+
   const handleCloseModule = useCallback(() => {
     setActiveModule(null)
   }, [])
-  
+
+  // 粮食剩余
+  const foodHours = miningSummary?.food_sustainability_hours || 0;
+
   // 渲染逻辑
   if (authLoading) {
     return (
@@ -591,11 +603,11 @@ export default function MiningPage() {
       </div>
     )
   }
-  
+
   if (!isAuthenticated) {
     return null
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* 主内容区 */}
@@ -607,28 +619,28 @@ export default function MiningPage() {
             欢迎回来，{user?.nickname || user?.username}
           </p>
         </div>
-        
+
         {/* 资源展示栏 */}
         <ResourceBar
           resources={resourceData}
           grainWarning={grainStatus?.warning ? `剩${grainStatus.hours_remaining?.toFixed(1)}h` : undefined}
           onClick={handleResourceClick}
         />
-        
+
         {/* 快速统计 */}
-        <QuickStats 
+        <QuickStats
           stats={stats}
           onMinesClick={() => handleModuleClick('mines')}
           onSessionsClick={() => handleModuleClick('sessions')}
           onToolsClick={() => handleModuleClick('tools')}
         />
-        
+
         {/* 模块卡片网格 */}
         <div className="grid grid-cols-2 gap-4">
           <ModuleCard
             module={MODULES.mines}
-            stats={{ 
-              value: stats.totalMines, 
+            stats={{
+              value: stats.totalMines,
               label: '个矿山',
               highlight: false
             }}
@@ -636,8 +648,8 @@ export default function MiningPage() {
           />
           <ModuleCard
             module={MODULES.sessions}
-            stats={{ 
-              value: stats.activeSessions, 
+            stats={{
+              value: stats.activeSessions,
               label: '生产中',
               highlight: stats.collectibleSessions > 0
             }}
@@ -645,8 +657,8 @@ export default function MiningPage() {
           />
           <ModuleCard
             module={MODULES.tools}
-            stats={{ 
-              value: stats.totalTools, 
+            stats={{
+              value: stats.totalTools,
               label: '个工具',
               highlight: stats.damagedTools > 0
             }}
@@ -657,7 +669,7 @@ export default function MiningPage() {
             onClick={() => handleModuleClick('synthesis')}
           />
         </div>
-        
+
         {/* 快速提示 */}
         {stats.collectibleSessions > 0 && (
           <div className="mt-4 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
@@ -671,7 +683,7 @@ export default function MiningPage() {
             </button>
           </div>
         )}
-        
+
         {grainStatus?.warning && (
           <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
             <p className="text-sm text-yellow-400">
@@ -680,7 +692,7 @@ export default function MiningPage() {
           </div>
         )}
       </div>
-      
+
       {/* 模块内容模态框 */}
       {activeModule && (
         <PixelModal
@@ -747,7 +759,7 @@ export default function MiningPage() {
               />
             )}
             {activeModule === 'synthesis' && (
-              <SynthesisSystem 
+              <SynthesisSystem
                 className="w-full"
                 isMobile={isMobile}
               />
@@ -755,7 +767,7 @@ export default function MiningPage() {
           </div>
         </PixelModal>
       )}
-      
+
       {/* 快速开始挖矿模态框 */}
       <PixelModal
         isOpen={showQuickStart}
@@ -768,6 +780,7 @@ export default function MiningPage() {
       >
         {selectedMineForStart && tools && (
           <QuickStartMining
+            foodHours={foodHours}
             mine={selectedMineForStart}
             tools={tools}
             onConfirm={handleConfirmStartMining}
@@ -780,7 +793,7 @@ export default function MiningPage() {
           />
         )}
       </PixelModal>
-      
+
       {/* 矿山详情模态框 */}
       <PixelModal
         isOpen={showDetailModal}
@@ -811,10 +824,10 @@ export default function MiningPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
-              <PixelButton 
-                className="flex-1" 
+              <PixelButton
+                className="flex-1"
                 onClick={() => {
                   setShowDetailModal(false)
                   handleQuickStartMining(selectedMine)
@@ -823,8 +836,8 @@ export default function MiningPage() {
               >
                 {selectedMine.is_producing ? '生产中' : '开始挖矿'}
               </PixelButton>
-              <PixelButton 
-                variant="secondary" 
+              <PixelButton
+                variant="secondary"
                 onClick={() => setShowDetailModal(false)}
               >
                 关闭

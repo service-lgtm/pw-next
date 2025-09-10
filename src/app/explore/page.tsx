@@ -9,8 +9,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRegions } from '@/hooks/useRegions'
-import { 
-  Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle, LogIn, 
+import {
+  Globe, MapPin, TrendingUp, Users, Loader2, AlertCircle, LogIn,
   Sparkles, Zap, Shield, ArrowRight, Activity, ChevronRight, X,
   Timer, Gift, Star, Trophy, Crown, Gem, Infinity
 } from 'lucide-react'
@@ -43,18 +43,18 @@ function PixelLogo() {
 export default function ExplorePage() {
   const [selectedRegion, setSelectedRegion] = useState<number | null>(null)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  
+
   const regionsQueryParams = useMemo(() => ({
     regionType: 'country',
     isActive: true,
     isOpenForSale: true,
   }), [])
-  
+
   const { regions, loading, error } = useRegions(regionsQueryParams)
   const { isAuthenticated, user } = useAuth()
-  
+
   const isAuthError = error && (error.includes('需要登录') || error.includes('身份认证'))
-  
+
   useEffect(() => {
     if (showMobileMenu) {
       document.body.style.overflow = 'hidden'
@@ -65,7 +65,7 @@ export default function ExplorePage() {
       document.body.style.overflow = 'unset'
     }
   }, [showMobileMenu])
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex items-center justify-center">
@@ -81,7 +81,7 @@ export default function ExplorePage() {
       </div>
     )
   }
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/10 to-gray-900">
       {/* 动态背景效果 */}
@@ -90,12 +90,12 @@ export default function ExplorePage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-gold-500/10 to-yellow-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
       </div>
-      
+
       {/* 顶部导航 */}
       <nav className="relative border-b border-white/10 bg-black/20 backdrop-blur-xl">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-20">
-            <Link href="/" className="flex items-center gap-3 group z-10">
+            <Link href="/dashboard" className="flex items-center gap-3 group z-10">
               <motion.div
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
@@ -106,7 +106,7 @@ export default function ExplorePage() {
                 平行世界的字符
               </span>
             </Link>
-            
+
             <div className="hidden md:flex items-center gap-6">
               {isAuthenticated && user ? (
                 <>
@@ -146,7 +146,7 @@ export default function ExplorePage() {
                 </>
               )}
             </div>
-            
+
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -154,7 +154,7 @@ export default function ExplorePage() {
               <div className="w-6 h-6 flex flex-col justify-center gap-1.5">
                 <motion.span
                   className="block w-full h-0.5 bg-white origin-center"
-                  animate={{ 
+                  animate={{
                     rotate: showMobileMenu ? 45 : 0,
                     y: showMobileMenu ? 6 : 0
                   }}
@@ -165,7 +165,7 @@ export default function ExplorePage() {
                 />
                 <motion.span
                   className="block w-full h-0.5 bg-white origin-center"
-                  animate={{ 
+                  animate={{
                     rotate: showMobileMenu ? -45 : 0,
                     y: showMobileMenu ? -6 : 0
                   }}
@@ -175,7 +175,7 @@ export default function ExplorePage() {
           </div>
         </div>
       </nav>
-      
+
       {/* 移动端菜单 */}
       <AnimatePresence>
         {showMobileMenu && (
@@ -200,7 +200,7 @@ export default function ExplorePage() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="flex-1 p-6 space-y-4">
                 {isAuthenticated && user ? (
                   <>
@@ -242,7 +242,7 @@ export default function ExplorePage() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* 创世土地优雅横幅 */}
       <div className="relative bg-gradient-to-r from-gray-900 via-purple-900/30 to-gray-900 overflow-hidden border-b border-purple-500/20">
         <div className="absolute inset-0">
@@ -250,7 +250,7 @@ export default function ExplorePage() {
           <div className="absolute top-0 left-1/3 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-pink-600/20 rounded-full blur-3xl" />
         </div>
-        
+
         <div className="relative container mx-auto px-4 py-8 md:py-12">
           <div className="text-center">
             <motion.div
@@ -270,7 +270,7 @@ export default function ExplorePage() {
               </div>
               <div className="w-px h-8 bg-gradient-to-b from-transparent via-gold-500 to-transparent" />
             </motion.div>
-            
+
             <motion.h2
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -285,7 +285,7 @@ export default function ExplorePage() {
                 限量发行
               </span>
             </motion.h2>
-            
+
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -294,7 +294,7 @@ export default function ExplorePage() {
             >
               首批数字地产现已开放，每一块土地都将成为历史的见证
             </motion.p>
-            
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -314,7 +314,7 @@ export default function ExplorePage() {
           </div>
         </div>
       </div>
-      
+
       {/* 主内容区 */}
       <div className="relative container mx-auto px-4 py-12 md:py-20">
         {/* 标题区 - 优雅简约 */}
@@ -334,7 +334,7 @@ export default function ExplorePage() {
               永恒价值 · 无限可能
             </span>
           </motion.div>
-          
+
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black mb-6 tracking-tight">
             <span className="block bg-gradient-to-r from-white via-gray-200 to-white bg-clip-text text-transparent mb-2">
               拥有您的
@@ -343,12 +343,12 @@ export default function ExplorePage() {
               数字宇宙
             </span>
           </h1>
-          
+
           <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
             在虚拟与现实的交汇处，开启属于您的数字资产之旅
           </p>
         </motion.div>
-        
+
         {/* 价值主张 - 优雅展示 */}
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
           <motion.div
@@ -367,7 +367,7 @@ export default function ExplorePage() {
               </p>
             </div>
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -384,7 +384,7 @@ export default function ExplorePage() {
               </p>
             </div>
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -402,7 +402,7 @@ export default function ExplorePage() {
             </div>
           </motion.div>
         </div>
-        
+
         {/* 区域展示 */}
         {loading ? (
           <div className="text-center py-20">
@@ -426,12 +426,12 @@ export default function ExplorePage() {
                 <span className="text-sm text-gray-400">实时数据</span>
               </div>
             </div>
-            
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {regions.map((region, index) => (
-                <RegionCard 
-                  key={region.id} 
-                  region={region} 
+                <RegionCard
+                  key={region.id}
+                  region={region}
                   index={index}
                   isSelected={selectedRegion === region.id}
                   onSelect={() => setSelectedRegion(region.id)}
@@ -449,18 +449,18 @@ export default function ExplorePage() {
               <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mx-auto mb-8 flex items-center justify-center">
                 <Globe className="w-12 h-12 md:w-16 md:h-16 text-white" />
               </div>
-              
+
               <h3 className="text-2xl md:text-3xl font-black mb-4">
                 {isAuthenticated ? '暂无可用区域' : '连接以探索'}
               </h3>
-              
+
               <p className="text-gray-400 mb-8 text-lg">
-                {isAuthenticated 
+                {isAuthenticated
                   ? '新区域即将开放，敬请期待'
                   : '登录以访问独家数字地产投资机会'
                 }
               </p>
-              
+
               {!isAuthenticated && (
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Link
@@ -483,7 +483,7 @@ export default function ExplorePage() {
           </motion.div>
         )}
       </div>
-      
+
       {/* 底部 CTA - 优雅简约 */}
       {regions.length > 0 && (
         <div className="relative py-20 md:py-32 overflow-hidden">
@@ -502,7 +502,7 @@ export default function ExplorePage() {
               <p className="text-lg text-gray-400 mb-10 leading-relaxed">
                 加入创世先锋行列，共同见证虚拟世界的崛起
               </p>
-              
+
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href="/register"
@@ -527,19 +527,19 @@ export default function ExplorePage() {
 }
 
 // 区域卡片组件 - 优雅设计
-function RegionCard({ 
-  region, 
+function RegionCard({
+  region,
   index,
   isSelected,
   onSelect
-}: { 
+}: {
   region: any
   index: number
   isSelected: boolean
   onSelect: () => void
 }) {
   const isOpen = region.is_open_for_sale
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -548,7 +548,7 @@ function RegionCard({
       whileHover={{ y: -5 }}
       onClick={onSelect}
     >
-      <Link 
+      <Link
         href={isOpen ? `/explore/regions/${region.id}` : '#'}
         className={cn(
           "block h-full",
@@ -557,8 +557,8 @@ function RegionCard({
       >
         <div className={cn(
           "relative h-full bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl overflow-hidden transition-all duration-300 group",
-          isOpen 
-            ? "border border-gray-700 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 cursor-pointer" 
+          isOpen
+            ? "border border-gray-700 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-500/10 cursor-pointer"
             : "border border-gray-800 opacity-60",
           isSelected && "border-purple-500 shadow-xl shadow-purple-500/20"
         )}>
@@ -573,7 +573,7 @@ function RegionCard({
               </div>
             </div>
           )}
-          
+
           <div className="p-6 md:p-8">
             {/* 区域信息 */}
             <div className="mb-6">
@@ -582,7 +582,7 @@ function RegionCard({
               </h3>
               <p className="text-sm text-gray-500 font-mono">{region.code}</p>
             </div>
-            
+
             {/* 统计数据 - 简约展示 */}
             <div className="space-y-4 mb-6">
               <div className="flex items-center justify-between">
@@ -593,14 +593,14 @@ function RegionCard({
                 <span className="text-sm text-gray-400">可用</span>
                 <span className="font-bold text-green-400">{region.available_lands || 0}</span>
               </div>
-              
+
               {/* 进度条 */}
               <div>
                 <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ 
-                      width: region.total_lands > 0 
+                    animate={{
+                      width: region.total_lands > 0
                         ? `${((region.total_lands - region.available_lands) / region.total_lands) * 100}%`
                         : '0%'
                     }}
@@ -610,7 +610,7 @@ function RegionCard({
                 </div>
               </div>
             </div>
-            
+
             {/* 限量标识 */}
             {isOpen && region.available_lands > 0 && (
               <div className="mb-6">
@@ -620,11 +620,11 @@ function RegionCard({
                 </div>
               </div>
             )}
-            
+
             {/* 行动按钮 */}
             <div className={cn(
               "flex items-center justify-center py-3 rounded-xl font-bold transition-all",
-              isOpen 
+              isOpen
                 ? "bg-white text-black group-hover:bg-gray-100"
                 : "bg-gray-800 text-gray-500"
             )}>
