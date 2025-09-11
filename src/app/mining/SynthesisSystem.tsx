@@ -33,6 +33,8 @@ import {
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import hoeIconImg from "@/public/hoeIcon.png";
+import Image from 'next/image';
 
 interface SynthesisSystemProps {
   className?: string
@@ -43,7 +45,7 @@ interface SynthesisSystemProps {
 const TOOL_ICONS = {
   pickaxe: '⛏️',
   axe: '🪓',
-  hoe: '🌾'
+  hoe: hoeIconImg,
 } as const
 
 // 资源图标和颜色映射
@@ -403,7 +405,19 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                           : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
                           }`}
                       >
-                        <div className="text-2xl mb-1">{TOOL_ICONS[tool]}</div>
+                        <div className="text-2xl mb-1">
+                          {tool === "hoe" ? <Image
+                            width={20}
+                            height={26}
+                            src={TOOL_ICONS[tool]}
+                            alt={"hoe"}
+                            style={{
+                              width: 20,
+                              height: 26,
+                              margin: '0 auto'
+                            }}
+                          /> : TOOL_ICONS[tool]}
+                        </div>
                         <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
                         <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
                           可合成: {maxCount}
@@ -420,7 +434,16 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <div className="p-3 bg-gray-900/30 rounded">
                       <div className="flex items-center justify-between mb-3">
                         <h5 className="font-bold text-sm flex items-center gap-2">
-                          {TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
+                          {selectedTool === "hoe" ? <Image
+                            width={10}
+                            height={16}
+                            src={TOOL_ICONS[selectedTool]}
+                            alt={"hoe"}
+                            style={{
+                              width: 10,
+                              height: 16,
+                            }}
+                          /> : TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
                         </h5>
                         <span className="text-xs text-yellow-400">
                           耐久: {recipes[selectedTool].durability}

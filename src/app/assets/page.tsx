@@ -35,6 +35,8 @@ import { useMyLands } from '@/hooks/useLands'
 import { useInventory, formatValue, getResourceIcon } from '@/hooks/useInventory'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
+import hoeIconImg from "@/public/hoeIcon.png";
+import Image from 'next/image';
 
 // 资产类型定义
 type AssetTab = 'overview' | 'land' | 'material' | 'tool' | 'voucher'
@@ -76,7 +78,7 @@ const MATERIAL_CONFIG = {
 const TOOL_CONFIG = {
   pickaxe: { name: '镐头', icon: '⛏️', usage: '开采矿石' },
   axe: { name: '斧头', icon: '🪓', usage: '砍伐木材' },
-  hoe: { name: '锄头', icon: '🌾', usage: '农业生产' },
+  hoe: { name: '锄头', icon: '', image: hoeIconImg, usage: '农业生产' },
   brick: { name: '砖头', icon: '🧱', usage: '城市地块建设' },
   seed: { name: '种子', icon: '🌱', usage: '播种农田' },
 } as const
@@ -606,7 +608,21 @@ export default function AssetsPage() {
               return (
                 <PixelCard key={key} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl">{config.icon}</span>
+                    {
+                      config?.icon
+                        ? <span className="text-3xl">{config.icon}</span>
+                        : <Image
+                          width={30}
+                          height={36}
+                          src={config.image}
+                          alt={config.name}
+                          style={{
+                            width: 30,
+                            height: 36,
+                          }}
+                        />
+                    }
+
                     <div>
                       <h4 className="font-bold">{config.name}</h4>
                       <p className="text-xs text-gray-500">{config.usage}</p>

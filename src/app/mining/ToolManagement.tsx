@@ -27,6 +27,8 @@ import { PixelModal } from '@/components/shared/PixelModal'
 import { cn } from '@/lib/utils'
 import type { Tool } from '@/types/production'
 import toast from 'react-hot-toast'
+import hoeIconImg from "@/public/hoeIcon.png";
+import Image from 'next/image';
 
 interface ToolManagementProps {
   tools: Tool[] | null
@@ -44,6 +46,7 @@ const SYNTHESIS_RECIPES = {
   pickaxe: {
     name: '镐头',
     icon: '⛏️',
+    image: "",
     materials: {
       iron: 70,
       wood: 30,
@@ -54,6 +57,7 @@ const SYNTHESIS_RECIPES = {
   axe: {
     name: '斧头',
     icon: '🪓',
+    image: "",
     materials: {
       iron: 60,
       wood: 40,
@@ -63,7 +67,8 @@ const SYNTHESIS_RECIPES = {
   },
   hoe: {
     name: '锄头',
-    icon: '🔨',
+    icon: '',
+    image: hoeIconImg,
     materials: {
       iron: 50,
       wood: 50,
@@ -74,6 +79,7 @@ const SYNTHESIS_RECIPES = {
   brick: {
     name: '砖头',
     icon: '🧱',
+    image: "",
     materials: {
       stone: 80,
       wood: 20,
@@ -101,11 +107,11 @@ export function ToolManagement({
   const [selectedRecipe, setSelectedRecipe] = useState<keyof typeof SYNTHESIS_RECIPES>('pickaxe')
   const [synthesisQuantity, setSynthesisQuantity] = useState(1)
   const [displayedToolsCount, setDisplayedToolsCount] = useState(50) // 初始显示50个
-  
+
   // 如果指定了只显示某个部分，就不需要内部的标签切换
   const showInternalTabs = !showOnlyTools && !showOnlySynthesis
   const [activeView, setActiveView] = useState<'list' | 'synthesis'>('list')
-  
+
   // 调试：检测分页问题
   useEffect(() => {
     if (tools && tools.length > 0) {
@@ -114,14 +120,14 @@ export function ToolManagement({
         当前显示: Math.min(displayedToolsCount, tools.length),
         是否为20的倍数: tools.length % 20 === 0
       })
-      
+
       if (tools.length === 20) {
         console.warn('[ToolManagement] 警告：工具数量恰好为20，可能存在分页问题！')
         console.warn('请检查 useMyTools Hook 的 page_size 参数')
       }
     }
   }, [tools, displayedToolsCount])
-  
+
   // 处理合成
   const handleSynthesize = async () => {
     try {
@@ -133,12 +139,12 @@ export function ToolManagement({
       console.error('合成失败:', err)
     }
   }
-  
+
   // 检查是否有足够的材料
   const hasEnoughMaterials = (recipeKey: keyof typeof SYNTHESIS_RECIPES, quantity: number = 1) => {
     if (!resources) return false
     const recipe = SYNTHESIS_RECIPES[recipeKey]
-    
+
     for (const [material, amount] of Object.entries(recipe.materials)) {
       const required = amount * quantity
       // 处理资源字段映射
@@ -149,28 +155,28 @@ export function ToolManagement({
       } else {
         available = resources[material] || 0
       }
-      
+
       if (available < required) return false
     }
     return true
   }
-  
+
   // 加载更多工具
   const handleLoadMore = () => {
     setDisplayedToolsCount(prev => prev + 50)
   }
-  
+
   // 工具卡片组件
   const ToolCard = ({ tool }: { tool: Tool }) => {
     const durabilityPercent = ((tool.current_durability || 0) / (tool.max_durability || 1500)) * 100
-    
+
     return (
       <PixelCard className="p-3">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <p className="font-bold text-sm">{tool.tool_id}</p>
             <p className="text-xs text-gray-400">{tool.tool_type_display}</p>
-            
+
             {/* 耐久度条 */}
             <div className="mt-2">
               <div className="flex items-center gap-2">
@@ -180,7 +186,7 @@ export function ToolManagement({
                     className={cn(
                       "h-full rounded-full transition-all",
                       durabilityPercent > 50 ? "bg-green-500" :
-                      durabilityPercent > 20 ? "bg-yellow-500" : "bg-red-500"
+                        durabilityPercent > 20 ? "bg-yellow-500" : "bg-red-500"
                     )}
                     style={{ width: `${durabilityPercent}%` }}
                   />
@@ -191,15 +197,15 @@ export function ToolManagement({
               </div>
             </div>
           </div>
-          
+
           {/* 状态标签 */}
           <div className="flex flex-col items-end gap-1">
             <span className={cn(
               "px-2 py-1 rounded text-xs",
               tool.status === 'normal' ? "bg-green-500/20 text-green-400" :
-              tool.status === 'damaged' ? "bg-red-500/20 text-red-400" :
-              tool.status === 'repairing' ? "bg-yellow-500/20 text-yellow-400" :
-              "bg-gray-500/20 text-gray-400"
+                tool.status === 'damaged' ? "bg-red-500/20 text-red-400" :
+                  tool.status === 'repairing' ? "bg-yellow-500/20 text-yellow-400" :
+                    "bg-gray-500/20 text-gray-400"
             )}>
               {tool.status_display || tool.status}
             </span>
@@ -211,11 +217,11 @@ export function ToolManagement({
       </PixelCard>
     )
   }
-  
+
   // 获取要显示的工具
   const displayedTools = tools ? tools.slice(0, displayedToolsCount) : []
   const hasMoreTools = tools && tools.length > displayedToolsCount
-  
+
   return (
     <div className="space-y-4">
       {/* 内部视图切换 - 只在不指定显示模式时显示 */}
@@ -225,8 +231,8 @@ export function ToolManagement({
             onClick={() => setActiveView('list')}
             className={cn(
               "px-4 py-2 rounded text-sm font-bold transition-all",
-              activeView === 'list' 
-                ? "bg-gray-700 text-white" 
+              activeView === 'list'
+                ? "bg-gray-700 text-white"
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             )}
           >
@@ -236,34 +242,34 @@ export function ToolManagement({
             onClick={() => setActiveView('synthesis')}
             className={cn(
               "px-4 py-2 rounded text-sm font-bold transition-all",
-              activeView === 'synthesis' 
-                ? "bg-gray-700 text-white" 
+              activeView === 'synthesis'
+                ? "bg-gray-700 text-white"
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             )}
           >
             合成工具
           </button>
-          
+
           {/* 统计信息 */}
           {toolStats && activeView === 'list' && (
             <div className="ml-auto text-sm text-gray-400 flex items-center">
-              总计: {toolStats.total_count || toolStats.total_tools || tools?.length || 0} | 
-              正常: {toolStats.by_status?.normal || 0} | 
+              总计: {toolStats.total_count || toolStats.total_tools || tools?.length || 0} |
+              正常: {toolStats.by_status?.normal || 0} |
               损坏: {toolStats.by_status?.damaged || 0}
             </div>
           )}
         </div>
       )}
-      
+
       {/* 只显示工具时的统计信息 */}
       {showOnlyTools && (
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-bold">工具列表</h3>
           <div className="text-sm text-gray-400">
             {/* 使用 stats.total_count 而不是 tools.length */}
-            总计: {toolStats?.total_count || tools?.length || 0} | 
-            正常: {toolStats?.by_status?.normal || 0} | 
-            损坏: {toolStats?.by_status?.damaged || 0} | 
+            总计: {toolStats?.total_count || tools?.length || 0} |
+            正常: {toolStats?.by_status?.normal || 0} |
+            损坏: {toolStats?.by_status?.damaged || 0} |
             维修中: {toolStats?.by_status?.repairing || 0}
             {tools && tools.length < (toolStats?.total_count || 0) && (
               <span className="text-yellow-400 ml-2">
@@ -273,12 +279,12 @@ export function ToolManagement({
           </div>
         </div>
       )}
-      
+
       {/* 只显示合成系统时的标题 */}
       {showOnlySynthesis && (
         <h3 className="text-lg font-bold">合成工具</h3>
       )}
-      
+
       {/* 工具列表视图 */}
       {((!showOnlyTools && !showOnlySynthesis && activeView === 'list') || showOnlyTools) && (
         loading ? (
@@ -293,7 +299,7 @@ export function ToolManagement({
                 <ToolCard key={tool.id} tool={tool} />
               ))}
             </div>
-            
+
             {/* 加载更多按钮 */}
             {hasMoreTools && (
               <div className="text-center">
@@ -316,18 +322,18 @@ export function ToolManagement({
           </PixelCard>
         )
       )}
-      
+
       {/* 合成工具视图 */}
       {((!showOnlyTools && !showOnlySynthesis && activeView === 'synthesis') || showOnlySynthesis) && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(SYNTHESIS_RECIPES).map(([key, recipe]) => (
-              <PixelCard 
+              <PixelCard
                 key={key}
                 className={cn(
                   "p-4 text-center transition-all",
-                  recipe.disabled 
-                    ? "opacity-50 cursor-not-allowed" 
+                  recipe.disabled
+                    ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer hover:border-gold-500"
                 )}
                 onClick={() => {
@@ -339,7 +345,22 @@ export function ToolManagement({
                   }
                 }}
               >
-                <div className="text-4xl mb-2">{recipe.icon}</div>
+                <div className="text-4xl mb-2">
+                  {recipe?.icon
+                    ? recipe.icon
+                    : <Image
+                      width={30}
+                      height={48}
+                      src={recipe?.image}
+                      alt={recipe.name}
+                      style={{
+                        width: 30,
+                        height: 48,
+                        paddingTop: 12,
+                        margin: '0 auto',
+                      }}
+                    />}
+                </div>
                 <p className="font-bold">{recipe.name}</p>
                 <p className="text-xs text-gray-400 mt-1">
                   {recipe.description}
@@ -357,7 +378,7 @@ export function ToolManagement({
           </div>
         </div>
       )}
-      
+
       {/* 合成模态框 */}
       <PixelModal
         isOpen={showSynthesisModal}
@@ -371,13 +392,13 @@ export function ToolManagement({
             <p className="text-sm font-bold mb-2">所需材料（每个）：</p>
             <div className="text-sm text-gray-400 space-y-1">
               {Object.entries(SYNTHESIS_RECIPES[selectedRecipe].materials).map(([mat, amount]) => {
-                const materialName = mat === 'iron' ? '铁矿' : 
-                                   mat === 'wood' ? '木头' : 
-                                   mat === 'stone' ? '石头' : 'YLD'
+                const materialName = mat === 'iron' ? '铁矿' :
+                  mat === 'wood' ? '木头' :
+                    mat === 'stone' ? '石头' : 'YLD'
                 const available = resources?.[mat] || 0
                 const required = amount * synthesisQuantity
                 const hasEnough = available >= required
-                
+
                 return (
                   <div key={mat} className="flex justify-between">
                     <span>{materialName}:</span>
@@ -391,7 +412,7 @@ export function ToolManagement({
               })}
             </div>
           </div>
-          
+
           {/* 数量选择 */}
           <div>
             <label className="text-sm font-bold text-gray-300">合成数量</label>
@@ -404,7 +425,7 @@ export function ToolManagement({
               className="w-full mt-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white text-center"
             />
           </div>
-          
+
           {/* 按钮 */}
           <div className="flex gap-3">
             <PixelButton
