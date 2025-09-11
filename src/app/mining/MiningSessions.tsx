@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
@@ -282,6 +282,7 @@ const EmptyState = ({ onStart }: { onStart: () => void }) => (
 // ==================== 主组件 ====================
 
 interface MiningSessionsProps {
+  hiddenNode?: boolean
   sessions: MiningSession[] | null
   loading: boolean
   userLands: Land[] | null
@@ -296,8 +297,12 @@ interface MiningSessionsProps {
   yldStatus?: any
   onRefresh?: () => void
 }
+export interface MiningSessionsRef {
+  handleOpenStartModal: () => void
+}
 
-export function MiningSessions({
+export const MiningSessions = forwardRef<MiningSessionsRef, MiningSessionsProps>(({
+  hiddenNode = false,
   sessions,
   loading,
   userLands,
@@ -311,7 +316,8 @@ export function MiningSessions({
   miningSummary,
   yldStatus,
   onRefresh
-}: MiningSessionsProps) {
+}, ref) => {
+
   // 状态管理
   const [showStartModal, setShowStartModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -487,6 +493,10 @@ export function MiningSessions({
     setShowRateHistory(true)
   }, [])
 
+  useImperativeHandle(ref, () => ({
+    handleOpenStartModal
+  }))
+
   // 渲染
   if (loading) {
     return (
@@ -502,48 +512,53 @@ export function MiningSessions({
 
   return (
     <div className="space-y-4">
-      {/* 统计概览 */}
-      <SessionStats
-        summary={miningSummary}
-        yldStatus={yldStatus}
-        onStartNew={handleOpenStartModal}
-      />
+      {
+        !hiddenNode && <>
+          {/* 统计概览 */}
+          <SessionStats
+            summary={miningSummary}
+            yldStatus={yldStatus}
+            onStartNew={handleOpenStartModal}
+          />
 
-      {/* 会话列表或空状态 */}
-      {displaySessions.length > 0 ? (
-        <>
-          {/* 批量操作栏 */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-white">
-              活跃会话 ({displaySessions.length})
-            </h3>
-            <PixelButton
-              onClick={() => {
-                setConfirmAction('stopAll')
-                setShowConfirmModal(true)
-              }}
-              variant="secondary"
-              size="sm"
-            >
-              全部停止
-            </PixelButton>
-          </div>
+          {/* 会话列表或空状态 */}
+          {displaySessions.length > 0 ? (
+            <>
+              {/* 批量操作栏 */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">
+                  活跃会话 ({displaySessions.length})
+                </h3>
+                <PixelButton
+                  onClick={() => {
+                    setConfirmAction('stopAll')
+                    setShowConfirmModal(true)
+                  }}
+                  variant="secondary"
+                  size="sm"
+                >
+                  全部停止
+                </PixelButton>
+              </div>
 
-          {/* 会话网格 */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {displaySessions.map((session: any) => (
-              <SessionCardSimple
-                key={session.session_pk || session.id}
-                session={session}
-                onStop={() => handleConfirmStop(session.session_pk || session.id)}
-                onViewHistory={() => handleViewHistory(session.session_pk || session.id)}
-              />
-            ))}
-          </div>
+              {/* 会话网格 */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {displaySessions.map((session: any) => (
+                  <SessionCardSimple
+                    key={session.session_pk || session.id}
+                    session={session}
+                    onStop={() => handleConfirmStop(session.session_pk || session.id)}
+                    onViewHistory={() => handleViewHistory(session.session_pk || session.id)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <EmptyState onStart={handleOpenStartModal} />
+          )}
         </>
-      ) : (
-        <EmptyState onStart={handleOpenStartModal} />
-      )}
+      }
+
 
       {/* ==================== 模态框 ==================== */}
 
@@ -721,6 +736,6 @@ export function MiningSessions({
       )}
     </div>
   )
-}
+})
 
 export default MiningSessions

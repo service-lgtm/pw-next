@@ -29,7 +29,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
@@ -39,7 +39,7 @@ import { PixelCard } from '@/components/shared/PixelCard'
 import { PixelButton } from '@/components/shared/PixelButton'
 import { PixelModal } from '@/components/shared/PixelModal'
 import { YLDMineList } from './YLDMineList'
-import { MiningSessions } from './MiningSessions'
+import { MiningSessions, type MiningSessionsRef } from './MiningSessions'
 import { ToolManagement } from './ToolManagement'
 import { SynthesisSystem } from './SynthesisSystem'
 import { QuickStartMining } from './QuickStartMining'
@@ -272,6 +272,9 @@ export default function MiningPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth()
   const router = useRouter()
 
+  // MiningSessions实例
+  const MiningSessionsRef = useRef<MiningSessionsRef>(null)
+
   // 状态管理
   const [activeModule, setActiveModule] = useState<string | null>(null)
   const [selectedMineId, setSelectedMineId] = useState<number | null>(null)
@@ -446,6 +449,11 @@ export default function MiningPage() {
     }
   }, [authLoading, isAuthenticated, router])
 
+
+  const onSynthesizeTool = () => {
+    setActiveModule('synthesis')
+  }
+
   // 处理资源点击 - 跳转到市场
   const handleResourceClick = useCallback((resourceType: string) => {
     // 所有资源点击都跳转到市场页面
@@ -573,17 +581,13 @@ export default function MiningPage() {
   }, [synthesize, refetchTools, refetchResources, refetchResourceStats])
 
   const handleModuleClick = useCallback((moduleId: string) => {
-    // setActiveModule(moduleId)
-
-    if (!selectedMine) {
-      toast.error('暂无矿山可挖')
-      return
-    }
-    // 设置选中的矿山并显示快速开始窗口
-    setSelectedMineForStart(selectedMine)
-    // 设置显示快速挖矿弹窗
-    setShowQuickStart(true);
+    setActiveModule(moduleId)
   }, [])
+
+  // 显示快速挖矿弹窗
+  const showQuickStartModal = () => {
+    MiningSessionsRef?.current?.handleOpenStartModal();
+  }
 
   const handleCloseModule = useCallback(() => {
     setActiveModule(null)
@@ -653,7 +657,8 @@ export default function MiningPage() {
               label: '生产中',
               highlight: stats.collectibleSessions > 0
             }}
-            onClick={() => handleModuleClick('sessions')}
+            // onClick={() => handleModuleClick('sessions')}
+            onClick={showQuickStartModal}
           />
           <ModuleCard
             module={MODULES.tools}
@@ -742,9 +747,7 @@ export default function MiningPage() {
                 onBuyFood={() => {
                   router.push('/market')
                 }}
-                onSynthesizeTool={() => {
-                  setActiveModule('synthesis')
-                }}
+                onSynthesizeTool={onSynthesizeTool}
               />
             )}
             {activeModule === 'tools' && (
@@ -767,6 +770,32 @@ export default function MiningPage() {
           </div>
         </PixelModal>
       )}
+
+      <MiningSessions
+        ref={MiningSessionsRef}
+        hiddenNode
+        sessions={sessions}
+        loading={sessionsLoading}
+        userLands={userLands}
+        tools={tools}
+        onStartMining={handleStartSelfMining}
+        onStopSession={handleStopSession}
+        onCollectOutput={handleCollectSessionOutput}
+        startMiningLoading={startMiningLoading}
+        miningSummary={miningSummary}
+        yldStatus={yldSystemStatus}
+        onRefresh={() => {
+          refetchSessions()
+          refetchTools()
+          refetchResourceStats()
+          refetchMiningSummary()
+          refetchYLDStatus()
+        }}
+        onBuyFood={() => {
+          router.push('/market')
+        }}
+        onSynthesizeTool={onSynthesizeTool}
+      />
 
       {/* 快速开始挖矿模态框 */}
       <PixelModal
