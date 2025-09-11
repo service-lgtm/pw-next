@@ -58,11 +58,11 @@ export default function DashboardPage() {
       try {
         setLoading(true)
         setError(null)
-        
+
         // 获取最新的个人资料
         const response = await api.accounts.profile()
         console.log('[Dashboard] Profile response:', response)
-        
+
         if (response.success && response.data) {
           setProfileData(response.data)
         } else {
@@ -70,7 +70,7 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error('[Dashboard] Error fetching profile:', error)
-        
+
         // 如果是认证错误，跳转到登录页
         if (error instanceof ApiError && error.status === 401) {
           toast.error('登录已过期，请重新登录')
@@ -149,7 +149,7 @@ export default function DashboardPage() {
 
   // 处理挖矿中心跳转
   const handleMiningClick = () => {
-    window.open('https://www.pxsj.net.cn/mining', '_blank')
+    window.open('/mining', '_self')
   }
 
   return (
@@ -173,15 +173,15 @@ export default function DashboardPage() {
 
         {/* 快速操作按钮 - 添加土地碎片领取 */}
         <div className="flex gap-2">
-          <motion.button
+          {/* <motion.button
             className="px-4 py-2 bg-gray-700 text-gray-400 font-bold rounded cursor-not-allowed opacity-50"
             disabled
           >
             每日签到（即将开放）
-          </motion.button>
-          
+          </motion.button> */}
+
           {/* 新增：土地碎片领取按钮 */}
-          <motion.button
+          {/* <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowFragmentModal(true)}
@@ -189,7 +189,7 @@ export default function DashboardPage() {
           >
             <span>🎁</span>
             领取土地碎片
-          </motion.button>
+          </motion.button> */}
         </div>
       </motion.div>
 
@@ -239,7 +239,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 账户状态卡片 - 移除能量值，只保留雇佣人数 */}
-      <div className="grid md:grid-cols-1 gap-4">
+      {/* <div className="grid md:grid-cols-1 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -252,7 +252,7 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-400 mt-1">雇佣人数</p>
           </PixelCard>
         </motion.div>
-      </div>
+      </div> */}
 
       {/* 主要内容区 */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -263,7 +263,7 @@ export default function DashboardPage() {
               <span>🚀</span>
               快速入口
             </h3>
-            
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {/* 挖矿中心 - 外链 */}
               <motion.button
@@ -280,7 +280,7 @@ export default function DashboardPage() {
               </motion.button>
 
               {/* 我的矿山 - 新增 */}
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => window.open('https://www.pxsj.net.cn/mining', '_blank')}
@@ -288,7 +288,7 @@ export default function DashboardPage() {
               >
                 <span className="text-3xl block mb-2">⛰️</span>
                 <span className="text-sm font-bold">我的矿山</span>
-              </motion.button>
+              </motion.button> */}
 
               {/* 购买土地 */}
               <motion.button
@@ -302,7 +302,7 @@ export default function DashboardPage() {
               </motion.button>
 
               {/* 生产管理 - 修改跳转到 /mining */}
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.push('/mining')}
@@ -310,10 +310,10 @@ export default function DashboardPage() {
               >
                 <span className="text-3xl block mb-2">⚙️</span>
                 <span className="text-sm font-bold">生产管理</span>
-              </motion.button>
+              </motion.button> */}
 
               {/* 购买TDB */}
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.push('/shop/tdb')}
@@ -324,10 +324,10 @@ export default function DashboardPage() {
                 <span className="absolute top-1 right-1 text-xs bg-red-500 text-white px-2 py-0.5 rounded">
                   热门
                 </span>
-              </motion.button>
+              </motion.button> */}
 
               {/* 查看区域 */}
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => router.push('/explore')}
@@ -335,7 +335,7 @@ export default function DashboardPage() {
               >
                 <span className="text-3xl block mb-2">🗺️</span>
                 <span className="text-sm font-bold">查看区域</span>
-              </motion.button>
+              </motion.button> */}
 
               {/* 邀请好友 */}
               <motion.button
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                 <span className="text-sm font-bold">TDB商城</span>
                 <p className="text-xs text-gray-400 mt-1">购买商品获得黄金通证</p>
               </motion.button>
-              
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -470,7 +470,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 土地碎片领取弹窗 */}
-      <LandFragmentModal 
+      <LandFragmentModal
         isOpen={showFragmentModal}
         onClose={() => setShowFragmentModal(false)}
       />

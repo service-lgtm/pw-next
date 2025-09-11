@@ -76,12 +76,12 @@ export function OnboardingSection() {
             <span className="pixel-font">QUICK START</span>
             <span className="w-6 lg:w-8 h-1 bg-gold-500" />
           </div>
-          
+
           <h2 className="text-3xl md:text-4xl lg:text-6xl font-black leading-tight mb-4 lg:mb-6">
             <span className="block mb-2">快速开始</span>
             <span className="text-gold-500 pixel-text-shadow">简单几步 轻松上手</span>
           </h2>
-          
+
           <p className="text-base lg:text-xl text-gray-400">
             零基础也能玩转平行世界
             <br />
@@ -126,8 +126,8 @@ export function OnboardingSection() {
                       <button
                         className="w-full text-left p-4 hover:bg-gray-900 transition-all duration-200"
                         onClick={() => setExpandedFaq(
-                          expandedFaq === `${category.category}-${index}` 
-                            ? null 
+                          expandedFaq === `${category.category}-${index}`
+                            ? null
                             : `${category.category}-${index}`
                         )}
                       >
@@ -142,7 +142,7 @@ export function OnboardingSection() {
                           </motion.span>
                         </div>
                       </button>
-                      
+
                       <AnimatePresence>
                         {expandedFaq === `${category.category}-${index}` && (
                           <motion.div
@@ -179,25 +179,25 @@ export function OnboardingSection() {
             </h3>
             <p className="text-sm lg:text-base text-gray-400 mb-6">
               加入50,000+先行者，开启你的财富之旅
-              <br />
-              现在注册还能获得限时双倍礼包
+              {/* <br /> */}
+              {/* 现在注册还能获得限时双倍礼包 */}
             </p>
-            
+
             <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-6">
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>极速注册</span>
               </div>
-              <div className="flex items-center gap-2 text-xs lg:text-sm">
+              {/* <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>新手礼包</span>
-              </div>
+              </div> */}
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
                 <span>专属客服指导</span>
               </div>
             </div>
-            
+
             <motion.a
               href="https://www.pxsj.net.cn/login"
               target="_blank"
@@ -209,11 +209,11 @@ export function OnboardingSection() {
               <span className="mr-2">🚀</span>
               立即注册领礼包
             </motion.a>
-            
+
             <p className="text-xs text-gray-500 mt-4">
               已有账号？
-              <a 
-                href="https://www.pxsj.net.cn/login" 
+              <a
+                href="https://www.pxsj.net.cn/login"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gold-500 hover:underline ml-1"
@@ -232,9 +232,9 @@ export function OnboardingSection() {
           viewport={{ once: true }}
         >
           <p className="text-xs text-gray-500">
-            <a 
-              href="https://beian.miit.gov.cn/" 
-              target="_blank" 
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:text-gray-400 transition-colors"
             >
