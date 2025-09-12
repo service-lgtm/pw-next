@@ -12,6 +12,7 @@ specifiers:
   autoprefixer: ^10.4.16
   axios: ^1.6.5
   canvas-confetti: ^1.9.2
+  captcha-mini: ^1.1.0
   clsx: ^2.1.0
   date-fns: ^3.2.0
   eslint: ^8.56.0
@@ -35,6 +36,7 @@ dependencies:
   '@tanstack/react-query': 5.87.1_react@18.3.1
   axios: 1.11.0
   canvas-confetti: 1.9.3
+  captcha-mini: 1.1.0
   clsx: 2.1.1
   date-fns: 3.6.0
   framer-motion: 11.18.2_nnrd3gsncyragczmpvfhocinkq
@@ -952,6 +954,10 @@ packages:
 
   /canvas-confetti/1.9.3:
     resolution: {integrity: sha512-rFfTURMvmVEX1gyXFgn5QMn81bYk70qa0HLzcIOSVEyl57n6o9ItHeBtUSWdvKAPY0xlvBHno4/v3QPrT83q9g==}
+    dev: false
+
+  /captcha-mini/1.1.0:
+    resolution: {integrity: sha512-gWRa/t0O9sLTD3yHotVgieioMrWlyC6IJSAu24cXkLrBSjvR7Fu353M2AduP5QFTiw6OuH3iFUPQ83Oc0f9f4w==}
     dev: false
 
   /chalk/4.1.2:

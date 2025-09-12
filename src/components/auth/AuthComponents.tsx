@@ -1,7 +1,14 @@
+/*
+ * @Author: yy
+ * @Date: 2025-09-10 21:20:28
+ * @LastEditTime: 2025-09-13 01:07:35
+ * @LastEditors: yy
+ * @Description: 
+ */
 // components/auth/AuthComponents.tsx
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, CanvasHTMLAttributes } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { PixelLogo } from '@/components/ui/PixelLogo'
@@ -9,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api, getErrorMessage, type RegisterRequest, type EmailRegisterRequest, type PasswordResetRequest, type PasswordResetConfirmRequest } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import CaptchaMini from 'captcha-mini'
 
 // 共享的输入框组件
 interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -19,6 +27,7 @@ interface PixelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onShowPasswordChange?: (show: boolean) => void
   hasButton?: boolean // 新增：是否有按钮
   hint?: string // 新增：输入提示
+  prefixNode?: React.ReactNode // 输入框前缀节点
 }
 
 function PixelInput({
@@ -30,6 +39,7 @@ function PixelInput({
   onShowPasswordChange,
   hasButton = false,
   hint,
+  prefixNode,
   ...props
 }: PixelInputProps) {
   const [showPassword, setShowPassword] = useState(false)
@@ -55,6 +65,11 @@ function PixelInput({
             {icon}
           </span>
         )}
+
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl select-none">
+          {prefixNode}
+        </span>
+
         <input
           id={props.id || props.name}
           className={cn(
@@ -63,6 +78,7 @@ function PixelInput({
             'text-white placeholder-gray-500',
             'disabled:opacity-50 disabled:cursor-not-allowed',
             icon && 'pl-12',
+            prefixNode && 'pl-[100px]',
             showPasswordToggle && 'pr-12',
             hasButton && 'pr-32', // 为按钮预留空间
             error && 'border-red-500',
@@ -401,6 +417,22 @@ function validateLoginAccount(account: string): string | null {
 // 注册组件
 export function RegisterForm() {
   const router = useRouter()
+
+  // 验证实例
+  const captchaRef = useRef<typeof CaptchaMini>(null)
+  // 验证元素实例
+  const captchaNodeRef = useRef<HTMLCanvasElement>(null)
+  // 正确验证码
+  const captchaCodeRef = useRef<string>();
+
+
+  // 验证码输入框信息
+  const [captchaInputInfo, setCaptchaInputInfo] = useState({
+    value: '',
+    error: '',
+    touched: false,
+  });
+
   const [loading, setLoading] = useState(false)
   const [registrationMethod, setRegistrationMethod] = useState<'quick' | 'email'>('quick') // 默认快速注册
   const [step, setStep] = useState(1)
@@ -539,6 +571,13 @@ export function RegisterForm() {
 
     if (!quickFormData.agreement) {
       newErrors.agreement = '请同意用户协议'
+    }
+
+    // 校验验证码
+    if (captchaInputInfo.value?.toLocaleUpperCase() !== captchaCodeRef.current?.toLocaleUpperCase()) {
+      setCaptchaInputInfo(prev => ({ ...prev, error: '验证码错误' }))
+
+      return false
     }
 
     setErrors(newErrors)
@@ -693,6 +732,16 @@ export function RegisterForm() {
     setTouched({})
   }
 
+  useEffect(() => {
+    // 初始化验证码
+    captchaRef.current = new CaptchaMini();
+    // 绘制验证码
+    captchaRef.current.draw(captchaNodeRef.current, (r: string) => {
+      // 验证码绘制成功后，将验证码值保存到状态中
+      captchaCodeRef.current = r;
+    });
+  }, [])
+
   return (
     <div className="w-full max-w-md mx-auto">
       {/* 注册方式切换 */}
@@ -788,6 +837,18 @@ export function RegisterForm() {
               error={touched.password_confirm ? errors.password_confirm : ''}
               autoComplete="new-password"
               showPasswordToggle
+            />
+
+            <PixelInput
+              label="验证码"
+              value={captchaInputInfo.value}
+              onChange={(e) => setCaptchaInputInfo((pre) => {
+                return { ...pre, value: e.target.value }
+              })}
+              placeholder="输入验证码"
+              prefixNode={<canvas ref={captchaNodeRef} width="80" height="40" />}
+              error={captchaInputInfo.error ? captchaInputInfo.error : ''}
+              autoComplete="new-password"
             />
 
             <PixelInput
