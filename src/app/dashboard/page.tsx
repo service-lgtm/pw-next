@@ -258,6 +258,36 @@ export default function DashboardPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* 左侧 - 快速入口 */}
         <div className="lg:col-span-2 space-y-6">
+          {/* 商城入口 */}
+          <PixelCard className="p-6">
+            <h3 className="text-xl font-black mb-4 flex items-center gap-2">
+              <span>🛍️</span>
+              商城入口
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push('/shop/tdb')}
+                className="p-4 bg-gradient-to-r from-gold-500/20 to-yellow-600/20 rounded-lg hover:from-gold-500/30 hover:to-yellow-600/30 transition-all"
+              >
+                <span className="text-2xl block mb-2">💰</span>
+                <span className="text-sm font-bold">TDB商城</span>
+                <p className="text-xs text-gray-400 mt-1">购买商品获得黄金通证</p>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push('/shop/tickets')}
+                className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg hover:from-blue-500/30 hover:to-purple-600/30 transition-all"
+              >
+                <span className="text-2xl block mb-2">🎫</span>
+                <span className="text-sm font-bold">我的提货单</span>
+                <p className="text-xs text-gray-400 mt-1">查看提货单状态</p>
+              </motion.button>
+            </div>
+          </PixelCard>
           <PixelCard className="p-6">
             <h3 className="text-xl font-black mb-4 flex items-center gap-2">
               <span>🚀</span>
@@ -389,36 +419,6 @@ export default function DashboardPage() {
             </div>
           </PixelCard>
 
-          {/* 商城入口 */}
-          <PixelCard className="p-6">
-            <h3 className="text-xl font-black mb-4 flex items-center gap-2">
-              <span>🛍️</span>
-              商城入口
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => router.push('/shop/tdb')}
-                className="p-4 bg-gradient-to-r from-gold-500/20 to-yellow-600/20 rounded-lg hover:from-gold-500/30 hover:to-yellow-600/30 transition-all"
-              >
-                <span className="text-2xl block mb-2">💰</span>
-                <span className="text-sm font-bold">TDB商城</span>
-                <p className="text-xs text-gray-400 mt-1">购买商品获得黄金通证</p>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => router.push('/shop/tickets')}
-                className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-lg hover:from-blue-500/30 hover:to-purple-600/30 transition-all"
-              >
-                <span className="text-2xl block mb-2">🎫</span>
-                <span className="text-sm font-bold">我的提货单</span>
-                <p className="text-xs text-gray-400 mt-1">查看提货单状态</p>
-              </motion.button>
-            </div>
-          </PixelCard>
         </div>
 
         {/* 右侧 - 通知和活动 */}

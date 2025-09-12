@@ -67,6 +67,7 @@ import {
 // 类型导入
 import type { YLDMine, MineLand } from '@/types/assets'
 import type { Tool } from '@/types/production'
+import { useSynthesisSystem } from '@/hooks/useSynthesis'
 
 // ==================== 配置 ====================
 
@@ -309,7 +310,14 @@ export default function MiningPage() {
   } = useUserLands({
     enabled: shouldFetchData
   })
-
+  // 使用合成系统 Hook
+  const {
+    loading,
+    refetch
+  } = useSynthesisSystem({
+    enabled: true, // 直接启用，不需要权限检查
+    autoRefresh: false
+  })
   const {
     sessions,
     loading: sessionsLoading,
@@ -705,6 +713,14 @@ export default function MiningPage() {
           onClose={handleCloseModule}
           title={MODULES[activeModule as keyof typeof MODULES]?.title}
           size="large"
+          titleExtra={activeModule === 'synthesis' && <PixelButton
+            onClick={refetch}
+            disabled={loading}
+            variant="secondary"
+            size="sm"
+          >
+            {loading ? '刷新中...' : '🔄 刷新'}
+          </PixelButton>}
         >
           <div className="max-h-[70vh] overflow-y-auto">
             {activeModule === 'mines' && (

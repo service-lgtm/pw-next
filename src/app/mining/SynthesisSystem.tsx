@@ -69,7 +69,7 @@ function ResourceDisplay(props: {
   const isInsufficient = showRequired && required && amount < required
 
   return (
-    <div className="flex items-center justify-between p-2 bg-gray-900/30 rounded">
+    <div className="flex items-center justify-between px-2 py-1 bg-gray-900/30 rounded">
       <div className="flex items-center gap-2">
         <span className="text-lg">{config.icon}</span>
         <span className="text-xs text-gray-400">{config.name}</span>
@@ -296,7 +296,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
     <div className={className}>
       <div className="space-y-4">
         {/* 头部信息 */}
-        <PixelCard className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
+        {/* <PixelCard className="p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-lg mb-1 text-purple-400">🔨 合成工坊</h3>
@@ -313,10 +313,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               {loading ? '刷新中...' : '🔄 刷新'}
             </PixelButton>
           </div>
-        </PixelCard>
+        </PixelCard> */}
 
         {/* 资源概览 */}
-        <PixelCard className="p-3">
+        {/* <PixelCard className="p-3">
           <h4 className="text-sm font-bold mb-3 text-gray-300">📦 我的资源</h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {Object.entries(RESOURCE_CONFIG).filter(([key]) => key !== 'brick').map(([key, config]) => (
@@ -334,10 +334,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               </div>
             ))}
           </div>
-        </PixelCard>
+        </PixelCard> */}
 
         {/* 主标签页切换 */}
-        <div className="flex gap-2 mb-4">
+        {/* <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab('synthesis')}
             className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${activeTab === 'synthesis'
@@ -356,7 +356,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
           >
             📜 历史记录
           </button>
-          {/* <button
+          <button
             onClick={() => setActiveTab('stats')}
             className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${activeTab === 'stats'
                 ? 'bg-green-600 text-white'
@@ -364,14 +364,14 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               }`}
           >
             📊 统计数据
-          </button> */}
-        </div>
+          </button>
+        </div> */}
 
         {/* 内容区域 */}
         {activeTab === 'synthesis' && (
           <>
             {/* 子标签页切换 */}
-            <div className="flex gap-2 mb-4">
+            {/* <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setSynthTab('tools')}
                 className={`flex-1 py-2 px-4 rounded transition-all font-bold text-sm ${synthTab === 'tools'
@@ -381,13 +381,13 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
               >
                 ⚒️ 工具合成
               </button>
-            </div>
+            </div> */}
 
             {/* 工具合成内容 */}
             {synthTab === 'tools' && (
-              <PixelCard className="p-4">
+              <PixelCard className="p-2">
                 {/* 工具选择 */}
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-1 mb-2">
                   {(['pickaxe', 'axe', 'hoe'] as const).map((tool) => {
                     const recipe = recipes[tool]
                     const maxCount = calculateMaxSynthesizable(tool)
@@ -400,7 +400,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                           setSelectedTool(tool)
                           setToolQuantity(1)
                         }}
-                        className={`p-3 rounded transition-all border-2 ${isSelected
+                        className={`p-2 rounded transition-all border-2 ${isSelected
                           ? 'bg-purple-900/40 border-purple-400 transform scale-105'
                           : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
                           }`}
@@ -431,9 +431,9 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                 {selectedTool && recipes[selectedTool] && (
                   <div className="space-y-4">
                     {/* 配方信息 */}
-                    <div className="p-3 bg-gray-900/30 rounded">
-                      <div className="flex items-center justify-between mb-3">
-                        <h5 className="font-bold text-sm flex items-center gap-2">
+                    <div className="px-2 py-1 bg-gray-900/30 rounded">
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="font-bold text-sm flex items-center gap-1">
                           {selectedTool === "hoe" ? <Image
                             width={10}
                             height={16}
@@ -449,7 +449,7 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                           耐久: {recipes[selectedTool].durability}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mb-3">
+                      <p className="text-xs text-gray-400 mb-1">
                         {TOOL_USAGE_MAP[selectedTool]}
                       </p>
 
@@ -495,8 +495,8 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     </div>
 
                     {/* 数量选择 */}
-                    <div>
-                      <label className="text-sm font-bold text-gray-300 mb-2 block">
+                    <div className="!mt-2">
+                      <label className="text-sm font-bold text-gray-300 mb-1 block">
                         合成数量
                       </label>
                       <QuickAmountSelector

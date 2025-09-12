@@ -14,17 +14,19 @@ interface PixelModalProps {
   children: React.ReactNode
   className?: string
   size?: 'small' | 'medium' | 'large'
+  titleExtra?: React.ReactNode
 }
 
-export function PixelModal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
+export function PixelModal({
+  isOpen,
+  onClose,
+  title,
+  children,
   className,
-  size = 'medium' 
+  size = 'medium',
+  titleExtra
 }: PixelModalProps) {
-  
+
   // 防止背景滚动
   useEffect(() => {
     if (isOpen) {
@@ -32,7 +34,7 @@ export function PixelModal({
     } else {
       document.body.style.overflow = 'unset'
     }
-    
+
     return () => {
       document.body.style.overflow = 'unset'
     }
@@ -45,7 +47,7 @@ export function PixelModal({
         onClose()
       }
     }
-    
+
     if (isOpen) {
       window.addEventListener('keydown', handleEsc)
       return () => window.removeEventListener('keydown', handleEsc)
@@ -70,7 +72,7 @@ export function PixelModal({
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
-          
+
           {/* 弹窗容器 - 使用 flex 确保居中 */}
           <motion.div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -97,8 +99,14 @@ export function PixelModal({
             >
               {/* 标题栏 */}
               {title && (
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-black text-gold-500">{title}</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-gold-500">
+                      {title}
+                    </h3>
+                    {/* 标题额外内容 */}
+                    {titleExtra}
+                  </div>
                   <button
                     onClick={onClose}
                     className="text-2xl text-gray-400 hover:text-white transition-colors p-1"
@@ -108,7 +116,7 @@ export function PixelModal({
                   </button>
                 </div>
               )}
-              
+
               {/* 内容 */}
               {children}
             </motion.div>
