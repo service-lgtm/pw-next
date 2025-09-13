@@ -33,8 +33,7 @@ import {
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import hoeIconImg from "@/public/hoeIcon.png";
-import Image from 'next/image';
+import { getResourceIcon, RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 interface SynthesisSystemProps {
   className?: string
@@ -43,18 +42,46 @@ interface SynthesisSystemProps {
 
 // 工具图标映射
 const TOOL_ICONS = {
-  pickaxe: '⛏️',
-  axe: '🪓',
-  hoe: hoeIconImg,
+  // 镐头
+  pickaxe: RESOURCE_TYPES.PICKAXE,
+  // 斧头
+  axe: RESOURCE_TYPES.AXE,
+  // 锄头
+  hoe: RESOURCE_TYPES.HOE,
 } as const
 
 // 资源图标和颜色映射
 const RESOURCE_CONFIG = {
-  wood: { icon: '🪵', color: 'text-green-400', name: '木材' },
-  iron: { icon: '⚙️', color: 'text-gray-400', name: '铁矿' },
-  stone: { icon: '🪨', color: 'text-blue-400', name: '石材' },
-  yld: { icon: '💎', color: 'text-purple-400', name: 'YLD' },
-  brick: { icon: '🧱', color: 'text-orange-400', name: '砖头' }
+  wood: {
+    // 木材
+    name: RESOURCE_NAMES[RESOURCE_TYPES.WOOD],
+    icon: RESOURCE_TYPES.WOOD,
+    color: 'text-green-400',
+  },
+  iron: {
+    // 铁矿
+    name: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE],
+    icon: RESOURCE_TYPES.IRON_ORE,
+    color: 'text-gray-400',
+  },
+  stone: {
+    // 石材
+    name: RESOURCE_NAMES[RESOURCE_TYPES.STONE],
+    icon: RESOURCE_TYPES.STONE,
+    color: 'text-blue-400',
+  },
+  yld: {
+    // 陨石
+    name: 'YLD',
+    icon: RESOURCE_TYPES.METEORITE,
+    color: 'text-purple-400',
+  },
+  brick: {
+    // 砖头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.BRICK],
+    icon: RESOURCE_TYPES.BRICK,
+    color: 'text-orange-400',
+  }
 } as const
 
 // 资源显示组件
@@ -71,7 +98,14 @@ function ResourceDisplay(props: {
   return (
     <div className="flex items-center justify-between px-2 py-1 bg-gray-900/30 rounded">
       <div className="flex items-center gap-2">
-        <span className="text-lg">{config.icon}</span>
+        <div className='w-fit mx-atuo'>
+          {
+            getResourceIcon(config.icon, {
+              iconSize: 28,
+              haveBackgroundWarper: true,
+            })
+          }
+        </div>
         <span className="text-xs text-gray-400">{config.name}</span>
       </div>
       <div className="text-right">
@@ -405,18 +439,13 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                           : 'bg-gray-900/30 border-gray-700 hover:bg-gray-900/50 hover:border-gray-600'
                           }`}
                       >
-                        <div className="text-2xl mb-1">
-                          {tool === "hoe" ? <Image
-                            width={20}
-                            height={26}
-                            src={TOOL_ICONS[tool]}
-                            alt={"hoe"}
-                            style={{
-                              width: 20,
-                              height: 26,
-                              margin: '0 auto'
-                            }}
-                          /> : TOOL_ICONS[tool]}
+                        <div className='w-fit mx-auto mb-1'>
+                          {
+                            getResourceIcon(TOOL_ICONS[tool], {
+                              iconSize: 34,
+                              haveBackgroundWarper: true,
+                            })
+                          }
                         </div>
                         <p className="font-bold text-sm">{TOOL_TYPE_MAP[tool]}</p>
                         <p className={`text-xs mt-1 ${maxCount > 0 ? 'text-green-400' : 'text-red-400'}`}>
@@ -434,16 +463,10 @@ export function SynthesisSystem({ className = '', isMobile = false }: SynthesisS
                     <div className="px-2 py-1 bg-gray-900/30 rounded">
                       <div className="flex items-center justify-between mb-1">
                         <h5 className="font-bold text-sm flex items-center gap-1">
-                          {selectedTool === "hoe" ? <Image
-                            width={10}
-                            height={16}
-                            src={TOOL_ICONS[selectedTool]}
-                            alt={"hoe"}
-                            style={{
-                              width: 10,
-                              height: 16,
-                            }}
-                          /> : TOOL_ICONS[selectedTool]} {TOOL_TYPE_MAP[selectedTool]}
+                          {getResourceIcon(TOOL_ICONS[selectedTool], {
+                            iconSize: 20,
+                            haveBackgroundWarper: true
+                          })} {TOOL_TYPE_MAP[selectedTool]}
                         </h5>
                         <span className="text-xs text-yellow-400">
                           耐久: {recipes[selectedTool].durability}

@@ -74,20 +74,20 @@ interface InventoryData {
     food?: MaterialItem
     seed?: MaterialItem
   }
-  
+
   // 工具（镐头、斧头、锄头）
   tools: {
     pickaxe?: ToolItem
     axe?: ToolItem
     hoe?: ToolItem
   }
-  
+
   // 特殊资源（砖头、YLD）
   special: {
     brick?: SpecialItem
     yld?: SpecialItem
   }
-  
+
   // 汇总信息
   summary: {
     total_value_tdb: number  // 总价值（TDB）
@@ -99,7 +99,7 @@ interface InventoryData {
       usd_to_rmb: number    // USD到RMB汇率 (1:7.3)
     }
   }
-  
+
   // 统计信息（可选）
   stats?: {
     active_mining_sessions: number  // 活跃挖矿会话数
@@ -160,7 +160,7 @@ export function useInventory(options?: UseInventoryOptions) {
     try {
       setLoading(true)
       setError(null)
-      
+
       // 调用正确的 inventory 接口（修复的关键点）
       // 之前错误地调用了 /production/resources/stats/ 
       const response = await request<{
@@ -173,12 +173,12 @@ export function useInventory(options?: UseInventoryOptions) {
           include_prices: includePrices ? 'true' : 'false'  // 是否包含价格
         }
       })
-      
+
       if (response.success && response.data) {
         // 直接使用后端返回的数据结构
         // 不需要转换，因为后端 UserInventoryView 返回的格式已经符合需求
         setInventory(response.data)
-        
+
         // 记录日志用于调试
         console.log('[useInventory] 成功获取库存数据:', {
           materials: Object.keys(response.data.materials || {}),
@@ -191,7 +191,7 @@ export function useInventory(options?: UseInventoryOptions) {
         const errorMsg = response.message || '获取库存数据失败'
         setError(errorMsg)
         console.error('[useInventory] API返回失败:', errorMsg)
-        
+
         // 设置空数据结构，保证组件不会因为 null 而崩溃
         setInventory(createEmptyInventory())
       }
@@ -199,7 +199,7 @@ export function useInventory(options?: UseInventoryOptions) {
       // 捕获网络错误或其他异常
       console.error('[useInventory] 获取库存失败:', err)
       setError(err instanceof Error ? err.message : '加载失败')
-      
+
       // 错误时返回空数据结构，保证页面能正常显示
       setInventory(createEmptyInventory())
     } finally {
@@ -213,11 +213,11 @@ export function useInventory(options?: UseInventoryOptions) {
   useEffect(() => {
     // 初始加载
     fetchInventory()
-    
+
     // 设置自动刷新
     if (autoRefresh && refreshInterval > 0) {
       const interval = setInterval(fetchInventory, refreshInterval)
-      
+
       // 清理函数
       return () => clearInterval(interval)
     }
@@ -273,44 +273,14 @@ export function formatValue(amount: number, currency: 'TDB' | 'USD' | 'RMB'): st
     USD: '$',
     RMB: '¥'
   }
-  
+
   const symbol = symbols[currency]
   const formatted = amount.toLocaleString('zh-CN', {
     minimumFractionDigits: currency === 'TDB' ? 0 : 2,
     maximumFractionDigits: 2
   })
-  
-  return `${symbol}${formatted}${currency === 'TDB' ? ' TDB' : ''}`
-}
 
-/**
- * 获取资源图标
- * @param resourceType 资源类型
- * @returns 对应的 emoji 图标
- * 
- * 这些图标用于在UI中显示，提升用户体验
- */
-export function getResourceIcon(resourceType: string): string {
-  const icons: { [key: string]: string } = {
-    // 材料图标
-    iron: '⛏️',      // 铁矿
-    stone: '🪨',     // 石材
-    wood: '🪵',      // 木材
-    food: '🌾',      // 粮食
-    grain: '🌾',     // 粮食（别名）
-    seed: '🌱',      // 种子
-    
-    // 特殊资源图标
-    brick: '🧱',     // 砖头
-    yld: '💎',       // YLD通证
-    
-    // 工具图标
-    pickaxe: '⛏️',   // 镐头
-    axe: '🪓',       // 斧头
-    hoe: '🔧'        // 锄头
-  }
-  
-  return icons[resourceType] || '📦'  // 默认图标
+  return `${symbol}${formatted}${currency === 'TDB' ? ' TDB' : ''}`
 }
 
 /**
@@ -324,30 +294,30 @@ export function calculateTotalValue(
   resourceType?: 'materials' | 'tools' | 'special'
 ): number {
   if (!inventory) return 0
-  
+
   let total = 0
-  
+
   // 计算材料价值
   if (!resourceType || resourceType === 'materials') {
     Object.values(inventory.materials || {}).forEach(item => {
       total += item.value || 0
     })
   }
-  
+
   // 计算工具价值
   if (!resourceType || resourceType === 'tools') {
     Object.values(inventory.tools || {}).forEach(item => {
       total += item.value || 0
     })
   }
-  
+
   // 计算特殊资源价值
   if (!resourceType || resourceType === 'special') {
     Object.values(inventory.special || {}).forEach(item => {
       total += item.value || item.value_tdb || 0
     })
   }
-  
+
   return total
 }
 
@@ -364,13 +334,13 @@ export function getResourceAmount(
   resourceName: string
 ): number {
   if (!inventory) return 0
-  
+
   const category = inventory[resourceType]
   if (!category) return 0
-  
+
   const resource = category[resourceName as keyof typeof category]
   if (!resource) return 0
-  
+
   // 工具返回count，其他返回amount
   if (resourceType === 'tools') {
     return (resource as ToolItem).count || 0

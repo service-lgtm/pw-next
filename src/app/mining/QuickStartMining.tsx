@@ -36,6 +36,7 @@ import type { Tool } from '@/types/production'
 import type { MineLand, YLDMine } from '@/types/assets'
 import toast from 'react-hot-toast'
 import { ERROR_TYPES } from './miningConstants'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 interface QuickStartMiningProps {
   foodHours: number; //粮食剩余
@@ -182,23 +183,23 @@ export function QuickStartMining({
     // 直接根据实际的 land_type 判断
     switch (mineType) {
       case 'yld_mine':
-        return { icon: '💎', name: 'YLD矿山', color: 'text-purple-400' }
+        return { icon: RESOURCE_TYPES.METEORITE, name: 'YLD矿山', color: 'text-purple-400' }
       case 'yld_converted':
-        return { icon: '💎', name: 'YLD转换矿山', color: 'text-purple-400' }
+        return { icon: RESOURCE_TYPES.METEORITE, name: 'YLD转换矿山', color: 'text-purple-400' }
       case 'iron_mine':
-        return { icon: '⛏️', name: '铁矿山', color: 'text-gray-400' }
+        return { icon: RESOURCE_TYPES.PICKAXE, name: '铁矿山', color: 'text-gray-400' }
       case 'stone_mine':
-        return { icon: '🪨', name: '石矿山', color: 'text-blue-400' }
+        return { icon: RESOURCE_TYPES.PICKAXE, name: '石矿山', color: 'text-blue-400' }
       case 'forest':
-        return { icon: '🌲', name: '森林', color: 'text-green-400' }
+        return { icon: RESOURCE_TYPES.WOOD, name: '森林', color: 'text-green-400' }
       case 'farm':
-        return { icon: '🌾', name: '农场', color: 'text-yellow-400' }
+        return { icon: RESOURCE_TYPES.GRAIN, name: '农场', color: 'text-yellow-400' }
       default:
         // 对于 special_type 的处理
         if (mine.special_type === 'yld_converted') {
-          return { icon: '💎', name: 'YLD转换矿山', color: 'text-purple-400' }
+          return { icon: RESOURCE_TYPES.METEORITE, name: 'YLD转换矿山', color: 'text-purple-400' }
         }
-        return { icon: '⛏️', name: '矿山', color: 'text-gray-400' }
+        return { icon: RESOURCE_TYPES.PICKAXE, name: '矿山', color: 'text-gray-400' }
     }
   }
 
@@ -209,7 +210,10 @@ export function QuickStartMining({
       {/* 矿山信息 */}
       <div className="bg-gray-800 rounded-lg p-4">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">{mineType.icon}</span>
+          <span className="text-3xl">{getResourceIcon(mineType.icon, {
+            iconSize: 44,
+            haveBackgroundWarper: true,
+          })}</span>
           <div>
             <h3 className="font-bold text-white">{mine.land_id}</h3>
             <p className={cn("text-sm", mineType.color)}>{mineType.name}</p>
@@ -269,8 +273,10 @@ export function QuickStartMining({
         {/* 消耗提示 */}
         <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-yellow-400">
-              🌾 粮食消耗
+            <span className="flex items-center text-sm text-yellow-400">
+              {getResourceIcon(RESOURCE_TYPES.GRAIN, {
+                iconSize: 20
+              })} 粮食消耗
             </span>
             <span className="text-sm font-bold text-yellow-400">
               {foodConsumption} / 小时

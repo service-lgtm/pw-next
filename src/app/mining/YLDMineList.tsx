@@ -34,6 +34,7 @@ import { PixelButton } from '@/components/shared/PixelButton'
 import { cn } from '@/lib/utils'
 import type { YLDMine, MineLand } from '@/types/assets'
 import toast from 'react-hot-toast'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 interface YLDMineListProps {
   mines: (YLDMine | MineLand)[] | null
@@ -53,7 +54,7 @@ interface YLDMineListProps {
 const MINE_TYPES = {
   'yld_mine': {
     label: 'YLD矿山',
-    icon: '💎',
+    icon: RESOURCE_TYPES.METEORITE,
     gradient: 'from-purple-600 to-purple-500',
     bgColor: 'bg-purple-900/20',
     borderColor: 'border-purple-500/30',
@@ -63,7 +64,7 @@ const MINE_TYPES = {
   },
   'yld_converted': {
     label: 'YLD转换矿山',
-    icon: '💎',
+    icon: RESOURCE_TYPES.METEORITE,
     gradient: 'from-purple-700 to-purple-600',
     bgColor: 'bg-purple-900/30',
     borderColor: 'border-purple-600/40',
@@ -72,8 +73,8 @@ const MINE_TYPES = {
     toolType: 'pickaxe'  // 使用镐
   },
   'iron_mine': {
-    label: '铁矿',
-    icon: '⛏️',
+    label: "铁矿",
+    icon: RESOURCE_TYPES.IRON_ORE,
     gradient: 'from-gray-600 to-gray-500',
     bgColor: 'bg-gray-900/20',
     borderColor: 'border-gray-500/30',
@@ -83,7 +84,7 @@ const MINE_TYPES = {
   },
   'stone_mine': {
     label: '石矿',
-    icon: '🪨',
+    icon: RESOURCE_TYPES.STONE,
     gradient: 'from-blue-600 to-blue-500',
     bgColor: 'bg-blue-900/20',
     borderColor: 'border-blue-500/30',
@@ -93,7 +94,7 @@ const MINE_TYPES = {
   },
   'forest': {
     label: '森林',
-    icon: '🌲',
+    icon: RESOURCE_TYPES.WOOD,
     gradient: 'from-green-600 to-green-500',
     bgColor: 'bg-green-900/20',
     borderColor: 'border-green-500/30',
@@ -103,7 +104,7 @@ const MINE_TYPES = {
   },
   'farm': {
     label: '农场',
-    icon: '🌾',
+    icon: RESOURCE_TYPES.GRAIN,
     gradient: 'from-yellow-600 to-yellow-500',
     bgColor: 'bg-yellow-900/20',
     borderColor: 'border-yellow-500/30',
@@ -410,7 +411,14 @@ const MineCard = ({
       <div className="p-4">
         {/* 图标和标题 */}
         <div className="flex items-start gap-3 mb-3">
-          <div className="text-4xl">{config.icon}</div>
+          <div className="text-4xl">
+            {
+              getResourceIcon(config.icon, {
+                iconSize: 38,
+                haveBackgroundWarper: true
+              })
+            }
+          </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-white text-sm truncate">
               {landId}
@@ -669,7 +677,9 @@ export function YLDMineList({
                     : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 )}
               >
-                <span>{config.icon}</span>
+                <span>{getResourceIcon(config.icon, {
+                  iconSize: 18
+                })}</span>
                 <span>{config.label} ({count})</span>
               </button>
             ) : null

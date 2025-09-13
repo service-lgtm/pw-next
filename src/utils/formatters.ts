@@ -25,11 +25,11 @@
  */
 export function safeNumber(value: any, defaultValue: number = 0): number {
   if (value === null || value === undefined) return defaultValue
-  
+
   const num = typeof value === 'string' ? parseFloat(value) : Number(value)
-  
+
   if (isNaN(num) || !isFinite(num)) return defaultValue
-  
+
   return num
 }
 
@@ -41,7 +41,7 @@ export function safeNumber(value: any, defaultValue: number = 0): number {
  */
 export function safeFormatYLD(value: any, decimals: number = 4): string {
   const num = safeNumber(value, 0)
-  
+
   try {
     return num.toFixed(decimals)
   } catch (error) {
@@ -58,13 +58,13 @@ export function safeFormatYLD(value: any, decimals: number = 4): string {
  */
 export function safeFormatResource(value: any, decimals: number = 2): string {
   const num = safeNumber(value, 0)
-  
+
   try {
     // 如果数值很小但不为0，至少显示最小值
     if (num > 0 && num < Math.pow(10, -decimals)) {
       return `<0.${'0'.repeat(decimals - 1)}1`
     }
-    
+
     return num.toFixed(decimals)
   } catch (error) {
     console.error('[safeFormatResource] Format error:', error, 'Value:', value)
@@ -80,10 +80,10 @@ export function safeFormatResource(value: any, decimals: number = 2): string {
  */
 export function safeFormatFood(value: any, showUnit: boolean = false): string {
   const num = safeNumber(value, 0)
-  
+
   // 粮食通常是整数或一位小数
   let formatted: string
-  
+
   try {
     if (num === Math.floor(num)) {
       // 整数
@@ -96,7 +96,7 @@ export function safeFormatFood(value: any, showUnit: boolean = false): string {
     console.error('[safeFormatFood] Format error:', error, 'Value:', value)
     formatted = '0'
   }
-  
+
   return showUnit ? `${formatted} 单位` : formatted
 }
 
@@ -107,7 +107,7 @@ export function safeFormatFood(value: any, showUnit: boolean = false): string {
  */
 export function safeFormatHours(hours: any): string {
   const num = safeNumber(hours, 0)
-  
+
   try {
     if (num < 1) {
       const minutes = Math.round(num * 60)
@@ -133,11 +133,11 @@ export function safeFormatHours(hours: any): string {
  */
 export function safeFormatPercent(value: any, isDecimal: boolean = true): string {
   let num = safeNumber(value, 0)
-  
+
   if (isDecimal) {
     num = num * 100
   }
-  
+
   try {
     return `${num.toFixed(1)}%`
   } catch (error) {
@@ -154,7 +154,7 @@ export function safeFormatPercent(value: any, isDecimal: boolean = true): string
  */
 export function safeFormatCurrency(value: any, currency: 'TDB' | 'YLD' | 'USD' | 'RMB' = 'TDB'): string {
   const num = safeNumber(value, 0)
-  
+
   try {
     const symbols = {
       TDB: '',
@@ -162,11 +162,11 @@ export function safeFormatCurrency(value: any, currency: 'TDB' | 'YLD' | 'USD' |
       USD: '$',
       RMB: '¥'
     }
-    
+
     const decimals = currency === 'YLD' ? 4 : 2
     const formatted = num.toFixed(decimals)
     const symbol = symbols[currency]
-    
+
     if (currency === 'TDB' || currency === 'YLD') {
       return `${formatted} ${currency}`
     } else {
@@ -185,7 +185,7 @@ export function safeFormatCurrency(value: any, currency: 'TDB' | 'YLD' | 'USD' |
  */
 export function formatLargeNumber(value: any): string {
   const num = safeNumber(value, 0)
-  
+
   try {
     if (num >= 1000000000) {
       return `${(num / 1000000000).toFixed(2)}B`
@@ -213,24 +213,24 @@ export function formatTimestamp(
   format: 'full' | 'date' | 'time' | 'relative' = 'full'
 ): string {
   if (!timestamp) return '未知'
-  
+
   try {
     const date = new Date(timestamp)
-    
+
     if (isNaN(date.getTime())) {
       return '无效时间'
     }
-    
+
     switch (format) {
       case 'date':
         return date.toLocaleDateString('zh-CN')
-        
+
       case 'time':
-        return date.toLocaleTimeString('zh-CN', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        return date.toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit'
         })
-        
+
       case 'relative':
         const now = new Date()
         const diff = now.getTime() - date.getTime()
@@ -238,12 +238,12 @@ export function formatTimestamp(
         const minutes = Math.floor(seconds / 60)
         const hours = Math.floor(minutes / 60)
         const days = Math.floor(hours / 24)
-        
+
         if (days > 0) return `${days}天前`
         if (hours > 0) return `${hours}小时前`
         if (minutes > 0) return `${minutes}分钟前`
         return '刚刚'
-        
+
       case 'full':
       default:
         return date.toLocaleString('zh-CN')
@@ -265,21 +265,21 @@ export function formatDuration(
   endTime?: string | number | Date | null
 ): string {
   if (!startTime) return '未知'
-  
+
   try {
     const start = new Date(startTime)
     const end = endTime ? new Date(endTime) : new Date()
-    
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return '无效时间'
     }
-    
+
     const diff = Math.abs(end.getTime() - start.getTime())
     const seconds = Math.floor(diff / 1000)
     const minutes = Math.floor(seconds / 60)
     const hours = Math.floor(minutes / 60)
     const days = Math.floor(hours / 24)
-    
+
     if (days > 0) {
       const remainingHours = hours % 24
       return `${days}天${remainingHours}小时`
@@ -305,17 +305,17 @@ export function formatDuration(
  */
 export function formatFileSize(bytes: any): string {
   const num = safeNumber(bytes, 0)
-  
+
   try {
     const units = ['B', 'KB', 'MB', 'GB', 'TB']
     let index = 0
     let size = num
-    
+
     while (size >= 1024 && index < units.length - 1) {
       size /= 1024
       index++
     }
-    
+
     return `${size.toFixed(2)} ${units[index]}`
   } catch (error) {
     console.error('[formatFileSize] Format error:', error, 'Value:', bytes)
@@ -331,7 +331,7 @@ export function formatFileSize(bytes: any): string {
  */
 export function formatWithCommas(value: any, decimals: number = 0): string {
   const num = safeNumber(value, 0)
-  
+
   try {
     const fixed = num.toFixed(decimals)
     const parts = fixed.split('.')
@@ -362,33 +362,8 @@ export function getResourceDisplayName(resourceType: string): string {
     axe: '斧头',
     hoe: '锄头'
   }
-  
-  return names[resourceType.toLowerCase()] || resourceType
-}
 
-/**
- * 获取资源图标
- * @param resourceType 资源类型
- * @returns 图标 emoji
- */
-export function getResourceIcon(resourceType: string): string {
-  const icons: Record<string, string> = {
-    wood: '🪵',
-    iron: '⛏️',
-    stone: '🪨',
-    yld: '💎',
-    grain: '🌾',
-    food: '🌾',  // food 和 grain 使用相同图标
-    seed: '🌱',
-    brick: '🧱',
-    pickaxe: '⛏️',
-    axe: '🪓',
-    hoe: '🔧',
-    tdb: '💰',
-    energy: '⚡'
-  }
-  
-  return icons[resourceType.toLowerCase()] || '📦'
+  return names[resourceType.toLowerCase()] || resourceType
 }
 
 /**
@@ -407,21 +382,21 @@ export function calculateTimeRemaining(targetTime: string | number | Date | null
   if (!targetTime) {
     return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0, expired: true }
   }
-  
+
   try {
     const target = new Date(targetTime)
     const now = new Date()
     const diff = target.getTime() - now.getTime()
-    
+
     if (diff <= 0) {
       return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0, expired: true }
     }
-    
+
     const seconds = Math.floor(diff / 1000)
     const minutes = Math.floor(seconds / 60)
     const hours = Math.floor(minutes / 60)
     const days = Math.floor(hours / 24)
-    
+
     return {
       days,
       hours: hours % 24,
@@ -451,17 +426,17 @@ export function validateNumberInput(
   decimals: number = 0
 ): number {
   let value = typeof input === 'string' ? parseFloat(input) : input
-  
+
   if (isNaN(value)) value = min
   if (value < min) value = min
   if (value > max) value = max
-  
+
   if (decimals === 0) {
     value = Math.floor(value)
   } else {
     const factor = Math.pow(10, decimals)
     value = Math.round(value * factor) / factor
   }
-  
+
   return value
 }

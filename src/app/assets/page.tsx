@@ -32,11 +32,10 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { api, ApiError, TokenManager } from '@/lib/api'
 import { useMyLands } from '@/hooks/useLands'
-import { useInventory, formatValue, getResourceIcon } from '@/hooks/useInventory'
+import { useInventory, formatValue } from '@/hooks/useInventory'
 import toast from 'react-hot-toast'
 import { cn } from '@/lib/utils'
-import hoeIconImg from "@/public/hoeIcon.png";
-import Image from 'next/image';
+import { getResourceIcon, RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // 资产类型定义
 type AssetTab = 'overview' | 'land' | 'material' | 'tool' | 'voucher'
@@ -46,7 +45,7 @@ const TOKEN_CONFIG = {
   tdb: {
     name: '黄金通证',
     symbol: 'TDB',
-    icon: '💰',
+    icon: RESOURCE_TYPES.GOLD_COIN,
     color: 'from-yellow-500 to-orange-500',
     textColor: 'text-yellow-400',
     description: '稳定交易通证',
@@ -56,7 +55,7 @@ const TOKEN_CONFIG = {
   yld: {
     name: '陨石通证',
     symbol: 'YLD',
-    icon: '💎',
+    icon: RESOURCE_TYPES.METEORITE,
     color: 'from-purple-500 to-pink-500',
     textColor: 'text-purple-400',
     description: '治理通证',
@@ -67,20 +66,65 @@ const TOKEN_CONFIG = {
 
 // 材料配置
 const MATERIAL_CONFIG = {
-  iron: { name: '铁矿', icon: '⚙️', color: 'text-gray-400' },
-  stone: { name: '石材', icon: '🪨', color: 'text-blue-400' },
-  wood: { name: '木材', icon: '🪵', color: 'text-green-400' },
-  food: { name: '粮食', icon: '🌾', color: 'text-yellow-400' },
-  // brick: { name: '砖头', icon: '🧱', color: 'text-orange-400' }
+  iron: {
+    // 铁矿
+    name: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE],
+    icon: RESOURCE_TYPES.IRON_ORE,
+    color: 'text-gray-400'
+  },
+  stone: {
+    // 石头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.STONE],
+    icon: RESOURCE_TYPES.STONE,
+    color: 'text-blue-400'
+  },
+  wood: {
+    // 木材
+    name: RESOURCE_NAMES[RESOURCE_TYPES.WOOD],
+    icon: RESOURCE_TYPES.WOOD,
+    color: 'text-green-400'
+  },
+  food: {
+    // 粮食
+    name: RESOURCE_NAMES[RESOURCE_TYPES.GRAIN],
+    icon: RESOURCE_TYPES.GRAIN,
+    color: 'text-yellow-400'
+  },
+  // brick: { name: RESOURCE_NAMES[RESOURCE_TYPES.BRICK], icon: RESOURCE_TYPES.BRICK, color: 'text-orange-400' }
 } as const
 
 // 工具配置
 const TOOL_CONFIG = {
-  pickaxe: { name: '镐头', icon: '⛏️', usage: '开采矿石' },
-  axe: { name: '斧头', icon: '🪓', usage: '砍伐木材' },
-  hoe: { name: '锄头', icon: '', image: hoeIconImg, usage: '农业生产' },
-  brick: { name: '砖头', icon: '🧱', usage: '城市地块建设' },
-  seed: { name: '种子', icon: '🌱', usage: '播种农田' },
+  pickaxe: {
+    // 镐头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+    icon: RESOURCE_TYPES.PICKAXE,
+    usage: '开采矿石'
+  },
+  axe: {
+    // 斧头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.AXE],
+    icon: RESOURCE_TYPES.AXE,
+    usage: '砍伐木材'
+  },
+  hoe: {
+    // 锄头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.HOE],
+    icon: RESOURCE_TYPES.HOE,
+    usage: '农业生产'
+  },
+  brick: {
+    // 砖头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.BRICK],
+    icon: RESOURCE_TYPES.BRICK,
+    usage: '城市地块建设'
+  },
+  seed: {
+    // 种子
+    name: RESOURCE_NAMES[RESOURCE_TYPES.SEED],
+    icon: RESOURCE_TYPES.SEED,
+    usage: '播种农田'
+  },
 } as const
 
 /**
@@ -115,7 +159,7 @@ function TokenCard({
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-2xl">{config.icon}</span>
+                <span className="text-2xl">{getResourceIcon(config.icon)}</span>
                 <h3 className="font-bold text-lg">{config.name}</h3>
               </div>
               <p className="text-xs text-gray-500">{config.description}</p>
@@ -468,9 +512,21 @@ export default function AssetsPage() {
               title="材料资产"
               icon="📦"
               items={[
-                { label: '铁矿', value: inventory?.materials?.iron?.amount || 0 },
-                { label: '木材', value: inventory?.materials?.wood?.amount || 0 },
-                { label: '石材', value: inventory?.materials?.stone?.amount || 0 }
+                {
+                  // 铁矿
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE],
+                  value: inventory?.materials?.iron?.amount || 0
+                },
+                {
+                  // 木材
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.WOOD],
+                  value: inventory?.materials?.wood?.amount || 0
+                },
+                {
+                  // 石材
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.STONE],
+                  value: inventory?.materials?.stone?.amount || 0
+                }
               ]}
               onViewMore={() => setActiveTab('material')}
             />
@@ -480,9 +536,21 @@ export default function AssetsPage() {
               title="工具资产"
               icon="🔧"
               items={[
-                { label: '镐头', value: inventory?.tools?.pickaxe?.count || 0 },
-                { label: '斧头', value: inventory?.tools?.axe?.count || 0 },
-                { label: '锄头', value: inventory?.tools?.hoe?.count || 0 }
+                {
+                  // 镐头
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+                  value: inventory?.tools?.pickaxe?.count || 0
+                },
+                {
+                  // 斧头
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.AXE],
+                  value: inventory?.tools?.axe?.count || 0
+                },
+                {
+                  // 锄头
+                  label: RESOURCE_NAMES[RESOURCE_TYPES.HOE],
+                  value: inventory?.tools?.hoe?.count || 0
+                }
               ]}
               onViewMore={() => setActiveTab('tool')}
             />
@@ -561,7 +629,12 @@ export default function AssetsPage() {
               return (
                 <PixelCard key={key} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl">{config.icon}</span>
+                    {
+                      getResourceIcon(config.icon, {
+                        iconSize: 38,
+                        haveBackgroundWarper: true,
+                      })
+                    }
                     <div>
                       <h4 className="font-bold">{config.name}</h4>
                       <p className={`text-xs ${config.color}`}>基础材料</p>
@@ -609,18 +682,10 @@ export default function AssetsPage() {
                 <PixelCard key={key} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     {
-                      config?.icon
-                        ? <span className="text-3xl">{config.icon}</span>
-                        : <Image
-                          width={30}
-                          height={36}
-                          src={config.image}
-                          alt={config.name}
-                          style={{
-                            width: 30,
-                            height: 36,
-                          }}
-                        />
+                      getResourceIcon(config.icon, {
+                        iconSize: 38,
+                        haveBackgroundWarper: true,
+                      })
                     }
 
                     <div>
@@ -656,9 +721,17 @@ export default function AssetsPage() {
             {inventory?.special?.brick && (
               <PixelCard className="p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="text-3xl">🧱</span>
+                  {
+                    getResourceIcon(RESOURCE_TYPES.BRICK, {
+                      iconSize: 38,
+                      haveBackgroundWarper: true,
+                    })
+                  }
                   <div>
-                    <h4 className="font-bold">砖头</h4>
+                    <h4 className="font-bold">
+                      {/* 砖头 */}
+                      {RESOURCE_NAMES[RESOURCE_TYPES.BRICK]}
+                    </h4>
                     <p className="text-xs text-gray-500">建筑材料</p>
                   </div>
                 </div>

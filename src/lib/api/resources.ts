@@ -19,6 +19,7 @@
 // - src/app/market/page.tsx: 交易市场页面
 // - API文档：资源购买系统 API 接入文档 v3.0.0
 
+import { RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 import { request } from '../api'
 
 // ==================== 类型定义 ====================
@@ -29,31 +30,34 @@ export type ResourceType = 'iron' | 'stone' | 'wood' | 'yld' | 'food'
 // 资源信息映射
 export const RESOURCE_INFO: Record<ResourceType, {
   name: string
-  icon: string
+  icon: RESOURCE_TYPES
   unitPrice: number
   dailyLimit: number
   singleLimit: number
   description: string
 }> = {
   iron: {
-    name: '铁矿',
-    icon: '⛏️',
+    // 铁矿
+    name: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE],
+    icon: RESOURCE_TYPES.IRON_ORE,
     unitPrice: 1.85,
     dailyLimit: 100,
     singleLimit: 20,
     description: '用于合成工具和建造的基础材料'
   },
   stone: {
-    name: '石材',
-    icon: '🪨',
+    // 石头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.STONE],
+    icon: RESOURCE_TYPES.STONE,
     unitPrice: 0.18,
     dailyLimit: 500,
     singleLimit: 100,
     description: '建造和合成砖块的必需材料'
   },
   wood: {
-    name: '木材',
-    icon: '🪵',
+    // 木材
+    name: RESOURCE_NAMES[RESOURCE_TYPES.WOOD],
+    icon: RESOURCE_TYPES.WOOD,
     unitPrice: 0.04,
     dailyLimit: 1000,
     singleLimit: 200,
@@ -61,15 +65,16 @@ export const RESOURCE_INFO: Record<ResourceType, {
   },
   yld: {
     name: 'YLD陨石',
-    icon: '💎',
+    icon: RESOURCE_TYPES.METEORITE,
     unitPrice: 2.84,
     dailyLimit: 50,
     singleLimit: 10,
     description: '稀有资源，用于高级合成和交易'
   },
   food: {
-    name: '粮食',
-    icon: '🌾',
+    // 粮食
+    name: RESOURCE_NAMES[RESOURCE_TYPES.GRAIN],
+    icon: RESOURCE_TYPES.GRAIN,
     unitPrice: 0.01,
     dailyLimit: 48,
     singleLimit: 48,
@@ -170,7 +175,7 @@ export const resourceApi = {
    * @param quantity 购买数量
    */
   buyResource: async (
-    resource_type: ResourceType, 
+    resource_type: ResourceType,
     quantity: number
   ): Promise<BuyResourceResponse> => {
     try {
@@ -182,7 +187,7 @@ export const resourceApi = {
       // 处理特定错误
       if (error?.status === 400) {
         const errorData = error?.details || error?.data || {}
-        
+
         // 构造统一的错误响应
         return {
           success: false,
@@ -203,7 +208,7 @@ export const resourceApi = {
   ): Promise<ResourcePurchaseStatusResponse> => {
     const params = resource_type ? { resource_type } : undefined
     return request<ResourcePurchaseStatusResponse>(
-      '/production/resources/purchase-status/', 
+      '/production/resources/purchase-status/',
       { params }
     )
   },
@@ -216,7 +221,7 @@ export const resourceApi = {
   },
 
   // ==================== 兼容旧版粮食API ====================
-  
+
   /**
    * 购买粮食（兼容旧版API）
    * @deprecated 使用 buyResource('food', quantity) 代替
@@ -224,7 +229,7 @@ export const resourceApi = {
   buyFood: async (quantity: number): Promise<BuyResourceResponse> => {
     // 使用新的统一接口，但保持兼容旧的调用方式
     const response = await resourceApi.buyResource('food', quantity)
-    
+
     // 如果响应成功，转换字段名以兼容旧版
     if (response.success && response.data) {
       const data = response.data
@@ -240,7 +245,7 @@ export const resourceApi = {
         } as any
       }
     }
-    
+
     return response
   },
 
@@ -250,10 +255,10 @@ export const resourceApi = {
    */
   getFoodPurchaseStatus: async () => {
     const response = await resourceApi.getPurchaseStatus('food')
-    
+
     if (response.success && response.data) {
       const foodStatus = response.data.resources.food
-      
+
       // 转换为旧版格式
       return {
         success: true,
@@ -271,7 +276,7 @@ export const resourceApi = {
         }
       }
     }
-    
+
     return response
   }
 }
@@ -294,7 +299,7 @@ export function calculateMaxPurchase(
   const maxByBalance = Math.floor(balance / unitPrice)
   const maxByDailyLimit = todayRemaining
   const maxBySingleLimit = singleLimit
-  
+
   return Math.min(maxByBalance, maxByDailyLimit, maxBySingleLimit)
 }
 
@@ -305,25 +310,25 @@ export function calculateMaxPurchase(
 export function formatResetTime(resetTime: string): string {
   const date = new Date(resetTime)
   const now = new Date()
-  
+
   // 如果是今天，只显示时间
   if (date.toDateString() === now.toDateString()) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return `今天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })}`
   }
-  
+
   // 如果是明天
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   if (date.toDateString() === tomorrow.toDateString()) {
-    return `明天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return `明天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })}`
   }
-  
+
   // 其他情况显示完整日期
   return date.toLocaleString('zh-CN', {
     month: '2-digit',
@@ -344,11 +349,11 @@ export function getPurchaseStatusText(status: ResourceStatus): string {
     }
     return '暂时无法购买'
   }
-  
+
   if (status.max_can_buy === 0) {
     return 'TDB余额不足'
   }
-  
+
   return `可购买 ${status.max_can_buy} 个`
 }
 

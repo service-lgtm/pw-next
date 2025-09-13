@@ -62,13 +62,13 @@ export const LAND_TYPE_MAP: { [key: string]: string } = {
   'forest': '森林',
   'farm': '农场',
   'yld_mine': 'YLD矿山',
-  
+
   // 不可挖矿的土地类型
   'urban': '城市用地',
   'residential': '住宅用地',
   'commercial': '商业用地',
   'industrial': '工业用地',
-  
+
   // 其他土地类型（预留）
   'grassland': '草原',
   'desert': '沙漠',
@@ -105,15 +105,6 @@ export const TOOL_TYPE_NAMES: { [key: string]: string } = {
   'pickaxe': '镐',
   'axe': '斧头',
   'hoe': '锄头'
-}
-
-/**
- * 工具类型图标映射
- */
-export const TOOL_TYPE_ICONS: { [key: string]: string } = {
-  'pickaxe': '⛏️',
-  'axe': '🪓',
-  'hoe': '🔨'
 }
 
 /**
@@ -161,47 +152,6 @@ export function isToolValidForLand(toolType: string, landType: string): boolean 
  */
 export function getRequiredToolType(landType: string): string | null {
   return LAND_TOOL_MAP[landType] || null
-}
-
-/**
- * 获取工具类型的描述信息
- * @param toolType - 工具类型
- * @returns 描述信息
- */
-export function getToolTypeInfo(toolType: string): {
-  name: string
-  icon: string
-  validLands: string[]
-  description: string
-} {
-  const name = TOOL_TYPE_NAMES[toolType] || '未知工具'
-  const icon = TOOL_TYPE_ICONS[toolType] || '🔧'
-  const validLands = TOOL_LAND_MAP[toolType] || []
-  
-  let description = ''
-  if (toolType === 'pickaxe') {
-    description = '适用于开采矿石（铁矿山、石矿山、YLD矿山）'
-  } else if (toolType === 'axe') {
-    description = '适用于砍伐木材（森林）'
-  } else if (toolType === 'hoe') {
-    description = '适用于耕种土地（农场）'
-  }
-  
-  return { name, icon, validLands, description }
-}
-
-/**
- * 资源类型的图标映射
- * 用于界面显示
- */
-export const RESOURCE_ICONS: { [key: string]: string } = {
-  '铁矿': '⛏️',
-  '石头': '🪨',
-  '木材': '🪵',
-  '粮食': '🌾',
-  'YLD': '💎',
-  '工具': '🔧',
-  '砖块': '🧱'
 }
 
 /**
@@ -304,13 +254,4 @@ export function getLandTypeDisplayName(landType: string): string {
  */
 export function getLandResourceType(landType: string): string {
   return LAND_RESOURCE_MAP[landType] || '未知'
-}
-
-/**
- * 获取资源图标
- * @param resourceType - 资源类型
- * @returns 图标emoji
- */
-export function getResourceIcon(resourceType: string): string {
-  return RESOURCE_ICONS[resourceType] || '📦'
 }

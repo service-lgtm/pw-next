@@ -27,8 +27,7 @@ import { PixelModal } from '@/components/shared/PixelModal'
 import { cn } from '@/lib/utils'
 import type { Tool } from '@/types/production'
 import toast from 'react-hot-toast'
-import hoeIconImg from "@/public/hoeIcon.png";
-import Image from 'next/image';
+import { getResourceIcon, RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 interface ToolManagementProps {
   tools: Tool[] | null
@@ -44,42 +43,45 @@ interface ToolManagementProps {
 // 合成配方定义
 const SYNTHESIS_RECIPES = {
   pickaxe: {
-    name: '镐头',
-    icon: '⛏️',
-    image: "",
+    // 镐头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+    icon: RESOURCE_TYPES.PICKAXE,
     materials: {
       iron: 70,
       wood: 30,
       yld: 0.08
     },
-    description: '适合开采矿石'
+    description: '适合开采矿石',
+    disabled: false
   },
   axe: {
-    name: '斧头',
-    icon: '🪓',
-    image: "",
+    // 斧头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+    icon: RESOURCE_TYPES.AXE,
     materials: {
       iron: 60,
       wood: 40,
       yld: 0.08
     },
-    description: '适合砍伐木材'
+    description: '适合砍伐木材',
+    disabled: false
   },
   hoe: {
-    name: '锄头',
-    icon: '',
-    image: hoeIconImg,
+    // 锄头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+    icon: RESOURCE_TYPES.HOE,
     materials: {
       iron: 50,
       wood: 50,
       yld: 0.08
     },
-    description: '适合耕种土地'
+    description: '适合耕种土地',
+    disabled: false
   },
   brick: {
-    name: '砖头',
-    icon: '🧱',
-    image: "",
+    // 砖头
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE],
+    icon: RESOURCE_TYPES.BRICK,
     materials: {
       stone: 80,
       wood: 20,
@@ -273,11 +275,16 @@ export function ToolManagement({
             {/* 正常: {toolStats?.by_status?.normal || 0} |
             损坏: {toolStats?.by_status?.damaged || 0} |
             维修中: {toolStats?.by_status?.repairing || 0} */}
-            镐头：{toolStats?.by_type?.pickaxe?.count || 0} |
-            斧头：{toolStats?.by_type?.axe?.count || 0} |
-            锄头：{toolStats?.by_type?.hoe?.count || 0}
-            {/* 砖头：{toolStats?.by_type?.brick?.count || 0} |
-            种子：{toolStats?.by_type?.seed?.count || 0} */}
+            {/* 镐头 */}
+            {RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE]}：{toolStats?.by_type?.pickaxe?.count || 0} |
+            {/* 斧头 */}
+            {RESOURCE_NAMES[RESOURCE_TYPES.AXE]}：{toolStats?.by_type?.axe?.count || 0} |
+            {/* 锄头 */}
+            {RESOURCE_NAMES[RESOURCE_TYPES.HOE]}：{toolStats?.by_type?.hoe?.count || 0} {/* | */}
+            {/* 砖头 */}
+            {/* {RESOURCE_NAMES[RESOURCE_TYPES.BRICK]}：{toolStats?.by_type?.brick?.count || 0} | */}
+            {/* 种子 */}
+            {/* {RESOURCE_NAMES[RESOURCE_TYPES.SEED]}：{toolStats?.by_type?.seed?.count || 0} */}
             {tools && tools.length < (toolStats?.total_count || 0) && (
               <span className="text-yellow-400 ml-2">
                 （显示 {tools.length}/{toolStats.total_count}）
@@ -352,21 +359,13 @@ export function ToolManagement({
                   }
                 }}
               >
-                <div className="text-4xl mb-2">
-                  {recipe?.icon
-                    ? recipe.icon
-                    : <Image
-                      width={30}
-                      height={48}
-                      src={recipe?.image}
-                      alt={recipe.name}
-                      style={{
-                        width: 30,
-                        height: 48,
-                        paddingTop: 12,
-                        margin: '0 auto',
-                      }}
-                    />}
+                <div className="w-fit mx-auto mb-2">
+                  {
+                    getResourceIcon(recipe.icon, {
+                      iconSize: 38,
+                      haveBackgroundWarper: true,
+                    })
+                  }
                 </div>
                 <p className="font-bold">{recipe.name}</p>
                 <p className="text-xs text-gray-400 mt-1">

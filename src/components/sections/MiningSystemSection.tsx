@@ -4,13 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // 挖矿工具数据
 const miningTools = [
   {
     id: 'pickaxe',
     name: '精铁镐头',
-    icon: '⛏️',
+    icon: RESOURCE_TYPES.PICKAXE,
     material: '70%铁矿 + 30%木头+0.008YLD',
     efficiency: 100,
     suitable: ['铁矿山', '石矿山'],
@@ -20,7 +21,7 @@ const miningTools = [
   {
     id: 'axe',
     name: '伐木斧头',
-    icon: '🪓',
+    icon: RESOURCE_TYPES.AXE,
     material: '60%铁矿 + 40%木头+0.008YLD',
     efficiency: 90,
     suitable: ['森林'],
@@ -30,7 +31,7 @@ const miningTools = [
   {
     id: 'hoe',
     name: '精工锄头',
-    icon: '🔨',
+    icon: RESOURCE_TYPES.HOE,
     material: '50%铁矿 + 50%木头+0.008YLD',
     efficiency: 85,
     suitable: ['陨石矿'],
@@ -126,12 +127,12 @@ export function MiningSystemSection() {
             <span className="pixel-font">MINING SYSTEM</span>
             <span className="w-6 lg:w-8 h-1 bg-gold-500" />
           </div>
-          
+
           <h2 className="text-3xl md:text-4xl lg:text-6xl font-black leading-tight mb-4 lg:mb-6">
             <span className="block mb-2">挖矿致富</span>
             <span className="text-gold-500 pixel-text-shadow">付出劳动 收获财富</span>
           </h2>
-          
+
           <p className="text-base lg:text-xl text-gray-400">
             真实模拟挖矿过程，每一份收获都来自辛勤劳动
             <br />
@@ -147,7 +148,7 @@ export function MiningSystemSection() {
           viewport={{ once: true }}
         >
           <h3 className="text-xl lg:text-2xl font-black text-center mb-8 lg:mb-12">挖矿流程</h3>
-          
+
           <div className="relative">
             {/* 进度线 - 仅桌面显示 */}
             <div className="absolute top-24 left-0 right-0 h-1 bg-gray-800 hidden lg:block">
@@ -180,14 +181,14 @@ export function MiningSystemSection() {
                   )}>
                     {step.icon}
                   </div>
-                  
+
                   <h4 className="text-base lg:text-lg font-black mb-2 text-center">
                     第{step.step}步：{step.title}
                   </h4>
                   <p className="text-xs lg:text-sm text-gray-400 mb-3 lg:mb-4 text-center">
                     {step.description}
                   </p>
-                  
+
                   <ul className="space-y-2">
                     {step.details.map((detail) => (
                       <li key={detail} className="text-xs text-gray-500 flex items-center gap-2">
@@ -232,16 +233,18 @@ export function MiningSystemSection() {
                 whileHover={{ y: -4 }}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-4xl lg:text-5xl">{tool.icon}</span>
+                  <span className="text-4xl lg:text-5xl">{getResourceIcon(tool.icon, {
+                    iconSize: 68
+                  })}</span>
                   <span className="text-xs lg:text-sm px-2 lg:px-3 py-1 bg-gold-500/20 text-gold-500 font-bold">
                     {tool.price}
                   </span>
                 </div>
-                
+
                 <h4 className="text-lg lg:text-xl font-black mb-2" style={{ color: tool.color }}>
                   {tool.name}
                 </h4>
-                
+
                 <div className="space-y-3 text-xs lg:text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">配方</span>
@@ -251,7 +254,7 @@ export function MiningSystemSection() {
                     <span className="text-gray-400">效率</span>
                     <div className="flex items-center gap-1">
                       <div className="w-16 lg:w-20 h-2 bg-gray-800 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-gold-500"
                           style={{ width: `${tool.efficiency}%` }}
                         />
@@ -260,7 +263,7 @@ export function MiningSystemSection() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t border-gray-800">
                   <div className="text-xs text-gray-400 mb-2">适用矿山</div>
                   <div className="flex flex-wrap gap-2">
@@ -309,7 +312,7 @@ export function MiningSystemSection() {
                     收益：{mode.profit}
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h5 className="text-xs lg:text-sm font-bold text-green-500 mb-2">优势</h5>
@@ -355,7 +358,7 @@ export function MiningSystemSection() {
               <br />
               真实劳动，真实收益
             </p>
-            
+
             <div className="flex flex-wrap gap-3 lg:gap-4 justify-center mb-6">
               <div className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="text-green-500">✓</span>
@@ -370,7 +373,7 @@ export function MiningSystemSection() {
                 <span>平台分红</span>
               </div>
             </div>
-            
+
             <motion.a
               href="https://www.pxsj.net.cn/dashboard"
               target="_blank"

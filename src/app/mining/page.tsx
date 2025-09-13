@@ -68,6 +68,7 @@ import {
 import type { YLDMine, MineLand } from '@/types/assets'
 import type { Tool } from '@/types/production'
 import { useSynthesisSystem } from '@/hooks/useSynthesis'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // ==================== 配置 ====================
 
@@ -122,11 +123,11 @@ const ResourceBar = ({
   onClick?: (type: string) => void
 }) => {
   const resourceTypes = [
-    { key: 'wood', icon: '🌲', color: 'text-green-400', bgColor: 'bg-green-900/20' },
-    { key: 'iron', icon: '⛏️', color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
-    { key: 'stone', icon: '🪨', color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
-    { key: 'food', icon: '🌾', color: grainWarning ? 'text-red-400' : 'text-yellow-400', bgColor: grainWarning ? 'bg-red-900/20' : 'bg-yellow-900/20' },
-    { key: 'yld', icon: '💎', color: 'text-purple-400', bgColor: 'bg-purple-900/20' }
+    { key: 'wood', icon: RESOURCE_TYPES.WOOD, color: 'text-green-400', bgColor: 'bg-green-900/20' },
+    { key: 'iron', icon: RESOURCE_TYPES.PICKAXE, color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+    { key: 'stone', icon: RESOURCE_TYPES.STONE, color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
+    { key: 'food', icon: RESOURCE_TYPES.GRAIN, color: grainWarning ? 'text-red-400' : 'text-yellow-400', bgColor: grainWarning ? 'bg-red-900/20' : 'bg-yellow-900/20' },
+    { key: 'yld', icon: RESOURCE_TYPES.METEORITE, color: 'text-purple-400', bgColor: 'bg-purple-900/20' }
   ]
 
   return (
@@ -141,7 +142,7 @@ const ResourceBar = ({
             "hover:scale-105 active:scale-95"
           )}
         >
-          <span className="text-xl mb-1">{icon}</span>
+          <span className="text-xl mb-1">{getResourceIcon(icon)}</span>
           <span className={cn("text-xs font-bold", color)}>
             {formatResource(resources[key] || 0)}
           </span>
