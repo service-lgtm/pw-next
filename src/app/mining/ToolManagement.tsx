@@ -269,6 +269,8 @@ export function ToolManagement({
             {/* 使用 stats.total_count 而不是 tools.length */}
             总计: {toolStats?.total_count || tools?.length || 0} |&nbsp;
             {/* 正常: {toolStats?.by_status?.normal || 0} |
+            总计: {toolStats?.total_count || tools?.length || 0} |&nbsp;
+            {/* 正常: {toolStats?.by_status?.normal || 0} |
             损坏: {toolStats?.by_status?.damaged || 0} |
             维修中: {toolStats?.by_status?.repairing || 0} */}
             镐头：{toolStats?.by_type?.pickaxe?.count || 0} |
