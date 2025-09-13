@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { PixelLogo } from '@/components/ui/PixelLogo'
 import { usePathname, useRouter } from 'next/navigation'
+import { type Announcement } from '@/lib/api'
 
 
 enum DocumentType {
@@ -13,7 +14,10 @@ enum DocumentType {
     minorProtection = "未成年人信息保护"
 }
 
-export function AnnouncementDocuments() {
+export function AnnouncementDocuments(props: {
+    data: Announcement,
+}) {
+    const { data } = props;
     const [activeDoc, setActiveDoc] = useState<DocumentType>(DocumentType.updateAnnouncement)
 
     // 处理文档切换
@@ -93,7 +97,7 @@ export function AnnouncementDocuments() {
                                 exit={{ opacity: 0, y: -20 }}
                                 className="pixel-card p-8 bg-[#0A1628]/95 backdrop-blur"
                             >
-                                <UpdateAnnouncementContent />
+                                <UpdateAnnouncementContent data={data} />
                             </motion.div>
                         ) : (
                             <motion.div
@@ -114,10 +118,25 @@ export function AnnouncementDocuments() {
 }
 
 // 更新公告
-function UpdateAnnouncementContent() {
+function UpdateAnnouncementContent(props: {
+    data: Announcement,
+}) {
+    const { data } = props;
     return (
         <div className="prose prose-invert max-w-none">
-            更新公告
+            <h1 className="text-3xl font-black text-gold-500 mb-6 text-center">
+                {data?.title ?? "更新公告"}
+            </h1>
+
+            <section className="mb-8 min-h-[200px] max-h-[calc(100vh-500px)] overflow-y-auto">
+                <h2 className="text-xl font-bold text-white mb-4 whitespace-pre-wrap break-words">
+                    {data?.summary ?? ""}
+                </h2>
+            </section>
+
+            <div className="mt-4 pt-4 text-end">
+                <p>{data?.publish_time ?? ""}</p>
+            </div>
         </div>
     )
 }

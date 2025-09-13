@@ -17,7 +17,7 @@ export class TokenManager {
       localStorage.setItem(REFRESH_TOKEN_KEY, refresh)
     }
   }
-  
+
   // 获取 Access Token
   static getAccessToken(): string | null {
     if (typeof window !== 'undefined') {
@@ -25,7 +25,7 @@ export class TokenManager {
     }
     return null
   }
-  
+
   // 获取 Refresh Token
   static getRefreshToken(): string | null {
     if (typeof window !== 'undefined') {
@@ -33,7 +33,7 @@ export class TokenManager {
     }
     return null
   }
-  
+
   // 清除 Tokens
   static clearTokens() {
     if (typeof window !== 'undefined') {
@@ -42,7 +42,7 @@ export class TokenManager {
       localStorage.removeItem(USER_INFO_KEY)
     }
   }
-  
+
   // 保存用户信息
   static setUser(user: User) {
     if (typeof window !== 'undefined') {
@@ -56,7 +56,7 @@ export class TokenManager {
       localStorage.setItem(USER_INFO_KEY, JSON.stringify(normalizedUser))
     }
   }
-  
+
   // 获取用户信息
   static getUser(): User | null {
     if (typeof window !== 'undefined') {
@@ -71,7 +71,7 @@ export class TokenManager {
     }
     return null
   }
-  
+
   // 检查是否已认证
   static isAuthenticated(): boolean {
     return !!TokenManager.getAccessToken()
@@ -267,7 +267,7 @@ export interface AddressCreateRequest {
   is_default?: boolean
 }
 
-export interface AddressUpdateRequest extends AddressCreateRequest {}
+export interface AddressUpdateRequest extends AddressCreateRequest { }
 
 export interface AddressResponse {
   success: boolean
@@ -456,6 +456,22 @@ export interface Order {
   }
 }
 
+// 公告类型定义
+export interface Announcement {
+  "id": number;
+  "title": string;
+  "type": string;
+  "type_display": string;
+  "priority": string;
+  "priority_display": string;
+  "summary": string;
+  "is_pinned": boolean;
+  "publish_time": string;
+  "expire_time": string | null;
+  "view_count": number;
+  "is_new": boolean
+}
+
 // ========== 错误处理 ==========
 export class ApiError extends Error {
   constructor(
@@ -490,7 +506,7 @@ export function getAccountErrorMessage(error: ApiError): string {
       return errors.email_code[0]
     }
   }
-  
+
   // 处理特定状态码
   switch (error.status) {
     case 429:
@@ -522,9 +538,9 @@ async function request<T = any>(
   options: RequestInit & { params?: Record<string, any>; skipAuth?: boolean } = {}
 ): Promise<T> {
   const { params, skipAuth = false, ...init } = options
-  
+
   let url = `${API_BASE_URL}${endpoint}`
-  
+
   if (params) {
     const searchParams = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
@@ -537,7 +553,7 @@ async function request<T = any>(
       url += `?${queryString}`
     }
   }
-  
+
   const config: RequestInit = {
     ...init,
     headers: {
@@ -545,7 +561,7 @@ async function request<T = any>(
       ...init.headers,
     },
   }
-  
+
   // 只有在body存在且不是FormData时才设置Content-Type
   if (config.body && !(config.body instanceof FormData)) {
     config.headers = {
@@ -553,7 +569,7 @@ async function request<T = any>(
       'Content-Type': 'application/json',
     }
   }
-  
+
   // 添加认证头（除非明确跳过）
   if (!skipAuth) {
     const accessToken = TokenManager.getAccessToken()
@@ -564,25 +580,25 @@ async function request<T = any>(
       }
     }
   }
-  
+
   if (config.body && typeof config.body === 'object' && !(config.body instanceof FormData)) {
     config.body = JSON.stringify(config.body)
   }
-  
+
   try {
     console.log(`[API] ${config.method || 'GET'} ${endpoint}`)
-    
+
     const response = await fetch(url, config)
-    
+
     const contentType = response.headers.get('content-type')
     let data: any
-    
+
     if (contentType?.includes('application/json')) {
       data = await response.json()
     } else {
       data = await response.text()
     }
-    
+
     // 处理 401 错误 - Token 过期
     if (response.status === 401 && !skipAuth && !endpoint.includes('/token/')) {
       // 如果已经在刷新，等待刷新完成
@@ -601,10 +617,10 @@ async function request<T = any>(
           })
         })
       }
-      
+
       // 尝试刷新 token
       isRefreshing = true
-      
+
       try {
         const refreshToken = TokenManager.getRefreshToken()
         if (refreshToken) {
@@ -616,9 +632,9 @@ async function request<T = any>(
             },
             body: JSON.stringify({ refresh: refreshToken })
           })
-          
+
           const refreshData = await refreshResponse.json()
-          
+
           if (refreshResponse.ok && refreshData.success && refreshData.data) {
             // 保存新的 access token
             const newAccessToken = refreshData.data.access
@@ -626,27 +642,27 @@ async function request<T = any>(
             if (currentRefreshToken) {
               TokenManager.setTokens(newAccessToken, currentRefreshToken)
             }
-            
+
             // 通知所有等待的请求
             onTokenRefreshed(newAccessToken)
-            
+
             // 使用新 token 重试原请求
             config.headers = {
               ...config.headers,
               'Authorization': `Bearer ${newAccessToken}`
             }
-            
+
             const retryResponse = await fetch(url, config)
             const retryData = await retryResponse.json()
-            
+
             if (!retryResponse.ok) {
               throw new ApiError(retryResponse.status, 'API_ERROR', retryData.message || '请求失败', retryData)
             }
-            
+
             return retryData
           }
         }
-        
+
         // 刷新失败，清除认证信息
         TokenManager.clearTokens()
         throw new ApiError(401, 'TOKEN_EXPIRED', '登录已过期，请重新登录')
@@ -654,12 +670,12 @@ async function request<T = any>(
         isRefreshing = false
       }
     }
-    
+
     if (!response.ok) {
       console.error(`[API] Error ${response.status}:`, data)
-      
+
       let errorMessage = '请求失败'
-      
+
       if (data) {
         if (typeof data === 'string') {
           errorMessage = data
@@ -693,21 +709,21 @@ async function request<T = any>(
           }
         }
       }
-      
+
       throw new ApiError(response.status, data?.error_code || 'API_ERROR', errorMessage, data)
     }
-    
+
     console.log(`[API] Success:`, data)
     return data
   } catch (error) {
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       throw new ApiError(0, 'NETWORK_ERROR', '网络连接失败，请检查网络后重试')
     }
-    
+
     if (error instanceof ApiError) {
       throw error
     }
-    
+
     console.error('[API] Unexpected error:', error)
     throw new ApiError(0, 'UNKNOWN_ERROR', '请求失败，请稍后重试')
   }
@@ -726,7 +742,7 @@ const api = {
         },
         skipAuth: true,
       })
-      
+
       // 你的自定义视图返回格式：
       // {
       //   "success": true,
@@ -738,7 +754,7 @@ const api = {
       //     "permissions": {...}
       //   }
       // }
-      
+
       if (response.success && response.data) {
         // 保存 tokens 和用户信息
         TokenManager.setTokens(response.data.access, response.data.refresh)
@@ -746,22 +762,22 @@ const api = {
           TokenManager.setUser(response.data.user)
         }
       }
-      
+
       return response
     },
-    
+
     // 刷新 Token - 适配你的自定义响应格式
     refreshToken: async (): Promise<boolean> => {
       const refreshToken = TokenManager.getRefreshToken()
       if (!refreshToken) return false
-      
+
       try {
         const response = await request<TokenRefreshResponse>('/auth/token/refresh/', {
           method: 'POST',
           body: { refresh: refreshToken },
           skipAuth: true,
         })
-        
+
         if (response.success && response.data && response.data.access) {
           const currentRefreshToken = TokenManager.getRefreshToken()
           if (currentRefreshToken) {
@@ -772,29 +788,29 @@ const api = {
       } catch (error) {
         console.error('[API] Token refresh failed:', error)
       }
-      
+
       return false
     },
-    
+
     // 验证 Token - 适配你的自定义响应格式
     verifyToken: async (token?: string): Promise<TokenVerifyResponse | null> => {
       const tokenToVerify = token || TokenManager.getAccessToken()
       if (!tokenToVerify) return null
-      
+
       try {
         const response = await request<TokenVerifyResponse>('/auth/token/verify/', {
           method: 'POST',
           body: { token: tokenToVerify },
           skipAuth: true,
         })
-        
+
         return response
       } catch (error) {
         console.error('[API] Token verify failed:', error)
         return null
       }
     },
-    
+
     // 通用登录 - 使用自定义的 UniversalLoginView
     universalLogin: async (account: string, password: string) => {
       const response = await request('/auth/login/', {
@@ -805,12 +821,12 @@ const api = {
         },
         skipAuth: true,
       })
-      
+
       if (response.success && response.user && response.tokens) {
         // 保存 tokens 和用户信息
         TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
         TokenManager.setUser(response.user)
-        
+
         return {
           success: true,
           message: response.message || '登录成功',
@@ -826,10 +842,10 @@ const api = {
           }
         }
       }
-      
+
       throw new ApiError(400, 'INVALID_RESPONSE', response.message || '登录失败')
     },
-    
+
     // 登出
     logout: async () => {
       try {
@@ -844,39 +860,39 @@ const api = {
         TokenManager.clearTokens()
       }
     },
-    
+
     // 检查认证状态
     checkStatus: async (): Promise<AuthStatus> => {
       const token = TokenManager.getAccessToken()
       const user = TokenManager.getUser()
-      
+
       if (!token) {
         return { authenticated: false }
       }
-      
+
       // 验证 token
       const verifyResult = await api.auth.verifyToken()
-      
+
       if (verifyResult && verifyResult.success && verifyResult.data.valid) {
         return {
           authenticated: true,
           user: user || undefined
         }
       }
-      
+
       // Token 无效，清除本地数据
       TokenManager.clearTokens()
       return { authenticated: false }
     },
-    
+
     // 注册相关
-    sendEmailCode: (data: EmailCodeRequest) => 
+    sendEmailCode: (data: EmailCodeRequest) =>
       request('/auth/email-code/', {
         method: 'POST',
         body: data,
         skipAuth: true,
       }),
-    
+
     // 快速注册
     register: async (data: RegisterRequest) => {
       const response = await request('/auth/register/', {
@@ -884,15 +900,15 @@ const api = {
         body: data,
         skipAuth: true,
       })
-      
+
       if (response.success && response.user && response.tokens) {
         TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
         TokenManager.setUser(response.user)
       }
-      
+
       return response
     },
-    
+
     // 邮箱注册
     registerWithEmail: async (data: EmailRegisterRequest) => {
       const response = await request('/auth/register-with-code/', {
@@ -900,22 +916,22 @@ const api = {
         body: data,
         skipAuth: true,
       })
-      
+
       if (response.success && response.user && response.tokens) {
         TokenManager.setTokens(response.tokens.access, response.tokens.refresh)
         TokenManager.setUser(response.user)
       }
-      
+
       return response
     },
-    
+
     passwordReset: (data: PasswordResetRequest) =>
       request('/auth/password-reset/', {
         method: 'POST',
         body: data,
         skipAuth: true,
       }),
-    
+
     passwordResetConfirm: (data: PasswordResetConfirmRequest) =>
       request('/auth/password-reset-confirm/', {
         method: 'POST',
@@ -923,94 +939,94 @@ const api = {
         skipAuth: true,
       }),
   },
-  
+
   // 用户相关 - 扩展账户管理功能
   accounts: {
     // 获取个人资料
     profile: () => request<ProfileResponse>('/auth/profile/'),
-    
+
     // 更新个人资料
-    updateProfile: (data: ProfileUpdateRequest) => 
+    updateProfile: (data: ProfileUpdateRequest) =>
       request<ProfileResponse>('/auth/profile/', {
         method: 'PATCH',
         body: data,
       }),
-    
+
     // 修改登录密码
-    changePassword: (data: ChangePasswordRequest) => 
+    changePassword: (data: ChangePasswordRequest) =>
       request<{ success: boolean; message: string }>('/auth/password/change/', {
         method: 'POST',
         body: data,
       }),
-    
+
     // 设置支付密码
-    setPaymentPassword: (data: SetPaymentPasswordRequest) => 
+    setPaymentPassword: (data: SetPaymentPasswordRequest) =>
       request<{ success: boolean; message: string }>('/auth/payment-password/set/', {
         method: 'POST',
         body: data,
       }),
-    
+
     // 修改支付密码
-    changePaymentPassword: (data: ChangePaymentPasswordRequest) => 
+    changePaymentPassword: (data: ChangePaymentPasswordRequest) =>
       request<{ success: boolean; message: string }>('/auth/payment-password/change/', {
         method: 'POST',
         body: data,
       }),
-    
+
     // 发送支付密码重置验证码
-    sendPaymentPasswordResetCode: () => 
+    sendPaymentPasswordResetCode: () =>
       request<{ success: boolean; message: string }>('/auth/payment-password/reset-code/', {
         method: 'POST',
       }),
-    
+
     // 重置支付密码
-    resetPaymentPassword: (data: ResetPaymentPasswordRequest) => 
+    resetPaymentPassword: (data: ResetPaymentPasswordRequest) =>
       request<{ success: boolean; message: string }>('/auth/payment-password/reset/', {
         method: 'POST',
         body: data,
       }),
-    
+
     // 获取团队概览
     getTeamSummary: () => request<TeamSummaryResponse>('/auth/team/summary/'),
-    
+
     // ========== 地址管理 API ==========
     addresses: {
       list: () => request<AddressListResponse>('/auth/addresses/'),
-      
+
       // 获取单个地址
-      get: (addressId: string) => 
+      get: (addressId: string) =>
         request<AddressDetailResponse>(`/auth/addresses/${addressId}/`),
-      
+
       // 创建地址
       create: (data: AddressCreateRequest) =>
         request<AddressResponse>('/auth/addresses/', {
           method: 'POST',
           body: data,
         }),
-      
+
       // 更新地址
       update: (addressId: string, data: AddressUpdateRequest) =>
         request<AddressResponse>(`/auth/addresses/${addressId}/`, {
           method: 'PATCH',
           body: data,
         }),
-      
+
       // 删除地址
       delete: (addressId: string) =>
         request<AddressResponse>(`/auth/addresses/${addressId}/`, {
           method: 'DELETE',
         }),
-      
+
       // 设置默认地址
       setDefault: (addressId: string) =>
         request<AddressResponse>(`/auth/addresses/${addressId}/set-default/`, {
           method: 'POST',
         }),
-      
+
       // 获取默认地址
       getDefault: () =>
         request<AddressDetailResponse>('/auth/addresses/default/'),
-      
+
       // 验证地址
       validate: (addressId: string) =>
         request<{ success: boolean; data: { is_valid: boolean; address?: Address } }>('/auth/addresses/validate/', {
@@ -1019,7 +1035,7 @@ const api = {
         }),
     },
   },
-  
+
   // ========== 商城 API ==========
   shop: {
     // 获取商品列表
@@ -1037,12 +1053,12 @@ const api = {
         previous: string | null
         results: Product[]
       }>('/shop/products/', { params }),
-      
+
       // 获取商品详情
       get: (productId: string) =>
         request<ProductDetail>(`/shop/products/${productId}/`),
     },
-    
+
     // 提货单相关
     tickets: {
       // 创建提货单
@@ -1051,7 +1067,7 @@ const api = {
           method: 'POST',
           body: data,
         }),
-      
+
       // 获取提货单列表
       list: (params?: {
         status?: string
@@ -1064,25 +1080,25 @@ const api = {
         previous: string | null
         results: Ticket[]
       }>('/shop/tickets/', { params }),
-      
+
       // 获取提货单详情
       get: (ticketId: string) =>
         request<Ticket>(`/shop/tickets/${ticketId}/`),
-      
+
       // 支付提货单
       pay: (ticketId: string, formData: FormData) =>
         request<{ success: boolean; message: string }>(`/shop/tickets/${ticketId}/pay/`, {
           method: 'POST',
           body: formData,
         }),
-      
+
       // 取消提货单
       cancel: (ticketId: string) =>
         request<{ success: boolean; message: string }>(`/shop/tickets/${ticketId}/cancel/`, {
           method: 'POST',
         }),
     },
-    
+
     // 提货相关
     pickup: {
       // 申请提货
@@ -1098,7 +1114,7 @@ const api = {
           method: 'POST',
           body: data,
         }),
-      
+
       // 获取提货申请列表
       list: (params?: {
         status?: string
@@ -1108,7 +1124,7 @@ const api = {
         results: any[]
       }>('/shop/pickup/', { params }),
     },
-    
+
     // 兑换相关
     exchange: {
       // 申请兑换
@@ -1125,7 +1141,7 @@ const api = {
           method: 'POST',
           body: data,
         }),
-      
+
       // 获取兑换申请列表
       list: (params?: {
         status?: string
@@ -1135,7 +1151,7 @@ const api = {
         results: any[]
       }>('/shop/exchange/', { params }),
     },
-    
+
     // 订单相关（保留兼容性）
     orders: {
       // 创建订单
@@ -1144,7 +1160,7 @@ const api = {
           method: 'POST',
           body: data,
         }),
-      
+
       // 获取订单列表
       list: (params?: {
         status?: string
@@ -1156,18 +1172,18 @@ const api = {
         previous: string | null
         results: Order[]
       }>('/shop/orders/', { params }),
-      
+
       // 获取订单详情
       get: (orderId: string) =>
         request<Order>(`/shop/orders/${orderId}/`),
-      
+
       // 提交支付信息
       pay: (orderId: string, formData: FormData) =>
         request<{ success: boolean; message: string }>(`/shop/orders/${orderId}/pay/`, {
           method: 'POST',
           body: formData,
         }),
-      
+
       // 设置收货地址
       setAddress: (orderId: string, addressId: string) =>
         request<{
@@ -1182,7 +1198,7 @@ const api = {
           method: 'POST',
           body: { address_id: addressId },
         }),
-      
+
       // 取消订单
       cancel: (orderId: string) =>
         request<{ success: boolean; message: string }>(`/shop/orders/${orderId}/cancel/`, {
@@ -1190,6 +1206,17 @@ const api = {
         }),
     },
   },
+
+  /** ========== 系统公告 ========== */
+  system: {
+    // 获取最新系统公告
+    getLatestTips: () => request<{
+      code: number;
+      message: string;
+      data: Announcement[]
+    }>('/common/announcements/latest/?count=1'),
+  }
+
 }
 
 // ========== 工具函数 ==========
@@ -1197,11 +1224,11 @@ const getErrorMessage = (error: unknown): string => {
   if (error instanceof ApiError) {
     return error.message
   }
-  
+
   if (error instanceof Error) {
     return error.message
   }
-  
+
   return '未知错误'
 }
 
@@ -1209,11 +1236,11 @@ const isApiError = (error: unknown, status?: number): error is ApiError => {
   if (!(error instanceof ApiError)) {
     return false
   }
-  
+
   if (status !== undefined) {
     return error.status === status
   }
-  
+
   return true
 }
 
