@@ -63,7 +63,8 @@ const MINE_TYPES = {
     toolType: 'pickaxe'  // 使用镐
   },
   'yld_converted': {
-    label: 'YLD转换矿山',
+    // label: 'YLD转换矿山',
+    label: "陨石矿",
     icon: RESOURCE_TYPES.METEORITE,
     gradient: 'from-purple-700 to-purple-600',
     bgColor: 'bg-purple-900/30',
@@ -447,12 +448,12 @@ const MineCard = ({
           )}
 
           {/* 累计产出 */}
-          <div className="flex items-center justify-between">
+          {/* <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">累计产出</span>
             <span className="text-sm font-bold text-green-400">
               {formatAmount(accumulated)}
             </span>
-          </div>
+          </div> */}
 
           {/* 效率进度条 */}
           {showReserves && (

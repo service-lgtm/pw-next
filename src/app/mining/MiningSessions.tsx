@@ -24,6 +24,7 @@ import toast from 'react-hot-toast'
 import type { MiningSession, Tool } from '@/types/production'
 import type { Land } from '@/types/assets'
 import { useStopAllSessions } from '@/hooks/useProduction'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // ==================== 工具函数 ====================
 
@@ -76,12 +77,12 @@ function getNextSettlementInfo(): { time: string; minutes: number } {
 
 // ==================== 配置 ====================
 
-const RESOURCE_TYPES = {
-  'yld': { label: 'YLD', icon: '💎', color: 'text-purple-400', bgColor: 'bg-purple-900/20' },
-  'iron': { label: '铁矿', icon: '⛏️', color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
-  'stone': { label: '石头', icon: '🪨', color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
-  'wood': { label: '木材', icon: '🌲', color: 'text-green-400', bgColor: 'bg-green-900/20' },
-  'food': { label: '粮食', icon: '🌾', color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' }
+const RESOURCE_TYPES_MAP = {
+  'yld': { label: 'YLD', icon: RESOURCE_TYPES.METEORITE, color: 'text-purple-400', bgColor: 'bg-purple-900/20' },
+  'iron': { label: '铁矿', icon: RESOURCE_TYPES.IRON_ORE, color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+  'stone': { label: '石头', icon: RESOURCE_TYPES.STONE, color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
+  'wood': { label: '木材', icon: RESOURCE_TYPES.WOOD, color: 'text-green-400', bgColor: 'bg-green-900/20' },
+  'food': { label: '粮食', icon: RESOURCE_TYPES.GRAIN, color: 'text-yellow-400', bgColor: 'bg-yellow-900/20' }
 }
 
 // ==================== 子组件 ====================
@@ -117,24 +118,24 @@ const SessionStats = ({
           <p className="text-2xl font-bold text-white">{stats.activeCount}</p>
           <p className="text-xs text-gray-400">活跃会话</p>
         </div>
-        <div className="bg-green-900/20 rounded-lg p-3 text-center">
+        {/* <div className="bg-green-900/20 rounded-lg p-3 text-center">
           <p className="text-2xl font-bold text-green-400">
             {formatNumber(stats.totalPending, 2)}
           </p>
           <p className="text-xs text-gray-400">待收取</p>
-        </div>
+        </div> */}
         <div className="bg-yellow-900/20 rounded-lg p-3 text-center">
           <p className="text-2xl font-bold text-yellow-400">
             {stats.foodHours.toFixed(1)}h
           </p>
           <p className="text-xs text-gray-400">粮食剩余</p>
         </div>
-        <div className="bg-purple-900/20 rounded-lg p-3 text-center">
+        {/* <div className="bg-purple-900/20 rounded-lg p-3 text-center">
           <p className="text-2xl font-bold text-purple-400">
             {formatNumber(stats.yldRemaining, 1)}
           </p>
           <p className="text-xs text-gray-400">YLD剩余</p>
-        </div>
+        </div> */}
       </div>
 
       {/* 下次结算倒计时 */}
@@ -180,7 +181,7 @@ const SessionCardSimple = ({
   const sessionId = session.session_id || `Session-${session.id}`
   const landName = session.land_name || session.land_id || '未知土地'
   const resourceType = session.resource_type || 'yld'
-  const resourceConfig = RESOURCE_TYPES[resourceType as keyof typeof RESOURCE_TYPES] || RESOURCE_TYPES.yld
+  const resourceConfig = RESOURCE_TYPES_MAP[resourceType as keyof typeof RESOURCE_TYPES_MAP] || RESOURCE_TYPES_MAP.yld
 
   const pendingOutput = session.pending_output || session.pending_rewards || 0
   const settledHours = session.settled_hours || session.hours_settled || 0
@@ -196,7 +197,10 @@ const SessionCardSimple = ({
         {/* 头部信息 */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{resourceConfig.icon}</span>
+            <span className="text-2xl shrink-0">{getResourceIcon(resourceConfig.icon, {
+              iconSize: 32,
+              haveBackgroundWarper: true,
+            })}</span>
             <div>
               <p className="font-bold text-sm text-white">{sessionId}</p>
               <p className="text-xs text-gray-400">{landName}</p>
@@ -225,12 +229,12 @@ const SessionCardSimple = ({
               {settledHours}h
             </p>
           </div>
-          <div className="text-center">
+          {/* <div className="text-center">
             <p className="text-xs text-gray-400">当前进度</p>
             <p className="text-lg font-bold text-yellow-400">
               {currentHourMinutes}/60
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* 当前小时进度条 */}
@@ -244,19 +248,19 @@ const SessionCardSimple = ({
         </div>
 
         {/* 操作按钮 */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <button
             onClick={onStop}
             className="bg-red-900/50 hover:bg-red-900/70 text-red-400 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95"
           >
             停止挖矿
           </button>
-          <button
+          {/* <button
             onClick={onViewHistory}
             className="bg-gray-700 hover:bg-gray-600 text-gray-300 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 active:scale-95"
           >
             查看历史
-          </button>
+          </button> */}
         </div>
       </div>
     </div>

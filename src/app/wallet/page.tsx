@@ -47,7 +47,7 @@ export default function WalletPage() {
     try {
       setLoading(true)
       const response = await walletApi.getMyWallet()
-      
+
       if (response.success && response.data) {
         setWallet(response.data)
       } else {
@@ -246,7 +246,7 @@ export default function WalletPage() {
                   {formatBalance(wallet.total_tdb_out)}
                 </p>
               </div>
-              <div className="text-center">
+              {/* <div className="text-center">
                 <p className="text-xs text-gray-400">YLD总收入</p>
                 <p className="text-lg font-bold text-green-500">
                   {formatBalance(wallet.total_yld_in)}
@@ -257,7 +257,7 @@ export default function WalletPage() {
                 <p className="text-lg font-bold text-red-500">
                   {formatBalance(wallet.total_yld_out)}
                 </p>
-              </div>
+              </div> */}
             </div>
           </PixelCard>
         </motion.div>
