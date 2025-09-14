@@ -39,7 +39,7 @@ import { ERROR_TYPES } from './miningConstants'
 import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 interface QuickStartMiningProps {
-  foodHours: number; //粮食剩余
+  grainTotal: number; //粮食剩余
   mine: MineLand | YLDMine | any  // 选中的矿山
   tools: Tool[] | null  // 可用工具列表
   onConfirm: (landId: number, toolIds: number[]) => Promise<void>
@@ -54,7 +54,7 @@ const LEVEL_TOOL_LIMITS: Record<number, number> = {
 }
 
 export function QuickStartMining({
-  foodHours,
+  grainTotal,
   mine,
   tools,
   onConfirm,
@@ -132,7 +132,7 @@ export function QuickStartMining({
     }
 
     // 粮食不足
-    if (foodHours < foodConsumption) {
+    if (!grainTotal) {
       toast.error(ERROR_TYPES.INSUFFICIENT_FOOD)
       return
     }

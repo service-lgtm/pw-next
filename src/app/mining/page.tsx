@@ -602,9 +602,6 @@ export default function MiningPage() {
     setActiveModule(null)
   }, [])
 
-  // 粮食剩余
-  const foodHours = miningSummary?.food_sustainability_hours || 0;
-
   // 渲染逻辑
   if (authLoading) {
     return (
@@ -744,6 +741,7 @@ export default function MiningPage() {
             )}
             {activeModule === 'sessions' && (
               <MiningSessions
+                grainTotal={resourceData?.food}
                 sessions={sessions}
                 loading={sessionsLoading}
                 userLands={userLands}
@@ -790,6 +788,7 @@ export default function MiningPage() {
 
       <MiningSessions
         ref={MiningSessionsRef}
+        grainTotal={resourceData?.food}
         hiddenNode
         sessions={sessions}
         loading={sessionsLoading}
@@ -826,7 +825,7 @@ export default function MiningPage() {
       >
         {selectedMineForStart && tools && (
           <QuickStartMining
-            foodHours={foodHours}
+            grainTotal={resourceData?.food}
             mine={selectedMineForStart}
             tools={tools}
             onConfirm={handleConfirmStartMining}

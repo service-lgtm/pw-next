@@ -286,6 +286,7 @@ const EmptyState = ({ onStart }: { onStart: () => void }) => (
 // ==================== 主组件 ====================
 
 interface MiningSessionsProps {
+  grainTotal: number
   hiddenNode?: boolean
   sessions: MiningSession[] | null
   loading: boolean
@@ -306,6 +307,7 @@ export interface MiningSessionsRef {
 }
 
 export const MiningSessions = forwardRef<MiningSessionsRef, MiningSessionsProps>(({
+  grainTotal,
   hiddenNode = false,
   sessions,
   loading,
@@ -511,9 +513,6 @@ export const MiningSessions = forwardRef<MiningSessionsRef, MiningSessionsProps>
     )
   }
 
-  // 粮食剩余
-  const foodHours = miningSummary?.food_sustainability_hours || 0;
-
   return (
     <div className="space-y-4">
       {
@@ -578,7 +577,7 @@ export const MiningSessions = forwardRef<MiningSessionsRef, MiningSessionsProps>
       >
         {quickStartLand && tools && (
           <QuickStartMining
-            foodHours={foodHours}
+            grainTotal={grainTotal}
             mine={quickStartLand}
             tools={tools}
             onConfirm={handleQuickStartConfirm}
