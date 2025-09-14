@@ -132,7 +132,7 @@ export function QuickStartMining({
     }
 
     // 粮食不足
-    if (!grainTotal) {
+    if (grainTotal <= 0 || !grainTotal) {
       toast.error(ERROR_TYPES.INSUFFICIENT_FOOD)
       return
     }
