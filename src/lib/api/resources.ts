@@ -4,60 +4,70 @@
 // 文件说明：
 // 1. 本文件包含资源购买系统的所有 API 接口
 // 2. 支持5种资源类型：铁矿、石材、木材、YLD陨石、粮食
-// 3. 提供统一的购买接口和状态查询
-// 4. 向后兼容旧版粮食购买API
+// 3. 支持3种工具类型：镐头、斧头、锄头
+// 4. 提供统一的购买接口和状态查询
+// 5. 向后兼容旧版粮食购买API
 //
 // 版本历史：
 // - 2025-01-28: 初始版本，支持新的统一资源购买API
 //   - 添加统一购买接口 /api/production/resources/buy/
 //   - 添加状态查询接口 /api/production/resources/purchase-status/
 //   - 添加价格列表接口 /api/production/resources/prices/
+// - 2025-01-30: 添加工具类型定义
+//   - 添加 TOOL_INFO 定义
+//   - 支持交易市场工具交易
 //
 // 关联文件：
 // - src/lib/api/food.ts: 旧版粮食购买API（保留兼容性）
 // - src/hooks/useResourcePurchase.ts: 资源购买Hook
 // - src/app/market/page.tsx: 交易市场页面
+// - src/app/trading/: 交易系统相关页面
 // - API文档：资源购买系统 API 接入文档 v3.0.0
 
 import { RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 import { request } from '../api'
 
-// ==================== 类型定义 ====================
+// ==================== 资源类型定义 ====================
 
 // 资源类型枚举
 export type ResourceType = 'iron' | 'stone' | 'wood' | 'yld' | 'food'
 
-// 资源信息映射
+// 资源信息映射 - 支持两种图标格式
 export const RESOURCE_INFO: Record<ResourceType, {
   name: string
-  icon: RESOURCE_TYPES
+  icon: string | RESOURCE_TYPES  // 支持 emoji 字符串或 RESOURCE_TYPES 枚举
+  iconEmoji?: string  // 可选的 emoji 图标
+  iconType?: RESOURCE_TYPES  // 可选的枚举类型图标
   unitPrice: number
   dailyLimit: number
   singleLimit: number
   description: string
 }> = {
   iron: {
-    // 铁矿
-    name: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE],
+    name: RESOURCE_NAMES?.[RESOURCE_TYPES.IRON_ORE] || '铁矿',
     icon: RESOURCE_TYPES.IRON_ORE,
+    iconEmoji: '⛏️',
+    iconType: RESOURCE_TYPES.IRON_ORE,
     unitPrice: 1.85,
     dailyLimit: 100,
     singleLimit: 20,
     description: '用于合成工具和建造的基础材料'
   },
   stone: {
-    // 石头
-    name: RESOURCE_NAMES[RESOURCE_TYPES.STONE],
+    name: RESOURCE_NAMES?.[RESOURCE_TYPES.STONE] || '石材',
     icon: RESOURCE_TYPES.STONE,
+    iconEmoji: '🪨',
+    iconType: RESOURCE_TYPES.STONE,
     unitPrice: 0.18,
     dailyLimit: 500,
     singleLimit: 100,
     description: '建造和合成砖块的必需材料'
   },
   wood: {
-    // 木材
-    name: RESOURCE_NAMES[RESOURCE_TYPES.WOOD],
+    name: RESOURCE_NAMES?.[RESOURCE_TYPES.WOOD] || '木材',
     icon: RESOURCE_TYPES.WOOD,
+    iconEmoji: '🪵',
+    iconType: RESOURCE_TYPES.WOOD,
     unitPrice: 0.04,
     dailyLimit: 1000,
     singleLimit: 200,
@@ -66,21 +76,62 @@ export const RESOURCE_INFO: Record<ResourceType, {
   yld: {
     name: 'YLD陨石',
     icon: RESOURCE_TYPES.METEORITE,
+    iconEmoji: '💎',
+    iconType: RESOURCE_TYPES.METEORITE,
     unitPrice: 2.84,
     dailyLimit: 50,
     singleLimit: 10,
     description: '稀有资源，用于高级合成和交易'
   },
   food: {
-    // 粮食
-    name: RESOURCE_NAMES[RESOURCE_TYPES.GRAIN],
+    name: RESOURCE_NAMES?.[RESOURCE_TYPES.GRAIN] || '粮食',
     icon: RESOURCE_TYPES.GRAIN,
+    iconEmoji: '🌾',
+    iconType: RESOURCE_TYPES.GRAIN,
     unitPrice: 0.01,
     dailyLimit: 48,
     singleLimit: 48,
     description: '挖矿生产必需品，每小时消耗2个/工具'
   }
 }
+
+// ==================== 工具类型定义 ====================
+
+// 工具类型枚举
+export type ToolType = 'pickaxe' | 'axe' | 'hoe'
+
+// 工具信息映射
+export const TOOL_INFO: Record<ToolType, {
+  name: string
+  icon: string
+  description: string
+  durability: number
+  requirements?: string
+}> = {
+  pickaxe: {
+    name: '镐头',
+    icon: '⛏️',
+    description: '用于挖掘矿石的工具',
+    durability: 1500,
+    requirements: '耐久度1500且未投用'
+  },
+  axe: {
+    name: '斧头',
+    icon: '🪓',
+    description: '用于砍伐木材的工具',
+    durability: 1500,
+    requirements: '耐久度1500且未投用'
+  },
+  hoe: {
+    name: '锄头',
+    icon: '🌾',
+    description: '用于农业生产的工具',
+    durability: 1500,
+    requirements: '耐久度1500且未投用'
+  }
+}
+
+// ==================== API 类型定义 ====================
 
 // 购买请求
 export interface BuyResourceRequest {
@@ -107,6 +158,9 @@ export interface BuyResourceResponse {
     today_purchased: number
     today_remaining: number
     daily_limit: number
+    // 粮食特有字段（用于兼容）
+    tool_count?: number
+    limit_per_tool?: number
   }
 }
 
@@ -121,6 +175,9 @@ export interface ResourceStatus {
   single_limit: number
   can_buy: boolean
   max_can_buy: number  // 当前最多可购买数量（考虑余额和限额）
+  // 粮食特有字段
+  tool_count?: number
+  limit_formula?: string
 }
 
 // 购买状态响应
@@ -131,6 +188,10 @@ export interface ResourcePurchaseStatusResponse {
     wallet: {
       tdb_balance: number
       yld_balance: number
+    }
+    user_tools?: {
+      total_count: number
+      food_limit_per_tool: number
     }
     next_reset_time: string
   }
@@ -175,7 +236,7 @@ export const resourceApi = {
    * @param quantity 购买数量
    */
   buyResource: async (
-    resource_type: ResourceType,
+    resource_type: ResourceType, 
     quantity: number
   ): Promise<BuyResourceResponse> => {
     try {
@@ -187,7 +248,7 @@ export const resourceApi = {
       // 处理特定错误
       if (error?.status === 400) {
         const errorData = error?.details || error?.data || {}
-
+        
         // 构造统一的错误响应
         return {
           success: false,
@@ -208,7 +269,7 @@ export const resourceApi = {
   ): Promise<ResourcePurchaseStatusResponse> => {
     const params = resource_type ? { resource_type } : undefined
     return request<ResourcePurchaseStatusResponse>(
-      '/production/resources/purchase-status/',
+      '/production/resources/purchase-status/', 
       { params }
     )
   },
@@ -221,7 +282,7 @@ export const resourceApi = {
   },
 
   // ==================== 兼容旧版粮食API ====================
-
+  
   /**
    * 购买粮食（兼容旧版API）
    * @deprecated 使用 buyResource('food', quantity) 代替
@@ -229,7 +290,7 @@ export const resourceApi = {
   buyFood: async (quantity: number): Promise<BuyResourceResponse> => {
     // 使用新的统一接口，但保持兼容旧的调用方式
     const response = await resourceApi.buyResource('food', quantity)
-
+    
     // 如果响应成功，转换字段名以兼容旧版
     if (response.success && response.data) {
       const data = response.data
@@ -245,7 +306,7 @@ export const resourceApi = {
         } as any
       }
     }
-
+    
     return response
   },
 
@@ -255,10 +316,10 @@ export const resourceApi = {
    */
   getFoodPurchaseStatus: async () => {
     const response = await resourceApi.getPurchaseStatus('food')
-
+    
     if (response.success && response.data) {
       const foodStatus = response.data.resources.food
-
+      
       // 转换为旧版格式
       return {
         success: true,
@@ -276,7 +337,7 @@ export const resourceApi = {
         }
       }
     }
-
+    
     return response
   }
 }
@@ -299,7 +360,7 @@ export function calculateMaxPurchase(
   const maxByBalance = Math.floor(balance / unitPrice)
   const maxByDailyLimit = todayRemaining
   const maxBySingleLimit = singleLimit
-
+  
   return Math.min(maxByBalance, maxByDailyLimit, maxBySingleLimit)
 }
 
@@ -310,25 +371,25 @@ export function calculateMaxPurchase(
 export function formatResetTime(resetTime: string): string {
   const date = new Date(resetTime)
   const now = new Date()
-
+  
   // 如果是今天，只显示时间
   if (date.toDateString() === now.toDateString()) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return `今天 ${date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
     })}`
   }
-
+  
   // 如果是明天
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   if (date.toDateString() === tomorrow.toDateString()) {
-    return `明天 ${date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit'
+    return `明天 ${date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
     })}`
   }
-
+  
   // 其他情况显示完整日期
   return date.toLocaleString('zh-CN', {
     month: '2-digit',
@@ -349,13 +410,42 @@ export function getPurchaseStatusText(status: ResourceStatus): string {
     }
     return '暂时无法购买'
   }
-
+  
   if (status.max_can_buy === 0) {
     return 'TDB余额不足'
   }
-
+  
   return `可购买 ${status.max_can_buy} 个`
+}
+
+/**
+ * 获取所有资源类型
+ */
+export function getAllResourceTypes(): ResourceType[] {
+  return Object.keys(RESOURCE_INFO) as ResourceType[]
+}
+
+/**
+ * 获取所有工具类型
+ */
+export function getAllToolTypes(): ToolType[] {
+  return Object.keys(TOOL_INFO) as ToolType[]
+}
+
+/**
+ * 判断是否为有效的资源类型
+ */
+export function isValidResourceType(type: string): type is ResourceType {
+  return type in RESOURCE_INFO
+}
+
+/**
+ * 判断是否为有效的工具类型
+ */
+export function isValidToolType(type: string): type is ToolType {
+  return type in TOOL_INFO
 }
 
 // 导出类型
 export type { ResourceType as ResourceTypeEnum }
+export type { ToolType as ToolTypeEnum }
