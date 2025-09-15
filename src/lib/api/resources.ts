@@ -109,22 +109,22 @@ export const TOOL_INFO: Record<ToolType, {
   requirements?: string
 }> = {
   pickaxe: {
-    name: '镐头',
-    icon: '⛏️',
+    name: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE] || '镐头',
+    icon: RESOURCE_TYPES.PICKAXE,
     description: '用于挖掘矿石的工具',
     durability: 1500,
     requirements: '耐久度1500且未投用'
   },
   axe: {
-    name: '斧头',
-    icon: '🪓',
+    name: RESOURCE_NAMES[RESOURCE_TYPES.AXE] || '斧头',
+    icon: RESOURCE_TYPES.AXE,
     description: '用于砍伐木材的工具',
     durability: 1500,
     requirements: '耐久度1500且未投用'
   },
   hoe: {
-    name: '锄头',
-    icon: '🌾',
+    name: RESOURCE_NAMES[RESOURCE_TYPES.HOE] || '锄头',
+    icon: RESOURCE_TYPES.HOE,
     description: '用于农业生产的工具',
     durability: 1500,
     requirements: '耐久度1500且未投用'
@@ -236,7 +236,7 @@ export const resourceApi = {
    * @param quantity 购买数量
    */
   buyResource: async (
-    resource_type: ResourceType, 
+    resource_type: ResourceType,
     quantity: number
   ): Promise<BuyResourceResponse> => {
     try {
@@ -248,7 +248,7 @@ export const resourceApi = {
       // 处理特定错误
       if (error?.status === 400) {
         const errorData = error?.details || error?.data || {}
-        
+
         // 构造统一的错误响应
         return {
           success: false,
@@ -269,7 +269,7 @@ export const resourceApi = {
   ): Promise<ResourcePurchaseStatusResponse> => {
     const params = resource_type ? { resource_type } : undefined
     return request<ResourcePurchaseStatusResponse>(
-      '/production/resources/purchase-status/', 
+      '/production/resources/purchase-status/',
       { params }
     )
   },
@@ -282,7 +282,7 @@ export const resourceApi = {
   },
 
   // ==================== 兼容旧版粮食API ====================
-  
+
   /**
    * 购买粮食（兼容旧版API）
    * @deprecated 使用 buyResource('food', quantity) 代替
@@ -290,7 +290,7 @@ export const resourceApi = {
   buyFood: async (quantity: number): Promise<BuyResourceResponse> => {
     // 使用新的统一接口，但保持兼容旧的调用方式
     const response = await resourceApi.buyResource('food', quantity)
-    
+
     // 如果响应成功，转换字段名以兼容旧版
     if (response.success && response.data) {
       const data = response.data
@@ -306,7 +306,7 @@ export const resourceApi = {
         } as any
       }
     }
-    
+
     return response
   },
 
@@ -316,10 +316,10 @@ export const resourceApi = {
    */
   getFoodPurchaseStatus: async () => {
     const response = await resourceApi.getPurchaseStatus('food')
-    
+
     if (response.success && response.data) {
       const foodStatus = response.data.resources.food
-      
+
       // 转换为旧版格式
       return {
         success: true,
@@ -337,7 +337,7 @@ export const resourceApi = {
         }
       }
     }
-    
+
     return response
   }
 }
@@ -360,7 +360,7 @@ export function calculateMaxPurchase(
   const maxByBalance = Math.floor(balance / unitPrice)
   const maxByDailyLimit = todayRemaining
   const maxBySingleLimit = singleLimit
-  
+
   return Math.min(maxByBalance, maxByDailyLimit, maxBySingleLimit)
 }
 
@@ -371,25 +371,25 @@ export function calculateMaxPurchase(
 export function formatResetTime(resetTime: string): string {
   const date = new Date(resetTime)
   const now = new Date()
-  
+
   // 如果是今天，只显示时间
   if (date.toDateString() === now.toDateString()) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return `今天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })}`
   }
-  
+
   // 如果是明天
   const tomorrow = new Date(now)
   tomorrow.setDate(tomorrow.getDate() + 1)
   if (date.toDateString() === tomorrow.toDateString()) {
-    return `明天 ${date.toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return `明天 ${date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit'
     })}`
   }
-  
+
   // 其他情况显示完整日期
   return date.toLocaleString('zh-CN', {
     month: '2-digit',
@@ -410,11 +410,11 @@ export function getPurchaseStatusText(status: ResourceStatus): string {
     }
     return '暂时无法购买'
   }
-  
+
   if (status.max_can_buy === 0) {
     return 'TDB余额不足'
   }
-  
+
   return `可购买 ${status.max_can_buy} 个`
 }
 

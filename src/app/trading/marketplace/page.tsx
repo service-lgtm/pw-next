@@ -725,7 +725,10 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
         {/* 商品信息 */}
         <div className="flex items-start gap-4 mb-4">
           <div className="relative">
-            <span className="text-4xl">{info.icon}</span>
+            <span className="text-4xl">{getResourceIcon(info.icon, {
+              iconSize: 36,
+              haveBackgroundWarper: true
+            })}</span>
             {isRare && (
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
             )}
@@ -779,11 +782,11 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
 
         {/* 操作按钮 */}
         <div className="flex gap-2">
-          <PixelButton onClick={onDetail} variant="secondary" className="flex-1">
+          <PixelButton onClick={onDetail} variant="secondary" className="flex-1 flex items-center justify-center">
             <Info className="w-4 h-4 mr-2" />
             详情
           </PixelButton>
-          <PixelButton onClick={onBuy} className="flex-1">
+          <PixelButton onClick={onBuy} className="flex-1 flex items-center justify-center">
             <Coins className="w-4 h-4 mr-2" />
             购买
           </PixelButton>

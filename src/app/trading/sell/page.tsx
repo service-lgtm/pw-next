@@ -44,7 +44,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTradingSell } from '@/hooks/useTrading'
 import { useInventory } from '@/hooks/useInventory'
 import { RESOURCE_INFO, TOOL_INFO } from '@/lib/api/resources'
-import { 
+import {
   Package,
   TrendingUp,
   Info,
@@ -59,13 +59,14 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { getResourceIcon } from '@/utils/resourceTool'
 
 export default function SellPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  
+
   // 获取可售资源和订单数据
-  const { 
+  const {
     sellableResources,
     myOrders,
     priceGuidance,
@@ -76,33 +77,33 @@ export default function SellPage() {
     cancelOrder,
     creating
   } = useTradingSell()
-  
+
   // 获取库存数据
-  const { 
-    materials, 
+  const {
+    materials,
     tools,
-    refetch: refetchInventory 
+    refetch: refetchInventory
   } = useInventory({
     category: 'all'
   })
-  
+
   // 出售弹窗状态
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showSellModal, setShowSellModal] = useState(false)
   const [sellQuantity, setSellQuantity] = useState(1)
   const [sellPrice, setSellPrice] = useState('')
   const [previewOrder, setPreviewOrder] = useState<any>(null)
-  
+
   // 活动订单标签
   const [activeTab, setActiveTab] = useState<'sellable' | 'orders'>('sellable')
-  
+
   // 检查认证状态
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login?redirect=/trading/sell')
     }
   }, [authLoading, isAuthenticated, router])
-  
+
   // 定期刷新数据
   useEffect(() => {
     const interval = setInterval(() => {
@@ -111,7 +112,7 @@ export default function SellPage() {
     }, 30000) // 30秒刷新
     return () => clearInterval(interval)
   }, [refreshData, refetchInventory])
-  
+
   // 打开出售弹窗
   const handleOpenSellModal = (itemType: string, itemInfo: any) => {
     const guidance = priceGuidance?.[itemType]
@@ -119,12 +120,12 @@ export default function SellPage() {
       toast.error('无法获取价格信息')
       return
     }
-    
+
     setSelectedItem({
       type: itemType,
       info: itemInfo,
-      available: sellableResources?.materials?.[itemType]?.available || 
-                 sellableResources?.tools?.[itemType]?.available || 0,
+      available: sellableResources?.materials?.[itemType]?.available ||
+        sellableResources?.tools?.[itemType]?.available || 0,
       guidance
     })
     setSellQuantity(1)
@@ -132,26 +133,26 @@ export default function SellPage() {
     setPreviewOrder(null)
     setShowSellModal(true)
   }
-  
+
   // 创建预览订单
   const handleCreatePreview = async () => {
     if (!selectedItem) return
-    
+
     const result = await createSellOrder({
       item_type: selectedItem.type,
       quantity: sellQuantity,
       unit_price: parseFloat(sellPrice)
     })
-    
+
     if (result.success && result.data) {
       setPreviewOrder(result.data)
     }
   }
-  
+
   // 确认出售
   const handleConfirmSell = async () => {
     if (!previewOrder) return
-    
+
     const result = await confirmSellOrder(previewOrder.order_id)
     if (result.success) {
       toast.success('挂单成功！')
@@ -160,7 +161,7 @@ export default function SellPage() {
       refetchInventory()
     }
   }
-  
+
   // 下架订单
   const handleCancelOrder = async (orderId: number) => {
     const result = await cancelOrder(orderId)
@@ -170,7 +171,7 @@ export default function SellPage() {
       refetchInventory()
     }
   }
-  
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -181,7 +182,7 @@ export default function SellPage() {
       </div>
     )
   }
-  
+
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
       {/* 页面头部 */}
@@ -196,7 +197,7 @@ export default function SellPage() {
         <p className="text-gray-400 mt-1">
           将你的材料和工具上架交易市场
         </p>
-        
+
         {/* 快速统计 */}
         <div className="mt-4 flex flex-wrap gap-4">
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded">
@@ -218,7 +219,7 @@ export default function SellPage() {
           </div>
         </div>
       </motion.div>
-      
+
       {/* 标签切换 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -268,9 +269,9 @@ export default function SellPage() {
           </button>
         </div>
       </motion.div>
-      
+
       {/* 内容区域 */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait">123
         {activeTab === 'sellable' ? (
           <SellableResources
             materials={sellableResources?.materials || {}}
@@ -285,7 +286,7 @@ export default function SellPage() {
           />
         )}
       </AnimatePresence>
-      
+
       {/* 交易规则提示 - 优化内容 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -313,7 +314,7 @@ export default function SellPage() {
           </div>
         </PixelCard>
       </motion.div>
-      
+
       {/* 出售弹窗 */}
       <SellModal
         isOpen={showSellModal}
@@ -349,7 +350,7 @@ function SellableResources({ materials, tools, priceGuidance, onSell }: Sellable
   const hasMaterials = Object.keys(materials).length > 0
   const hasTools = Object.keys(tools).length > 0
   const hasResources = hasMaterials || hasTools
-  
+
   if (!hasResources) {
     return (
       <motion.div
@@ -365,7 +366,7 @@ function SellableResources({ materials, tools, priceGuidance, onSell }: Sellable
       </motion.div>
     )
   }
-  
+
   return (
     <motion.div
       key="sellable"
@@ -385,7 +386,7 @@ function SellableResources({ materials, tools, priceGuidance, onSell }: Sellable
             {Object.entries(materials).map(([type, data]: [string, any]) => {
               const info = RESOURCE_INFO[type as keyof typeof RESOURCE_INFO]
               const guidance = priceGuidance[type]
-              
+
               return (
                 <ResourceCard
                   key={type}
@@ -400,7 +401,7 @@ function SellableResources({ materials, tools, priceGuidance, onSell }: Sellable
           </div>
         </div>
       )}
-      
+
       {/* 工具 */}
       {hasTools ? (
         <div>
@@ -412,7 +413,7 @@ function SellableResources({ materials, tools, priceGuidance, onSell }: Sellable
             {Object.entries(tools).map(([type, data]: [string, any]) => {
               const info = TOOL_INFO[type as keyof typeof TOOL_INFO]
               const guidance = priceGuidance[type]
-              
+
               return (
                 <ResourceCard
                   key={type}
@@ -480,11 +481,14 @@ interface ResourceCardProps {
 
 function ResourceCard({ type, data, info, guidance, onSell, isTool }: ResourceCardProps) {
   if (!info || !data) return null
-  
+
   return (
     <PixelCard className="p-6 hover:border-gold-500/50 transition-all">
       <div className="flex items-start gap-4 mb-4">
-        <span className="text-4xl">{info.icon}</span>
+        <span className="text-4xl">{getResourceIcon(info.icon, {
+          iconSize: 36,
+          haveBackgroundWarper: true,
+        })}</span>
         <div className="flex-1">
           <h4 className="font-bold">{data.name}</h4>
           {isTool && (
@@ -492,7 +496,7 @@ function ResourceCard({ type, data, info, guidance, onSell, isTool }: ResourceCa
           )}
         </div>
       </div>
-      
+
       <div className="space-y-2 mb-4">
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">可售数量</span>
@@ -524,7 +528,7 @@ function ResourceCard({ type, data, info, guidance, onSell, isTool }: ResourceCa
           </>
         )}
       </div>
-      
+
       <PixelButton
         onClick={onSell}
         disabled={data.available === 0}
@@ -547,7 +551,7 @@ function MyOrders({ orders, onCancel }: MyOrdersProps) {
   const activeOrders = orders.filter(o => o.status === 'active')
   const completedOrders = orders.filter(o => o.status === 'completed')
   const cancelledOrders = orders.filter(o => o.status === 'cancelled')
-  
+
   if (orders.length === 0) {
     return (
       <motion.div
@@ -563,7 +567,7 @@ function MyOrders({ orders, onCancel }: MyOrdersProps) {
       </motion.div>
     )
   }
-  
+
   return (
     <motion.div
       key="orders"
@@ -591,7 +595,7 @@ function MyOrders({ orders, onCancel }: MyOrdersProps) {
           </div>
         </div>
       )}
-      
+
       {/* 已完成的订单 */}
       {completedOrders.length > 0 && (
         <div>
@@ -606,7 +610,7 @@ function MyOrders({ orders, onCancel }: MyOrdersProps) {
           </div>
         </div>
       )}
-      
+
       {/* 已取消的订单 */}
       {cancelledOrders.length > 0 && (
         <div>
@@ -643,28 +647,28 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
     }
     return null
   })()
-  
+
   const soldQuantity = order.quantity - order.remaining_quantity
   const soldPercentage = (soldQuantity / order.quantity) * 100
-  
+
   const getTimeRemaining = (expireAt: string) => {
     const now = new Date()
     const expire = new Date(expireAt)
     const diff = expire.getTime() - now.getTime()
-    
+
     if (diff <= 0) return '已过期'
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24)
       return `${days}天${hours % 24}小时`
     }
-    
+
     return `${hours}小时${minutes}分钟`
   }
-  
+
   return (
     <PixelCard className="p-6">
       <div className="flex items-start justify-between mb-4">
@@ -698,7 +702,7 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
           </span>
         )}
       </div>
-      
+
       <div className="space-y-3">
         {/* 价格和数量信息 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -719,7 +723,7 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
             <p className="font-bold">{order.remaining_quantity}</p>
           </div>
         </div>
-        
+
         {/* 销售进度 - 只有active状态才显示 */}
         {order.status === 'active' && (
           <>
@@ -735,7 +739,7 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
                 />
               </div>
             </div>
-            
+
             {/* 剩余时间 */}
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Clock className="w-4 h-4" />
@@ -743,7 +747,7 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
             </div>
           </>
         )}
-        
+
         {/* 过期时间显示 - 已过期的订单 */}
         {order.status === 'expired' && (
           <div className="flex items-center gap-2 text-sm text-orange-400">
@@ -751,13 +755,13 @@ function OrderCard({ order, onCancel, showCancelButton }: OrderCardProps) {
             <span>过期于 {new Date(order.expire_at).toLocaleString('zh-CN')}</span>
           </div>
         )}
-        
+
         {/* 时间信息 */}
         <div className="text-xs text-gray-500">
           创建于 {new Date(order.created_at).toLocaleString('zh-CN')}
         </div>
       </div>
-      
+
       {/* 操作按钮 - 只有active状态且can_cancel为true才显示 */}
       {showCancelButton && order.can_cancel && order.status === 'active' && (
         <div className="mt-4 pt-4 border-t border-gray-800">
@@ -804,19 +808,19 @@ function SellModal({
   creating
 }: SellModalProps) {
   if (!item) return null
-  
+
   const totalAmount = quantity * parseFloat(price || '0')
   const feeAmount = totalAmount * 0.03
   const expectedIncome = totalAmount - feeAmount
-  
+
   // 价格是否在允许范围内
-  const priceValid = item.guidance && 
-    parseFloat(price) >= item.guidance.min_allowed && 
+  const priceValid = item.guidance &&
+    parseFloat(price) >= item.guidance.min_allowed &&
     parseFloat(price) <= item.guidance.max_allowed
-  
+
   // 快速选择数量
   const quickAmounts = [1, 10, 50, 100].filter(n => n <= item.available)
-  
+
   return (
     <PixelModal
       isOpen={isOpen}
@@ -839,7 +843,7 @@ function SellModal({
                   </p>
                 </div>
               </div>
-              
+
               {/* 价格指导 */}
               {item.guidance && (
                 <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded">
@@ -863,7 +867,7 @@ function SellModal({
                 </div>
               )}
             </div>
-            
+
             {/* 出售数量 */}
             <div>
               <label className="block text-sm text-gray-400 mb-2">
@@ -911,7 +915,7 @@ function SellModal({
                 </button>
               </div>
             </div>
-            
+
             {/* 单价设置 */}
             <div>
               <label className="block text-sm text-gray-400 mb-2">
@@ -937,7 +941,7 @@ function SellModal({
                 </p>
               )}
             </div>
-            
+
             {/* 费用预览 */}
             <div className="p-4 bg-gray-800/50 rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -957,7 +961,7 @@ function SellModal({
                 </div>
               </div>
             </div>
-            
+
             {/* 操作按钮 */}
             <div className="flex gap-3">
               <PixelButton
@@ -971,9 +975,9 @@ function SellModal({
               <PixelButton
                 onClick={onCreatePreview}
                 disabled={
-                  creating || 
-                  !priceValid || 
-                  !price || 
+                  creating ||
+                  !priceValid ||
+                  !price ||
                   quantity <= 0 ||
                   quantity > item.available
                 }
@@ -1019,14 +1023,14 @@ function SellModal({
                 </div>
               </div>
             </div>
-            
+
             <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded">
               <p className="text-xs text-orange-400">
                 ⚠️ 确认后，{previewOrder.quantity} 个{previewOrder.item_name}将被冻结，
                 订单将在交易市场中展示 48 小时
               </p>
             </div>
-            
+
             <div className="flex gap-3">
               <PixelButton
                 variant="secondary"
