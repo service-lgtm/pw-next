@@ -94,7 +94,9 @@ export const getResourceIcon = (resourceType: RESOURCE_TYPES, NodeInfo?: {
         const _ImageW = iconSize - PENDDING;
         const _ImageH = iconSize - PENDDING;
 
-        return <div className={`w-[${iconSize}px] h-[${iconSize}px] flex rounded-md justify-center items-center`} style={{
+        return <div className={`flex rounded-md justify-center items-center`} style={{
+            width: iconSize,
+            height: iconSize,
             backgroundColor: "rgba(255,255,255,0.1)",
         }}>
             {<Image
