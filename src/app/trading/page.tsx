@@ -39,12 +39,12 @@ import { PixelButton } from '@/components/shared/PixelButton'
 import { useAuth } from '@/hooks/useAuth'
 import { useTrading, useTradingMarket } from '@/hooks/useTrading'
 import { RESOURCE_INFO, TOOL_INFO } from '@/lib/api/resources'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  ShoppingBag, 
-  Package, 
-  Clock, 
+import {
+  TrendingUp,
+  TrendingDown,
+  ShoppingBag,
+  Package,
+  Clock,
   AlertCircle,
   Activity,
   Coins,
@@ -59,24 +59,25 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getResourceIcon } from '@/utils/resourceTool'
 
 // 商品分类配置
 const ITEM_CATEGORIES = {
   all: { label: '全部', icon: '📊' },
-  material: { 
-    label: '材料', 
+  material: {
+    label: '材料',
     icon: '📦',
     subcategories: {
       all: '全部材料',
       iron: '铁矿',
-      stone: '石材', 
+      stone: '石材',
       wood: '木材',
       yld: 'YLD陨石',
       food: '粮食'
     }
   },
-  tool: { 
-    label: '工具', 
+  tool: {
+    label: '工具',
     icon: '🔧',
     subcategories: {
       all: '全部工具',
@@ -93,21 +94,21 @@ export default function TradingPage() {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'material' | 'tool'>('all')
   const [selectedSubcategory, setSelectedSubcategory] = useState('all')
   const [isMobile, setIsMobile] = useState(false)
-  
-  const { 
-    marketStats, 
+
+  const {
+    marketStats,
     recentTransactions,
     hotItems,
     loading,
     error,
     refreshData
   } = useTrading()
-  
+
   // 获取最新在售商品列表
-  const { 
-    items: latestItems, 
+  const {
+    items: latestItems,
     loading: itemsLoading,
-    setFilters 
+    setFilters
   } = useTradingMarket({
     sort: 'time_desc',
     pageSize: 10,
@@ -137,7 +138,7 @@ export default function TradingPage() {
     const interval = setInterval(refreshData, 30000)
     return () => clearInterval(interval)
   }, [refreshData])
-  
+
   // 处理分类切换
   const handleCategoryChange = (category: 'all' | 'material' | 'tool') => {
     setSelectedCategory(category)
@@ -148,7 +149,7 @@ export default function TradingPage() {
       category: undefined
     }))
   }
-  
+
   const handleSubcategoryChange = (subcategory: string) => {
     setSelectedSubcategory(subcategory)
     setFilters(prev => ({
@@ -201,7 +202,7 @@ export default function TradingPage() {
                 </span>
               </Link>
             </div>
-            
+
             {/* 分类筛选 - 移动端简化 */}
             <div className="mb-3">
               <div className="flex gap-1.5 overflow-x-auto pb-2">
@@ -222,7 +223,7 @@ export default function TradingPage() {
                 ))}
               </div>
             </div>
-            
+
             {/* 商品列表 - 移动端优化 */}
             {!itemsLoading && latestItems && latestItems.length > 0 ? (
               <div className="space-y-2">
@@ -323,7 +324,7 @@ export default function TradingPage() {
                 </span>
               </Link>
             </div>
-            
+
             {recentTransactions && recentTransactions.length > 0 ? (
               <div className="space-y-2">
                 {recentTransactions.slice(0, 5).map((tx, index) => (
@@ -379,10 +380,10 @@ export default function TradingPage() {
           trend={marketStats?.volume_change_24h}
           color="gold"
         />
-        
+
         <Link href="/trading/marketplace" className="block">
-          <motion.div 
-            whileHover={{ scale: 1.02 }} 
+          <motion.div
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="h-full"
           >
@@ -397,7 +398,7 @@ export default function TradingPage() {
             />
           </motion.div>
         </Link>
-        
+
         <StatCard
           title="平均订单金额"
           value={marketStats?.avg_order_size || 0}
@@ -463,7 +464,7 @@ export default function TradingPage() {
                 </button>
               </Link>
             </div>
-            
+
             {/* 分类筛选栏 */}
             <div className="mb-4 space-y-2">
               <div className="flex gap-2">
@@ -478,13 +479,13 @@ export default function TradingPage() {
                         : "bg-gray-800 border border-gray-700 text-gray-400 hover:text-white"
                     )}
                   >
-                    <span>{value.icon}</span>
+                    <span>{(value.icon)}</span>
                     {value.label}
                   </button>
                 ))}
               </div>
             </div>
-            
+
             {/* 商品列表 */}
             {!itemsLoading && latestItems && latestItems.length > 0 ? (
               <div className="space-y-2 max-h-[380px] overflow-y-auto custom-scrollbar">
@@ -527,7 +528,7 @@ export default function TradingPage() {
                 </button>
               </Link>
             </div>
-            
+
             {recentTransactions && recentTransactions.length > 0 ? (
               <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                 {recentTransactions.slice(0, 10).map((tx, index) => (
@@ -554,7 +555,7 @@ function MobileItemRow({ item, index }: { item: any; index: number }) {
   const itemInfo = RESOURCE_INFO[item.item_type] || TOOL_INFO[item.item_type]
   const isTool = item.item_type in TOOL_INFO
   const isRare = item.remaining_quantity < 10
-  
+
   return (
     <Link href={`/trading/marketplace?item=${item.order_id}`}>
       <motion.div
@@ -571,7 +572,7 @@ function MobileItemRow({ item, index }: { item: any; index: number }) {
               <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
             )}
           </div>
-          
+
           {/* 信息 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -589,7 +590,7 @@ function MobileItemRow({ item, index }: { item: any; index: number }) {
               <span className="truncate">{item.seller_nickname}</span>
             </div>
           </div>
-          
+
           {/* 箭头 */}
           <ChevronRight className="w-4 h-4 text-gray-500 shrink-0" />
         </div>
@@ -599,12 +600,12 @@ function MobileItemRow({ item, index }: { item: any; index: number }) {
 }
 
 // 移动端快速操作 - 统一高度设计
-function MobileQuickAction({ 
-  icon, 
+function MobileQuickAction({
+  icon,
   label,
   badge,
-  color = 'gold' 
-}: { 
+  color = 'gold'
+}: {
   icon: React.ReactNode
   label: string
   badge?: string
@@ -615,13 +616,13 @@ function MobileQuickAction({
     blue: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30 text-blue-400',
     purple: 'from-purple-500/20 to-pink-500/20 border-purple-500/30 text-purple-400'
   }
-  
+
   const iconColors = {
     gold: 'text-gold-400',
     blue: 'text-blue-400',
     purple: 'text-purple-400'
   }
-  
+
   return (
     <motion.div
       whileTap={{ scale: 0.95 }}
@@ -642,9 +643,9 @@ function MobileQuickAction({
 }
 
 // 移动端统计卡片
-function MobileStatCard({ 
-  title, 
-  value, 
+function MobileStatCard({
+  title,
+  value,
   unit,
   trend,
   precision = 0
@@ -677,7 +678,7 @@ function MobileStatCard({
 // 移动端成交记录
 function MobileTransactionRow({ transaction, index }: { transaction: any; index: number }) {
   const itemInfo = RESOURCE_INFO[transaction.item_type] || TOOL_INFO[transaction.item_type]
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -706,20 +707,20 @@ function MobileTransactionRow({ transaction, index }: { transaction: any; index:
 // ==================== 桌面端组件（保持原有） ====================
 
 // 统计卡片
-function StatCard({ 
-  title, 
-  value, 
-  unit, 
-  icon, 
-  trend, 
-  precision = 0, 
+function StatCard({
+  title,
+  value,
+  unit,
+  icon,
+  trend,
+  precision = 0,
   color = 'gold',
   clickable = false,
   actionText
 }: any) {
   const isPositive = trend && trend > 0
   const isNegative = trend && trend < 0
-  
+
   const colorClasses = {
     gold: 'from-gold-500/20 to-yellow-500/20 text-gold-500',
     blue: 'from-blue-500/20 to-cyan-500/20 text-blue-500',
@@ -736,7 +737,7 @@ function StatCard({
         "absolute inset-0 bg-gradient-to-br opacity-10 group-hover:opacity-20 transition-opacity",
         colorClasses[color]
       )} />
-      
+
       <div className="relative">
         <div className="flex items-center justify-between mb-3">
           <div className={cn("p-2 rounded-lg bg-gradient-to-br", colorClasses[color])}>
@@ -797,8 +798,8 @@ function QuickActionCard({ title, description, icon, href, variant, stats }: any
 
   return (
     <Link href={href}>
-      <motion.div 
-        whileHover={{ scale: 1.02, y: -2 }} 
+      <motion.div
+        whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.98 }}
         className="h-full"
       >
@@ -837,7 +838,7 @@ function LatestItemRow({ item, index }: any) {
   const itemInfo = RESOURCE_INFO[item.item_type] || TOOL_INFO[item.item_type]
   const isTool = item.item_type in TOOL_INFO
   const isRare = item.remaining_quantity < 10
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -848,12 +849,12 @@ function LatestItemRow({ item, index }: any) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="relative">
-            <span className="text-2xl">{itemInfo?.icon || '📦'}</span>
+            <span className="text-2xl">{getResourceIcon(itemInfo?.icon) || '📦'}</span>
             {isRare && (
               <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
             )}
           </div>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h4 className="font-medium truncate">{item.item_name}</h4>
@@ -864,7 +865,7 @@ function LatestItemRow({ item, index }: any) {
                 {isTool ? '工具' : '材料'}
               </span>
             </div>
-            
+
             <div className="flex items-center gap-3 text-xs">
               <span className="text-gray-400">
                 剩余: {item.remaining_quantity}{isTool ? '件' : '个'}
@@ -878,7 +879,7 @@ function LatestItemRow({ item, index }: any) {
             </div>
           </div>
         </div>
-        
+
         <Link href={`/trading/marketplace?item=${item.order_id}`}>
           <button className="opacity-0 group-hover:opacity-100 transition-opacity">
             <PixelButton size="xs" variant="secondary">
@@ -895,7 +896,7 @@ function LatestItemRow({ item, index }: any) {
 function TransactionRow({ transaction, index }: any) {
   const itemInfo = RESOURCE_INFO[transaction.item_type] || TOOL_INFO[transaction.item_type]
   const isTool = transaction.item_type in TOOL_INFO
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -905,7 +906,7 @@ function TransactionRow({ transaction, index }: any) {
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span className="text-lg flex-shrink-0">
-          {itemInfo?.icon || '📦'}
+          {getResourceIcon(itemInfo?.icon) || '📦'}
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm truncate">
