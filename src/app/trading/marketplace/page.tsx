@@ -46,8 +46,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTradingMarket } from '@/hooks/useTrading'
 import { useWallet } from '@/hooks/useWallet'
 import { RESOURCE_INFO, TOOL_INFO } from '@/lib/api/resources'
-import { 
-  Filter, 
+import {
+  Filter,
   ShoppingCart,
   Clock,
   TrendingUp,
@@ -64,6 +64,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
+import { getResourceIcon, RESOURCE_NAMES, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // 商品类型选项
 const ITEM_TYPES = [
@@ -75,19 +76,19 @@ const ITEM_TYPES = [
 // 材料类型选项
 const MATERIAL_TYPES = [
   { value: 'all', label: '全部材料' },
-  { value: 'iron', label: '铁矿', icon: '⛏️' },
-  { value: 'stone', label: '石材', icon: '🪨' },
-  { value: 'wood', label: '木材', icon: '🪵' },
-  { value: 'yld', label: 'YLD陨石', icon: '💎' },
-  { value: 'food', label: '粮食', icon: '🌾' },
+  { value: 'iron', label: RESOURCE_NAMES[RESOURCE_TYPES.IRON_ORE] || "铁矿", icon: RESOURCE_TYPES.IRON_ORE },
+  { value: 'stone', label: RESOURCE_NAMES[RESOURCE_TYPES.STONE] || '石材', icon: RESOURCE_TYPES.STONE },
+  { value: 'wood', label: RESOURCE_NAMES[RESOURCE_TYPES.WOOD] || '木材', icon: RESOURCE_TYPES.WOOD },
+  { value: 'yld', label: RESOURCE_NAMES[RESOURCE_TYPES.METEORITE] || 'YLD陨石', icon: RESOURCE_TYPES.METEORITE },
+  { value: 'food', label: RESOURCE_NAMES[RESOURCE_TYPES.GRAIN] || '粮食', icon: RESOURCE_TYPES.GRAIN },
 ]
 
 // 工具类型选项
 const TOOL_TYPES = [
   { value: 'all', label: '全部工具' },
-  { value: 'pickaxe', label: '镐头', icon: '⛏️' },
-  { value: 'axe', label: '斧头', icon: '🪓' },
-  { value: 'hoe', label: '锄头', icon: '🌾' },
+  { value: 'pickaxe', label: RESOURCE_NAMES[RESOURCE_TYPES.PICKAXE] || '镐头', icon: RESOURCE_TYPES.PICKAXE },
+  { value: 'axe', label: RESOURCE_NAMES[RESOURCE_TYPES.AXE] || '斧头', icon: RESOURCE_TYPES.AXE },
+  { value: 'hoe', label: RESOURCE_NAMES[RESOURCE_TYPES.HOE] || '锄头', icon: RESOURCE_TYPES.HOE },
 ]
 
 // 排序选项
@@ -114,10 +115,10 @@ function MarketplaceContent() {
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const { balance } = useWallet()
   const [isMobile, setIsMobile] = useState(false)
-  
+
   // URL参数：商品ID
   const itemIdFromUrl = searchParams.get('item')
-  
+
   // 筛选状态
   const [itemType, setItemType] = useState('all')
   const [category, setCategory] = useState('all')
@@ -125,17 +126,17 @@ function MarketplaceContent() {
   const [priceRange, setPriceRange] = useState('all')
   const [showFilters, setShowFilters] = useState(true) // 默认展开筛选
   const [showMobileFilters, setShowMobileFilters] = useState(false)
-  
+
   // 购买弹窗状态
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showBuyModal, setShowBuyModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [buyQuantity, setBuyQuantity] = useState(1)
-  
+
   // 获取市场数据
-  const { 
-    items, 
-    loading, 
+  const {
+    items,
+    loading,
     hasMore,
     currentPage,
     totalPages,
@@ -147,7 +148,7 @@ function MarketplaceContent() {
     category: category === 'all' ? undefined : category,
     sort: sortBy
   })
-  
+
   // 检测移动端
   useEffect(() => {
     const checkMobile = () => {
@@ -157,14 +158,14 @@ function MarketplaceContent() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-  
+
   // 检查认证状态
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login?redirect=/trading/marketplace')
     }
   }, [authLoading, isAuthenticated, router])
-  
+
   // 处理URL中的商品ID参数
   useEffect(() => {
     if (itemIdFromUrl && items.length > 0) {
@@ -174,12 +175,12 @@ function MarketplaceContent() {
       }
     }
   }, [itemIdFromUrl, items])
-  
+
   // 处理筛选变化
   useEffect(() => {
     fetchItems(1)
   }, [itemType, category, sortBy, priceRange])
-  
+
   // 打开商品详情
   const handleOpenDetailModal = (item: any) => {
     setSelectedItem(item)
@@ -188,9 +189,9 @@ function MarketplaceContent() {
     // 更新URL
     const url = new URL(window.location.href)
     url.searchParams.set('item', item.order_id.toString())
-    window.history.pushState({}, '', url)
+    window.history.replaceState({}, '', url)
   }
-  
+
   // 关闭商品详情
   const handleCloseDetailModal = () => {
     setShowDetailModal(false)
@@ -198,9 +199,9 @@ function MarketplaceContent() {
     // 清除URL参数
     const url = new URL(window.location.href)
     url.searchParams.delete('item')
-    window.history.pushState({}, '', url)
+    window.history.replaceState({}, '', url)
   }
-  
+
   // 打开购买弹窗
   const handleOpenBuyModal = (item: any) => {
     setSelectedItem(item)
@@ -208,11 +209,11 @@ function MarketplaceContent() {
     setShowBuyModal(true)
     setShowDetailModal(false)
   }
-  
+
   // 处理购买
   const handleBuy = async () => {
     if (!selectedItem) return
-    
+
     const result = await buyItem(selectedItem.order_id, buyQuantity)
     if (result.success) {
       toast.success('购买成功！')
@@ -221,7 +222,7 @@ function MarketplaceContent() {
       fetchItems(currentPage)
     }
   }
-  
+
   // 获取商品信息
   const getItemInfo = (item: any) => {
     if (item.item_type in RESOURCE_INFO) {
@@ -232,30 +233,30 @@ function MarketplaceContent() {
     }
     return { icon: '📦', name: item.item_name, description: '' }
   }
-  
+
   // 计算剩余时间
   const getTimeRemaining = (expireAt: string) => {
     const now = new Date()
     const expire = new Date(expireAt)
     const diff = expire.getTime() - now.getTime()
-    
+
     if (diff <= 0) return '已过期'
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24)
       return `${days}天${hours % 24}小时`
     }
-    
+
     return `${hours}小时${minutes}分钟`
   }
-  
+
   // 过滤价格区间
   const filterByPrice = (items: any[]) => {
     if (priceRange === 'all') return items
-    
+
     return items.filter(item => {
       const price = item.unit_price
       switch (priceRange) {
@@ -267,9 +268,9 @@ function MarketplaceContent() {
       }
     })
   }
-  
+
   const filteredItems = filterByPrice(items)
-  
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -280,7 +281,7 @@ function MarketplaceContent() {
       </div>
     )
   }
-  
+
   // 移动端布局
   if (isMobile) {
     return (
@@ -293,7 +294,7 @@ function MarketplaceContent() {
                 <ArrowLeft className="w-5 h-5 text-gray-400" />
               </button>
               <h1 className="text-lg font-bold">浏览市场</h1>
-              <button 
+              <button
                 onClick={() => setShowMobileFilters(true)}
                 className="p-2 relative"
               >
@@ -304,7 +305,7 @@ function MarketplaceContent() {
               </button>
             </div>
           </div>
-          
+
           {/* 快速筛选标签 */}
           <div className="px-3 pb-2 flex gap-2 overflow-x-auto">
             {SORT_OPTIONS.map(sort => (
@@ -324,7 +325,7 @@ function MarketplaceContent() {
             ))}
           </div>
         </div>
-        
+
         {/* 移动端商品列表 */}
         <div className="p-3">
           {loading && currentPage === 1 ? (
@@ -347,7 +348,7 @@ function MarketplaceContent() {
                   />
                 ))}
               </div>
-              
+
               {/* 分页 */}
               {totalPages > 1 && (
                 <div className="mt-6 flex justify-center items-center gap-3">
@@ -359,11 +360,11 @@ function MarketplaceContent() {
                   >
                     上一页
                   </PixelButton>
-                  
+
                   <span className="text-xs text-gray-400">
                     {currentPage} / {totalPages}
                   </span>
-                  
+
                   <PixelButton
                     onClick={() => fetchItems(currentPage + 1)}
                     disabled={!hasMore}
@@ -383,7 +384,7 @@ function MarketplaceContent() {
             </div>
           )}
         </div>
-        
+
         {/* 移动端筛选弹窗 */}
         <AnimatePresence>
           {showMobileFilters && (
@@ -398,7 +399,7 @@ function MarketplaceContent() {
             />
           )}
         </AnimatePresence>
-        
+
         {/* 商品详情弹窗 */}
         <ItemDetailModal
           isOpen={showDetailModal}
@@ -409,7 +410,7 @@ function MarketplaceContent() {
           getTimeRemaining={getTimeRemaining}
           isMobile={isMobile}
         />
-        
+
         {/* 购买确认弹窗 */}
         <BuyConfirmModal
           isOpen={showBuyModal}
@@ -426,7 +427,7 @@ function MarketplaceContent() {
       </div>
     )
   }
-  
+
   // 桌面端布局
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -446,7 +447,7 @@ function MarketplaceContent() {
               发现并购买其他玩家出售的商品
             </p>
           </div>
-          
+
           {/* 余额显示 */}
           {balance && (
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 rounded-lg">
@@ -459,7 +460,7 @@ function MarketplaceContent() {
           )}
         </div>
       </motion.div>
-      
+
       {/* 筛选栏 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -473,8 +474,8 @@ function MarketplaceContent() {
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
               "px-4 py-2 rounded-lg border transition-all flex items-center gap-2",
-              showFilters 
-                ? "bg-gold-500/20 border-gold-500 text-white" 
+              showFilters
+                ? "bg-gold-500/20 border-gold-500 text-white"
                 : "bg-gray-800 border-gray-700 text-gray-400"
             )}
           >
@@ -483,7 +484,7 @@ function MarketplaceContent() {
             {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
-        
+
         {/* 筛选选项 */}
         <AnimatePresence>
           {showFilters && (
@@ -515,7 +516,7 @@ function MarketplaceContent() {
                   </button>
                 ))}
               </div>
-              
+
               {/* 具体分类选择 */}
               {itemType !== 'all' && (
                 <div className="flex flex-wrap items-center gap-2">
@@ -531,13 +532,15 @@ function MarketplaceContent() {
                           : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
                       )}
                     >
-                      {cat.icon && <span>{cat.icon}</span>}
+                      {cat.icon && <span>{getResourceIcon(cat.icon, {
+                        iconSize: 20
+                      })}</span>}
                       {cat.label}
                     </button>
                   ))}
                 </div>
               )}
-              
+
               {/* 价格区间 */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-gray-400 w-full md:w-auto md:mr-2">价格：</span>
@@ -556,7 +559,7 @@ function MarketplaceContent() {
                   </button>
                 ))}
               </div>
-              
+
               {/* 排序选择 */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-gray-400 w-full md:w-auto md:mr-2">排序：</span>
@@ -579,7 +582,7 @@ function MarketplaceContent() {
           )}
         </AnimatePresence>
       </motion.div>
-      
+
       {/* 商品列表 */}
       {loading && currentPage === 1 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -610,7 +613,7 @@ function MarketplaceContent() {
               />
             ))}
           </motion.div>
-          
+
           {/* 分页控制 */}
           {totalPages > 1 && (
             <div className="mt-8 flex justify-center items-center gap-3">
@@ -622,11 +625,11 @@ function MarketplaceContent() {
               >
                 上一页
               </PixelButton>
-              
+
               <span className="text-sm text-gray-400">
                 第 {currentPage} / {totalPages} 页
               </span>
-              
+
               <PixelButton
                 onClick={() => fetchItems(currentPage + 1)}
                 disabled={!hasMore}
@@ -649,7 +652,7 @@ function MarketplaceContent() {
           <p className="text-gray-500 text-sm">试试调整筛选条件或稍后再来</p>
         </motion.div>
       )}
-      
+
       {/* 商品详情弹窗 */}
       <ItemDetailModal
         isOpen={showDetailModal}
@@ -660,7 +663,7 @@ function MarketplaceContent() {
         getTimeRemaining={getTimeRemaining}
         isMobile={false}
       />
-      
+
       {/* 购买确认弹窗 */}
       <BuyConfirmModal
         isOpen={showBuyModal}
@@ -711,7 +714,7 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
   const isExpiringSoon = new Date(item.expire_at).getTime() - Date.now() < 6 * 60 * 60 * 1000
   const isTool = item.item_type in TOOL_INFO
   const isRare = item.remaining_quantity < 10
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -738,7 +741,7 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
             </span>
           </div>
         </div>
-        
+
         {/* 价格和数量 */}
         <div className="space-y-3 flex-1">
           <div className="flex justify-between items-center">
@@ -764,7 +767,7 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
             </span>
           </div>
         </div>
-        
+
         {/* 剩余时间 */}
         <div className={cn(
           "flex items-center gap-2 mt-4 mb-4 text-sm",
@@ -773,7 +776,7 @@ function ItemCard({ item, index, onDetail, onBuy, getItemInfo, getTimeRemaining 
           <Clock className="w-4 h-4" />
           <span>剩余 {getTimeRemaining(item.expire_at)}</span>
         </div>
-        
+
         {/* 操作按钮 */}
         <div className="flex gap-2">
           <PixelButton onClick={onDetail} variant="secondary" className="flex-1">
@@ -803,7 +806,7 @@ function MobileItemCard({ item, index, onDetail, getItemInfo, getTimeRemaining }
   const info = getItemInfo(item)
   const isTool = item.item_type in TOOL_INFO
   const isRare = item.remaining_quantity < 10
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -819,7 +822,7 @@ function MobileItemCard({ item, index, onDetail, getItemInfo, getTimeRemaining }
             <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
           )}
         </div>
-        
+
         <div className="flex-1">
           <div className="flex items-start justify-between mb-1">
             <div>
@@ -835,7 +838,7 @@ function MobileItemCard({ item, index, onDetail, getItemInfo, getTimeRemaining }
               {item.unit_price} TDB
             </span>
           </div>
-          
+
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span>剩余: {item.remaining_quantity}{isTool ? '件' : '个'}</span>
             <span>{item.seller_nickname}</span>
@@ -889,7 +892,7 @@ function MobileFilterSheet({
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         {/* 筛选内容 */}
         <div className="space-y-4">
           {/* 类型 */}
@@ -916,7 +919,7 @@ function MobileFilterSheet({
               ))}
             </div>
           </div>
-          
+
           {/* 价格区间 */}
           <div>
             <p className="text-sm text-gray-400 mb-2">价格区间</p>
@@ -938,7 +941,7 @@ function MobileFilterSheet({
             </div>
           </div>
         </div>
-        
+
         <div className="mt-6 flex gap-3">
           <PixelButton
             variant="secondary"
@@ -981,12 +984,12 @@ function ItemDetailModal({
   isMobile
 }: ItemDetailModalProps) {
   if (!item) return null
-  
+
   const info = getItemInfo(item)
   const isTool = item.item_type in TOOL_INFO
   const isRare = item.remaining_quantity < 10
   const totalValue = item.unit_price * item.remaining_quantity
-  
+
   if (isMobile) {
     return (
       <AnimatePresence>
@@ -1013,7 +1016,7 @@ function ItemDetailModal({
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <ItemDetailContent
                 item={item}
                 info={info}
@@ -1022,7 +1025,7 @@ function ItemDetailModal({
                 totalValue={totalValue}
                 getTimeRemaining={getTimeRemaining}
               />
-              
+
               <div className="mt-6">
                 <PixelButton onClick={onBuy} className="w-full">
                   <Coins className="w-4 h-4 mr-2" />
@@ -1035,7 +1038,7 @@ function ItemDetailModal({
       </AnimatePresence>
     )
   }
-  
+
   return (
     <PixelModal
       isOpen={isOpen}
@@ -1051,7 +1054,7 @@ function ItemDetailModal({
         totalValue={totalValue}
         getTimeRemaining={getTimeRemaining}
       />
-      
+
       <div className="mt-6 flex gap-3">
         <PixelButton variant="secondary" onClick={onClose} className="flex-1">
           关闭
@@ -1095,7 +1098,7 @@ function ItemDetailContent({ item, info, isTool, isRare, totalValue, getTimeRema
           </div>
         </div>
       </div>
-      
+
       {/* 详细信息 */}
       <div className="grid grid-cols-2 gap-4 p-4 bg-gray-800/50 rounded-lg">
         <div>
@@ -1115,7 +1118,7 @@ function ItemDetailContent({ item, info, isTool, isRare, totalValue, getTimeRema
           <p className="text-lg font-bold">{getTimeRemaining(item.expire_at)}</p>
         </div>
       </div>
-      
+
       {/* 卖家信息 */}
       <div className="p-4 bg-gray-800/50 rounded-lg">
         <p className="text-xs text-gray-400 mb-2">卖家信息</p>
@@ -1160,17 +1163,17 @@ function BuyConfirmModal({
   isMobile
 }: BuyConfirmModalProps) {
   if (!item) return null
-  
+
   const info = getItemInfo(item)
   const totalCost = item.unit_price * quantity
   const maxQuantity = Math.min(
     item.remaining_quantity,
     Math.floor(balance / item.unit_price)
   )
-  
+
   // 快速选择数量
   const quickAmounts = [1, 10, 50, 100].filter(n => n <= maxQuantity)
-  
+
   const content = (
     <div className="space-y-4">
       {/* 商品信息 */}
@@ -1195,7 +1198,7 @@ function BuyConfirmModal({
           </div>
         </div>
       </div>
-      
+
       {/* 购买数量 */}
       <div>
         <label className="block text-sm text-gray-400 mb-2">
@@ -1229,7 +1232,7 @@ function BuyConfirmModal({
           className="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 focus:border-gold-500 rounded outline-none"
         />
       </div>
-      
+
       {/* 费用汇总 */}
       <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
         <div className="space-y-2">
@@ -1255,7 +1258,7 @@ function BuyConfirmModal({
           </div>
         </div>
       </div>
-      
+
       {/* 余额不足提示 */}
       {totalCost > balance && (
         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
@@ -1264,7 +1267,7 @@ function BuyConfirmModal({
           </p>
         </div>
       )}
-      
+
       {/* 操作按钮 */}
       <div className="flex gap-3">
         <PixelButton
@@ -1285,7 +1288,7 @@ function BuyConfirmModal({
       </div>
     </div>
   )
-  
+
   if (isMobile) {
     return (
       <AnimatePresence>
@@ -1318,7 +1321,7 @@ function BuyConfirmModal({
       </AnimatePresence>
     )
   }
-  
+
   return (
     <PixelModal
       isOpen={isOpen}
