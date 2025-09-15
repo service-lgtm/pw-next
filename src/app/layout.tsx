@@ -4,8 +4,8 @@ import { Inter } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import { ClientLayout } from '@/components/layout/ClientLayout'
-import { AuthProvider } from '@/hooks/useAuth'
-import { ToasterProvider } from '@/components/providers/ToasterProvider' // 添加这行导入
+import { Providers } from './providers' // Add centralized providers
+import { ToasterProvider } from '@/components/providers/ToasterProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,12 +23,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
         <div className="pixel-grid fixed inset-0 pointer-events-none opacity-30" />
-        <AuthProvider>
+        <Providers>
           <ClientLayout>{children}</ClientLayout>
-        </AuthProvider>
-        
-        {/* 添加 ToasterProvider 组件 */}
-        <ToasterProvider />
+          <ToasterProvider />
+        </Providers>
         
         <Script 
           src="https://plugin-code.salesmartly.com/js/project_408373_419884_1753852401.js" 

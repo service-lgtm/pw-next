@@ -18,6 +18,22 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Disable missing suspense warnings
+    missingSuspenseWithCSRBailout: false,
+  },
+  // Force dynamic rendering for trading pages
+  async headers() {
+    return [
+      {
+        source: '/trading/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, must-revalidate',
+          },
+        ],
+      },
+    ]
   },
 }
 
