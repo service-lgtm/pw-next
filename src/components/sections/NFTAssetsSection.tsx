@@ -2,8 +2,9 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/ui/Container'
-import { useState } from 'react' 
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { getResourceIcon, RESOURCE_TYPES } from '@/utils/resourceTool'
 
 // NFT土地类型数据
 const landTypes = [
@@ -41,10 +42,10 @@ const landTypes = [
 
 // 矿产资源类型
 const resourceTypes = [
-  { name: '铁矿', icon: '⚒️', color: '#708090', yield: '100/天' },
-  { name: '木材', icon: '🪵', color: '#8B4513', yield: '80/天' },
-  { name: '石矿', icon: '🪨', color: '#696969', yield: '120/天' },
-  { name: 'YLD积分', icon: '💎', color: '#9370DB', yield: '10/天' },
+  { name: '铁矿', icon: RESOURCE_TYPES.IRON_ORE, color: '#708090', yield: '100/天' },
+  { name: '木材', icon: RESOURCE_TYPES.WOOD, color: '#8B4513', yield: '80/天' },
+  { name: '石矿', icon: RESOURCE_TYPES.STONE, color: '#696969', yield: '120/天' },
+  { name: 'YLD积分', icon: RESOURCE_TYPES.METEORITE, color: '#9370DB', yield: '10/天' },
 ]
 
 // 2D像素地图组件
@@ -68,7 +69,7 @@ function PixelMap({ activeType }: { activeType: string }) {
       <rect width="500" height="500" fill="url(#grid)" />
 
       {/* 地块 */}
-      {mapData.map((row, y) => 
+      {mapData.map((row, y) =>
         row.map((type, x) => {
           const isActive = type === activeType
           const colors = {
@@ -77,7 +78,7 @@ function PixelMap({ activeType }: { activeType: string }) {
             mine: '#8B4513',
             forest: '#228B22',
           }
-          
+
           return (
             <motion.rect
               key={`${x}-${y}`}
@@ -123,7 +124,7 @@ export function NFTAssetsSection() {
     <section className="py-24 lg:py-32 bg-[#0F0F1E] relative overflow-hidden">
       {/* 背景装饰 */}
       <div className="absolute inset-0 pixel-grid opacity-10" />
-      
+
       <Container>
         {/* 标题 */}
         <motion.div
@@ -137,12 +138,12 @@ export function NFTAssetsSection() {
             <span className="pixel-font">NFT ASSETS</span>
             <span className="w-8 h-1 bg-gold-500" />
           </div>
-          
+
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6">
             <span className="block mb-2">买地当地主</span>
             <span className="text-gold-500 pixel-text-shadow">数字地产 永久产权</span>
           </h2>
-          
+
           <p className="text-lg md:text-xl text-gray-400">
             每一寸土地都映射真实坐标，每一份收益都来自实际生产
             <br />
@@ -169,7 +170,7 @@ export function NFTAssetsSection() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-4xl">{land.icon}</span>
               </div>
-              
+
               <h3 className="text-xl font-black mb-2" style={{ color: land.color }}>
                 {land.name}
               </h3>
@@ -237,7 +238,7 @@ export function NFTAssetsSection() {
                   </motion.div>
                 ))}
               </div>
-              
+
               <div className="mt-6 p-4 bg-gold-500/10 rounded">
                 <div className="text-sm text-gray-400 mb-2">热门地段</div>
                 <div className="flex flex-wrap gap-2">
@@ -266,7 +267,10 @@ export function NFTAssetsSection() {
                       whileHover={{ scale: 1.05 }}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{resource.icon}</span>
+                        <span className="text-2xl">{getResourceIcon(resource.icon, {
+                          iconSize: 36,
+                          haveBackgroundWarper: true,
+                        })}</span>
                         <div>
                           <div className="font-bold" style={{ color: resource.color }}>
                             {resource.name}
