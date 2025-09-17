@@ -153,7 +153,7 @@ const SessionStats = ({
       )}
 
       {/* 快速开始按钮 */}
-      <button
+      {/* <button
         onClick={onStartNew}
         className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
       >
@@ -161,7 +161,7 @@ const SessionStats = ({
           <span className="text-xl">⛏️</span>
           <span>开始新的挖矿</span>
         </span>
-      </button>
+      </button> */}
     </div>
   )
 }
