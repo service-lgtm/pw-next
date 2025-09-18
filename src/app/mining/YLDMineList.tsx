@@ -267,14 +267,14 @@ function getInitialReserves(mine: YLDMine | MineLand | any): number {
 /**
  * 格式化数字
  */
-function formatAmount(value: string | number | null | undefined, unit?: string): string {
+function formatAmount(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '0'
   const num = typeof value === 'string' ? parseFloat(value) : value
   if (isNaN(num)) return '0'
 
   // 大数字简化显示
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}${unit || 'M'}`
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}${unit || 'K'}`
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
   return num.toFixed(1)
 }
 
@@ -442,14 +442,20 @@ const MineCard = ({
           {showReserves && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">剩余储量</span>
-              <span className="text-sm font-bold text-white">
-                {formatAmount(remaining, config?.unit)}
-                {initial > 0 && (
-                  <span className="text-xs text-gray-500 ml-1">
-                    / {formatAmount(initial, config?.unit)}
+              {
+                config?.unit
+                  ? <span className="text-sm font-bold text-white">
+                    {config?.unit}
                   </span>
-                )}
-              </span>
+                  : <span className="text-sm font-bold text-white">
+                    {formatAmount(remaining)}
+                    {initial > 0 && (
+                      <span className="text-xs text-gray-500 ml-1">
+                        / {formatAmount(initial)}
+                      </span>
+                    )}
+                  </span>
+              }
             </div>
           )}
 
