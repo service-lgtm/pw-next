@@ -404,7 +404,7 @@ export default function DashboardPage() {
               </motion.button>
 
               {/* 新增：土地碎片 */}
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowFragmentModal(true)}
@@ -415,6 +415,16 @@ export default function DashboardPage() {
                 <span className="absolute top-1 right-1 text-xs bg-green-500 text-white px-2 py-0.5 rounded">
                   新
                 </span>
+              </motion.button> */}
+              {/* 交易市场 */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push("/market")}
+                className="bg-gradient-to-r from-gold-500 to-yellow-600 p-4 rounded-lg text-white text-center hover:opacity-90 transition-all relative"
+              >
+                <span className="text-3xl block mb-2">🛒</span>
+                <span className="text-sm font-bold">交易市场</span>
               </motion.button>
             </div>
           </PixelCard>

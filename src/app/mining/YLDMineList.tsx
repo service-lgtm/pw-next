@@ -60,7 +60,8 @@ const MINE_TYPES = {
     borderColor: 'border-purple-500/30',
     textColor: 'text-purple-400',
     accentColor: 'purple',
-    toolType: 'pickaxe'  // 使用镐
+    toolType: 'pickaxe',  // 使用镐
+    unit: "",
   },
   'yld_converted': {
     // label: 'YLD转换矿山',
@@ -71,7 +72,8 @@ const MINE_TYPES = {
     borderColor: 'border-purple-600/40',
     textColor: 'text-purple-500',
     accentColor: 'purple',
-    toolType: 'pickaxe'  // 使用镐
+    toolType: 'pickaxe',  // 使用镐
+    unit: "",
   },
   'iron_mine': {
     label: "铁矿",
@@ -81,7 +83,8 @@ const MINE_TYPES = {
     borderColor: 'border-gray-500/30',
     textColor: 'text-gray-400',
     accentColor: 'gray',
-    toolType: 'pickaxe'  // 使用镐
+    toolType: 'pickaxe',  // 使用镐
+    unit: "",
   },
   'stone_mine': {
     label: '石矿',
@@ -91,7 +94,8 @@ const MINE_TYPES = {
     borderColor: 'border-blue-500/30',
     textColor: 'text-blue-400',
     accentColor: 'blue',
-    toolType: 'pickaxe'  // 使用镐
+    toolType: 'pickaxe',  // 使用镐
+    unit: "",
   },
   'forest': {
     label: '森林',
@@ -101,7 +105,8 @@ const MINE_TYPES = {
     borderColor: 'border-green-500/30',
     textColor: 'text-green-400',
     accentColor: 'green',
-    toolType: 'axe'  // 使用斧头
+    toolType: 'axe',  // 使用斧头
+    unit: "",
   },
   'farm': {
     label: '农场',
@@ -111,7 +116,8 @@ const MINE_TYPES = {
     borderColor: 'border-yellow-500/30',
     textColor: 'text-yellow-400',
     accentColor: 'yellow',
-    toolType: 'hoe'  // 使用锄头
+    toolType: 'hoe',  // 使用锄头
+    unit: "∞",
   }
 }
 
@@ -261,14 +267,14 @@ function getInitialReserves(mine: YLDMine | MineLand | any): number {
 /**
  * 格式化数字
  */
-function formatAmount(value: string | number | null | undefined): string {
+function formatAmount(value: string | number | null | undefined, unit?: string): string {
   if (value === null || value === undefined) return '0'
   const num = typeof value === 'string' ? parseFloat(value) : value
   if (isNaN(num)) return '0'
 
   // 大数字简化显示
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}${unit || 'M'}`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}${unit || 'K'}`
   return num.toFixed(1)
 }
 
@@ -437,10 +443,10 @@ const MineCard = ({
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">剩余储量</span>
               <span className="text-sm font-bold text-white">
-                {formatAmount(remaining)}
+                {formatAmount(remaining, config?.unit)}
                 {initial > 0 && (
                   <span className="text-xs text-gray-500 ml-1">
-                    / {formatAmount(initial)}
+                    / {formatAmount(initial, config?.unit)}
                   </span>
                 )}
               </span>

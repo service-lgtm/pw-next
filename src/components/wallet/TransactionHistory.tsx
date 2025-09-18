@@ -35,26 +35,26 @@ export function TransactionHistory() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  
+
   // 筛选条件
   const [direction, setDirection] = useState<'all' | 'sent' | 'received'>('all')
   const [currencyType, setCurrencyType] = useState<'all' | 'TDB' | 'YLD'>('all')
-  
+
   // 选中的交易
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null)
-  
+
   // 加载交易历史
   const fetchTransactions = async (pageNum: number = 1) => {
     try {
       setLoading(true)
-      
+
       const response = await walletApi.getTransferHistory({
         direction,
         currency_type: currencyType,
         page: pageNum,
         page_size: 10
       })
-      
+
       if (response.success && response.data) {
         if (pageNum === 1) {
           setTransactions(response.data.results)
@@ -72,19 +72,19 @@ export function TransactionHistory() {
       setLoading(false)
     }
   }
-  
+
   // 初始加载
   useEffect(() => {
     fetchTransactions(1)
   }, [direction, currencyType])
-  
+
   // 加载更多
   const handleLoadMore = () => {
     if (!loading && hasMore) {
       fetchTransactions(page + 1)
     }
   }
-  
+
   // 获取交易状态样式
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -100,7 +100,7 @@ export function TransactionHistory() {
         return 'text-gray-400'
     }
   }
-  
+
   // 获取交易状态文本
   const getStatusText = (status: string) => {
     switch (status) {
@@ -116,14 +116,14 @@ export function TransactionHistory() {
         return status
     }
   }
-  
+
   // 格式化时间
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr)
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    
+
     if (days === 0) {
       return `今天 ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
     } else if (days === 1) {
@@ -131,15 +131,15 @@ export function TransactionHistory() {
     } else if (days < 7) {
       return `${days}天前`
     } else {
-      return date.toLocaleDateString('zh-CN', { 
-        month: '2-digit', 
+      return date.toLocaleDateString('zh-CN', {
+        month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
       })
     }
   }
-  
+
   return (
     <>
       <PixelCard className="p-6">
@@ -147,43 +147,40 @@ export function TransactionHistory() {
           <h3 className="text-xl font-black text-white">交易历史</h3>
           <span className="text-sm text-gray-400">共 {total} 条记录</span>
         </div>
-        
+
         {/* 筛选栏 */}
         <div className="flex flex-wrap gap-3 mb-4">
           <div className="flex gap-2">
             <button
               onClick={() => setDirection('all')}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                direction === 'all' 
-                  ? 'bg-gold-500 text-black font-bold' 
+              className={`px-3 py-1 text-sm rounded transition-colors ${direction === 'all'
+                  ? 'bg-gold-500 text-black font-bold'
                   : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               全部
             </button>
             <button
               onClick={() => setDirection('sent')}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                direction === 'sent' 
-                  ? 'bg-gold-500 text-black font-bold' 
+              className={`px-3 py-1 text-sm rounded transition-colors ${direction === 'sent'
+                  ? 'bg-gold-500 text-black font-bold'
                   : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               转出
             </button>
             <button
               onClick={() => setDirection('received')}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                direction === 'received' 
-                  ? 'bg-gold-500 text-black font-bold' 
+              className={`px-3 py-1 text-sm rounded transition-colors ${direction === 'received'
+                  ? 'bg-gold-500 text-black font-bold'
                   : 'bg-gray-800 text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               转入
             </button>
           </div>
-          
-          <div className="flex gap-2">
+
+          {/* <div className="flex gap-2">
             <button
               onClick={() => setCurrencyType('all')}
               className={`px-3 py-1 text-sm rounded transition-colors ${
@@ -214,9 +211,9 @@ export function TransactionHistory() {
             >
               YLD
             </button>
-          </div>
+          </div> */}
         </div>
-        
+
         {/* 交易列表 */}
         {loading && page === 1 ? (
           <div className="text-center py-8">
@@ -253,11 +250,11 @@ export function TransactionHistory() {
                         {getStatusText(tx.status)}
                       </span>
                     </div>
-                    
+
                     {/* 第二行：金额和手续费 */}
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-gray-400">
-                        金额: 
+                        金额:
                         <span className={`ml-1 font-bold ${tx.from_username ? 'text-red-400' : 'text-green-400'}`}>
                           {tx.from_username ? '-' : '+'}{formatBalance(tx.amount)} {tx.currency_type}
                         </span>
@@ -268,7 +265,7 @@ export function TransactionHistory() {
                         </span>
                       )}
                     </div>
-                    
+
                     {/* 第三行：备注和时间 */}
                     <div className="flex items-center justify-between mt-2">
                       {tx.memo && (
@@ -281,7 +278,7 @@ export function TransactionHistory() {
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* 箭头图标 */}
                   <div className="ml-4 text-gray-400">
                     →
@@ -289,7 +286,7 @@ export function TransactionHistory() {
                 </div>
               </motion.div>
             ))}
-            
+
             {/* 加载更多 */}
             {hasMore && (
               <div className="text-center pt-4">
@@ -306,7 +303,7 @@ export function TransactionHistory() {
           </div>
         )}
       </PixelCard>
-      
+
       {/* 交易详情弹窗 */}
       <TransactionDetail
         transactionNo={selectedTransaction}

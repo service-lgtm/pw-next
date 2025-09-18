@@ -718,7 +718,7 @@ export default function AssetsPage() {
             })}
 
             {/* 砖头特殊处理 */}
-            {inventory?.special?.brick && (
+            {/* {inventory?.special?.brick && (
               <PixelCard className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   {
@@ -729,7 +729,6 @@ export default function AssetsPage() {
                   }
                   <div>
                     <h4 className="font-bold">
-                      {/* 砖头 */}
                       {RESOURCE_NAMES[RESOURCE_TYPES.BRICK]}
                     </h4>
                     <p className="text-xs text-gray-500">建筑材料</p>
@@ -746,7 +745,7 @@ export default function AssetsPage() {
                   </div>
                 </div>
               </PixelCard>
-            )}
+            )} */}
           </motion.div>
         )}
 

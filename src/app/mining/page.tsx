@@ -124,7 +124,7 @@ const ResourceBar = ({
 }) => {
   const resourceTypes = [
     { key: 'wood', icon: RESOURCE_TYPES.WOOD, color: 'text-green-400', bgColor: 'bg-green-900/20' },
-    { key: 'iron', icon: RESOURCE_TYPES.PICKAXE, color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
+    { key: 'iron', icon: RESOURCE_TYPES.IRON_ORE, color: 'text-gray-400', bgColor: 'bg-gray-900/20' },
     { key: 'stone', icon: RESOURCE_TYPES.STONE, color: 'text-blue-400', bgColor: 'bg-blue-900/20' },
     { key: 'food', icon: RESOURCE_TYPES.GRAIN, color: grainWarning ? 'text-red-400' : 'text-yellow-400', bgColor: grainWarning ? 'bg-red-900/20' : 'bg-yellow-900/20' },
     { key: 'yld', icon: RESOURCE_TYPES.METEORITE, color: 'text-purple-400', bgColor: 'bg-purple-900/20' }
@@ -142,7 +142,10 @@ const ResourceBar = ({
             "hover:scale-105 active:scale-95"
           )}
         >
-          <span className="text-xl mb-1">{getResourceIcon(icon)}</span>
+          <span className="text-xl mb-1">{getResourceIcon(icon, {
+            iconSize: 32,
+            haveBackgroundWarper: true,
+          })}</span>
           <span className={cn("text-xs font-bold", color)}>
             {formatResource(resources[key] || 0)}
           </span>

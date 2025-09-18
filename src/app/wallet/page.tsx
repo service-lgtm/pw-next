@@ -216,9 +216,9 @@ export default function WalletPage() {
             </div>
 
             {/* YLD暂不支持转账 */}
-            <div className="mt-4 p-3 bg-gray-800/50 rounded text-center">
+            {/* <div className="mt-4 p-3 bg-gray-800/50 rounded text-center">
               <p className="text-xs text-gray-400">YLD转账功能即将开放</p>
-            </div>
+            </div> */}
           </PixelCard>
         </motion.div>
       </div>
