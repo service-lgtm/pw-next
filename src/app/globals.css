@@ -31,6 +31,9 @@
     --pixel-gray: #8B8B8B;
     --pixel-success: #00D4AA;
     --pixel-size: 4px;
+
+    /* 底部菜单栏高度 */
+    --bottom-menu-height: 58px;
   }
 
   html {
@@ -219,15 +222,15 @@
 /* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--pixel-navy);
+  background-color: var(--pixel-navy);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--pixel-gold);
-  border: 2px solid var(--pixel-navy);
+  background-color: var(--pixel-gold);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -334,3 +337,39 @@
     text-stroke: none !important;
   }
 }
+
+
+/* 盒子背景光晕效果 */
+/* .box-glow{
+  position: relative;
+  z-index: 0;
+}
+.box-glow::before {
+  content: '';
+  position: absolute;
+  top: 80%;
+  left: 50%;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.4) 40%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: pulse 2s infinite;
+  z-index: 1;
+}
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: .5;
+  }
+  100% {
+    opacity: 0.8;
+  }
+} */

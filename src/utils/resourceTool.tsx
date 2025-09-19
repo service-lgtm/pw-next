@@ -1,5 +1,3 @@
-
-import { type ImgHTMLAttributes } from 'react';
 import Image from 'next/image';
 
 import AxeImg from "@/public/resources/Axe.png";
@@ -13,7 +11,6 @@ import PickaxeImg from "@/public/resources/Pickaxe.png";
 import SeedImg from "@/public/resources/Seed.png";
 import StoneImg from "@/public/resources/Stone.png";
 import WoodImg from "@/public/resources/Wood.png";
-import { cn } from '@/lib/utils';
 
 /** 资源标识定义 */
 export enum RESOURCE_TYPES {
