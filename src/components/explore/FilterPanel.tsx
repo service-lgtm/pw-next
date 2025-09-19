@@ -11,8 +11,8 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Filter, ChevronDown, X, Sparkles, TrendingUp, 
+import {
+  Filter, ChevronDown, X, Sparkles, TrendingUp,
   Package, Coins, RotateCcw, Check, Zap, Star, Gift
 } from 'lucide-react'
 import type { FilterState } from '@/types/assets'
@@ -59,7 +59,7 @@ export function FilterPanel({
   totalLands,
 }: FilterPanelProps) {
   const [expanded, setExpanded] = useState<string[]>(['type', 'price'])
-  
+
   const toggleSection = (section: string) => {
     setExpanded(prev =>
       prev.includes(section)
@@ -67,11 +67,11 @@ export function FilterPanel({
         : [...prev, section]
     )
   }
-  
+
   const handleTypeChange = (type: string) => {
     onFilterChange({ land_type: type })
   }
-  
+
   const handlePriceRangeChange = (range: any) => {
     onFilterChange({
       priceRange: {
@@ -80,11 +80,11 @@ export function FilterPanel({
       }
     })
   }
-  
+
   const handleSortChange = (ordering: string) => {
     onFilterChange({ ordering })
   }
-  
+
   const clearFilters = () => {
     onFilterChange({
       land_type: 'all',
@@ -94,24 +94,24 @@ export function FilterPanel({
       ordering: '-created_at',
     })
   }
-  
-  const hasActiveFilters = 
+
+  const hasActiveFilters =
     filters.land_type !== 'all' ||
     filters.status !== 'all' ||
     filters.priceRange.min !== undefined ||
     filters.priceRange.max !== undefined ||
     filters.search !== ''
-  
+
   const activeFilterCount = [
     filters.land_type !== 'all',
     filters.priceRange.min !== undefined || filters.priceRange.max !== undefined,
     filters.search !== ''
   ].filter(Boolean).length
-  
+
   return (
     <div className="space-y-4">
       {/* 创世土地活动卡片 - 3折特惠 */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-purple-600/30 via-pink-600/30 to-purple-600/30 rounded-xl p-5 border-2 border-purple-500/50 relative overflow-hidden"
@@ -139,16 +139,16 @@ export function FilterPanel({
             </div>
             <div className="bg-gradient-to-r from-red-600 to-pink-600 border border-red-500/50 rounded-lg p-2 mt-3">
               <p className="text-sm text-white text-center font-bold animate-pulse">
-                限时特惠 -70% OFF · 仅限9月15日前
+                限时特惠 -70% OFF
               </p>
             </div>
           </div>
         </div>
       </motion.div>
-      
+
       {/* 统计信息卡片 */}
       {stats && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 rounded-xl p-5 border border-purple-500/30"
@@ -181,13 +181,13 @@ export function FilterPanel({
                 </p>
               </div>
             </div>
-            
+
             {/* 进度条 */}
             <div className="pt-2">
               <div className="h-2 bg-black/30 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ 
+                  animate={{
                     width: `${((stats.total_lands - stats.available_lands) / stats.total_lands) * 100}%`
                   }}
                   transition={{ duration: 1, ease: "easeOut" }}
@@ -201,7 +201,7 @@ export function FilterPanel({
           </div>
         </motion.div>
       )}
-      
+
       {/* 土地类型选择 - 标记赠送道具的类型 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
@@ -222,7 +222,7 @@ export function FilterPanel({
             expanded.includes('type') && "rotate-180"
           )} />
         </button>
-        
+
         <AnimatePresence>
           {expanded.includes('type') && (
             <motion.div
@@ -264,7 +264,7 @@ export function FilterPanel({
           )}
         </AnimatePresence>
       </div>
-      
+
       {/* 价格区间 - 3折后价格 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <button
@@ -285,7 +285,7 @@ export function FilterPanel({
             expanded.includes('price') && "rotate-180"
           )} />
         </button>
-        
+
         <AnimatePresence>
           {expanded.includes('price') && (
             <motion.div
@@ -320,7 +320,7 @@ export function FilterPanel({
           )}
         </AnimatePresence>
       </div>
-      
+
       {/* 排序方式 */}
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
         <h3 className="font-bold mb-3 flex items-center gap-2">
@@ -348,7 +348,7 @@ export function FilterPanel({
           })}
         </div>
       </div>
-      
+
       {/* 清除筛选 */}
       <AnimatePresence>
         {hasActiveFilters && (
