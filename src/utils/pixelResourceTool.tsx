@@ -124,15 +124,16 @@ export const getPixelResourceIcon = (resourceType: PIXEL_RESOURCE_TYPES, NodeInf
                         ${glowColors[0]} 10%,
                         ${glowColors[1]} 40%,
                         ${glowColors[2]} 80%
-                    )` : "unset"
+                    )` : "unset",
+                    filter: "blur(10px)"
                 }}
                 animate={{
-                    opacity: [.2, .8, .2]
+                    opacity: [.2, .4, .6, .8, .6, .4, .2]
                 }}
                 transition={{
-                    duration: 6,
+                    duration: 5,
                     repeat: Infinity,
-                    ease: "anticipate"
+                    ease: "anticipate",
                 }}
             />
             {<Image
