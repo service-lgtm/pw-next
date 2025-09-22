@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 20:55:05
- * @LastEditTime: 2025-09-19 22:10:31
+ * @LastEditTime: 2025-09-22 22:21:38
  * @LastEditors: yy
  * @Description: 
  */
@@ -10,7 +10,14 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { eventManager } from '@/utils/eventManager';
+import { ErrorBoundary } from '../ErrorBoundary';
+
+export const SHOW_MENU_BAR_EVENT = {
+    SHOW: "showMenuBar",
+    HIDE: "hideMenuBar"
+}
 
 interface BottomMenuBarLayoutProps {
     children: React.ReactNode;
@@ -19,6 +26,9 @@ interface BottomMenuBarLayoutProps {
 /** 底部菜单栏布局 */
 const BottomMenuBarLayout: React.FC<BottomMenuBarLayoutProps> = (props) => {
     const { children } = props;
+
+    // 菜单栏显示状态
+    const [showMenuBar, setShowMenuBar] = useState(true)
 
     // 路由菜单
     const menuList = [
@@ -49,13 +59,26 @@ const BottomMenuBarLayout: React.FC<BottomMenuBarLayoutProps> = (props) => {
         },
     ]
 
-    return <div className="h-[100dvh]">
+    useLayoutEffect(() => {
+        eventManager.on(SHOW_MENU_BAR_EVENT.SHOW, () => {
+            setShowMenuBar(true)
+        });
+        eventManager.on(SHOW_MENU_BAR_EVENT.HIDE, () => {
+            setShowMenuBar(false)
+        });
+        return () => {
+            eventManager.off(SHOW_MENU_BAR_EVENT.SHOW);
+            eventManager.off(SHOW_MENU_BAR_EVENT.HIDE);
+        }
+    }, []);
+
+    return <ErrorBoundary><div className="h-[100dvh]">
         {/* 视图内容 */}
-        <div className="h-[calc(100%-var(--bottom-menu-height,58px))] overflow-y-auto">
+        <div className={cn("overflow-y-auto", showMenuBar ? "h-[calc(100%-var(--bottom-menu-height,58px))]" : "h-full")}>
             {children}
         </div>
         {/* 底部菜单导航 */}
-        <AnimatePresence>
+        {showMenuBar && <AnimatePresence>
             <motion.aside
                 initial={{ y: 280 }}
                 animate={{ y: 0 }}
@@ -71,8 +94,28 @@ const BottomMenuBarLayout: React.FC<BottomMenuBarLayoutProps> = (props) => {
                     })
                 }
             </motion.aside>
-        </AnimatePresence>
+        </AnimatePresence>}
     </div>
+    </ErrorBoundary>
+}
+
+// 页面固定头部元素
+const FixedHeader = (props: {
+    children: React.ReactNode;
+    warpperClassName?: string;
+}) => {
+    return <ErrorBoundary>
+        <AnimatePresence>
+            <motion.aside
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                className={cn("fixed top-0 left-0 z-10 w-full bg-[#1A1A1A] p-[15px]", props.warpperClassName)}
+            >
+                {props.children}
+            </motion.aside>
+        </AnimatePresence>
+    </ErrorBoundary>
 }
 
 /** 用户头像按钮 */
@@ -123,7 +166,7 @@ const UserAvatarButton = (props: {
 
     // {displayUser?.level_name || `等级 ${displayUser?.level || 1}`}
 
-    return <>
+    return <ErrorBoundary>
         <div className={cn("relative", wapperClassName)} ref={dropdownRef}>
             <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
@@ -223,9 +266,9 @@ const UserAvatarButton = (props: {
                 </motion.div>
             )}
         </AnimatePresence>
-    </>
+    </ErrorBoundary>
 }
 
-export { UserAvatarButton };
+export { UserAvatarButton, FixedHeader };
 
 export default BottomMenuBarLayout;

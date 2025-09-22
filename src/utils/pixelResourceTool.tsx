@@ -39,7 +39,7 @@ export enum PIXEL_RESOURCE_TYPES {
     SEED = "Seed",
     /** 粮食 */
     GRAIN = "Grain",
-    /** 石材 */
+    /** 石矿 */
     STONE = "Stone",
     /** 铁矿 */
     IRON_ORE = "IronOre",
@@ -79,7 +79,7 @@ export const PIXEL_RESOURCE_NAMES: Record<PIXEL_RESOURCE_TYPES, string> = {
     [PIXEL_RESOURCE_TYPES.WOOD]: "木材",
     [PIXEL_RESOURCE_TYPES.SEED]: "种子",
     [PIXEL_RESOURCE_TYPES.GRAIN]: "粮食",
-    [PIXEL_RESOURCE_TYPES.STONE]: "石材",
+    [PIXEL_RESOURCE_TYPES.STONE]: "石矿",
     [PIXEL_RESOURCE_TYPES.IRON_ORE]: "铁矿",
     [PIXEL_RESOURCE_TYPES.FARMLAND]: "农田",
     [PIXEL_RESOURCE_TYPES.FOREST]: "森林",
@@ -110,7 +110,7 @@ export const getPixelResourceIcon = (resourceType: PIXEL_RESOURCE_TYPES, NodeInf
         const _ImageH = iconSize - PENDDING;
 
         return <div
-            className={`box-glow relative flex rounded-md justify-center items-center`}
+            className={`box-glow relative flex rounded-md justify-center items-center z-0`}
             style={{
                 width: iconSize,
                 height: iconSize,

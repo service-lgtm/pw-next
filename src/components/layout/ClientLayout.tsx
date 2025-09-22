@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout'
 import BottomMenuBarLayout from '../BottomMenuBar/BottomMenuBarLayout'
+import { pathMap } from '@/utils/pathMap'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -20,7 +21,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   // 需要使用 BottomMenuBarLayout 布局的路由
   const bottomMenuBarRoutes = [
-    '/territory',
+    pathMap.TERRITORY,
   ];
 
   const isBottomMenuBarRoute = bottomMenuBarRoutes.some(route =>

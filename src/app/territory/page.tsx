@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 21:04:11
- * @LastEditTime: 2025-09-21 23:10:40
+ * @LastEditTime: 2025-09-22 20:34:55
  * @LastEditors: yy
  * @Description: 
  */
@@ -10,9 +10,9 @@ import PixelBottomDrawer from "@/components/shared/PixelBottomDrawer";
 import { PixelButton } from "@/components/shared/PixelButton";
 import { useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion'
-import ToolsListView from "./ToolsListView";
-import MinesListView from "./MinesListView";
-import { UserAvatarButton } from "@/components/BottomMenuBar/BottomMenuBarLayout";
+import ToolsViewWapper from "./ToolsListView/ToolsViewWapper";
+import MinesViewWapper from "./MinesListView/MinesViewWapper";
+import { FixedHeader, UserAvatarButton } from "@/components/BottomMenuBar/BottomMenuBarLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 
@@ -44,20 +44,6 @@ const miningCenter = () => {
         }
     ]
 
-    // 页面固定头部元素
-    const headerNode = (
-        <AnimatePresence>
-            <motion.aside
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "100%" }}
-                className={"fixed top-0 left-0 z-[1] w-full bg-[#1A1A1A] p-[15px]"}
-            >
-                {/* 用户头像 */}
-                <UserAvatarButton wapperClassName="float-right" />
-            </motion.aside>
-        </AnimatePresence>
-    )
     // 页面固定底部元素
     const footerNode = (
         <AnimatePresence>
@@ -89,12 +75,15 @@ const miningCenter = () => {
             <div className="flex flex-col items-center justify-center h-[100%-calc(var(--bottom-menu-height,58px))] pt-[66px] pb-[100px]">
 
                 {/* 顶部标题 */}
-                {headerNode}
+                <FixedHeader>
+                    {/* 用户头像 */}
+                    <UserAvatarButton wapperClassName="float-right" />
+                </FixedHeader>
 
                 {/* 中间内容 */}
-                <div className="relative z-[0] w-full px-[15px]">
-                    {/* 工具列表 */}
-                    <ToolsListView />
+                <div className="relative w-full px-[15px]">
+                    {/* 工具列表视图 */}
+                    <ToolsViewWapper />
                     {/* 剩余统计 */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -121,8 +110,8 @@ const miningCenter = () => {
                         }
 
                     </motion.div>
-                    {/* 矿场列表 */}
-                    <MinesListView />
+                    {/* 矿场列表视图 */}
+                    <MinesViewWapper />
                 </div>
 
                 {/* 底部固定操作 */}

@@ -1,18 +1,19 @@
 /*
  * @Author: yy
  * @Date: 2025-09-21 20:30:38
- * @LastEditTime: 2025-09-21 23:01:13
+ * @LastEditTime: 2025-09-22 20:47:13
  * @LastEditors: yy
  * @Description: 
  */
 import { PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourceTool";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import MinesCard, { type IMinesInfoType } from "./MinesCard";
+import MinesCard, { type IMinesInfoType } from "./MinesViewCard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { pathMap } from "@/utils/pathMap";
 
 
-/** 领地页-矿场列表 */
+/** 领地页-矿场列表视图 */
 const MinesListView = () => {
     // 矿场列表数据
     const minesList: IMinesInfoType[] = [
@@ -86,7 +87,7 @@ const MinesListView = () => {
             <div className="text-[#CCCCCC] text-[18px]">
                 矿场列表
             </div>
-            <Link href="">矿场列表&gt;</Link>
+            <Link href={pathMap.TERRITORY_MINESLISTVIEW}>矿场列表&gt;</Link>
         </motion.div>
 
         {/* 矿场列表数据 */}
