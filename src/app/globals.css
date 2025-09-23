@@ -340,7 +340,7 @@
 
 /** 图标旋转动画 */
 .icon-spin {
-  animation: icon-spin 1s linear infinite;
+  animation: icon-spin 2s linear infinite;
 }
 @keyframes icon-spin {
   0% {

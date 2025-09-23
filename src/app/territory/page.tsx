@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 21:04:11
- * @LastEditTime: 2025-09-22 20:34:55
+ * @LastEditTime: 2025-09-23 22:52:12
  * @LastEditors: yy
  * @Description: 
  */
@@ -14,22 +14,145 @@ import ToolsViewWapper from "./ToolsListView/ToolsViewWapper";
 import MinesViewWapper from "./MinesListView/MinesViewWapper";
 import { FixedHeader, UserAvatarButton } from "@/components/BottomMenuBar/BottomMenuBarLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourceTool";
+import { cn } from "@/lib/utils";
 
+/** 合成工具列表枚举 */
+const getSynthesisToolsEnum: () => {
+    icon: PIXEL_RESOURCE_TYPES;
+    description: string;
+    materials: PIXEL_RESOURCE_TYPES[]
+}[] = () => {
+    return [
+        {
+            // 镐头
+            icon: PIXEL_RESOURCE_TYPES.PICKAXE,
+            // 描述
+            description: "用于开采铁矿和石矿",
+            // 所需材料
+            materials: [PIXEL_RESOURCE_TYPES.IRON_ORE, PIXEL_RESOURCE_TYPES.WOOD, PIXEL_RESOURCE_TYPES.METEORITE],
+        },
+        {
+            // 斧头
+            icon: PIXEL_RESOURCE_TYPES.AXE,
+            // 描述
+            description: "用于采集木材",
+            // 所需材料
+            materials: [PIXEL_RESOURCE_TYPES.IRON_ORE, PIXEL_RESOURCE_TYPES.WOOD, PIXEL_RESOURCE_TYPES.METEORITE],
+        },
+        {
+            // 锄头
+            icon: PIXEL_RESOURCE_TYPES.HOE,
+            // 描述
+            description: "用于农业生产",
+            // 所需材料
+            materials: [PIXEL_RESOURCE_TYPES.IRON_ORE, PIXEL_RESOURCE_TYPES.WOOD, PIXEL_RESOURCE_TYPES.METEORITE],
+        },
+        {
+            // 砖头
+            icon: PIXEL_RESOURCE_TYPES.BRICK,
+            // 描述
+            description: "用于建筑",
+            // 所需材料
+            materials: [PIXEL_RESOURCE_TYPES.IRON_ORE, PIXEL_RESOURCE_TYPES.WOOD, PIXEL_RESOURCE_TYPES.METEORITE],
+        },
+    ]
+}
+/** 快速挖矿枚举 */
+const getQuickMiningEnum: () => {
+    icon: PIXEL_RESOURCE_TYPES;
+    toolType: PIXEL_RESOURCE_TYPES;
+}[] = () => {
+    return [
+        {
+            // 铁矿
+            icon: PIXEL_RESOURCE_TYPES.IRON_ORE,
+            // 投入工具种类
+            toolType: PIXEL_RESOURCE_TYPES.PICKAXE,
+        },
+        {
+            // 森林
+            icon: PIXEL_RESOURCE_TYPES.FOREST,
+            // 投入工具种类
+            toolType: PIXEL_RESOURCE_TYPES.AXE,
+        },
+        {
+            // 农田
+            icon: PIXEL_RESOURCE_TYPES.FARMLAND,
+            // 投入工具种类
+            toolType: PIXEL_RESOURCE_TYPES.HOE,
+        },
+        {
+            // 石矿
+            icon: PIXEL_RESOURCE_TYPES.STONE,
+            // 投入工具种类
+            toolType: PIXEL_RESOURCE_TYPES.PICKAXE,
+        },
+        {
+            // 陨石
+            icon: PIXEL_RESOURCE_TYPES.METEORITE,
+            // 投入工具种类
+            toolType: PIXEL_RESOURCE_TYPES.PICKAXE,
+        },
+    ]
+}
 
 /** 领地页 */
 const miningCenter = () => {
 
-    // 抽屉显示状态
-    const [drawerOpen, setDrawerOpen] = useState(false);
+    // 合成工具抽屉显示状态
+    const [synthesisDrawerOpen, setSynthesisDrawerOpen] = useState(false);
+    // 挖矿抽屉显示状态
+    const [miningDrawerOpen, setMiningDrawerOpen] = useState(false);
+    // 当前选中项工具列表索引
+    const [currentToolsIndex, setCurrentToolsIndex] = useState(0);
+    // 当前选中项快速挖矿列表索引
+    const [currentQuickMiningIndex, setCurrentQuickMiningIndex] = useState<number>();
 
+    // 合成工具数量
+    const [synthesisToolCount, setSynthesisToolCount] = useState(0);
+
+    // 合成工具列表
+    const synthesisTools = getSynthesisToolsEnum().map(record => ({
+        ...record,
+    }));
+    // 快速挖矿列表
+    const quickMining = getQuickMiningEnum().map((record, index) => ({
+        ...record,
+        count: index * 10,
+        // 已投入工具数量
+        toolCount: 100,
+        // 可用工具数量
+        availableToolCount: 100,
+        // 所需粮食
+        requiredFood: "100/小时",
+        // 剩余粮食
+        remainingFood: 1000,
+    }))
     // 处理合成工具点击事件
     const handleSynthesisToolClick = () => {
-        setDrawerOpen(true);
+        setSynthesisDrawerOpen(true);
     }
 
     // 处理开始挖矿点击事件
     const handleStartMiningClick = () => {
-        setDrawerOpen(true);
+        setMiningDrawerOpen(true);
+    }
+
+    // 处理合成工具数量改变事件
+    const handleSynthesisToolCountChange = (value: string) => {
+        // 匹配数字
+        const reg = /^\d+$/;
+        if (!reg.test(value)) {
+            return;
+        }
+        // 转换为数字
+        const count = parseInt(value);
+        // 判断是否大于0
+        if (count < 0) {
+            return;
+        }
+        setSynthesisToolCount(count);
     }
 
     // 剩余统计展示列表参数
@@ -70,6 +193,11 @@ const miningCenter = () => {
             </motion.aside>
         </AnimatePresence>
     )
+
+    // 当前选中项工具列表
+    const currentTools = synthesisTools[currentToolsIndex];
+    // 当前选中项快速挖矿列表
+    const currentQuickMining = currentQuickMiningIndex !== void 0 ? quickMining[currentQuickMiningIndex] : void 0;
     return (
         <ErrorBoundary>
             <div className="flex flex-col items-center justify-center h-[100%-calc(var(--bottom-menu-height,58px))] pt-[66px] pb-[100px]">
@@ -117,9 +245,194 @@ const miningCenter = () => {
                 {/* 底部固定操作 */}
                 {footerNode}
 
-                {/* 抽屉组件 */}
-                <PixelBottomDrawer isVisible={drawerOpen} onClose={() => setDrawerOpen(false)} >
-                    123
+                {/* 合成工具抽屉 */}
+                <PixelBottomDrawer
+                    title="合成工具"
+                    isVisible={synthesisDrawerOpen}
+                    onClose={() => setSynthesisDrawerOpen(false)}
+                >
+                    <div className="w-full pb-[60px]">
+                        {/* 待合成工具卡片视图 */}
+                        <div className="w-full mt-[20px] mb-[10px] flex gap-[8px]">
+                            {
+                                synthesisTools.map((item, index) => {
+                                    return <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: Math.min(index * 0.1, 0.8) }}
+                                        whileHover={{ y: -2 }}
+                                        className={cn("w-[25%] flex flex-col items-center justify-center rounded-[6px] bg-[#31261A] px-[8px] py-[8px] gap-[10px] border-[2px] transition duration-300",
+                                            currentToolsIndex === index ? "border-[#F07C1F]" : "border-transparent"
+                                        )}
+                                        onClick={() => setCurrentToolsIndex(index)}
+                                    >
+                                        {/* 工具图标 */}
+                                        {getPixelResourceIcon(item.icon, {
+                                            iconSize: 34,
+                                            haveBackgroundWarper: true,
+                                        })}
+                                        {/* 工具名称 */}
+                                        <div className="text-[12px] font-[#E7E7E7]">
+                                            {PIXEL_RESOURCE_NAMES[item.icon] ?? ""}
+                                        </div>
+                                    </motion.div>
+                                })
+                            }
+                        </div>
+                        {/* 对应工具描述 */}
+                        <div className="w-full py-[10px] text-[12px] text-[#E7E7E7]">
+                            {PIXEL_RESOURCE_NAMES[currentTools.icon] ?? ''}：{currentTools?.description ?? ""}
+                        </div>
+                        {/* 合成所需材料 */}
+                        <div className="text-[#E7E7E7] text-[15px] mb-[10px]">
+                            合成材料
+                        </div>
+                        {/* 所需材料列表 */}
+                        <div className="flex flex-col gap-[8px]">
+                            {
+                                currentTools.materials?.map((item, index) => {
+                                    return <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: Math.min(index * 0.1, 0.8) }}
+                                        whileHover={{ y: -2 }}
+                                        className="bg-[#353535] px-[15px] py-[12px] rounded-[5px] flex items-center justify-between gap-[10px]"
+                                    >
+                                        <div className="flex items-center gap-[10px]">
+                                            {/* 工具图标 */}
+                                            {getPixelResourceIcon(item, {
+                                                iconSize: 34,
+                                                haveBackgroundWarper: true,
+                                            })}
+                                            {/* 工具名称 */}
+                                            <div className="text-[#999999] text-[14px]">
+                                                {PIXEL_RESOURCE_NAMES[item] ?? ""}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-[10px]">
+                                            <div className="text-[#E7E7E7] text-[14px]">
+                                                10000
+                                            </div>
+                                            <div className="text-[#F07C1F] text-[14px] flex items-center">
+                                                可用余额：<span className="text-[12px]">10000</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                })
+                            }
+                        </div>
+                        <div className="flex items-center justify-between border-t-[2px] border-[#666666] w-full mt-[20px] py-[22px]">
+                            <div className="text-[#E7E7E7] text-[15px]">
+                                合成数量
+                            </div>
+                            <div className="h-[40px] bg-[#353535] rounded-full p-[6px] px-[30px] relative">
+                                <div className="w-[20px] h-[20px] bg-[#D29348] rounded-full absolute left-[6px] top-1/2 translate-y-[-50%] flex items-center justify-center" onClick={() => handleSynthesisToolCountChange(`${synthesisToolCount - 1}`)}>-</div>
+                                <div className="w-[20px] h-[20px] bg-[#D29348] rounded-full absolute right-[6px] top-1/2 translate-y-[-50%] flex items-center justify-center" onClick={() => handleSynthesisToolCountChange(`${synthesisToolCount + 1}`)}>+</div>
+                                <input className="w-[80px] text-center bg-[#353535] text-[#E7E7E7] text-[18px]" type="text" inputMode="numeric" value={synthesisToolCount} onChange={e => handleSynthesisToolCountChange(e.target.value)} />
+                            </div>
+                            <PixelButton
+                                variant="secondary"
+                                className="w-[80px] h-[30px] p-0 rounded-full text-[#F7921B] text-[12px]"
+                            >
+                                最大
+                            </PixelButton>
+                        </div>
+                    </div>
+
+                    <PixelButton
+                        variant="primary"
+                        className="w-[calc(100%-32px)] h-[44px] rounded-full text-[#fff] text-[15px] fixed left-[16px] bottom-[16px]"
+                    >
+                        立即合成
+                    </PixelButton>
+                </PixelBottomDrawer>
+                {/* 开始挖矿弹窗 */}
+                <PixelBottomDrawer
+                    title="快速挖矿"
+                    isVisible={miningDrawerOpen}
+                    onClose={() => setMiningDrawerOpen(false)}
+                >
+                    <div className="w-full pb-[60px]">
+                        {/* 快速挖矿卡片视图 */}
+                        <div className="w-full mt-[20px] mb-[10px] flex flex-wrap gap-[8px]">
+                            {
+                                quickMining.map((item, index) => {
+                                    return <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: Math.min(index * 0.1, 0.8) }}
+                                        whileHover={{ y: -2 }}
+                                        className={cn("w-[30%] flex flex-col items-center justify-center rounded-[6px] px-[8px] py-[8px] gap-[10px] border-[2px] transition duration-300",
+                                            !!item.count ? "bg-[#31261A]" : "bg-[#353535]",
+                                            currentQuickMiningIndex === index ? "border-[#F07C1F]" : "border-transparent"
+                                        )}
+                                        onClick={() => {
+                                            if (!!item.count) setCurrentQuickMiningIndex(index)
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-[8px]">
+                                            {/* 工具图标 */}
+                                            {getPixelResourceIcon(item.icon, {
+                                                iconSize: 34,
+                                                haveBackgroundWarper: true,
+                                            })}
+                                            {/* 工具名称 */}
+                                            <div className="text-[12px] font-[#E7E7E7]">
+                                                {PIXEL_RESOURCE_NAMES[item.icon] ?? ""}
+                                            </div>
+                                        </div>
+                                        <div className="text-[#999999] text-[12px]">
+                                            可用：<span className="text-[#E7E7E7]">{item.count ?? 0}</span>
+                                        </div>
+                                    </motion.div>
+                                })
+                            }
+                        </div>
+                        {/* 对应信息 */}
+                        {currentQuickMining && <div className="flex flex-col gap-[8px]">
+                            <div className="bg-[#292929] rounded-[5px] px-[15px] py-[10px] flex items-center justify-between">
+                                <div className="text-[#999999] text-[12px]">
+                                    已投入工具
+                                </div>
+                                <div className="text-[#CCCCCC] text-[14px]">
+                                    {PIXEL_RESOURCE_NAMES[currentQuickMining.toolType] ?? ""}：{currentQuickMining.toolCount}
+                                </div>
+                            </div>
+                            <div className="bg-[#292929] rounded-[5px] px-[15px] py-[10px] flex items-center justify-between">
+                                <div className="text-[#999999] text-[12px]">
+                                    可用工具
+                                </div>
+                                <div className="text-[#CCCCCC] text-[14px]">
+                                    {PIXEL_RESOURCE_NAMES[currentQuickMining.toolType] ?? ""}：{currentQuickMining.availableToolCount}
+                                </div>
+                            </div>
+                            <div className="bg-[#292929] rounded-[5px] px-[15px] py-[10px] flex items-center justify-between">
+                                <div className="text-[#999999] text-[12px]">
+                                    所需粮食
+                                </div>
+                                <div className="text-[#CCCCCC] text-[14px]">
+                                    {currentQuickMining.requiredFood}
+                                </div>
+                            </div>
+                            <div className="bg-[#292929] rounded-[5px] px-[15px] py-[10px] flex items-center justify-between">
+                                <div className="text-[#999999] text-[12px]">
+                                    粮食余额
+                                </div>
+                                <div className="text-[#CCCCCC] text-[14px]">
+                                    {currentQuickMining.remainingFood}
+                                </div>
+                            </div>
+                        </div>}
+                    </div>
+                    <PixelButton
+                        variant="primary"
+                        className="w-[calc(100%-32px)] h-[44px] rounded-full text-[#fff] text-[15px] fixed left-[16px] bottom-[16px]"
+                    >
+                        开始挖矿
+                    </PixelButton>
                 </PixelBottomDrawer>
             </div>
         </ErrorBoundary>

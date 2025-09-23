@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-18 21:37:44
- * @LastEditTime: 2025-09-18 23:01:47
+ * @LastEditTime: 2025-09-23 20:57:05
  * @LastEditors: yy
  * @Description: 
  */
@@ -14,6 +14,7 @@ interface BottomDrawerProps {
     children: ReactNode;
     className?: string;
     height?: string;
+    title?: string;
 }
 
 const BottomDrawer = ({
@@ -21,15 +22,19 @@ const BottomDrawer = ({
     onClose,
     children,
     className = "",
-    height = "70vh"
+    height = "70vh",
+    title = "",
 }: BottomDrawerProps) => {
     // 移动端标识
     const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
-        document.body.style.overflow = isVisible ? 'hidden' : 'unset';
+        // 记录之前overflow
+        const prevOverflow = document.body.style.overflow;
+        // 显示时禁止滚动
+        document.body.style.overflow = isVisible ? 'hidden' : prevOverflow;
         return () => {
-            document.body.style.overflow = 'unset';
+            document.body.style.overflow = prevOverflow;
         };
     }, [isVisible]);
     useEffect(() => {
@@ -99,10 +104,14 @@ const BottomDrawer = ({
                     >
                         {/* 内容区域 */}
                         <div className="px-4 pt-10 pb-4" style={{ height }}>
+                            {/* 标题 */}
+                            <div className="absolute top-4 left-4 text-[#E0E0E0] text-[14px] font-bold">
+                                {title}
+                            </div>
                             {/* 关闭按钮 */}
                             <button
                                 onClick={onClose}
-                                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+                                className="absolute top-4 right-4 w-[20px] h-[20px] bg-[#353535] rounded-full flex items-center justify-center text-white text-[10px]"
                             >
                                 ✕
                             </button>

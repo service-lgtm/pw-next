@@ -3,6 +3,11 @@ import { cn } from "@/lib/utils";
 import { getPixelResourceIcon, PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourceTool";
 import { motion } from "framer-motion";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PixelTipsModal } from "@/components/shared/PixelTipsModal";
+import { useState } from "react";
+import Image from 'next/image';
+import bg1Img from "@/public/bg1.png";
+import bg2Img from "@/public/bg2.png";
 
 /** 矿场类型 */
 type MinesType = PIXEL_RESOURCE_TYPES.WOOD | PIXEL_RESOURCE_TYPES.IRON_ORE | PIXEL_RESOURCE_TYPES.FARMLAND | PIXEL_RESOURCE_TYPES.METEORITE | PIXEL_RESOURCE_TYPES.STONE;
@@ -47,6 +52,9 @@ interface MinesCardProps {
 const MinesCard: React.FC<MinesCardProps> = (props) => {
     const { data, key } = props;
 
+    // 领取成功提示显示状态
+    const [isHarvestSuccess, setIsHarvestSuccess] = useState(false);
+
     // 处理购买土地事件
     const handleBuyLand = () => {
         console.log('购买土地');
@@ -55,6 +63,7 @@ const MinesCard: React.FC<MinesCardProps> = (props) => {
     const handleHarvest = (disabled: boolean) => {
         if (!disabled) {
             console.log('领取');
+            setIsHarvestSuccess(true);
         }
     }
 
@@ -129,6 +138,62 @@ const MinesCard: React.FC<MinesCardProps> = (props) => {
                 }
             </div>
         </motion.div>
+        {/* <PixelTipsModal
+            isVisible={isHarvestSuccess}
+            onClose={() => setIsHarvestSuccess(false)}
+            className="overflow-visible rounded-[6px]"
+        >
+            <div className="py-2 px-4">测试文本</div>
+        </PixelTipsModal> */}
+        {/* 领取成功提示 */}
+        <PixelTipsModal
+            isVisible={isHarvestSuccess}
+            onClose={() => setIsHarvestSuccess(false)}
+            className="overflow-visible"
+        >
+            <div className="relative w-[300px] h-[280px]">
+                <div className="w-[240px] h-[200px] absolute top-0 left-1/2 -translate-y-1/2 -translate-x-1/2">
+                    <Image
+                        width={220}
+                        height={220}
+                        src={bg1Img}
+                        alt={'title-bg'}
+                        className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2"
+                    />
+                    <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 text-[30px] font-[800] bg-clip-text text-transparent" style={{
+                        backgroundImage: 'linear-gradient(to bottom, #FFF3D3, #FF9C00)'
+                    }}>领取成功</div>
+                </div>
+                <div className="pt-[30px] text-[#E6D09A] text-[18px] text-center">
+                    本次获得<span className="text-[#F07C1F]">10</span>木材
+                </div>
+                <div className="relative w-[140px] h-[140px] mx-auto">
+                    <Image
+                        width={140}
+                        height={140}
+                        src={bg2Img}
+                        alt={'icon-bg'}
+                        className="icon-spin absolute top-0 left-0"
+                    />
+                    <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2">
+                        {
+                            getPixelResourceIcon(data?.minesType, {
+                                iconSize: 34,
+                                haveBackgroundWarper: true,
+                            })
+                        }
+                        <div className="absolute bottom-0 right-[-5px] translate-x-[100%] text-[#F07C1F] text-[13px]">X10</div>
+                    </div>
+                </div>
+                <PixelButton
+                    variant="primary"
+                    className={"relative block w-[240px] h-[44px] p-0 rounded-full text-white text-[15px] mx-auto"}
+                    onClick={() => setIsHarvestSuccess(false)}
+                >
+                    我知道啦
+                </PixelButton>
+            </div>
+        </PixelTipsModal>
     </ErrorBoundary>
 }
 
