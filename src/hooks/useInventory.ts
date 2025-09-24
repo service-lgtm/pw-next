@@ -29,6 +29,7 @@ interface MaterialItem {
   unit_price?: number     // 单价（TDB/个）
   display_name: string    // 显示名称
   frozen?: number         // 冻结数量
+  _resourceAmount?: number // 额外字段，用于前端计算
 }
 
 /**
@@ -45,6 +46,7 @@ interface ToolItem {
   display_name: string             // 显示名称
   unit_price?: number              // 单价（TDB）
   value?: number                   // 总价值（TDB）
+  _resourceAmount?: number       // 额外字段，用于前端计算
 }
 
 /**
@@ -59,13 +61,14 @@ interface SpecialItem {
   value?: number          // 总价值（TDB）
   value_tdb?: number      // TDB价值
   value_rmb?: number      // 人民币价值
+  _resourceAmount?: number // 额外字段，用于前端计算
 }
 
 /**
  * 完整的库存数据结构
  * 对应后端 UserInventoryView.get() 返回的 data 字段
  */
-interface InventoryData {
+export interface InventoryData {
   // 材料资源（铁矿、石材、木材、粮食、种子）
   materials: {
     iron?: MaterialItem
@@ -173,10 +176,31 @@ export function useInventory(options?: UseInventoryOptions) {
           include_prices: includePrices ? 'true' : 'false'  // 是否包含价格
         }
       })
-
       if (response.success && response.data) {
         // 直接使用后端返回的数据结构
         // 不需要转换，因为后端 UserInventoryView 返回的格式已经符合需求
+        const resourceData = response.data ?? {};
+        // 处理材料（统一key取值）
+        if (resourceData.materials) {
+          for (const key in resourceData.materials) {
+            const item = resourceData.materials[key as keyof InventoryData['materials']];
+            if (item) item._resourceAmount = +(item.amount?.toFixed(2) ?? 0);
+          }
+        }
+        // 处理工具（统一key取值）
+        if (resourceData.tools) {
+          for (const key in resourceData.tools) {
+            const item = resourceData.tools[key as keyof InventoryData['tools']];
+            if (item) item._resourceAmount = +(item.count?.toFixed(2) ?? 0);
+          }
+        }
+        // 处理特殊资源（统一key取值）
+        if (resourceData.special) {
+          for (const key in resourceData.special) {
+            const item = resourceData.special[key as keyof InventoryData['special']];
+            if (item) item._resourceAmount = +(item.amount?.toFixed(2) ?? 0);
+          }
+        }
         setInventory(response.data)
 
         // 记录日志用于调试

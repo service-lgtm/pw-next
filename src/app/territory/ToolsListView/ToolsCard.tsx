@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-22 22:04:31
- * @LastEditTime: 2025-09-22 22:19:17
+ * @LastEditTime: 2025-09-24 21:54:45
  * @LastEditors: yy
  * @Description: 
  */
@@ -10,34 +10,34 @@ import { getPixelResourceIcon, PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourc
 import { motion } from "framer-motion";
 
 /** 工具卡片数据类型 */
-export interface IToolsCard {
-    /** 编号 */
-    id: number;
-    /** 工具类型 */
-    icon: PIXEL_RESOURCE_TYPES;
-    /** 工具名称 */
-    name: string;
-    /** 耐久度上限 */
-    durability: number;
-    /** 耐久度 */
-    durabilityCurrent: number;
-    /** 获得日期 */
-    getTimestamp: string;
-    /** 获得的渠道 */
-    getChannel: string;
-}
+// export interface IToolsCard {
+//     /** 编号 */
+//     id: number;
+//     /** 工具类型 */
+//     icon: PIXEL_RESOURCE_TYPES;
+//     /** 工具名称 */
+//     name: string;
+//     /** 耐久度上限 */
+//     durability: number;
+//     /** 耐久度 */
+//     durabilityCurrent: number;
+//     /** 获得日期 */
+//     getTimestamp: string;
+//     /** 获得的渠道 */
+//     getChannel: string;
+// }
 
 /** 工具卡片类型 */
 interface ToolsCardProps {
     /** 数据源 */
-    data: IToolsCard;
+    data: any;
     key: number;
 }
 /** 领地页-我的工具页-工具卡片 */
-const ToolsCard:React.FC<ToolsCardProps> = (props) => {
-    const { data,key } = props;
+const ToolsCard: React.FC<ToolsCardProps> = (props) => {
+    const { data, key } = props;
 
-  return <ErrorBoundary>
+    return <ErrorBoundary>
         <motion.div
             key={key}
             initial={{ opacity: 0, y: 20 }}
@@ -46,30 +46,32 @@ const ToolsCard:React.FC<ToolsCardProps> = (props) => {
             whileHover={{ y: -2 }}
             className="flex justify-between w-full p-[15px] bg-[#1A1A1A] rounded-[6px] gap-[10px]"
         >
-            {/* 左侧信息 */}
-            <div className="flex flex-col gap-[10px]">
-                {/* 工具标识 */}
-                <div className="flex items-center gap-[10px]">
-                    {
-                        getPixelResourceIcon(data.icon,{
-                            iconSize: 34,
-                            haveBackgroundWarper:true,
-                        })
-                    }
-                    <span className="text-[#E7E7E7] text-[16px]">{data?.name ?? ""}</span>
+            <div className="w-full flex flex-col gap-[10px]">
+                <div className="w-full flex items-center justify-between gap-[10px]">
+                    {/* 工具标识 */}
+                    <div className="flex items-center gap-[10px]">
+                        {
+                            getPixelResourceIcon(data.icon, {
+                                iconSize: 34,
+                                haveBackgroundWarper: true,
+                            })
+                        }
+                        <span className="text-[#E7E7E7] text-[16px]">{data?.tool_type_display ?? ""}</span>
+                    </div>
+                    <div className="text-[#999999] text-[12px]">
+                        编号{data?.tool_id ?? ""}
+                    </div>
                 </div>
                 <div className="text-[#999999] text-[14px]">
-                    耐久度：<span className="text-[#F07C1F]">{data?.durabilityCurrent ?? 0}</span>/{data?.durability ?? 0}
+                    耐久度：<span className="text-[#F07C1F]">{data?.durability_percentage ?? 0}</span>/{data?.max_durability ?? 0}
                 </div>
                 <div className="text-[#999999] text-[14px]">
                     {/* 获取日期 */}
-                    <span>{data?.getTimestamp ?? ""}</span>
+                    <span>{data?.created_at ?? ""}</span>
                     {/* 获取渠道 */}
+                    {/* TODO:key */}
                     <span className="ml-[5px]">{data?.getChannel ?? ""}</span>
                 </div>
-            </div>
-            <div className="text-[#999999] text-[12px]">
-                编号{data?.id ?? ""}
             </div>
         </motion.div>
     </ErrorBoundary>;

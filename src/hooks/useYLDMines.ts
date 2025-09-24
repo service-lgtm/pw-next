@@ -21,12 +21,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { assetsApi, getYLDCapacity } from '@/lib/api/assets'
 import { ApiError } from '@/lib/api'
-import type { 
-  YLDMine, 
-  YLDMineDetail, 
+import type {
+  YLDMine,
+  YLDMineDetail,
   YLDMineListResponse,
   MineLand,
-  MineListResponse 
+  MineListResponse
 } from '@/types/assets'
 
 // ==================== 获取所有可挖矿土地 ====================
@@ -43,7 +43,7 @@ export function useAllMines(params?: {
   const [stats, setStats] = useState<MineListResponse['stats'] | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  
+
   const fetchMines = useCallback(async () => {
     // 如果 params 为 null，说明不应该获取数据（比如未登录）
     if (params === null) {
@@ -51,13 +51,13 @@ export function useAllMines(params?: {
       setLoading(false)
       return
     }
-    
+
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('[useAllMines] 开始获取矿山列表')
-      
+
       const response = await assetsApi.mines.all({
         land_type: params?.land_type,
         page: params?.page || 1,
@@ -65,23 +65,23 @@ export function useAllMines(params?: {
         search: params?.search,
         ordering: params?.ordering || '-created_at',
       })
-      
+
       console.log('[useAllMines] 获取成功:', {
         count: response.count,
         results: response.results.length,
         stats: response.stats
       })
-      
+
       setMines(response.results)
       setTotalCount(response.count)
       setHasMore(!!response.next)
-      
+
       if (response.stats) {
         setStats(response.stats)
       }
     } catch (err) {
       console.error('[useAllMines] 获取失败:', err)
-      
+
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setError('请先登录')
@@ -102,11 +102,11 @@ export function useAllMines(params?: {
       setLoading(false)
     }
   }, [params?.land_type, params?.page, params?.page_size, params?.search, params?.ordering])
-  
+
   useEffect(() => {
     fetchMines()
   }, [fetchMines])
-  
+
   return {
     mines,
     loading,
@@ -129,9 +129,10 @@ export function useMyYLDMines(params?: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<YLDMineListResponse['stats'] | null>(null)
+  const [pre_stats, setPre_Stats] = useState<YLDMineListResponse['pre_stats'] | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  
+
   const fetchMines = useCallback(async () => {
     // 如果 params 为 null，说明不应该获取数据（比如未登录）
     if (params === null) {
@@ -139,36 +140,39 @@ export function useMyYLDMines(params?: {
       setLoading(false)
       return
     }
-    
+
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('[useMyYLDMines] 开始获取 YLD 矿山列表')
-      
+
       const response = await assetsApi.yldMines.list({
         page: params?.page || 1,
         page_size: params?.page_size || 20,
         search: params?.search,
         ordering: params?.ordering || '-created_at',
       })
-      
+
       console.log('[useMyYLDMines] 获取成功:', {
         count: response.count,
         results: response.results.length,
         stats: response.stats
       })
-      
+
       setMines(response.results)
       setTotalCount(response.count)
       setHasMore(!!response.next)
-      
+
       if (response.stats) {
         setStats(response.stats)
       }
+      if (response.pre_stats) {
+        setPre_Stats(response.pre_stats)
+      }
     } catch (err) {
       console.error('[useMyYLDMines] 获取失败:', err)
-      
+
       if (err instanceof ApiError) {
         if (err.status === 401) {
           setError('请先登录')
@@ -189,16 +193,17 @@ export function useMyYLDMines(params?: {
       setLoading(false)
     }
   }, [params?.page, params?.page_size, params?.search, params?.ordering])
-  
+
   useEffect(() => {
     fetchMines()
   }, [fetchMines])
-  
+
   return {
     mines,
     loading,
     error,
     stats,
+    pre_stats,
     totalCount,
     hasMore,
     refetch: fetchMines
@@ -210,29 +215,29 @@ export function useYLDMineDetail(id: number | null) {
   const [mine, setMine] = useState<YLDMineDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   useEffect(() => {
     if (!id || id <= 0) {
       setMine(null)
       setLoading(false)
       return
     }
-    
+
     const fetchMineDetail = async () => {
       try {
         setLoading(true)
         setError(null)
-        
+
         console.log('[useYLDMineDetail] 获取矿山详情, ID:', id)
-        
+
         const data = await assetsApi.yldMines.get(id)
-        
+
         console.log('[useYLDMineDetail] 获取成功:', data)
-        
+
         setMine(data)
       } catch (err) {
         console.error('[useYLDMineDetail] 获取失败:', err)
-        
+
         if (err instanceof ApiError) {
           if (err.status === 401) {
             setError('请先登录')
@@ -250,10 +255,10 @@ export function useYLDMineDetail(id: number | null) {
         setLoading(false)
       }
     }
-    
+
     fetchMineDetail()
   }, [id])
-  
+
   return { mine, loading, error }
 }
 
@@ -261,24 +266,24 @@ export function useYLDMineDetail(id: number | null) {
 export function useStartMineProduction() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const startProduction = useCallback(async (mineId: number) => {
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('[useStartMineProduction] 开始生产, 矿山ID:', mineId)
-      
+
       const response = await assetsApi.yldMines.startProduction(mineId)
-      
+
       console.log('[useStartMineProduction] 开始生产成功:', response)
-      
+
       return response
     } catch (err) {
       console.error('[useStartMineProduction] 开始生产失败:', err)
-      
+
       let errorMessage = '操作失败'
-      
+
       if (err instanceof ApiError) {
         if (err.status === 401) {
           errorMessage = '请先登录'
@@ -292,14 +297,14 @@ export function useStartMineProduction() {
           errorMessage = err.message || '操作失败'
         }
       }
-      
+
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
       setLoading(false)
     }
   }, [])
-  
+
   return {
     startProduction,
     loading,
@@ -311,24 +316,24 @@ export function useStartMineProduction() {
 export function useCollectMineOutput() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const collectOutput = useCallback(async (mineId: number) => {
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('[useCollectMineOutput] 收取产出, 矿山ID:', mineId)
-      
+
       const response = await assetsApi.yldMines.collectOutput(mineId)
-      
+
       console.log('[useCollectMineOutput] 收取成功:', response)
-      
+
       return response
     } catch (err) {
       console.error('[useCollectMineOutput] 收取失败:', err)
-      
+
       let errorMessage = '操作失败'
-      
+
       if (err instanceof ApiError) {
         if (err.status === 401) {
           errorMessage = '请先登录'
@@ -342,14 +347,14 @@ export function useCollectMineOutput() {
           errorMessage = err.message || '操作失败'
         }
       }
-      
+
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
       setLoading(false)
     }
   }, [])
-  
+
   return {
     collectOutput,
     loading,
@@ -362,15 +367,15 @@ export function useYLDMineStats() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true)
         setError(null)
-        
+
         const response = await assetsApi.yldMines.getAllStats()
-        
+
         if (response.success) {
           setStats(response.data)
         }
@@ -386,10 +391,10 @@ export function useYLDMineStats() {
         setLoading(false)
       }
     }
-    
+
     fetchStats()
   }, [])
-  
+
   return { stats, loading, error }
 }
 

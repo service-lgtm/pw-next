@@ -23,11 +23,11 @@
  */
 
 import { API_BASE_URL, request, ApiError } from './index'
-import type { 
-  Region, 
-  Land, 
-  LandDetail, 
-  LandBlueprint, 
+import type {
+  Region,
+  Land,
+  LandDetail,
+  LandBlueprint,
   LandTransaction,
   PaginatedResponse,
   YLDMine,
@@ -65,20 +65,20 @@ async function assetsRequest<T>(
       // 如果是获取单个资源的404，直接抛出
       throw error
     }
-    
+
     // 处理认证错误
     if (error instanceof ApiError && error.status === 401) {
       // 401 错误会被基础 request 函数处理（尝试刷新 token）
       // 如果到这里说明刷新失败，让错误继续抛出
       throw error
     }
-    
+
     if (error instanceof ApiError && error.status === 403) {
       // 如果是公开端点的 403 错误，可能是因为未登录
       // 返回空数据而不是报错，让用户看到登录提示
       if (isPublicEndpoint(endpoint)) {
         console.log(`[Assets API] 未认证访问公开端点 ${endpoint}，返回空数据`)
-        
+
         // 根据端点类型返回合适的空数据结构
         if (endpoint.includes('/regions/') && !endpoint.includes('/stats/')) {
           // 区域列表或详情
@@ -94,7 +94,7 @@ async function assetsRequest<T>(
             previous: null
           } as any
         }
-        
+
         if (endpoint.includes('/blueprints/')) {
           return {
             count: 0,
@@ -103,7 +103,7 @@ async function assetsRequest<T>(
             previous: null
           } as any
         }
-        
+
         if (endpoint.includes('/lands/available/')) {
           return {
             count: 0,
@@ -120,7 +120,7 @@ async function assetsRequest<T>(
         }
       }
     }
-    
+
     // 其他错误或非公开端点的错误，继续抛出
     throw error
   }
@@ -130,7 +130,7 @@ async function assetsRequest<T>(
 function convertMineToYLDMine(mine: MineLand): YLDMine {
   // 获取 YLD 储量（兼容两种存储位置）
   let yldCapacity: string | number = '0'
-  
+
   if (mine.special_type === 'yld_converted' && mine.initial_price) {
     // 转换矿山：储量在 initial_price
     yldCapacity = mine.initial_price
@@ -141,7 +141,7 @@ function convertMineToYLDMine(mine: MineLand): YLDMine {
     // 兼容旧字段
     yldCapacity = mine.metadata.yld_amount
   }
-  
+
   return {
     ...mine,
     yld_capacity: yldCapacity,
@@ -161,9 +161,9 @@ export const assetsApi = {
       is_open_for_sale?: boolean
       search?: string
     }) => assetsRequest<PaginatedResponse<Region>>('/assets/regions/', { params }),
-    
+
     get: (id: number) => assetsRequest<Region>(`/assets/regions/${id}/`),
-    
+
     stats: (id: number) => assetsRequest<{
       success: boolean
       data: {
@@ -181,7 +181,7 @@ export const assetsApi = {
       }
     }>(`/assets/regions/${id}/stats/`),
   },
-  
+
   // ==================== 蓝图相关 ====================
   blueprints: {
     list: (params?: {
@@ -189,10 +189,10 @@ export const assetsApi = {
       is_active?: boolean
       ordering?: string
     }) => assetsRequest<PaginatedResponse<LandBlueprint>>('/assets/blueprints/', { params }),
-    
+
     get: (id: number) => assetsRequest<LandBlueprint>(`/assets/blueprints/${id}/`),
   },
-  
+
   // ==================== 土地相关 ====================
   lands: {
     // 可购买的土地列表
@@ -205,7 +205,7 @@ export const assetsApi = {
       page?: number
       page_size?: number
     }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/available/', { params }),
-    
+
     // 我的土地列表
     myLands: (params?: {
       blueprint__land_type?: string
@@ -216,10 +216,10 @@ export const assetsApi = {
       page?: number
       page_size?: number
     }) => assetsRequest<PaginatedResponse<Land>>('/assets/lands/my-lands/', { params }),
-    
+
     // 获取土地详情
     get: (id: number) => assetsRequest<LandDetail>(`/assets/lands/${id}/`),
-    
+
     // 购买土地 - 已移除 payment_password 参数
     buy: (data: {
       land_id: number
@@ -231,7 +231,7 @@ export const assetsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-    
+
     // 转让土地
     transfer: (data: {
       land_id: number
@@ -245,7 +245,7 @@ export const assetsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-    
+
     // 土地交易历史
     transactions: (landId: number, params?: {
       transaction_type?: string
@@ -255,7 +255,7 @@ export const assetsApi = {
       { params }
     ),
   },
-  
+
   // ==================== 新的矿山 API ====================
   mines: {
     // 获取所有可挖矿土地（包括所有类型）
@@ -266,7 +266,7 @@ export const assetsApi = {
       page?: number
       page_size?: number
     }) => assetsRequest<MineListResponse>('/assets/mines/all/', { params }),
-    
+
     // 获取 YLD 转换矿山
     yldConverted: (params?: {
       search?: string
@@ -274,7 +274,7 @@ export const assetsApi = {
       page?: number
       page_size?: number
     }) => assetsRequest<MineListResponse>('/assets/mines/yld-converted/', { params }),
-    
+
     // 获取普通 YLD 矿山
     yldNormal: (params?: {
       search?: string
@@ -282,10 +282,10 @@ export const assetsApi = {
       page?: number
       page_size?: number
     }) => assetsRequest<MineListResponse>('/assets/mines/yld-normal/', { params }),
-    
+
     // 获取矿山详情
     get: (id: number) => assetsRequest<MineLand>(`/assets/mines/${id}/`),
-    
+
     // 开始生产
     startProduction: (id: number) => assetsRequest<{
       success: boolean
@@ -298,7 +298,7 @@ export const assetsApi = {
     }>(`/assets/mines/${id}/start-production/`, {
       method: 'POST',
     }),
-    
+
     // 收取产出
     collectOutput: (id: number) => assetsRequest<{
       success: boolean
@@ -312,14 +312,14 @@ export const assetsApi = {
     }>(`/assets/mines/${id}/collect/`, {
       method: 'POST',
     }),
-    
+
     // 获取统计信息
     stats: () => assetsRequest<{
       success: boolean
       data: MineStats
     }>('/assets/mines/stats/'),
   },
-  
+
   // ==================== YLD 矿山相关（向后兼容） ====================
   yldMines: {
     // 获取我的所有矿山列表（不仅仅是 YLD）
@@ -332,7 +332,7 @@ export const assetsApi = {
       try {
         // 使用 /api/assets/mines/all/ 获取所有类型的矿山
         const response = await assetsApi.mines.all(params)
-        
+
         // 转换统计信息格式
         const stats = response.stats ? {
           total_mines: response.stats.total_mines,
@@ -349,8 +349,8 @@ export const assetsApi = {
           total_yld_capacity: response.results.reduce((sum, mine) => {
             // 只计算 YLD 矿山的储量
             if (mine.land_type === 'yld_mine' || mine.special_type === 'yld_converted') {
-              const capacity = mine.initial_reserves || 
-                             parseFloat(mine.yld_capacity || '0') || 0
+              const capacity = mine.initial_reserves ||
+                parseFloat(mine.yld_capacity || '0') || 0
               return sum + capacity
             }
             return sum
@@ -361,20 +361,21 @@ export const assetsApi = {
           producing_count: response.results.filter(m => m.is_producing).length,
           by_batch: []
         }
-        
+
         const result: YLDMineListResponse = {
           count: response.count,
           next: response.next,
           previous: response.previous,
           results: response.results as YLDMine[],
-          stats
+          stats,
+          pre_stats: response.stats
         }
-        
+
         return result
       } catch (error) {
         // 如果新 API 失败，尝试旧的 API（如果存在）
         console.warn('[yldMines.list] 新 API 失败，尝试旧接口:', error)
-        
+
         // 尝试旧的端点
         try {
           return await assetsRequest<YLDMineListResponse>('/assets/yld-mines/', { params })
@@ -384,14 +385,14 @@ export const assetsApi = {
         }
       }
     },
-    
+
     // 获取 YLD 矿山详情（兼容旧接口）
     get: async (id: number) => {
       try {
         // 使用新 API
         const mine = await assetsApi.mines.get(id)
         const yldMine = convertMineToYLDMine(mine)
-        
+
         // 返回详情格式
         return {
           ...yldMine,
@@ -401,7 +402,7 @@ export const assetsApi = {
       } catch (error) {
         // 如果新 API 失败，尝试旧的 API
         console.warn('[yldMines.get] 新 API 失败，尝试旧接口:', error)
-        
+
         try {
           return await assetsRequest<YLDMineDetail>(`/assets/yld-mines/${id}/`)
         } catch (oldError) {
@@ -409,18 +410,18 @@ export const assetsApi = {
         }
       }
     },
-    
+
     // 开始生产（使用新 API）
     startProduction: (id: number) => assetsApi.mines.startProduction(id),
-    
+
     // 收取产出（使用新 API）
     collectOutput: (id: number) => assetsApi.mines.collectOutput(id),
-    
+
     // 获取全平台统计（兼容旧接口）
     getAllStats: async () => {
       try {
         const response = await assetsApi.mines.stats()
-        
+
         // 转换为旧格式
         const oldFormat: YLDMineStats = {
           total_stats: {
@@ -432,7 +433,7 @@ export const assetsApi = {
           batch_stats: [],  // 新 API 可能没有批次统计
           top_users: []  // 新 API 可能没有用户排行
         }
-        
+
         return {
           success: true,
           data: oldFormat
@@ -440,7 +441,7 @@ export const assetsApi = {
       } catch (error) {
         // 尝试旧接口
         console.warn('[yldMines.getAllStats] 新 API 失败，尝试旧接口:', error)
-        
+
         try {
           return await assetsRequest<{
             success: boolean
@@ -462,28 +463,28 @@ export function getYLDCapacity(mine: MineLand | YLDMine): number {
   if (mine.remaining_reserves !== undefined) {
     return mine.remaining_reserves
   }
-  
+
   // 2. 检查 yld_capacity（当前储量）
   if (mine.yld_capacity !== undefined) {
-    return typeof mine.yld_capacity === 'string' 
-      ? parseFloat(mine.yld_capacity) || 0 
+    return typeof mine.yld_capacity === 'string'
+      ? parseFloat(mine.yld_capacity) || 0
       : mine.yld_capacity
   }
-  
+
   // 3. 检查 metadata 中的储量
   if (mine.metadata?.remaining_reserves !== undefined) {
     return mine.metadata.remaining_reserves
   }
-  
+
   if (mine.metadata?.yld_reserves !== undefined) {
     return mine.metadata.yld_reserves
   }
-  
+
   // 4. 向后兼容：检查 initial_price（旧版本可能用这个）
   if (mine.initial_price) {
     return parseFloat(mine.initial_price) || 0
   }
-  
+
   return 0
 }
 
@@ -493,12 +494,12 @@ export function getInitialYLDCapacity(mine: MineLand | YLDMine): number {
   if (mine.initial_reserves !== undefined) {
     return mine.initial_reserves
   }
-  
+
   // 2. 检查 metadata 中的原始容量
   if (mine.metadata?.yld_capacity) {
     return parseFloat(mine.metadata.yld_capacity) || 0
   }
-  
+
   // 3. 使用当前储量作为后备
   return getYLDCapacity(mine)
 }
@@ -509,17 +510,17 @@ export function isYLDMine(mine: MineLand): boolean {
   if (mine.blueprint_info?.land_type === 'yld_mine') {
     return true
   }
-  
+
   // 检查 land_type
   if (mine.land_type === 'yld_mine') {
     return true
   }
-  
+
   // 检查是否为转换矿山
   if (mine.special_type === 'yld_converted') {
     return true
   }
-  
+
   return false
 }
 

@@ -1,14 +1,14 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 21:04:11
- * @LastEditTime: 2025-09-23 22:52:12
+ * @LastEditTime: 2025-09-24 22:37:08
  * @LastEditors: yy
  * @Description: 
  */
 "use client"
 import PixelBottomDrawer from "@/components/shared/PixelBottomDrawer";
 import { PixelButton } from "@/components/shared/PixelButton";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from 'framer-motion'
 import ToolsViewWapper from "./ToolsListView/ToolsViewWapper";
 import MinesViewWapper from "./MinesListView/MinesViewWapper";
@@ -16,6 +16,9 @@ import { FixedHeader, UserAvatarButton } from "@/components/BottomMenuBar/Bottom
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourceTool";
 import { cn } from "@/lib/utils";
+import { useInventory } from "@/hooks/useInventory";
+import { useMyYLDMines } from "@/hooks/useYLDMines";
+import { useAuth } from "@/hooks/useAuth";
 
 /** 合成工具列表枚举 */
 const getSynthesisToolsEnum: () => {
@@ -100,6 +103,9 @@ const getQuickMiningEnum: () => {
 /** 领地页 */
 const miningCenter = () => {
 
+
+    const { inventory, refetch: refetchInventory } = useInventory({ category: 'all' })
+
     // 合成工具抽屉显示状态
     const [synthesisDrawerOpen, setSynthesisDrawerOpen] = useState(false);
     // 挖矿抽屉显示状态
@@ -155,15 +161,31 @@ const miningCenter = () => {
         setSynthesisToolCount(count);
     }
 
+    useEffect(() => {
+        // 一小时后刷新一次
+        const timer = setTimeout(() => {
+            refetchInventory();
+        }, 1000 * 60 * 60);
+        return () => {
+            clearTimeout(timer);
+        }
+    }, []);
+
+    // 粮食总数
+    const totalFood = inventory?.materials?.food?._resourceAmount ?? 0;
+    // 已投入工具数量
+    const totalToolCount = inventory?.stats?.tools?.in_use ?? 0;
+
     // 剩余统计展示列表参数
     const statisticsList = [
         {
             title: "粮食剩余",
-            value: "412143"
+            value: totalFood
         },
         {
             title: "剩余时长",
-            value: "0"
+            // 剩余时常=粮食总数/（已投用工具数量*2），结果向下取整
+            value: Math.floor(totalFood / (totalToolCount * 2))
         }
     ]
 
@@ -211,7 +233,7 @@ const miningCenter = () => {
                 {/* 中间内容 */}
                 <div className="relative w-full px-[15px]">
                     {/* 工具列表视图 */}
-                    <ToolsViewWapper />
+                    <ToolsViewWapper inventory={inventory} />
                     {/* 剩余统计 */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -239,7 +261,7 @@ const miningCenter = () => {
 
                     </motion.div>
                     {/* 矿场列表视图 */}
-                    <MinesViewWapper />
+                    <MinesViewWapper inventory={inventory} />
                 </div>
 
                 {/* 底部固定操作 */}

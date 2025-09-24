@@ -166,7 +166,7 @@ export interface MineLand {
 export interface YLDMine extends MineLand {
   // YLD 储量的统一访问器（兼容两种类型）
   yld_capacity?: string | number  // 向后兼容字段
-  
+
   // 批次信息（转换矿山特有）
   batch_id?: string
   converted_at?: string
@@ -250,7 +250,8 @@ export interface YLDMineListResponse extends PaginatedResponse<YLDMine> {
       count: number
       total_yld: number
     }>
-  }
+  },
+  pre_stats?: MineStats
 }
 
 export interface PaginatedResponse<T> {

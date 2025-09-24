@@ -16,6 +16,11 @@ import StoneImg from "@/public/pixelResource/Stone.png";
 import WoodImg from "@/public/pixelResource/Wood.png";
 import TOBImg from "@/public/pixelResource/TOB.png";
 import { motion } from 'framer-motion';
+// import { type InventoryData } from '@/hooks/useInventory';
+
+/** 资源key取值类型 */
+// export type ResourceKey = keyof InventoryData['materials'] | keyof InventoryData['tools'] | keyof InventoryData['special']
+export type ResourceKey = "iron" | "stone" | "wood" | "food" | "seed" | "pickaxe" | "axe" | "hoe" | "brick" | "yld";
 
 /** 资源标识定义 */
 export enum PIXEL_RESOURCE_TYPES {
