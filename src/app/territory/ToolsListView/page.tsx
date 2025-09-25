@@ -8,7 +8,7 @@
 "use client"
 import { FixedHeader, SHOW_MENU_BAR_EVENT } from '@/components/BottomMenuBar/BottomMenuBarLayout';
 import { eventManager } from '@/utils/eventManager';
-import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_TYPES, ResourceKey } from '@/utils/pixelResourceTool';
+import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_SERVICE_KEYS, PIXEL_RESOURCE_TYPES, ResourceKey } from '@/utils/pixelResourceTool';
 import { useEffect, useState } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import Image from 'next/image';
@@ -33,19 +33,19 @@ export const getToolsEnum: () => {
             // 镐头
             icon: PIXEL_RESOURCE_TYPES.PICKAXE,
             color: ["#F7921B", "#F7921B80", "#f7901b13"],
-            key: "pickaxe",
+            key: PIXEL_RESOURCE_SERVICE_KEYS.PICKAXE,
         },
         {
             // 斧头
             icon: PIXEL_RESOURCE_TYPES.AXE,
             color: ["#61D18E", "#61D18E80", "#61d18e10"],
-            key: "axe",
+            key: PIXEL_RESOURCE_SERVICE_KEYS.AXE,
         },
         {
             // 锄头
             icon: PIXEL_RESOURCE_TYPES.HOE,
             color: ["#62A6F2", "#62A6F280", "#62a5f213"],
-            key: "hoe",
+            key: PIXEL_RESOURCE_SERVICE_KEYS.HOE,
         },
         // {
         //     // 砖头
@@ -57,7 +57,7 @@ export const getToolsEnum: () => {
             // 种子
             icon: PIXEL_RESOURCE_TYPES.SEED,
             color: ["#CACC1A", "#CACC1A80", "#c9cc1a0e"],
-            key: "seed",
+            key: PIXEL_RESOURCE_SERVICE_KEYS.SEED,
         },
     ]
 }

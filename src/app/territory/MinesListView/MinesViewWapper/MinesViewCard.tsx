@@ -27,7 +27,7 @@ export interface IMinesInfoType {
     /** 矿场储量 */
     mineReserves: string;
     /** 可领取量 */
-    reserveHarvesting: number;
+    reserveHarvesting: string;
     /** 可投入工具总数 */
     toolCount: number;
     /** 已投入工具数量 */

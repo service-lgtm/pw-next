@@ -79,6 +79,12 @@ export interface Land {
   transaction_count: number
   is_special: boolean
   created_at: string
+  /** 是否处于生产中 */
+  is_producing: boolean;
+  /** 初始储量 */
+  initial_reserves_display: number;
+  /** 剩余储量 */
+  remaining_reserves: number;
 }
 
 export interface LandDetail extends Land {

@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-22 20:32:21
- * @LastEditTime: 2025-09-23 00:03:47
+ * @LastEditTime: 2025-09-26 00:07:46
  * @LastEditors: yy
  * @Description: 
  */
@@ -10,57 +10,67 @@
 import { FixedHeader, SHOW_MENU_BAR_EVENT } from "@/components/BottomMenuBar/BottomMenuBarLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { eventManager } from "@/utils/eventManager";
-import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_TYPES } from "@/utils/pixelResourceTool";
+import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_SERVICE_KEYS, PIXEL_RESOURCE_TYPES, ResourceKey } from "@/utils/pixelResourceTool";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Image from 'next/image';
 import { pathMap } from "@/utils/pathMap";
 import { motion } from "framer-motion";
-import MineCard, { IMinesCard } from "./MinesCard";
+import MineCard from "./MinesCard";
 import { cn } from "@/lib/utils";
+import { useMyLands } from "@/hooks/useLands";
+import { type Land } from "@/types/assets";
 
 /** 土地列表枚举 */
 export const getMinesEnum: () => {
     icon: PIXEL_RESOURCE_TYPES;
     color: [string, string, string];
+    key: string;
 }[] = () => {
     return [
         {
             // 铁矿
             icon: PIXEL_RESOURCE_TYPES.IRON_ORE,
             color: ["#CF1B9E", "#CF1B9E80", "#cf1b9f11"],
+            key: ""
         },
         {
             // 农田
             icon: PIXEL_RESOURCE_TYPES.FARMLAND,
             color: ["#F7921B", "#F7921B80", "#f7901b0e"],
+            key: "farm"
         },
         {
             // 森林
             icon: PIXEL_RESOURCE_TYPES.FOREST,
             color: ["#61D18E", "#61D18E80", "#61D18E80"],
+            key: "forest"
         },
         {
             // 陨石
             icon: PIXEL_RESOURCE_TYPES.METEORITE,
             color: ["#62A6F2", "#62A6F280", "#62a5f210"],
+            key: "yld_mine",
         },
         {
             // 石矿
             icon: PIXEL_RESOURCE_TYPES.STONE,
             color: ["#8743E2", "#8743E280", "#8843e213"],
+            key: "stone_mine"
         },
         {
             // 城市
             icon: PIXEL_RESOURCE_TYPES.CITY,
             color: ["#EEF01F", "#EEF01F80", "#ecf01f15"],
+            key: ""
         },
     ]
 }
 
 /** 领地页-我的土地页 */
 const MinesListView = () => {
-
+    const { lands, stats, loading, error, refetch } = useMyLands()
+    console.log(lands, "<>", stats, ">>>>>>>")
     // 列表刷新状态
     const [refreshing, setRefreshing] = useState(false);
     // 当前选中项土地列表
@@ -69,45 +79,47 @@ const MinesListView = () => {
     const minesList: {
         icon: PIXEL_RESOURCE_TYPES;
         color: [string, string, string];
-        list: IMinesCard[];
-    }[] = getMinesEnum().map(record => ({
-        ...record,
-        list: Array.from({ length: 10 }).map((_, index) => ({
-            id: index,
-            icon: record.icon,
-            name: `${[PIXEL_RESOURCE_NAMES[record.icon] ?? "", index + 1].filter(Boolean).join("-")}`,
-            status: index % 2 === 0 ? 0 : 1,
-            address: "中国-江苏-连云港-东海县",
-            coordinate: [102, 135],
-            capacity: 10000,
-            current: 12546,
-            tools: 113,
-            output: 12,
-        }))
-    }));
+        list: Land[];
+    }[] = getMinesEnum().map(record => {
+        const currentLands = lands.filter(land => land.land_type === record.key) ?? [];
+        return {
+            ...record,
+            list: currentLands
+        }
+    });
+
+    const _by_typeInfo = stats?.by_type ?? {};
+    // 剩余总储量
+    const totalReserves =
+        (
+            // (_by_typeInfo?.farm?.reserves?.remaining ?? 0) +
+            (_by_typeInfo?.forest?.reserves?.remaining ?? 0) +
+            (_by_typeInfo?.stone_mine?.reserves?.remaining ?? 0) +
+            (_by_typeInfo?.yld_converted?.reserves?.remaining ?? 0)).toFixed(2);
 
     // 剩余统计展示列表参数
     const statisticsList = [
         {
             title: "总数量",
-            value: "412143"
+            value: stats?.total_count ?? 0,
         },
         {
             title: "剩余储量",
-            value: "412143"
+            value: totalReserves ?? 0,
         },
         {
             title: "生产中",
-            value: "412143"
+            value: stats?.production?.producing_count ?? 0
         },
         {
             title: "已投入工具",
-            value: "412143"
+            // TODO
+            value: 0
         },
     ]
 
     // 当前项土地信息
-    const currentMines = minesList[currentMinesIndex];
+    const currentMines = minesList[currentMinesIndex] ?? [];
 
     // 处理刷新事件
     const handleRefresh = () => {
@@ -138,7 +150,7 @@ const MinesListView = () => {
                         />
                     </Link>
 
-                    <div className='text-[#E7E7E7] text-[16px]'>我的工具(33)</div>
+                    <div className='text-[#E7E7E7] text-[16px]'>我的土地(33)</div>
 
                     {/* 刷新 */}
                     <Image
@@ -217,7 +229,7 @@ const MinesListView = () => {
             <div className='w-full flex flex-col items-center justify-center gap-[15px]'>
                 {
                     currentMines?.list?.map((item, index) => {
-                        return <MineCard key={index} data={item} />
+                        return <MineCard key={index} data={item} icon={currentMines.icon} />
                     })
                 }
             </div>

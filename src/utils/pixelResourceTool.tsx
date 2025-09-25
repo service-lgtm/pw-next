@@ -20,7 +20,29 @@ import { motion } from 'framer-motion';
 
 /** 资源key取值类型 */
 // export type ResourceKey = keyof InventoryData['materials'] | keyof InventoryData['tools'] | keyof InventoryData['special']
-export type ResourceKey = "iron" | "stone" | "wood" | "food" | "seed" | "pickaxe" | "axe" | "hoe" | "brick" | "yld";
+export type ResourceKey = PIXEL_RESOURCE_SERVICE_KEYS;
+export enum PIXEL_RESOURCE_SERVICE_KEYS {
+    /** 铁矿 */
+    IRON = "iron",
+    /** 石矿 */
+    STONE = "stone",
+    /** 木材 */
+    WOOD = "wood",
+    /** 粮食 */
+    FOOD = "food",
+    /** 种子 */
+    SEED = "seed",
+    /** 镐头 */
+    PICKAXE = "pickaxe",
+    /** 斧头 */
+    AXE = "axe",
+    /** 锄头 */
+    HOE = "hoe",
+    /** 砖头 */
+    BRICK = "brick",
+    /** 矿石 */
+    YLD = "yld",
+}
 
 /** 资源标识定义 */
 export enum PIXEL_RESOURCE_TYPES {
