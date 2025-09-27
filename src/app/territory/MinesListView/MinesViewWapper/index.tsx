@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-21 20:30:38
- * @LastEditTime: 2025-09-25 23:04:04
+ * @LastEditTime: 2025-09-27 11:42:54
  * @LastEditors: yy
  * @Description: 
  */
@@ -15,8 +15,10 @@ import { useMyYLDMines } from "@/hooks/useYLDMines";
 import { InventoryData } from "@/hooks/useInventory";
 import { useAuth } from "@/hooks/useAuth";
 import { useMiningSessions, useMiningSummary } from "@/hooks/useProduction";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { PIXEL_RESOURCE_SERVICE_KEYS } from "@/utils/pixelResourceTool";
+import { eventManager } from "@/utils/eventManager";
+import { INVENTORY_PAGE_REFETCH_EVENT } from "../../page";
 
 
 /**
@@ -58,7 +60,7 @@ const MinesListView = (props: {
     const shouldFetchData = !authLoading && isAuthenticated
 
     // 下次结算信息
-    const nextSettlement = getNextSettlementInfo();
+    // const nextSettlement = getNextSettlementInfo();
 
     const {
         mines: yldMines,
@@ -236,6 +238,19 @@ const MinesListView = (props: {
             isHarvestingDisabled: true,
         },
     ]
+    useEffect(() => {
+        // 刷新数据逻辑
+        const refetchInventory = () => {
+            refetchYLDMines();
+            refetchSessions();
+            refetchMiningSummary();
+        }
+        // 监听刷新数据事件
+        eventManager.on(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetchInventory);
+        return () => {
+            eventManager.off(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetchInventory);
+        }
+    }, [refetchYLDMines, refetchSessions, refetchMiningSummary]);
     return <ErrorBoundary>
         <motion.div
             initial={{ opacity: 0, y: -20 }}

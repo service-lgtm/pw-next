@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 21:04:11
- * @LastEditTime: 2025-09-26 21:14:03
+ * @LastEditTime: 2025-09-27 11:45:23
  * @LastEditors: yy
  * @Description: 
  */
@@ -16,7 +16,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useInventory } from "@/hooks/useInventory";
 import SynthesisDrawer from "./SynthesisDrawer";
 import MiningDrawer from "./MiningDrawer";
+import { eventManager } from "@/utils/eventManager";
 
+export const INVENTORY_PAGE_REFETCH_EVENT = {
+    inventory: 'inventory'
+}
 /** 领地页 */
 const miningCenter = () => {
     const { inventory, refetch: refetchInventory } = useInventory({ category: 'all' })
@@ -38,14 +42,12 @@ const miningCenter = () => {
 
 
     useEffect(() => {
-        // 一小时后刷新一次
-        const timer = setTimeout(() => {
-            refetchInventory();
-        }, 1000 * 60 * 60);
+        // 监听刷新数据事件
+        eventManager.on(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetchInventory);
         return () => {
-            clearTimeout(timer);
+            eventManager.off(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetchInventory);
         }
-    }, []);
+    }, [refetchInventory]);
 
     // 粮食总数
     const totalFood = inventory?.materials?.food?._resourceAmount ?? 0;
@@ -147,6 +149,7 @@ const miningCenter = () => {
 
                 {/* 开始挖矿弹窗 */}
                 {miningDrawerOpen && <MiningDrawer
+                    inventory={inventory}
                     miningDrawerOpen={miningDrawerOpen}
                     setMiningDrawerOpen={setMiningDrawerOpen}
                 />}

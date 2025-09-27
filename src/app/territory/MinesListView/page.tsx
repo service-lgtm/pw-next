@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-22 20:32:21
- * @LastEditTime: 2025-09-26 00:07:46
+ * @LastEditTime: 2025-09-27 11:54:35
  * @LastEditors: yy
  * @Description: 
  */
@@ -32,7 +32,7 @@ export const getMinesEnum: () => {
             // 铁矿
             icon: PIXEL_RESOURCE_TYPES.IRON_ORE,
             color: ["#CF1B9E", "#CF1B9E80", "#cf1b9f11"],
-            key: ""
+            key: "iron_mine"
         },
         {
             // 农田
@@ -62,6 +62,7 @@ export const getMinesEnum: () => {
             // 城市
             icon: PIXEL_RESOURCE_TYPES.CITY,
             color: ["#EEF01F", "#EEF01F80", "#ecf01f15"],
+            // TODO
             key: ""
         },
     ]
@@ -70,7 +71,6 @@ export const getMinesEnum: () => {
 /** 领地页-我的土地页 */
 const MinesListView = () => {
     const { lands, stats, loading, error, refetch } = useMyLands()
-    console.log(lands, "<>", stats, ">>>>>>>")
     // 列表刷新状态
     const [refreshing, setRefreshing] = useState(false);
     // 当前选中项土地列表

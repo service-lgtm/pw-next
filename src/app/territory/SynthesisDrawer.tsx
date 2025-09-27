@@ -6,11 +6,13 @@ import { useSynthesisSystem } from "@/hooks/useSynthesis";
 import { cn } from "@/lib/utils";
 import { getPixelResourceIcon, PIXEL_RESOURCE_NAMES, PIXEL_RESOURCE_SERVICE_KEYS, PIXEL_RESOURCE_TYPES, ResourceKey } from "@/utils/pixelResourceTool";
 import { motion } from "framer-motion";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import Image from 'next/image';
 import bg1Img from "@/public/bg1.png";
 import bg2Img from "@/public/bg2.png";
+import { eventManager } from "@/utils/eventManager";
+import { INVENTORY_PAGE_REFETCH_EVENT } from "./page";
 
 /** 合成工具列表枚举 */
 const getSynthesisToolsEnum: () => {
@@ -181,13 +183,14 @@ const synthesisDrawer = (props: synthesisDrawerProps) => {
             })
 
             if (result) {
-                setSynthesisToolCount(1) // 重置数量
-                refetch() // 刷新配方和资源数据
                 // 记录合成成功信息
                 synthesisSuccessInfoRef.current = {
                     tool: currentTools?.icon,
                     count: synthesisToolCount
                 }
+
+                setSynthesisToolCount(1) // 重置数量
+                refetch() // 刷新配方和资源数据
 
                 // 关闭合成工具抽屉
                 setSynthesisDrawerOpen(false)
@@ -200,6 +203,14 @@ const synthesisDrawer = (props: synthesisDrawerProps) => {
             console.error('[SynthesisSystem] 合成失败:', error)
         }
     }
+
+    useEffect(() => {
+        // 监听刷新数据事件
+        eventManager.on(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetch);
+        return () => {
+            eventManager.off(INVENTORY_PAGE_REFETCH_EVENT.inventory, refetch);
+        }
+    }, [refetch]);
 
     return <ErrorBoundary>
         <PixelBottomDrawer
