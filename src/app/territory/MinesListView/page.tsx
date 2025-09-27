@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-22 20:32:21
- * @LastEditTime: 2025-09-27 11:54:35
+ * @LastEditTime: 2025-09-27 21:02:32
  * @LastEditors: yy
  * @Description: 
  */
@@ -20,6 +20,7 @@ import MineCard from "./MinesCard";
 import { cn } from "@/lib/utils";
 import { useMyLands } from "@/hooks/useLands";
 import { type Land } from "@/types/assets";
+import { formatResource } from "@/utils/common";
 
 /** 土地列表枚举 */
 export const getMinesEnum: () => {
@@ -70,6 +71,7 @@ export const getMinesEnum: () => {
 
 /** 领地页-我的土地页 */
 const MinesListView = () => {
+
     const { lands, stats, loading, error, refetch } = useMyLands()
     // 列表刷新状态
     const [refreshing, setRefreshing] = useState(false);
@@ -105,7 +107,7 @@ const MinesListView = () => {
         },
         {
             title: "剩余储量",
-            value: totalReserves ?? 0,
+            value: formatResource(+(totalReserves ?? 0), 2),
         },
         {
             title: "生产中",

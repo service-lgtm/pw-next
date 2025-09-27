@@ -1,7 +1,7 @@
 /*
  * @Author: yy
  * @Date: 2025-09-19 21:04:11
- * @LastEditTime: 2025-09-27 11:45:23
+ * @LastEditTime: 2025-09-27 14:42:02
  * @LastEditors: yy
  * @Description: 
  */
@@ -17,6 +17,7 @@ import { useInventory } from "@/hooks/useInventory";
 import SynthesisDrawer from "./SynthesisDrawer";
 import MiningDrawer from "./MiningDrawer";
 import { eventManager } from "@/utils/eventManager";
+import { formatResource } from "@/utils/common";
 
 export const INVENTORY_PAGE_REFETCH_EVENT = {
     inventory: 'inventory'
@@ -58,7 +59,7 @@ const miningCenter = () => {
     const statisticsList = [
         {
             title: "粮食剩余",
-            value: totalFood
+            value: formatResource(totalFood)
         },
         {
             title: "剩余时长",

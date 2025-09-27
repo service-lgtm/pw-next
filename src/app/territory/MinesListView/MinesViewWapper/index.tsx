@@ -49,7 +49,7 @@ function getNextSettlementInfo(): { time: string; minutes: number } {
 
 
 /** 领地页-矿场列表视图 */
-const MinesListView = (props: {
+const MinesViewWapper = (props: {
     inventory: InventoryData | null
 }) => {
     const { inventory } = props;
@@ -142,6 +142,8 @@ const MinesListView = (props: {
 
     // 森林矿场统计
     const forestMine = (yldPreStats as any)?.by_type?.forest ?? {};
+    // 铁矿场统计
+    const ironMine = (yldPreStats as any)?.by_type?.iron_mine ?? {};
     // 农田矿场统计
     const farmlandMine = (yldPreStats as any)?.by_type?.farm ?? {};
     // 石矿矿场统计
@@ -153,6 +155,10 @@ const MinesListView = (props: {
     const forestMineTotalReserves = (yldPreStats as any)?.by_type?.forest?.reserves?.initial?.toFixed(2) || 0;
     // 森林总剩余储量
     const forestMineTotalReservesLeft = (yldPreStats as any)?.by_type?.forest?.total_reserves?.toFixed(2) || 0;
+    // 铁矿总初始储量
+    const ironMineTotalReserves = (yldPreStats as any)?.by_type?.iron_mine?.reserves?.initial?.toFixed(2) || 0;
+    // 铁矿总剩余储量
+    const ironMineTotalReservesLeft = (yldPreStats as any)?.by_type?.iron_mine?.total_reserves?.toFixed(2) || 0;
     // 农场总初始储量
     const farmlandMineTotalReserves = "∞";
     // (yldPreStats as any)?.by_type?.farm?.reserves?.initial?.toFixed(2);
@@ -192,9 +198,9 @@ const MinesListView = (props: {
         {
             minesName: "铁矿场",
             minesType: PIXEL_RESOURCE_TYPES.IRON_ORE,
-            minesCount: 0,
-            minesLimit: '0',
-            mineReserves: '0',
+            minesCount: ironMine?.count || 0,
+            minesLimit: ironMineTotalReserves,
+            mineReserves: ironMineTotalReservesLeft,
             reserveHarvesting: '0',
             toolCount: pickaxeInfo?.count ?? 0,
             toolCountUsed: pickaxeInfo?.working ?? 0,
@@ -269,6 +275,6 @@ const MinesListView = (props: {
     </ErrorBoundary>
 };
 
-MinesListView.displayName = 'MinesListView';
+MinesViewWapper.displayName = 'MinesViewWapper';
 
-export default MinesListView;
+export default MinesViewWapper;

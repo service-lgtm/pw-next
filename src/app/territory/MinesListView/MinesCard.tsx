@@ -109,6 +109,7 @@ const MinesCard: React.FC<MinesCardProps> = (props) => {
                     {/* TODO */}
                     可领取：{0}
                 </div>
+                {/* TODO */}
                 <PixelButton
                     variant="secondary"
                     className={cn("w-[100px] rounded-full p-[10px] text-[12px]",
